@@ -55,18 +55,40 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks }) => {
     try {
       const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY);
 
-      const tasksSummary = tasks.map(({ id, title, status, progress, assignee, startDate, dueDate, actualStartDate, actualEndDate }) => ({ id, title, status, progress, assignee, startDate, dueDate, actualStartDate, actualEndDate }));
-      const baselineSummary = baselineTasks.map(({ id, title, startDate, dueDate }) => ({ id, title, startDate, dueDate }));
+      // TOKEN OPTIMIZATION: Send only essential data to reduce costs
+      const tasksSummary = tasks.map(t => {
+        // Construct minimal object
+        const s: any = {
+          t: t.title,
+          s: t.status,
+          p: t.progress + '%',
+          start: t.startDate,
+          due: t.dueDate
+        };
+        // Only add optional fields if they exist
+        if (t.assignee) s.resp = t.assignee;
+        if (t.actualStartDate) s.realStart = t.actualStartDate;
+        if (t.actualEndDate) s.realEnd = t.actualEndDate;
+        return s;
+      });
+
+      const baselineSummary = baselineTasks.map(t => ({
+        t: t.title,
+        start: t.startDate,
+        due: t.dueDate
+      }));
 
       const prompt = `
-            Você é 'Hugo', um assistente de IA especialista em gestão de obras de construção civil, integrado ao aplicativo 'Lean Solution'.
-            Sua função é ajudar o usuário respondendo perguntas sobre o projeto e sobre como usar o aplicativo.
-            Seja profissional, conciso e prestativo. Use markdown para formatar suas respostas (listas, negrito, etc.) para melhor legibilidade.
+            Você é 'Hugo', um assistente de IA especialista em gestão de obras de construção civil.
+            Responda de forma concisa para economizar tokens.
+            
+            **Legenda dos dados:**
+            t: Título, s: Status, p: Progresso, resp: Responsável, start: Início Previsto, due: Fim Previsto, realStart: Início Real, realEnd: Fim Real.
 
             **Contexto do Projeto:**
-            - Tarefas Atuais: ${JSON.stringify(tasksSummary, null, 2)}
-            - Linha de Base (Planejamento Original): ${JSON.stringify(baselineSummary, null, 2)}
-            - Data de hoje: ${new Date().toLocaleDateString('pt-BR')}
+            - Tarefas: ${JSON.stringify(tasksSummary)}
+            - Planejamento (Baseline): ${JSON.stringify(baselineSummary)}
+            - Hoje: ${new Date().toLocaleDateString('pt-BR')}
 
             **Exemplos de suas capacidades:**
             - **Resumir o projeto:** "Qual o status geral do projeto?", "Quais tarefas estão atrasadas?".
