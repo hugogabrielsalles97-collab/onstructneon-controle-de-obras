@@ -16,6 +16,7 @@ import ConstructionIcon from './icons/ConstructionIcon';
 import FileTextIcon from './icons/FileTextIcon';
 import FilterInput from './ui/FilterInput';
 import FilterSelect from './ui/FilterSelect';
+import AlertIcon from './icons/AlertIcon';
 
 type SortKey = keyof Task | 'none';
 type SortDirection = 'asc' | 'desc';
@@ -61,12 +62,18 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     if (!success && error) showToast(`Erro ao sair: ${error}`, 'error');
   };
 
-  const handleDeleteTask = async (taskId: string) => {
-    if (window.confirm('Tem certeza que deseja excluir esta tarefa?')) {
-      const { success, error } = await deleteTask(taskId);
-      if (success) showToast('Tarefa deletada.', 'success');
-      else if (error) showToast(`Erro ao deletar tarefa: ${error}`, 'error');
-    }
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+
+  const confirmDelete = async () => {
+    if (!taskToDelete) return;
+    const { success, error } = await deleteTask(taskToDelete);
+    if (success) showToast('Tarefa deletada.', 'success');
+    else if (error) showToast(`Erro ao deletar tarefa: ${error}`, 'error');
+    setTaskToDelete(null);
+  };
+
+  const handleDeleteTask = (taskId: string) => {
+    setTaskToDelete(taskId);
   };
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -328,6 +335,41 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
           </div>
         </div>
       </main>
+
+      {/* Delete Confirmation Modal */}
+      {taskToDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
+            onClick={() => setTaskToDelete(null)}
+          ></div>
+          <div className="relative bg-[#0a0f18] rounded-xl border border-red-500/20 shadow-2xl shadow-red-500/10 w-full max-w-sm p-6 overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="flex flex-col items-center text-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                <AlertIcon className="w-6 h-6 text-red-500" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-bold text-white">Excluir Tarefa?</h3>
+                <p className="text-sm text-gray-400">Essa ação não pode ser desfeita. A tarefa será removida permanentemente.</p>
+              </div>
+              <div className="flex items-center gap-3 w-full mt-2">
+                <button
+                  onClick={() => setTaskToDelete(null)}
+                  className="flex-1 px-4 py-2 rounded-lg border border-white/10 text-white hover:bg-white/5 transition-colors text-sm font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="flex-1 px-4 py-2 rounded-lg bg-red-500/20 border border-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors text-sm font-bold flex items-center justify-center gap-2"
+                >
+                  <span>Excluir</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
