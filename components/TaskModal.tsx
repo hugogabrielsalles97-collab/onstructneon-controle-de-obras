@@ -226,6 +226,18 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
 
+        // Validação de datas futuras para campos de avanço (real)
+        if ((name === 'actualStartDate' || name === 'actualEndDate') && value) {
+            const selectedDate = new Date(value + 'T00:00:00');
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            if (selectedDate > today) {
+                alert("Não é permitido inserir uma data futura para o avanço real.");
+                return;
+            }
+        }
+
         setFormData(prev => {
             const newValues = { ...prev, [name]: value };
 
@@ -836,11 +848,11 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                                 {isFetchingActualWeather ? 'Verificando...' : 'Meteorologia (Real) com IA'}
                                             </button>
                                         </div>
-                                        <input type="date" name="actualStartDate" id="actualStartDate" value={formData.actualStartDate} onChange={handleChange} disabled={isReadOnlyExecution} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed" />
+                                        <input type="date" name="actualStartDate" id="actualStartDate" value={formData.actualStartDate} onChange={handleChange} max={new Date().toISOString().split('T')[0]} disabled={isReadOnlyExecution} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed" />
                                     </div>
                                     <div>
                                         <label htmlFor="actualEndDate" className="block text-sm font-medium text-brand-med-gray">Fim (Real)</label>
-                                        <input type="date" name="actualEndDate" id="actualEndDate" value={formData.actualEndDate} onChange={handleChange} disabled={isReadOnlyExecution} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed" />
+                                        <input type="date" name="actualEndDate" id="actualEndDate" value={formData.actualEndDate} onChange={handleChange} max={new Date().toISOString().split('T')[0]} disabled={isReadOnlyExecution} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed" />
                                     </div>
                                 </div>
 
