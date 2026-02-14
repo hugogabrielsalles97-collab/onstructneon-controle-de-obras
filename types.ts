@@ -85,5 +85,7 @@ export interface Restriction {
   created_at: string;
   resolved_at?: string;
   resolution_notes?: string;
+  actual_start_date?: string; // Data real de início
+  actual_completion_date?: string; // Data real de término
   user_id?: string; // Quem criou a restrição
 }

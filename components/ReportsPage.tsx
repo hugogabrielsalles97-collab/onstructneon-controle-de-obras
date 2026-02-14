@@ -69,8 +69,11 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
       const filterStartDate = dateFilters.startDate ? new Date(dateFilters.startDate + 'T00:00:00') : null;
       const filterEndDate = dateFilters.endDate ? new Date(dateFilters.endDate + 'T00:00:00') : null;
 
-      const matchesStartDate = !filterStartDate || taskStartDate >= filterStartDate;
-      const matchesEndDate = !filterEndDate || taskDueDate <= filterEndDate;
+      // Lógica de Overlap: 
+      // Tarefa deve terminar DEPOIS do início do filtro (se houver início)
+      const matchesStartDate = !filterStartDate || taskDueDate >= filterStartDate;
+      // Tarefa deve começar ANTES do fim do filtro (se houver fim)
+      const matchesEndDate = !filterEndDate || taskStartDate <= filterEndDate;
 
       return matchesStartDate && matchesEndDate;
     });
@@ -200,7 +203,12 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
             <section className="bg-[#111827]/60 backdrop-blur-md p-8 rounded-2xl border border-white/5 shadow-2xl hover:border-brand-accent/10 transition-colors w-full">
               <h4 className="text-xs font-black text-brand-accent mb-8 uppercase tracking-[3px] text-center italic">Avanço Físico Acumulado (PPC)</h4>
               <div className="h-[500px]">
-                <CumulativeProgressChart tasks={filteredTasks} baselineTasks={filteredBaselineTasks} />
+                <CumulativeProgressChart
+                  tasks={filteredTasks}
+                  baselineTasks={filteredBaselineTasks}
+                  startDate={dateFilters.startDate}
+                  endDate={dateFilters.endDate}
+                />
               </div>
             </section>
           </div>

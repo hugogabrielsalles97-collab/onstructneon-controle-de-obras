@@ -29,7 +29,7 @@ const ROLE_INFO: Record<'Master' | 'Planejador' | 'Gerenciador' | 'Executor', { 
   },
   'Executor': {
     desc: 'Foco operacional e campo.',
-    highlights: ['Lançamento de Produção', 'Visualização de Tarefas', 'Geração de RDO']
+    highlights: ['Lançamento de Produção', 'Visualização de Tarefas']
   }
 };
 
@@ -146,7 +146,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin, show
               </div>
               <h2 className="text-3xl font-bold text-white mb-4 leading-tight">Construa o futuro <br /><span className="text-brand-accent">com inteligência.</span></h2>
               <p className="text-brand-med-gray text-sm leading-relaxed">
-                Sistema completo para gestão de obras, integrando planejamento, execução e controle financeiro em uma plataforma unifieda.
+                Sistema completo para gestão de obras, integrando planejamento, execução e controle em uma plataforma unificada.
               </p>
             </div>
 
@@ -170,7 +170,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin, show
                 </ul>
               </div>
               <div className="text-xs text-gray-500 font-mono">
-                &copy; 2024 ConstructNeon Inc.
+                &copy; 2026 Lean Solution.
               </div>
             </div>
           </div>
@@ -188,7 +188,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin, show
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* Role Selection */}
                 <div className="md:col-span-1 group/input">
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 text-start">Função / Role</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 text-start">Perfil</label>
                   <div className="relative">
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-med-gray pointer-events-none">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
@@ -199,7 +199,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin, show
                       className="appearance-none w-full bg-[#111827] border border-white/10 text-white text-sm rounded-xl px-10 py-3 focus:outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/50 transition-all cursor-pointer hover:bg-white/5"
                     >
                       {Object.keys(TOKENS).map(r => (
-                        <option key={r} value={r}>{r}</option>
+                        <option key={r} value={r} className="bg-[#111827] text-white">{r}</option>
                       ))}
                     </select>
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
@@ -216,7 +216,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin, show
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" /></svg>
                     </div>
                     <input
-                      type="text"
+                      type="password"
                       value={token}
                       onChange={(e) => setToken(e.target.value)}
                       className={`w-full bg-[#111827] border ${tokenError ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20' : 'border-white/10 border-white/5'} text-white text-sm rounded-xl px-10 py-3 focus:outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/50 transition-all placeholder-gray-600`}

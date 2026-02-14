@@ -257,7 +257,7 @@ const LeanPage: React.FC<LeanPageProps> = ({
                                 className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all duration-300 font-bold border ${lookaheadData.impactedRestrictionsCount > 0 ? 'bg-red-500/20 text-red-400 border-red-500/50 animate-pulse' : getHeaderRestrictionButtonColor()}`}
                             >
                                 <AlertIcon className="w-5 h-5" />
-                                <span>{lookaheadData.impactedRestrictionsCount > 0 ? 'ALERTA DE PRAZO' : 'Restrições'}</span>
+                                <span>Resumo de Restrições</span>
                                 {restrictions.filter(r => r.status !== 'Resolvida').length > 0 && (
                                     <span className="px-2 py-0.5 bg-white/20 text-white rounded-full text-xs font-black">
                                         {restrictions.filter(r => r.status !== 'Resolvida').length}
@@ -320,6 +320,8 @@ const LeanPage: React.FC<LeanPageProps> = ({
                                     <option value={2}>2 Sem</option>
                                     <option value={3}>3 Sem</option>
                                     <option value={4}>4 Sem</option>
+                                    <option value={5}>5 Sem</option>
+                                    <option value={6}>6 Sem</option>
                                 </select>
                             </div>
                             <p className="text-[11px] text-brand-med-gray mt-4 leading-relaxed">
@@ -443,7 +445,9 @@ const LeanPage: React.FC<LeanPageProps> = ({
                         <div className="space-y-4">
                             <div className="flex items-center gap-3 ml-2">
                                 <div className="w-2 h-6 bg-purple-500 rounded-full"></div>
-                                <h3 className="text-lg font-bold text-white uppercase tracking-tight">Horizonte 2 Semanas (Lookahead)</h3>
+                                <h3 className="text-lg font-bold text-white uppercase tracking-tight">
+                                    Horizonte {lookaheadWeeks} Semana{lookaheadWeeks !== 1 && 's'} (Lookahead)
+                                </h3>
                             </div>
                             <div className="space-y-3">
                                 {filteredNextWeek.length === 0 ? (

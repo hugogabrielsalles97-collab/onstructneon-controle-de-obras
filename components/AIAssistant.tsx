@@ -121,78 +121,110 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks }) => {
 
   return (
     <>
+
       {/* Floating Button */}
       <button
         onClick={toggleOpen}
-        className={`fixed bottom-6 right-6 bg-brand-accent text-white w-16 h-16 rounded-full flex items-center justify-center shadow-lg shadow-brand-accent/40 hover:bg-orange-600 z-40 transform transition-all duration-300 ease-in-out ${isOpen ? 'opacity-0 scale-0' : 'opacity-100 scale-100'
-          }`}
-        aria-label="Abrir assistente de IA"
-        disabled={isOpen}
+        className={`fixed bottom-6 right-6 z-40 group transition-all duration-500 ease-in-out ${isOpen ? 'translate-y-24 opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}
+        aria-label="Abrir assistente Hugo"
       >
-        <LightbulbIcon className="w-8 h-8" />
+        <div className="absolute inset-0 bg-brand-accent/40 rounded-full blur-xl animate-pulse group-hover:bg-brand-accent/60 transition-all duration-500"></div>
+        <div className="relative bg-[#0a0f18] w-14 h-14 rounded-full flex items-center justify-center border border-brand-accent/50 shadow-[0_0_20px_rgba(227,90,16,0.3)] hover:scale-110 hover:border-brand-accent transition-transform duration-300">
+          <LightbulbIcon className="w-6 h-6 text-brand-accent drop-shadow-[0_0_5px_rgba(227,90,16,0.8)]" />
+        </div>
       </button>
 
       {/* Chat Window */}
       <div
-        className={`fixed bottom-24 right-6 w-96 max-w-[calc(100vw-3rem)] h-[60vh] max-h-[600px] bg-brand-dark rounded-lg shadow-2xl shadow-brand-accent/20 border border-brand-accent/30 flex flex-col z-50 transform transition-all duration-300 ease-in-out ${isOpen ? 'opacity-100 translate-y-0 visible' : 'opacity-0 translate-y-10 invisible'
-          }`}
+        className={`fixed bottom-6 right-6 w-[400px] max-w-[calc(100vw-2rem)] h-[650px] max-h-[85vh] flex flex-col z-50 transition-all duration-500 cubic-bezier(0.16, 1, 0.3, 1) origin-bottom-right ${isOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-90 translate-y-10 pointer-events-none'}`}
       >
-        {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b border-brand-accent/20">
-          <h3 className="text-lg font-bold text-brand-accent flex items-center gap-2">
-            <LightbulbIcon className="w-6 h-6" />
-            <span>Assistente Hugo com IA</span>
-          </h3>
-          <button onClick={toggleOpen} className="text-brand-med-gray hover:text-white">
-            <XIcon className="w-6 h-6" />
-          </button>
-        </div>
+        {/* Glass Container */}
+        <div className="absolute inset-0 bg-[#0a0f18]/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col">
 
-        {/* Messages */}
-        <div className="flex-1 p-4 overflow-y-auto space-y-4">
-          {messages.map((msg, index) => (
-            <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className={`max-w-xs md:max-w-sm lg:max-w-md px-4 py-2 rounded-lg text-white ${msg.sender === 'user' ? 'bg-brand-accent' : 'bg-brand-darkest/70'
-                  }`}
-              >
-                <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+          {/* Header */}
+          <div className="relative px-6 py-4 flex justify-between items-center border-b border-white/5 bg-gradient-to-r from-brand-accent/10 via-transparent to-transparent">
+            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay pointer-events-none"></div>
+            <div className="flex items-center gap-4 relative z-10">
+              <div className="relative">
+                <div className="absolute inset-0 bg-brand-accent rounded-full blur-md opacity-20 animate-pulse"></div>
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1f2937] to-[#111827] flex items-center justify-center border border-white/10 shadow-inner">
+                  <LightbulbIcon className="w-5 h-5 text-brand-accent" />
+                </div>
+                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-[#0a0f18] rounded-full"></div>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white leading-tight tracking-wide">Hugo AI</h3>
+                <p className="text-[10px] text-brand-accent/80 font-mono tracking-wider uppercase flex items-center gap-1">
+                  <span className="w-1 h-1 bg-brand-accent rounded-full animate-blink"></span>
+                  Engenheiro Virtual
+                </p>
               </div>
             </div>
-          ))}
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="max-w-xs md:max-w-sm lg:max-w-md px-4 py-2 rounded-lg bg-brand-darkest/70 text-brand-med-gray">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-brand-accent rounded-full animate-pulse delay-75"></div>
-                  <div className="w-2 h-2 bg-brand-accent rounded-full animate-pulse delay-150"></div>
-                  <div className="w-2 h-2 bg-brand-accent rounded-full animate-pulse delay-300"></div>
+            <button
+              onClick={toggleOpen}
+              className="relative z-10 p-2 rounded-full hover:bg-white/5 text-gray-500 hover:text-white transition-colors group"
+            >
+              <XIcon className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+            </button>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 p-5 overflow-y-auto space-y-5 scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-brand-accent/50 scrollbar-track-transparent">
+            <div className="text-center my-2 opacity-50">
+              <span className="text-[10px] text-gray-400 font-mono uppercase tracking-widest">— Hoje —</span>
+            </div>
+
+            {messages.map((msg, index) => (
+              <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}>
+                {msg.sender === 'ai' && (
+                  <div className="w-8 h-8 rounded-full bg-[#1f2937] flex items-center justify-center mr-3 flex-shrink-0 border border-white/5 shadow-sm self-end mb-1">
+                    <span className="text-xs font-bold text-brand-accent">H</span>
+                  </div>
+                )}
+                <div className={`max-w-[85%] p-4 text-sm shadow-lg backdrop-blur-sm ${msg.sender === 'user'
+                  ? 'bg-gradient-to-br from-brand-accent to-[#c2410c] text-white rounded-2xl rounded-tr-sm border border-orange-500/20'
+                  : 'bg-[#1f2937]/80 border border-white/5 text-gray-200 rounded-2xl rounded-tl-sm'
+                  }`}>
+                  <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
                 </div>
               </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
+            ))}
 
-        {/* Input */}
-        <div className="p-4 border-t border-brand-accent/20">
-          <form onSubmit={handleSend} className="flex items-center gap-2">
-            <input
-              type="text"
-              value={userInput}
-              onChange={(e) => setUserInput(e.target.value)}
-              placeholder="Pergunte sobre o projeto..."
-              className="flex-1 bg-brand-darkest/50 border border-brand-darkest rounded-md py-2 px-3 text-white focus:outline-none focus:ring-1 focus:ring-brand-accent text-sm"
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              disabled={isLoading || !userInput.trim()}
-              className="bg-brand-accent text-white rounded-md p-2.5 hover:bg-orange-600 disabled:bg-brand-med-gray/50 disabled:cursor-not-allowed transition-colors"
-            >
-              <SendIcon className="w-5 h-5" />
-            </button>
-          </form>
+            {isLoading && (
+              <div className="flex justify-start animate-fade-in pl-11">
+                <div className="bg-[#1f2937]/50 border border-white/5 rounded-2xl rounded-tl-sm px-4 py-3 flex gap-1.5 items-center w-fit">
+                  <div className="w-1.5 h-1.5 bg-brand-accent/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-1.5 h-1.5 bg-brand-accent/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <div className="w-1.5 h-1.5 bg-brand-accent/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input Area */}
+          <div className="p-4 bg-[#05080f]/80 backdrop-blur-md border-t border-white/5 relative z-20">
+            <form onSubmit={handleSend} className="relative flex items-center gap-2">
+              <input
+                type="text"
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                placeholder="Pergunte sobre sua obra..."
+                className="w-full bg-[#111827] text-white text-sm rounded-xl pl-5 pr-12 py-4 border border-white/5 focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/50 focus:outline-none transition-all placeholder-gray-600 shadow-inner font-light"
+                disabled={isLoading}
+              />
+              <button
+                type="submit"
+                disabled={isLoading || !userInput.trim()}
+                className="absolute right-2 p-2.5 bg-brand-accent rounded-lg text-white shadow-lg shadow-brand-accent/20 hover:bg-orange-600 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all duration-200 group"
+              >
+                <SendIcon className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              </button>
+            </form>
+            <p className="text-[10px] text-gray-600 text-center mt-3 font-mono">
+              Hugo AI powered by Lean Solution
+            </p>
+          </div>
         </div>
       </div>
     </>

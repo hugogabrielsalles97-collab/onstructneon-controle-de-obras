@@ -5,35 +5,35 @@ import { Task, TaskStatus } from '../types';
 interface CumulativeProgressChartProps {
   tasks: Task[];
   baselineTasks: Task[];
+  startDate?: string;
+  endDate?: string;
 }
 
-const CumulativeProgressChart: React.FC<CumulativeProgressChartProps> = ({ tasks, baselineTasks }) => {
+const CumulativeProgressChart: React.FC<CumulativeProgressChartProps> = ({ tasks, baselineTasks, startDate, endDate }) => {
   const chartData = useMemo(() => {
     if (tasks.length === 0) return [];
 
     const sortedTasks = [...tasks].sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-    const projectStart = new Date(sortedTasks[0].startDate);
     const tasksEnd = new Date(Math.max(...tasks.map(t => new Date(t.dueDate).getTime())));
-
     const today = new Date();
     today.setHours(23, 59, 59, 999);
 
-    // Gráfico vai até o final previsto ou até hoje, o que for maior
-    const endDateBoundary = new Date(Math.max(tasksEnd.getTime(), today.getTime()));
+    // Limites do gráfico
+    const chartStart = startDate ? new Date(startDate + 'T00:00:00') : new Date(sortedTasks[0].startDate);
+    const chartEnd = endDate ? new Date(endDate + 'T23:59:59') : new Date(Math.max(tasksEnd.getTime(), today.getTime()));
 
-    const data = [];
-    let currentDate = new Date(projectStart);
-    currentDate.setHours(23, 59, 59, 999);
-
-    const totalTasks = tasks.length;
-
-    while (currentDate <= endDateBoundary) {
-      const dateStr = currentDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-      const currentMs = currentDate.getTime();
-
-      // --- Cálculo do Previsto (Pondearado pelo progresso no tempo) ---
+    // Função helper para calcular progresso em uma data específica
+    const calculateAtDate = (date: Date) => {
+      const currentMs = date.getTime();
       let sumPlanned = 0;
+      let sumActual = 0;
+      let totalTasksForActual = 0; // Tarefas que contribuem para o real (iniciadas ou completas) - Não, é sobre o total do escopo.
+
+      // Mantendo a lógica original: média dos percentuais de TODAS as tarefas
+      const totalTasks = tasks.length;
+
       tasks.forEach(task => {
+        // -- Planned --
         const start = new Date(task.startDate);
         start.setHours(0, 0, 0, 0);
         const end = new Date(task.dueDate);
@@ -46,62 +46,84 @@ const CumulativeProgressChart: React.FC<CumulativeProgressChartProps> = ({ tasks
         } else {
           const duration = end.getTime() - start.getTime();
           const elapsed = currentMs - start.getTime();
-          // Evitar divisão por zero
           sumPlanned += duration > 0 ? (elapsed / duration) * 100 : 100;
         }
-      });
-      const plannedPercent = totalTasks > 0 ? Math.round(sumPlanned / totalTasks) : 0;
 
-      // --- Cálculo do Realizado (Baseado no progresso físico real reportado) ---
-      let actualPercent: number | null = null;
+        // -- Actual --
+        // Apenas se a data de cálculo for <= hoje (não projetamos futuro real)
+        if (date <= today) {
+          if (!task.actualStartDate) {
+            sumActual += 0;
+            return;
+          }
+          const actStart = new Date(task.actualStartDate);
+          actStart.setHours(0, 0, 0, 0);
 
-      // Só calculamos realizado até o dia de hoje
-      if (currentDate <= today) {
-        let sumActual = 0;
-        tasks.forEach(task => {
-          if (!task.actualStartDate) return; // Não iniciada contribui com 0
-
-          const start = new Date(task.actualStartDate);
-          start.setHours(0, 0, 0, 0);
-
-          // O "alvo" da interpolação é o fim real (se acabou) ou hoje (se em andamento)
-          let endTargetMs = today.getTime();
-
+          // Definição do fim real ou data alvo
+          let actEndTargetMs = today.getTime();
           if (task.status === TaskStatus.Completed && task.actualEndDate) {
-            const end = new Date(task.actualEndDate);
-            end.setHours(23, 59, 59, 999);
-            endTargetMs = end.getTime();
+            const actEnd = new Date(task.actualEndDate);
+            actEnd.setHours(23, 59, 59, 999);
+            actEndTargetMs = actEnd.getTime();
           }
 
-          if (currentMs < start.getTime()) {
+          if (currentMs < actStart.getTime()) {
             sumActual += 0;
-          } else if (currentMs >= endTargetMs) {
-            // Se já passou da data alvo, o progresso é o que está consolidado na tarefa
+          } else if (currentMs >= actEndTargetMs) {
             sumActual += task.progress;
           } else {
-            // Interpolação linear do progresso atual ao longo do tempo decorrido
-            const duration = endTargetMs - start.getTime();
-            const elapsed = currentMs - start.getTime();
+            // Interpolação linear do progresso
+            const duration = actEndTargetMs - actStart.getTime();
+            const elapsed = currentMs - actStart.getTime();
             const ratio = duration > 0 ? elapsed / duration : 1;
             sumActual += ratio * task.progress;
           }
-        });
-        actualPercent = totalTasks > 0 ? Math.round(sumActual / totalTasks) : 0;
-      }
+        }
+      });
+
+      return {
+        planned: totalTasks > 0 ? Math.round(sumPlanned / totalTasks) : 0,
+        actual: date <= today ? (totalTasks > 0 ? Math.round(sumActual / totalTasks) : 0) : null
+      };
+    };
+
+    // Calcular Offset (valor acumulado antes do início do gráfico)
+    let offsetPlanned = 0;
+    let offsetActual = 0;
+
+    if (startDate) {
+      const dayBefore = new Date(chartStart);
+      dayBefore.setDate(dayBefore.getDate() - 1);
+      dayBefore.setHours(23, 59, 59, 999);
+      const offsets = calculateAtDate(dayBefore);
+      offsetPlanned = offsets.planned;
+      offsetActual = offsets.actual || 0;
+    }
+
+    const data = [];
+    let currentDate = new Date(chartStart);
+    currentDate.setHours(23, 59, 59, 999);
+
+    while (currentDate <= chartEnd) {
+      const dateStr = currentDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      const values = calculateAtDate(currentDate);
+
+      // Aplicar offset e garantir que não seja negativo (por arredondamento)
+      const finalPlanned = Math.max(0, values.planned - offsetPlanned);
+      const finalActual = values.actual !== null ? Math.max(0, values.actual - offsetActual) : null;
 
       data.push({
         date: dateStr,
-        'Previsto': plannedPercent,
-        'Realizado': actualPercent,
+        'Previsto': finalPlanned,
+        'Realizado': finalActual,
       });
 
-      // Avançar 1 dia
       currentDate.setDate(currentDate.getDate() + 1);
       currentDate.setHours(23, 59, 59, 999);
     }
     return data;
 
-  }, [tasks]);
+  }, [tasks, startDate, endDate]);
 
   const tickInterval = chartData.length > 30 ? Math.floor(chartData.length / 15) : 0;
 

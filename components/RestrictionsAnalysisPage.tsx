@@ -44,11 +44,15 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
     const [filterType, setFilterType] = useState<RestrictionType | 'all'>('all');
     const [filterPriority, setFilterPriority] = useState<RestrictionPriority | 'all'>('all');
     const [filterDepartment, setFilterDepartment] = useState<string>('all');
+    const [filterImpacted, setFilterImpacted] = useState(false);
     const [selectedRestriction, setSelectedRestriction] = useState<Restriction | null>(null);
     const [resolutionNotes, setResolutionNotes] = useState('');
     const [aiInsight, setAiInsight] = useState<string | null>(null);
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
     const [showAIModal, setShowAIModal] = useState(false);
+    const [actionType, setActionType] = useState<'start' | 'resolve' | null>(null);
+    const [actionDate, setActionDate] = useState('');
+    const [filterLookahead, setFilterLookahead] = useState<'all' | '4weeks' | '12weeks'>('all');
 
     // Análise de restrições
     const analysis = useMemo(() => {
@@ -106,9 +110,38 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
             const matchType = filterType === 'all' || r.type === filterType;
             const matchPriority = filterPriority === 'all' || r.priority === filterPriority;
             const matchDepartment = filterDepartment === 'all' || r.department === filterDepartment;
-            return matchStatus && matchType && matchPriority && matchDepartment;
+
+            // Filtro de Lookahead
+            let matchLookahead = true;
+            if (filterLookahead !== 'all') {
+                const task = baselineTasks.find(t => String(t.id) === String(r.baseline_task_id));
+                if (task) {
+                    const taskStart = new Date(task.startDate);
+                    const today = new Date();
+                    const weeks = filterLookahead === '4weeks' ? 4 : 12;
+                    const horizon = new Date();
+                    horizon.setDate(today.getDate() + (weeks * 7));
+
+                    if (taskStart > horizon) matchLookahead = false;
+                }
+            }
+
+            const matchImpacted = !filterImpacted || (
+                r.due_date &&
+                r.status !== RestrictionStatus.Resolved &&
+                (() => {
+                    const task = baselineTasks.find(t => String(t.id) === String(r.baseline_task_id));
+                    if (!task) return false;
+                    const startDate = new Date(task.startDate);
+                    const impactLimit = new Date(startDate);
+                    impactLimit.setDate(startDate.getDate() - 2);
+                    return new Date(r.due_date!) > impactLimit;
+                })() // Removido '!' extra que poderia dar erro se due_date for undefined mas checado antes
+            );
+
+            return matchStatus && matchType && matchPriority && matchDepartment && matchImpacted && matchLookahead;
         });
-    }, [restrictions, filterStatuses, filterType, filterPriority, filterDepartment]);
+    }, [restrictions, filterStatuses, filterType, filterPriority, filterDepartment, filterImpacted, filterLookahead, baselineTasks]);
 
     const getTaskDetails = (baselineTaskId: string) => {
         const task = baselineTasks.find(t => String(t.id) === String(baselineTaskId));
@@ -132,20 +165,41 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
         }
     };
 
-    const handleResolve = async (restriction: Restriction) => {
-        if (!resolutionNotes.trim()) {
+    const openActionModal = (restriction: Restriction, type: 'start' | 'resolve') => {
+        setSelectedRestriction(restriction);
+        setActionType(type);
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        setActionDate(now.toISOString().slice(0, 16));
+        setResolutionNotes('');
+    };
+
+    const handleConfirmAction = async () => {
+        if (!selectedRestriction || !actionType) return;
+
+        if (actionType === 'resolve' && !resolutionNotes.trim()) {
             alert('Por favor, adicione notas de resolução');
             return;
         }
 
-        await onUpdateRestriction(restriction.id, {
-            status: RestrictionStatus.Resolved,
-            resolved_at: new Date().toISOString(),
-            resolution_notes: resolutionNotes
-        });
+        const updates: Partial<Restriction> = {};
+
+        if (actionType === 'start') {
+            updates.status = RestrictionStatus.InProgress;
+            updates.actual_start_date = new Date(actionDate).toISOString();
+        } else {
+            updates.status = RestrictionStatus.Resolved;
+            updates.resolved_at = new Date(actionDate).toISOString();
+            updates.actual_completion_date = new Date(actionDate).toISOString();
+            updates.resolution_notes = resolutionNotes;
+        }
+
+        await onUpdateRestriction(selectedRestriction.id, updates);
 
         setSelectedRestriction(null);
+        setActionType(null);
         setResolutionNotes('');
+        setActionDate('');
     };
 
     const handleGenerateAI = async () => {
@@ -303,26 +357,36 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                     </div>
 
                     {/* Alertas Críticos */}
-                    {(analysis.critical > 0 || analysis.high > 0 || analysis.impacted > 0) && (
-                        <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-6">
-                            <h3 className="text-lg font-black text-red-400 mb-3">⚠️ Atenção Requerida</h3>
-                            <div className="flex flex-wrap gap-6 text-sm">
-                                {analysis.critical > 0 && (
-                                    <p className="text-red-300">
-                                        <span className="font-black">{analysis.critical}</span> restrições críticas não resolvidas
+                    {/* Alertas Críticos (Novo Design) */}
+                    {analysis.impacted > 0 && (
+                        <div className="bg-[#1f1212] border border-red-900/50 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-lg shadow-red-900/10 relative overflow-hidden group">
+                            <div className="absolute top-0 bottom-0 left-0 w-1 bg-red-600"></div>
+
+                            <div className="flex-1 z-10">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <span className="text-orange-500">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                        </svg>
+                                    </span>
+                                    <h3 className="text-lg font-bold text-red-400">Atenção Requerida</h3>
+                                </div>
+                                <div className="flex flex-wrap gap-6 text-sm text-gray-400 pl-9">
+                                    <p>
+                                        <span className="text-white font-bold">{analysis.impacted}</span> restrições impactando o início de atividades no cronograma
                                     </p>
-                                )}
-                                {analysis.impacted > 0 && (
-                                    <p className="text-red-400 animate-pulse font-bold">
-                                        <span className="font-black">{analysis.impacted}</span> prazos impactando o cronograma
-                                    </p>
-                                )}
-                                {analysis.high > 0 && (
-                                    <p className="text-orange-300">
-                                        <span className="font-black">{analysis.high}</span> restrições de alta prioridade
-                                    </p>
-                                )}
+                                </div>
                             </div>
+
+                            <button
+                                onClick={() => setFilterImpacted(!filterImpacted)}
+                                className={`px-6 py-2 rounded-lg font-bold text-sm transition-all z-10 ${filterImpacted
+                                    ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
+                                    : 'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20'
+                                    }`}
+                            >
+                                {filterImpacted ? 'Mostrar Todas' : 'Ver Impactos'}
+                            </button>
                         </div>
                     )}
 
@@ -341,88 +405,186 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                         </div>
                     )}
 
-                    <div className="bg-[#111827] p-4 rounded-xl border border-white/5">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                            <div>
-                                <label className="block text-xs font-bold text-brand-med-gray uppercase mb-2">Status</label>
-                                <div className="flex flex-wrap gap-2">
-                                    {Object.values(RestrictionStatus).map(status => {
-                                        const isActive = filterStatuses.includes(status);
-                                        return (
-                                            <button
-                                                key={status}
-                                                onClick={() => {
-                                                    setFilterStatuses(prev =>
-                                                        prev.includes(status)
-                                                            ? prev.filter(s => s !== status)
-                                                            : [...prev, status]
-                                                    );
-                                                }}
-                                                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-200 ${isActive
-                                                        ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/50'
-                                                        : 'bg-brand-dark text-brand-med-gray border-white/10 hover:border-white/20'
-                                                    }`}
-                                            >
-                                                {status}
-                                            </button>
-                                        );
-                                    })}
-                                    <button
-                                        onClick={() => {
-                                            if (filterStatuses.length === Object.values(RestrictionStatus).length) {
-                                                setFilterStatuses([]);
-                                            } else {
-                                                setFilterStatuses(Object.values(RestrictionStatus));
-                                            }
-                                        }}
-                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-200 ${filterStatuses.length === Object.values(RestrictionStatus).length
-                                                ? 'bg-purple-500/20 text-purple-400 border-purple-500/50'
-                                                : 'bg-brand-dark text-brand-med-gray border-white/10 hover:border-white/20'
-                                            }`}
-                                    >
-                                        Todos
-                                    </button>
+                    {/* Área de Filtros Avançados */}
+                    <div className="bg-[#111827] rounded-2xl border border-white/5 shadow-xl overflow-hidden">
+                        <div className="p-1 bg-gradient-to-r from-brand-accent/20 via-transparent to-transparent"></div>
+                        <div className="p-6">
+                            {/* Header do Filtro */}
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-1 h-8 bg-brand-accent rounded-full"></div>
+                                    <div>
+                                        <h3 className="text-lg font-black text-white tracking-tight">FILTROS DE ANÁLISE</h3>
+                                        <p className="text-xs text-brand-med-gray font-medium uppercase tracking-widest">Lookahead & Restrições</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setFilterStatuses(Object.values(RestrictionStatus));
+                                        setFilterType('all');
+                                        setFilterPriority('all');
+                                        setFilterDepartment('all');
+                                        setFilterLookahead('all');
+                                        setFilterImpacted(false);
+                                    }}
+                                    className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-brand-med-gray hover:text-white text-xs font-bold transition-all flex items-center gap-2 border border-white/5"
+                                >
+                                    <XIcon className="w-4 h-4" />
+                                    Limpar Filtros
+                                </button>
+                            </div>
+
+                            {/* Grid de Inputs */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+                                {/* Filtro Horizon/Lookahead */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-widest px-1">Período (Lookahead)</label>
+                                    <div className="relative group">
+                                        <select
+                                            value={filterLookahead}
+                                            onChange={(e) => setFilterLookahead(e.target.value as any)}
+                                            className="w-full bg-[#0a0f18] text-white text-sm font-bold border border-white/10 rounded-xl px-4 py-3 appearance-none focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent/50 transition-all cursor-pointer"
+                                        >
+                                            <option value="all">Todas as Datas</option>
+                                            <option value="4weeks">Próximas 4 Semanas</option>
+                                            <option value="12weeks">Próximas 12 Semanas</option>
+                                        </select>
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-brand-med-gray group-hover:text-white transition-colors">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Filtro Tipo */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-widest px-1">Disciplina / Tipo</label>
+                                    <div className="relative group">
+                                        <select
+                                            value={filterType}
+                                            onChange={(e) => setFilterType(e.target.value as any)}
+                                            className="w-full bg-[#0a0f18] text-white text-sm font-bold border border-white/10 rounded-xl px-4 py-3 appearance-none focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent/50 transition-all cursor-pointer"
+                                        >
+                                            <option value="all">Todas as Disciplinas</option>
+                                            {Object.values(RestrictionType).map(type => (
+                                                <option key={type} value={type}>{type}</option>
+                                            ))}
+                                        </select>
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-brand-med-gray group-hover:text-white transition-colors">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Filtro Setor */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-widest px-1">Frente / Setor</label>
+                                    <div className="relative group">
+                                        <select
+                                            value={filterDepartment}
+                                            onChange={(e) => setFilterDepartment(e.target.value)}
+                                            className="w-full bg-[#0a0f18] text-white text-sm font-bold border border-white/10 rounded-xl px-4 py-3 appearance-none focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent/50 transition-all cursor-pointer"
+                                        >
+                                            <option value="all">Todos os Setores</option>
+                                            {analysis.departments.map(dept => (
+                                                <option key={dept} value={dept}>{dept}</option>
+                                            ))}
+                                        </select>
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-brand-med-gray group-hover:text-white transition-colors">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Filtro Prioridade */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-widest px-1">Prioridade</label>
+                                    <div className="relative group">
+                                        <select
+                                            value={filterPriority}
+                                            onChange={(e) => setFilterPriority(e.target.value as any)}
+                                            className="w-full bg-[#0a0f18] text-white text-sm font-bold border border-white/10 rounded-xl px-4 py-3 appearance-none focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent/50 transition-all cursor-pointer"
+                                        >
+                                            <option value="all">Todas</option>
+                                            {Object.values(RestrictionPriority).map(priority => (
+                                                <option key={priority} value={priority}>{priority}</option>
+                                            ))}
+                                        </select>
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-brand-med-gray group-hover:text-white transition-colors">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            {/* Barra de Status (Abaixo dos Filters) */}
+                            <div className="mt-6 pt-6 border-t border-white/5">
+                                <div className="flex flex-col sm:flex-row items-center gap-4">
+                                    <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-widest">Filtrar por Status:</label>
+                                    <div className="flex flex-wrap gap-2 p-1 bg-[#0a0f18] rounded-lg border border-white/5">
+                                        {[
+                                            { label: 'Todas', value: 'all', color: 'text-white' },
+                                            { label: 'Pendentes', value: RestrictionStatus.Pending, color: 'text-red-400' },
+                                            { label: 'Em Andamento', value: RestrictionStatus.InProgress, color: 'text-blue-400' },
+                                            { label: 'Resolvidas', value: RestrictionStatus.Resolved, color: 'text-green-400' }
+                                        ].map((statusOpt) => {
+                                            const isActive = statusOpt.value === 'all'
+                                                ? filterStatuses.length === Object.values(RestrictionStatus).length
+                                                : filterStatuses.includes(statusOpt.value as RestrictionStatus) && filterStatuses.length !== Object.values(RestrictionStatus).length;
+
+                                            return (
+                                                <button
+                                                    key={statusOpt.label}
+                                                    onClick={() => {
+                                                        const allStatuses = Object.values(RestrictionStatus);
+
+                                                        if (statusOpt.value === 'all') {
+                                                            setFilterStatuses(allStatuses);
+                                                        } else {
+                                                            const status = statusOpt.value as RestrictionStatus;
+
+                                                            // Se "Todas" está selecionado (length == total), clicar num item inicia seleção exclusiva desse item
+                                                            if (filterStatuses.length === allStatuses.length) {
+                                                                setFilterStatuses([status]);
+                                                            } else {
+                                                                // Toggle seleção
+                                                                if (filterStatuses.includes(status)) {
+                                                                    const newStatuses = filterStatuses.filter(s => s !== status);
+                                                                    // Se remover o último, volta para todas
+                                                                    if (newStatuses.length === 0) {
+                                                                        setFilterStatuses(allStatuses);
+                                                                    } else {
+                                                                        setFilterStatuses(newStatuses);
+                                                                    }
+                                                                } else {
+                                                                    // Adicionar seleção
+                                                                    setFilterStatuses([...filterStatuses, status]);
+                                                                }
+                                                            }
+                                                        }
+                                                    }}
+                                                    className={`px-4 py-2 rounded-md text-xs font-bold transition-all ${isActive
+                                                        ? 'bg-[#1c2333] shadow-lg border border-white/10 ' + statusOpt.color
+                                                        : 'text-gray-500 hover:text-white hover:bg-white/5'
+                                                        }`}
+                                                >
+                                                    {statusOpt.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             </div>
-                            <div>
-                                <label className="block text-xs font-bold text-brand-med-gray uppercase mb-2">Tipo</label>
-                                <select
-                                    value={filterType}
-                                    onChange={(e) => setFilterType(e.target.value as any)}
-                                    className="w-full bg-brand-dark border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-brand-accent focus:outline-none"
-                                >
-                                    <option value="all">Todos</option>
-                                    {Object.values(RestrictionType).map(type => (
-                                        <option key={type} value={type}>{type}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-brand-med-gray uppercase mb-2">Prioridade</label>
-                                <select
-                                    value={filterPriority}
-                                    onChange={(e) => setFilterPriority(e.target.value as any)}
-                                    className="w-full bg-brand-dark border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-brand-accent focus:outline-none"
-                                >
-                                    <option value="all">Todas</option>
-                                    {Object.values(RestrictionPriority).map(priority => (
-                                        <option key={priority} value={priority}>{priority}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-brand-med-gray uppercase mb-2">Setor Responsável</label>
-                                <select
-                                    value={filterDepartment}
-                                    onChange={(e) => setFilterDepartment(e.target.value)}
-                                    className="w-full bg-brand-dark border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-brand-accent focus:outline-none"
-                                >
-                                    <option value="all">Todos os Setores</option>
-                                    {analysis.departments.map(dept => (
-                                        <option key={dept} value={dept}>{dept}</option>
-                                    ))}
-                                </select>
-                            </div>
+
                         </div>
                     </div>
 
@@ -481,7 +643,7 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                                                         }
                                                         return 'text-white font-bold';
                                                     })()}`}>
-                                                        Prazo Limite: {new Date(restriction.due_date).toLocaleDateString('pt-BR')}
+                                                        Previsão Conclusão: {new Date(restriction.due_date).toLocaleDateString('pt-BR')}
                                                         {(() => {
                                                             const task = baselineTasks.find(t => String(t.id) === String(restriction.baseline_task_id));
                                                             if (task && restriction.status !== RestrictionStatus.Resolved) {
@@ -490,17 +652,23 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                                                                 impactLimit.setDate(startDate.getDate() - 2);
 
                                                                 if (new Date(restriction.due_date!) > impactLimit) {
-                                                                    return ' (Impacta Início)';
+                                                                    return ` (Impacta Início - Limite: ${impactLimit.toLocaleDateString('pt-BR')})`;
                                                                 }
                                                             }
                                                             return '';
                                                         })()}
                                                     </span>
                                                 )}
-                                                <span>Criada em: {formatDate(restriction.created_at)}</span>
-                                                {restriction.resolved_at && (
-                                                    <span className="text-green-400">Resolvida em: {formatDate(restriction.resolved_at)}</span>
+
+                                                {/* Datas Reais */}
+                                                {restriction.actual_start_date && (
+                                                    <span className="text-blue-400">Início Real: {formatDate(restriction.actual_start_date)}</span>
                                                 )}
+                                                {restriction.actual_completion_date && (
+                                                    <span className="text-green-400">Término Real: {formatDate(restriction.actual_completion_date)}</span>
+                                                )}
+
+                                                <span>Criada em: {formatDate(restriction.created_at)}</span>
                                             </div>
                                             {restriction.resolution_notes && (
                                                 <div className="mt-3 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
@@ -513,21 +681,19 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                                             {restriction.status !== RestrictionStatus.Resolved && (
                                                 <>
                                                     <button
-                                                        onClick={() => setSelectedRestriction(restriction)}
+                                                        onClick={() => openActionModal(restriction, 'resolve')}
                                                         className="px-4 py-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-all font-bold text-xs border border-green-500/30"
                                                     >
                                                         Resolver
                                                     </button>
-                                                    <button
-                                                        onClick={() => onUpdateRestriction(restriction.id, {
-                                                            status: restriction.status === RestrictionStatus.Pending
-                                                                ? RestrictionStatus.InProgress
-                                                                : RestrictionStatus.Pending
-                                                        })}
-                                                        className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-all font-bold text-xs border border-blue-500/30"
-                                                    >
-                                                        {restriction.status === RestrictionStatus.Pending ? 'Iniciar' : 'Pausar'}
-                                                    </button>
+                                                    {restriction.status === RestrictionStatus.Pending && (
+                                                        <button
+                                                            onClick={() => openActionModal(restriction, 'start')}
+                                                            className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-all font-bold text-xs border border-blue-500/30"
+                                                        >
+                                                            Iniciar
+                                                        </button>
+                                                    )}
                                                 </>
                                             )}
                                             {(user.role === 'Master' || user.role === 'Planejador') && (
@@ -547,37 +713,77 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                 </div>
             </main>
 
-            {/* Modal de Resolução */}
-            {selectedRestriction && (
+            {/* Modal de Ação (Iniciar / Resolver) */}
+            {selectedRestriction && actionType && (
                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-[#111827] rounded-2xl border border-white/10 shadow-2xl max-w-2xl w-full p-6">
-                        <h3 className="text-xl font-black text-white mb-4">Resolver Restrição</h3>
-                        <p className="text-sm text-brand-med-gray mb-4">
-                            Atividade: <span className="text-white font-bold">{getTaskDetails(selectedRestriction.baseline_task_id)?.title || 'N/A'}</span>
-                        </p>
-                        <p className="text-sm text-gray-300 mb-4">{selectedRestriction.description}</p>
-                        <textarea
-                            value={resolutionNotes}
-                            onChange={(e) => setResolutionNotes(e.target.value)}
-                            rows={4}
-                            placeholder="Descreva como a restrição foi resolvida..."
-                            className="w-full bg-brand-dark border border-white/10 rounded-xl px-4 py-3 text-white placeholder-brand-med-gray focus:border-brand-accent focus:outline-none mb-4"
-                        />
-                        <div className="flex gap-3">
+                    <div className="bg-[#111827] rounded-2xl border border-white/10 shadow-2xl max-w-lg w-full p-6 animate-in fade-in zoom-in duration-200">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-black text-white">
+                                {actionType === 'start' ? 'Iniciar Resolução' : 'Concluir Restrição'}
+                            </h3>
                             <button
                                 onClick={() => {
                                     setSelectedRestriction(null);
-                                    setResolutionNotes('');
+                                    setActionType(null);
+                                }}
+                                className="text-gray-400 hover:text-white"
+                            >
+                                <XIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <p className="text-sm text-brand-med-gray mb-1">Atividade:</p>
+                        <p className="text-sm font-bold text-white mb-4 border-l-2 border-brand-accent pl-2">
+                            {getTaskDetails(selectedRestriction.baseline_task_id)?.title || 'N/A'}
+                        </p>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">
+                                    {actionType === 'start' ? 'Data/Hora Real de Início' : 'Data/Hora Real de Término'}
+                                </label>
+                                <input
+                                    type="datetime-local"
+                                    value={actionDate}
+                                    onChange={(e) => setActionDate(e.target.value)}
+                                    className="w-full bg-brand-dark border border-white/10 rounded-xl px-4 py-3 text-white focus:border-brand-accent focus:outline-none"
+                                />
+                            </div>
+
+                            {actionType === 'resolve' && (
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">
+                                        Notas de Resolução
+                                    </label>
+                                    <textarea
+                                        value={resolutionNotes}
+                                        onChange={(e) => setResolutionNotes(e.target.value)}
+                                        rows={3}
+                                        placeholder="Descreva o que foi feito..."
+                                        className="w-full bg-brand-dark border border-white/10 rounded-xl px-4 py-3 text-white placeholder-brand-med-gray focus:border-brand-accent focus:outline-none"
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={() => {
+                                    setSelectedRestriction(null);
+                                    setActionType(null);
                                 }}
                                 className="flex-1 px-6 py-3 bg-white/5 text-white rounded-xl hover:bg-white/10 transition-all font-bold border border-white/10"
                             >
                                 Cancelar
                             </button>
                             <button
-                                onClick={() => handleResolve(selectedRestriction)}
-                                className="flex-1 px-6 py-3 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-all font-bold"
+                                onClick={handleConfirmAction}
+                                className={`flex-1 px-6 py-3 rounded-xl transition-all font-bold text-white shadow-lg ${actionType === 'start'
+                                    ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/20'
+                                    : 'bg-green-600 hover:bg-green-500 shadow-green-500/20'
+                                    }`}
                             >
-                                Marcar como Resolvida
+                                Confirmar {actionType === 'start' ? 'Início' : 'Conclusão'}
                             </button>
                         </div>
                     </div>
@@ -586,76 +792,99 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
             {/* Modal de Insight IA */}
             {showAIModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => !isGeneratingAI && setShowAIModal(false)}></div>
-                    <div className="relative bg-brand-dark border border-brand-accent/30 w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300">
+                    <div
+                        className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
+                        onClick={() => !isGeneratingAI && setShowAIModal(false)}
+                        aria-hidden="true"
+                    ></div>
+
+                    <div className="relative bg-[#0a0f18]/90 backdrop-blur-xl w-full max-w-4xl max-h-[90vh] rounded-2xl border border-white/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300">
+
                         {/* Header do Modal */}
-                        <div className="flex items-center justify-between p-6 border-b border-white/10 bg-brand-darkest/50">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-brand-accent/20 rounded-lg">
-                                    <LightbulbIcon className="w-6 h-6 text-brand-accent" />
+                        <div className="px-8 py-6 border-b border-white/5 bg-gradient-to-r from-brand-accent/10 via-transparent to-transparent flex items-center justify-between shadow-sm relative overflow-hidden">
+                            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay pointer-events-none"></div>
+                            <div className="flex items-center gap-5 relative z-10">
+                                <div className="w-12 h-12 rounded-full bg-brand-accent/10 flex items-center justify-center border border-brand-accent/20 shadow-inner">
+                                    <LightbulbIcon className="w-6 h-6 text-brand-accent animate-pulse" />
                                 </div>
                                 <div>
-                                    <h3 className="text-xl font-black text-white">Consultoria Lean IA</h3>
-                                    <p className="text-xs text-brand-med-gray font-bold uppercase tracking-wider">Análise Estratégica de Restrições</p>
+                                    <h3 className="text-xl font-black text-white tracking-wide">Consultoria Lean IA</h3>
+                                    <p className="text-xs text-brand-accent/80 font-mono uppercase tracking-widest flex items-center gap-2">
+                                        Análise Estratégica <span className="w-1.5 h-1.5 bg-brand-accent rounded-full animate-blink"></span>
+                                    </p>
                                 </div>
                             </div>
                             <button
                                 onClick={() => setShowAIModal(false)}
-                                className="p-2 hover:bg-white/5 rounded-full transition-colors text-brand-med-gray hover:text-white"
+                                className="relative z-10 p-2.5 rounded-full hover:bg-white/5 text-gray-500 hover:text-white transition-colors group"
                             >
-                                <XIcon className="w-6 h-6" />
+                                <XIcon className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
                             </button>
                         </div>
 
                         {/* Conteúdo do Insight */}
-                        <div className="flex-1 overflow-y-auto p-8 bg-[#0a0f18]/50">
+                        <div className="flex-1 overflow-y-auto p-8 bg-[#0a0f18]/50 scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-brand-accent/50 scrollbar-track-transparent">
                             {isGeneratingAI ? (
-                                <div className="flex flex-col items-center justify-center h-64 space-y-6">
+                                <div className="flex flex-col items-center justify-center h-80 space-y-8 animate-fade-in">
                                     <div className="relative">
-                                        <div className="w-16 h-16 border-4 border-brand-accent/20 border-t-brand-accent rounded-full animate-spin"></div>
+                                        <div className="absolute inset-0 bg-brand-accent blur-3xl opacity-20 animate-pulse"></div>
+                                        <div className="w-20 h-20 border-4 border-white/10 border-t-brand-accent rounded-full animate-spin"></div>
                                         <div className="absolute inset-0 flex items-center justify-center">
-                                            <SparkleIcon className="w-6 h-6 text-brand-accent animate-pulse" />
+                                            <SparkleIcon className="w-8 h-8 text-brand-accent/80 animate-pulse" />
                                         </div>
                                     </div>
-                                    <div className="text-center">
-                                        <p className="text-lg font-bold text-white">Hugo está analisando os dados...</p>
-                                        <p className="text-sm text-brand-med-gray mt-1">Cruzando restrições, prazos e responsabilidades.</p>
+                                    <div className="text-center space-y-2">
+                                        <p className="text-xl font-bold text-white tracking-tight animate-pulse">Hugo está analisando os dados...</p>
+                                        <p className="text-sm text-brand-med-gray font-mono uppercase tracking-wider">Cruzando restrições, prazos e responsabilidades</p>
+                                    </div>
+
+                                    {/* Loading Steps Visualization */}
+                                    <div className="flex gap-2 mt-4">
+                                        <div className="w-2 h-2 bg-brand-accent rounded-full animate-bounce delay-0"></div>
+                                        <div className="w-2 h-2 bg-brand-accent rounded-full animate-bounce delay-150"></div>
+                                        <div className="w-2 h-2 bg-brand-accent rounded-full animate-bounce delay-300"></div>
                                     </div>
                                 </div>
                             ) : aiInsight ? (
-                                <div className="prose prose-invert max-w-none prose-p:text-gray-300 prose-headings:text-white prose-strong:text-brand-accent prose-ul:list-disc prose-li:text-gray-300">
-                                    <div className="whitespace-pre-wrap text-gray-200 leading-relaxed space-y-4">
-                                        {aiInsight.split('\n').map((line, i) => {
-                                            if (line.startsWith('### ')) return <h3 key={i} className="text-xl font-bold text-white mt-6 mb-2">{line.replace('### ', '')}</h3>;
-                                            if (line.startsWith('## ')) return <h2 key={i} className="text-2xl font-black text-brand-accent mt-8 mb-4 border-b border-brand-accent/20 pb-2">{line.replace('## ', '')}</h2>;
-                                            if (line.startsWith('# ')) return <h1 key={i} className="text-3xl font-black text-white mt-8 mb-6">{line.replace('# ', '')}</h1>;
-                                            if (line.startsWith('- ')) return <li key={i} className="ml-4 text-gray-300">{line.replace('- ', '')}</li>;
-                                            if (line.trim() === '') return <br key={i} />;
+                                <div className="prose prose-invert max-w-none prose-p:text-gray-300 prose-headings:text-white prose-strong:text-brand-accent prose-ul:list-disc prose-li:text-gray-300 animate-slide-up">
+                                    <div className="bg-[#111827]/40 p-8 rounded-2xl border border-white/5 shadow-inner">
+                                        <div className="whitespace-pre-wrap text-gray-200 leading-relaxed space-y-4 font-light text-base">
+                                            {aiInsight.split('\n').map((line, i) => {
+                                                if (line.startsWith('### ')) return <h3 key={i} className="text-lg font-bold text-white mt-8 mb-3 flex items-center gap-2 border-l-4 border-brand-accent pl-3">{line.replace('### ', '')}</h3>;
+                                                if (line.startsWith('## ')) return <h2 key={i} className="text-2xl font-black text-brand-accent mt-10 mb-6 border-b border-brand-accent/20 pb-4 tracking-tight">{line.replace('## ', '')}</h2>;
+                                                if (line.startsWith('# ')) return <h1 key={i} className="text-3xl font-black text-white mt-8 mb-6">{line.replace('# ', '')}</h1>;
+                                                if (line.startsWith('- ')) return <li key={i} className="ml-4 text-gray-300 pl-2 border-l border-white/10 hover:border-brand-accent/50 transition-colors py-1">{line.replace('- ', '')}</li>;
+                                                if (line.trim() === '') return <br key={i} />;
 
-                                            const formattedLine = line.split(/(\*\*.*?\*\*)/).map((part, j) => {
-                                                if (part.startsWith('**') && part.endsWith('**')) {
-                                                    return <strong key={j} className="text-brand-accent">{part.slice(2, -2)}</strong>;
-                                                }
-                                                return part;
-                                            });
+                                                const formattedLine = line.split(/(\*\*.*?\*\*)/).map((part, j) => {
+                                                    if (part.startsWith('**') && part.endsWith('**')) {
+                                                        return <strong key={j} className="text-brand-accent font-bold px-1 bg-brand-accent/5 rounded">{part.slice(2, -2)}</strong>;
+                                                    }
+                                                    return part;
+                                                });
 
-                                            return <p key={i} className="text-gray-300">{formattedLine}</p>;
-                                        })}
+                                                return <p key={i} className="text-gray-300">{formattedLine}</p>;
+                                            })}
+                                        </div>
                                     </div>
                                 </div>
                             ) : (
-                                <div className="text-center text-brand-med-gray py-20">
-                                    Nenhum insight disponível no momento.
+                                <div className="flex flex-col items-center justify-center h-64 text-center space-y-4">
+                                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
+                                        <LightbulbIcon className="w-8 h-8 text-gray-600" />
+                                    </div>
+                                    <p className="text-brand-med-gray">Nenhum insight disponível no momento.</p>
                                 </div>
                             )}
                         </div>
 
                         {/* Footer do Modal */}
-                        <div className="p-6 border-t border-white/10 bg-brand-darkest/50 flex justify-end">
+                        <div className="p-6 border-t border-white/5 bg-[#05080f]/50 flex justify-end backdrop-blur-sm">
                             <button
                                 onClick={() => setShowAIModal(false)}
-                                className="px-8 py-3 bg-brand-accent text-white rounded-xl font-bold hover:bg-orange-600 transition-all shadow-lg shadow-brand-accent/20"
+                                className="px-8 py-3 bg-brand-accent text-white rounded-xl font-bold hover:bg-orange-600 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-brand-accent/20 flex items-center gap-2 group"
                             >
+                                <CheckIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
                                 Entendido
                             </button>
                         </div>

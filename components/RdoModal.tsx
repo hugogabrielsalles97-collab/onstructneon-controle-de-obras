@@ -115,61 +115,140 @@ const RdoModal: React.FC<RdoModalProps> = ({ isOpen, onClose, tasks }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex justify-center items-center p-4">
-            <div className="bg-brand-dark rounded-lg shadow-2xl shadow-brand-accent/20 border border-brand-accent/30 w-full max-w-2xl max-h-[90vh] flex flex-col animate-fade-in">
-                <div className="p-6 border-b border-brand-accent/20">
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-2xl font-bold text-brand-accent">Gerador de RDO com IA</h2>
-                        <button onClick={onClose} className="text-brand-med-gray hover:text-white text-3xl leading-none">&times;</button>
-                    </div>
-                    <p className="text-sm text-brand-med-gray mt-1">Selecione uma data para gerar um relatório diário com base nas atividades de produção registradas.</p>
-                </div>
-                <div className="p-6 flex-1 overflow-y-auto">
-                    <div className="flex flex-col sm:flex-row items-center gap-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+                className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
+                onClick={onClose}
+                aria-hidden="true"
+            ></div>
+
+            <div className="relative bg-[#0a0f18]/90 backdrop-blur-xl w-full max-w-2xl max-h-[90vh] rounded-2xl border border-white/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300">
+
+                {/* Header */}
+                <div className="px-6 py-5 border-b border-white/5 bg-gradient-to-r from-brand-accent/10 via-transparent to-transparent flex items-center justify-between shadow-sm relative overflow-hidden">
+                    <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay pointer-events-none"></div>
+                    <div className="flex items-center gap-4 relative z-10">
+                        <div className="w-10 h-10 rounded-full bg-brand-accent/10 flex items-center justify-center border border-brand-accent/20 shadow-inner">
+                            <SparkleIcon className="w-5 h-5 text-brand-accent animate-pulse" />
+                        </div>
                         <div>
-                            <label htmlFor="reportDate" className="block text-sm font-medium text-brand-med-gray">Data do Relatório</label>
+                            <h2 className="text-lg font-bold text-white tracking-wide">Gerador de RDO</h2>
+                            <p className="text-[10px] text-brand-accent/80 font-mono uppercase tracking-widest flex items-center gap-2">
+                                Powered by AI <span className="w-1 h-1 bg-brand-accent rounded-full animate-blink"></span>
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="relative z-10 p-2 rounded-full hover:bg-white/5 text-gray-500 hover:text-white transition-colors group"
+                    >
+                        <XIcon className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+                    </button>
+                </div>
+
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-brand-accent/50 scrollbar-track-transparent">
+                    {/* Controls */}
+                    <div className="bg-[#111827]/60 p-5 rounded-xl border border-white/5 flex flex-col sm:flex-row items-end gap-4 shadow-sm">
+                        <div className="flex-1 w-full space-y-2">
+                            <label htmlFor="reportDate" className="block text-xs font-bold text-gray-400 uppercase tracking-wider">
+                                Data de Referência
+                            </label>
                             <input
                                 type="date"
                                 id="reportDate"
                                 value={reportDate}
                                 onChange={(e) => setReportDate(e.target.value)}
-                                className="mt-1 block w-full sm:w-auto bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent"
+                                className="w-full bg-[#0a0f18] text-white rounded-xl px-4 py-3 border border-white/10 focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/50 outline-none transition-all shadow-inner font-mono text-sm"
                             />
                         </div>
                         <button
                             onClick={handleGenerate}
                             disabled={isGenerating}
-                            className="w-full sm:w-auto mt-2 sm:mt-6 flex items-center justify-center gap-2 px-6 py-2 bg-brand-accent text-white rounded-md hover:bg-orange-600 transition shadow-lg shadow-brand-accent/20 hover:shadow-brand-accent/40 disabled:bg-gray-500 disabled:cursor-not-allowed"
+                            className={`w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 whitespace-nowrap overflow-hidden relative group ${isGenerating
+                                    ? 'bg-brand-accent/50 cursor-not-allowed'
+                                    : 'bg-brand-accent hover:bg-orange-600 hover:scale-[1.02] active:scale-[0.98] shadow-brand-accent/20'
+                                }`}
                         >
-                            <SparkleIcon className="w-5 h-5" />
-                            {isGenerating ? 'Gerando...' : 'Gerar Relatório com IA'}
+                            {isGenerating && (
+                                <div className="absolute inset-0 bg-white/20 animate-[shimmer_1.5s_infinite] skew-x-12"></div>
+                            )}
+                            {isGenerating ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    <span className="text-sm">Processando...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <SparkleIcon className="w-4 h-4 group-hover:animate-pulse" />
+                                    <span className="text-sm">Gerar RDO</span>
+                                </>
+                            )}
                         </button>
                     </div>
 
                     {error && (
-                        <div className="mt-4 text-center text-sm text-red-400 bg-red-500/10 p-3 rounded-md">
-                            {error}
+                        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm flex items-start gap-3 animate-fade-in shadow-sm">
+                            <div className="p-1 bg-red-500/20 rounded-full mt-0.5">
+                                <XIcon className="w-3 h-3" />
+                            </div>
+                            <span className="leading-relaxed">{error}</span>
                         </div>
                     )}
 
-                    <div className="mt-6">
-                        <textarea
-                            readOnly
-                            value={isGenerating ? "A IA está analisando os dados e redigindo o relatório..." : generatedReport}
-                            placeholder="O relatório gerado aparecerá aqui..."
-                            className="w-full h-64 bg-brand-darkest/50 border border-brand-darkest rounded-md p-3 text-gray-200 text-sm focus:outline-none focus:ring-1 focus:ring-brand-accent"
-                        />
+                    <div className="relative group min-h-[300px] flex flex-col">
+                        <div className="flex items-center justify-between mb-2 px-1">
+                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Relatório Gerado</label>
+                            {generatedReport && (
+                                <button
+                                    onClick={handleCopy}
+                                    className="flex items-center gap-1.5 px-3 py-1 bg-brand-accent/10 hover:bg-brand-accent/20 text-brand-accent text-[10px] font-bold uppercase tracking-wider rounded-lg border border-brand-accent/20 transition-all backdrop-blur-md hover:border-brand-accent/40"
+                                >
+                                    <span className={copySuccess ? 'text-green-400' : ''}>
+                                        {copySuccess ? 'Copiado!' : 'Copiar Texto'}
+                                    </span>
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="relative flex-1">
+                            {isGenerating && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0f18]/80 backdrop-blur-[1px] rounded-xl z-20 border border-white/5">
+                                    <div className="relative mb-4">
+                                        <div className="absolute inset-0 bg-brand-accent blur-xl opacity-20 animate-pulse"></div>
+                                        <div className="w-12 h-12 border-2 border-brand-accent border-t-transparent rounded-full animate-spin"></div>
+                                    </div>
+                                    <p className="text-sm text-brand-med-gray font-mono animate-pulse">Analisando dados da obra...</p>
+                                </div>
+                            )}
+
+                            <textarea
+                                value={generatedReport}
+                                readOnly
+                                placeholder="O relatório detalhado gerado pela IA aparecerá aqui..."
+                                className="w-full h-full min-h-[320px] bg-[#05080f] text-gray-300 rounded-xl p-5 border border-white/5 focus:border-brand-accent/30 focus:outline-none resize-none font-mono text-xs sm:text-sm leading-relaxed shadow-inner scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-brand-accent/30"
+                            />
+                        </div>
                     </div>
                 </div>
-                <div className="p-6 border-t border-brand-accent/20 flex justify-end">
-                    <button
-                        onClick={handleCopy}
-                        disabled={!generatedReport || isGenerating}
-                        className="px-4 py-2 bg-brand-med-gray/30 text-gray-100 rounded-md hover:bg-brand-med-gray/50 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {copySuccess || 'Copiar para Área de Transferência'}
-                    </button>
-                </div>
+
+                {/* Footer */}
+                {generatedReport && !isGenerating && (
+                    <div className="p-4 border-t border-white/5 bg-[#05080f]/50 flex justify-end gap-3 backdrop-blur-sm">
+                        <button
+                            onClick={onClose}
+                            className="px-5 py-2.5 text-gray-400 hover:text-white text-sm font-bold transition-colors"
+                        >
+                            Fechar
+                        </button>
+                        <button
+                            onClick={handleCopy}
+                            className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10 text-sm font-bold transition-all shadow-sm hover:shadow-md"
+                        >
+                            {copySuccess || 'Copiar Relatório'}
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -84,7 +84,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, showToast 
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-1">Token de Acesso</label>
                         <input
-                            type="text"
+                            type="password"
                             placeholder="Digite o token do perfil"
                             value={token}
                             onChange={(e) => setToken(e.target.value)}

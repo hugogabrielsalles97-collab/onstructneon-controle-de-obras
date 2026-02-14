@@ -159,7 +159,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister, onVisit
         </div>
 
         <p className="text-center text-[10px] text-gray-600 mt-6 font-mono opacity-50">
-          &copy; {new Date().getFullYear()} ConstructNeon. Todos os direitos reservados.
+          &copy; 2026 Lean Solution.
         </p>
       </div>
     </div>
