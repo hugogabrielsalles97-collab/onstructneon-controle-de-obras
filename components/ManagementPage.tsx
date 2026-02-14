@@ -8,10 +8,21 @@ import CumulativeProgressChart from './CumulativeProgressChart';
 
 interface ManagementPageProps {
     onNavigateToDashboard: () => void;
+    onNavigateToReports: () => void;
+    onNavigateToBaseline: () => void;
+    onNavigateToAnalysis: () => void;
+    onNavigateToLean: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
-const ManagementPage: React.FC<ManagementPageProps> = ({ onNavigateToDashboard, showToast }) => {
+const ManagementPage: React.FC<ManagementPageProps> = ({
+    onNavigateToDashboard,
+    onNavigateToReports,
+    onNavigateToBaseline,
+    onNavigateToAnalysis,
+    onNavigateToLean,
+    showToast
+}) => {
     const { currentUser: user, tasks, baselineTasks, signOut, cutOffDateStr, setCutOffDateStr } = useData();
     const [selectedStatuses, setSelectedStatuses] = React.useState<string[]>(['Concluída', 'Em Andamento', 'Não Iniciada', 'Atrasada']);
     const [dateFilters, setDateFilters] = React.useState({ startDate: '', endDate: '' });
@@ -156,7 +167,16 @@ const ManagementPage: React.FC<ManagementPageProps> = ({ onNavigateToDashboard, 
 
     return (
         <div className="flex flex-col h-screen">
-            <Header user={user} onLogout={handleLogout} />
+            <Header
+                user={user}
+                onLogout={handleLogout}
+                onNavigateToDashboard={onNavigateToDashboard}
+                onNavigateToReports={onNavigateToReports}
+                onNavigateToBaseline={onNavigateToBaseline}
+                onNavigateToAnalysis={() => { }}
+                onNavigateToLean={onNavigateToLean}
+                activeScreen="management"
+            />
             <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto bg-brand-darkest/50">
                 <div className="max-w-7xl mx-auto space-y-6">
 

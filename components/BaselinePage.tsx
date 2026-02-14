@@ -9,6 +9,10 @@ declare var XLSX: any;
 
 interface BaselinePageProps {
     onNavigateToDashboard: () => void;
+    onNavigateToReports: () => void;
+    onNavigateToBaseline: () => void;
+    onNavigateToAnalysis: () => void;
+    onNavigateToLean: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
@@ -36,7 +40,14 @@ const formatDate = (dateString: string | undefined) => {
     return new Date(dateString).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
 };
 
-const BaselinePage: React.FC<BaselinePageProps> = ({ onNavigateToDashboard, showToast }) => {
+const BaselinePage: React.FC<BaselinePageProps> = ({
+    onNavigateToDashboard,
+    onNavigateToReports,
+    onNavigateToBaseline,
+    onNavigateToAnalysis,
+    onNavigateToLean,
+    showToast
+}) => {
     const { currentUser: user, baselineTasks, importBaseline, signOut, cutOffDateStr, setCutOffDateStr } = useData();
     const [isImporting, setIsImporting] = useState(baselineTasks.length === 0);
     const [file, setFile] = useState<File | null>(null);
@@ -396,7 +407,16 @@ const BaselinePage: React.FC<BaselinePageProps> = ({ onNavigateToDashboard, show
 
     return (
         <div className="flex flex-col h-screen">
-            <Header user={user} onLogout={handleLogout} />
+            <Header
+                user={user}
+                onLogout={handleLogout}
+                onNavigateToDashboard={onNavigateToDashboard}
+                onNavigateToReports={onNavigateToReports}
+                onNavigateToBaseline={() => { }}
+                onNavigateToAnalysis={onNavigateToAnalysis}
+                onNavigateToLean={onNavigateToLean}
+                activeScreen="baseline"
+            />
             <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto bg-brand-darkest/50">
                 <div className="max-w-7xl mx-auto">
                     <div className="flex justify-between items-center mb-6 flex-wrap gap-4">

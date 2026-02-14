@@ -7,10 +7,21 @@ import PpcChart from './PpcChart';
 
 interface LeanPageProps {
     onNavigateToDashboard: () => void;
+    onNavigateToReports: () => void;
+    onNavigateToBaseline: () => void;
+    onNavigateToAnalysis: () => void;
+    onNavigateToLean: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
-const LeanPage: React.FC<LeanPageProps> = ({ onNavigateToDashboard, showToast }) => {
+const LeanPage: React.FC<LeanPageProps> = ({
+    onNavigateToDashboard,
+    onNavigateToReports,
+    onNavigateToBaseline,
+    onNavigateToAnalysis,
+    onNavigateToLean,
+    showToast
+}) => {
     const { currentUser: user, tasks, baselineTasks, signOut } = useData();
 
     if (!user) return null;
@@ -74,7 +85,16 @@ const LeanPage: React.FC<LeanPageProps> = ({ onNavigateToDashboard, showToast })
 
     return (
         <div className="flex flex-col h-screen">
-            <Header user={user} onLogout={handleLogout} />
+            <Header
+                user={user}
+                onLogout={handleLogout}
+                onNavigateToDashboard={onNavigateToDashboard}
+                onNavigateToReports={onNavigateToReports}
+                onNavigateToBaseline={onNavigateToBaseline}
+                onNavigateToAnalysis={onNavigateToAnalysis}
+                onNavigateToLean={() => { }}
+                activeScreen="lean"
+            />
             <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto bg-[#0a0f18]">
                 <div className="max-w-7xl mx-auto space-y-8">
 

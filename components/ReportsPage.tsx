@@ -13,6 +13,10 @@ import FilterInput from './ui/FilterInput';
 
 interface ReportsPageProps {
   onNavigateToDashboard: () => void;
+  onNavigateToReports: () => void;
+  onNavigateToBaseline: () => void;
+  onNavigateToAnalysis: () => void;
+  onNavigateToLean: () => void;
   showToast: (message: string, type: 'success' | 'error') => void;
 }
 
@@ -23,7 +27,14 @@ const ReportSectionHeader: React.FC<{ children: React.ReactNode }> = ({ children
   </h3>
 );
 
-const ReportsPage: React.FC<ReportsPageProps> = ({ onNavigateToDashboard, showToast }) => {
+const ReportsPage: React.FC<ReportsPageProps> = ({
+  onNavigateToDashboard,
+  onNavigateToReports,
+  onNavigateToBaseline,
+  onNavigateToAnalysis,
+  onNavigateToLean,
+  showToast
+}) => {
   const { currentUser: user, tasks, baselineTasks, signOut } = useData();
   const [dateFilters, setDateFilters] = useState({ startDate: '', endDate: '' });
   const [statusFilter, setStatusFilter] = useState<'all' | 'overdue' | TaskStatus>('all');
@@ -88,7 +99,16 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ onNavigateToDashboard, showTo
 
   return (
     <div className="flex flex-col h-screen bg-brand-darkest/90">
-      <Header user={user} onLogout={handleLogout} />
+      <Header
+        user={user}
+        onLogout={handleLogout}
+        onNavigateToDashboard={onNavigateToDashboard}
+        onNavigateToReports={() => { }}
+        onNavigateToBaseline={onNavigateToBaseline}
+        onNavigateToAnalysis={onNavigateToAnalysis}
+        onNavigateToLean={onNavigateToLean}
+        activeScreen="reports"
+      />
 
       <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto bg-brand-darkest/50 relative">
         {/* Background decorative light */}

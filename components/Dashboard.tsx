@@ -212,7 +212,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-brand-darkest/50 relative">
-        <Header user={user} onLogout={handleLogout} />
+        <Header
+          user={user}
+          onLogout={handleLogout}
+          onNavigateToDashboard={() => { }}
+          onNavigateToReports={onNavigateToReports}
+          onNavigateToBaseline={onNavigateToBaseline}
+          onNavigateToAnalysis={onNavigateToAnalysis}
+          onNavigateToLean={onNavigateToLean}
+          activeScreen="dashboard"
+        />
 
         <div className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-8 animate-slide-up animate-stagger-2">
           <div className="max-w-screen-2xl mx-auto space-y-8">

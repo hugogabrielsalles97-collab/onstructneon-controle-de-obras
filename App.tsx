@@ -110,13 +110,21 @@ Por favor, acesse o aplicativo para mais detalhes.
       const isPlanner = currentUser.role === 'Planejador';
       const currentScreen = isPlanner ? screen : 'dashboard';
 
+      const navigationProps = {
+        onNavigateToDashboard: () => setScreen('dashboard'),
+        onNavigateToReports: () => setScreen('reports'),
+        onNavigateToBaseline: () => setScreen('baseline'),
+        onNavigateToAnalysis: () => setScreen('management'),
+        onNavigateToLean: () => setScreen('lean'),
+      };
+
       switch (currentScreen) {
-        case 'dashboard': return <Dashboard onOpenModal={handleOpenTaskModal} onOpenRdoModal={handleOpenRdoModal} onNavigateToReports={() => setScreen('reports')} onNavigateToBaseline={() => setScreen('baseline')} onNavigateToAnalysis={() => setScreen('management')} onNavigateToLean={() => setScreen('lean')} showToast={showToast} />;
-        case 'reports': return <ReportsPage onNavigateToDashboard={() => setScreen('dashboard')} showToast={showToast} />;
-        case 'baseline': return <BaselinePage onNavigateToDashboard={() => setScreen('dashboard')} showToast={showToast} />;
-        case 'management': return <ManagementPage onNavigateToDashboard={() => setScreen('dashboard')} showToast={showToast} />;
-        case 'lean': return <LeanPage onNavigateToDashboard={() => setScreen('dashboard')} showToast={showToast} />;
-        default: return <Dashboard onOpenModal={handleOpenTaskModal} onOpenRdoModal={handleOpenRdoModal} onNavigateToReports={() => setScreen('reports')} onNavigateToBaseline={() => setScreen('baseline')} onNavigateToAnalysis={() => setScreen('management')} onNavigateToLean={() => setScreen('lean')} showToast={showToast} />;
+        case 'dashboard': return <Dashboard onOpenModal={handleOpenTaskModal} onOpenRdoModal={handleOpenRdoModal} {...navigationProps} showToast={showToast} />;
+        case 'reports': return <ReportsPage {...navigationProps} showToast={showToast} />;
+        case 'baseline': return <BaselinePage {...navigationProps} showToast={showToast} />;
+        case 'management': return <ManagementPage {...navigationProps} showToast={showToast} />;
+        case 'lean': return <LeanPage {...navigationProps} showToast={showToast} />;
+        default: return <Dashboard onOpenModal={handleOpenTaskModal} onOpenRdoModal={handleOpenRdoModal} {...navigationProps} showToast={showToast} />;
       }
     }
 
