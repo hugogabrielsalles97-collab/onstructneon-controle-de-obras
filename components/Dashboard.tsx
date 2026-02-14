@@ -62,9 +62,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
   };
 
   const handleDeleteTask = async (taskId: string) => {
-    const { success, error } = await deleteTask(taskId);
-    if (success) showToast('Tarefa deletada.', 'success');
-    else if (error) showToast(`Erro ao deletar tarefa: ${error}`, 'error');
+    if (window.confirm('Tem certeza que deseja excluir esta tarefa?')) {
+      const { success, error } = await deleteTask(taskId);
+      if (success) showToast('Tarefa deletada.', 'success');
+      else if (error) showToast(`Erro ao deletar tarefa: ${error}`, 'error');
+    }
   };
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
