@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lean Solution V1.0</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    @keyframes animated-grid {
+      0% {
+        background-position: 0 0;
+      }
+
+      100% {
+        background-position: 40px 40px;
+      }
+    }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #060a12;
+      background-image:
+        radial-gradient(circle at 2px 2px, rgba(227, 90, 16, 0.05) 1px, transparent 0);
+      background-size: 32px 32px;
+      color: #f3f4f6;
+      color-scheme: dark;
+      /* Seta Normal - Laranja */
+      cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23e35a10' stroke='black' stroke-width='0.5'%3E%3Cpath d='M4.5 1.5L4.5 22.5L10 17L14.5 24.5L17.5 23L13 15.5L20.5 15.5L4.5 1.5Z'/%3E%3C/svg%3E") 4 2, auto;
+    }
+
+    /* Interativos: Seta Laranja Pointer */
+    button,
+    a,
+    select,
+    [role="button"],
+    .cursor-pointer {
+      cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23e35a10' stroke='black' stroke-width='0.5'%3E%3Cpath d='M4.5 1.5L4.5 22.5L10 17L14.5 24.5L17.5 23L13 15.5L20.5 15.5L4.5 1.5Z'/%3E%3C/svg%3E") 4 2, pointer !important;
+    }
+
+    /* Manter cursor de texto para inputs */
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="date"],
+    textarea,
+    [contenteditable="true"] {
+      cursor: text !important;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #0a0f18;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #195470;
+      border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #e35a10;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    .bg-brand-darkest\/50 {
+      background-color: rgba(6, 10, 18, 0.85) !important;
+    }
+
+    @media print {
+      @page {
+        margin: 1cm;
+        size: A4 landscape;
+      }
+
+      body {
+        background: none !important;
+        color: #000 !important;
+        font-size: 8pt;
+      }
+
+      .printable-area {
+        display: block !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+      }
+
+      .non-printable {
+        display: none !important;
+      }
+
+      .table-print {
+        background-color: #fff !important;
+        color: #000 !important;
+        border-collapse: collapse !important;
+        width: 100% !important;
+        table-layout: auto !important;
+      }
+
+      .table-print th,
+      .table-print td {
+        border: 1px solid #eee !important;
+        padding: 4px 6px !important;
+        font-size: 7pt !important;
+        vertical-align: middle !important;
+        color: #000 !important;
+        background: transparent !important;
+      }
+
+      .table-print th {
+        background-color: #f3f4f6 !important;
+        font-weight: bold !important;
+        text-transform: uppercase !important;
+      }
+
+      /* Fix overlapping dates in print */
+      .grid.grid-cols-2 {
+        display: block !important;
+      }
+
+      .grid.grid-cols-2>div {
+        display: inline-block !important;
+        width: 48% !important;
+        margin-bottom: 2px !important;
+        vertical-align: top !important;
+      }
+
+      .status-badge-print {
+        color: #000 !important;
+        background-color: #fff !important;
+        border: 1px solid #ccc !important;
+        padding: 1px 3px !important;
+        border-radius: 2px !important;
+        font-size: 6pt !important;
+        font-weight: bold !important;
+      }
+
+      .progress-bar-print-bg {
+        background-color: #f3f4f6 !important;
+        border: 1px solid #ddd !important;
+        height: 6pt !important;
+      }
+
+      .progress-bar-print-fg {
+        background-color: #10b981 !important;
+      }
+    }
+
+    /* Utilitários de Animação Profissional */
+    .animate-slide-up {
+      animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      opacity: 0;
+    }
+
+    .animate-stagger-1 {
+      animation-delay: 0.1s;
+    }
+
+    .animate-stagger-2 {
+      animation-delay: 0.2s;
+    }
+
+    .animate-stagger-3 {
+      animation-delay: 0.3s;
+    }
+
+    .animate-stagger-4 {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes slideInRight {
+      from {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes shine {
+      from {
+        transform: translateX(-100%) skewX(-15deg);
+      }
+
+      to {
+        transform: translateX(200%) skewX(-15deg);
+      }
+    }
+
+    .hover-shine:hover::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 50%;
+      height: 100%;
+      background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.05), transparent);
+      animation: shine 0.8s ease-in-out;
+    }
+
+    .pulse-neon {
+      animation: pulse-neon 2s infinite;
+    }
+
+    @keyframes pulse-neon {
+
+      0%,
+      100% {
+        opacity: 1;
+        filter: drop-shadow(0 0 2px #e35a10);
+      }
+
+      50% {
+        opacity: 0.8;
+        filter: drop-shadow(0 0 8px #e35a10);
+      }
+    }
+
+    .smooth-transition {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  </style>
+  <script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://esm.sh/@google/genai",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js",
+    "recharts": "https://esm.sh/recharts@^3.7.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4"
+  }
+}
+</script>
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'brand-dark-gray': '#4a4a49',
+            'brand-med-gray': '#9d9d9c',
+            'brand-darkest': '#023146',
+            'brand-dark': '#195470',
+            'brand-accent': '#e35a10',
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.5s ease-in-out forwards',
+            'slide-up': 'slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            'blinking-border': 'blinking-border 1.5s ease-in-out infinite',
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: 0, transform: 'translateY(10px)' },
+              '100%': { opacity: 1, transform: 'translateY(0)' },
+            },
+            slideUp: {
+              '0%': { opacity: 0, transform: 'translateY(20px)' },
+              '100%': { opacity: 1, transform: 'translateY(0)' },
+            },
+            'blinking-border': {
+              '0%, 100%': { borderColor: '#ef4444', boxShadow: '0 0 5px rgba(239, 68, 68, 0.7)' },
+              '50%': { borderColor: '#f87171', boxShadow: '0 0 15px rgba(248, 113, 113, 0.9)' },
+            },
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="stylesheet" href="/index.css">
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>
