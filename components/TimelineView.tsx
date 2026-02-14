@@ -53,9 +53,16 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, baselineTasks, onEdi
             return { dateRange: [], projectStart: monthStart, projectEnd: monthEnd, today };
         }
 
-        const sortedTasks = tasksForRange.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-        const projectStart = new Date(sortedTasks[0].startDate);
-        const projectEnd = new Date(Math.max(...tasksForRange.map(t => new Date(t.dueDate).getTime())));
+        const allDates: number[] = [];
+        tasksForRange.forEach(t => {
+            allDates.push(new Date(t.startDate).getTime());
+            allDates.push(new Date(t.dueDate).getTime());
+            if (t.actualStartDate) allDates.push(new Date(t.actualStartDate).getTime());
+            if (t.actualEndDate) allDates.push(new Date(t.actualEndDate).getTime());
+        });
+
+        const projectStart = new Date(allDates.length > 0 ? Math.min(...allDates) : new Date().getTime());
+        const projectEnd = new Date(allDates.length > 0 ? Math.max(...allDates) : new Date().getTime());
 
         projectStart.setDate(projectStart.getDate() - 2); // Add some padding
         projectEnd.setDate(projectEnd.getDate() + 2); // Add some padding
@@ -100,8 +107,15 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, baselineTasks, onEdi
                         </div>
                     )}
                     {sortedVisibleTasks.map((task, index) => {
-                        const taskStart = new Date(task.startDate);
-                        const taskEnd = new Date(task.dueDate);
+                        // Use actual dates for rendering if available
+                        const effectiveStartDateStr = task.actualStartDate || task.startDate;
+                        // If actualEndDate is missing but actualStartDate exists, use actualStartDate + duration or just actualStartDate
+                        // For now, if actualEndDate is missing, we might use dueDate, but that might be misleading if the task is late.
+                        // Let's rely on standard logic: if actualEndDate exists, use it. If not, use dueDate.
+                        const effectiveEndDateStr = task.actualEndDate || task.dueDate;
+
+                        const taskStart = new Date(effectiveStartDateStr);
+                        const taskEnd = new Date(effectiveEndDateStr);
 
                         const startOffset = getDaysDifference(projectStart, taskStart);
                         const duration = getDaysDifference(taskStart, taskEnd) + 1;
@@ -148,7 +162,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, baselineTasks, onEdi
                                     }}
                                     onClick={() => onEditTask(task)}
                                 >
-                                    <div className="relative w-full h-full rounded-md bg-brand-dark/50 border border-brand-med-gray/40 flex items-center transition-all group-hover:brightness-125 shadow-md">
+                                    <div className={`relative w-full h-full rounded-md bg-brand-dark/50 border ${task.actualStartDate ? 'border-brand-accent' : 'border-brand-med-gray/40'} flex items-center transition-all group-hover:brightness-125 shadow-md`}>
                                         {task.progress > 0 && (
                                             <div
                                                 className={`absolute top-0 left-0 h-full ${statusColors[displayStatus]} rounded-md`}
@@ -159,11 +173,16 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, baselineTasks, onEdi
                                             {task.title}
                                         </p>
                                     </div>
-                                    <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-max max-w-xs bg-brand-darkest text-white text-xs rounded py-1 px-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl">
+                                    <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-max max-w-xs bg-brand-darkest text-white text-xs rounded py-1 px-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl z-50">
                                         <p className="font-bold">{task.title}</p>
                                         <p>{task.assignee}</p>
                                         <p>Progresso: {task.progress}%</p>
-                                        <p>Previsto: {formatDate(task.startDate)} - {formatDate(task.dueDate)}</p>
+                                        <div className="mt-1 pt-1 border-t border-white/20">
+                                            <p className="text-[10px] opacity-75">Prev: {formatDate(task.startDate)} - {formatDate(task.dueDate)}</p>
+                                            {task.actualStartDate && (
+                                                <p className="text-[10px] text-brand-accent font-bold">Real: {formatDate(task.actualStartDate)} {task.actualEndDate ? `- ${formatDate(task.actualEndDate)}` : ''}</p>
+                                            )}
+                                        </div>
                                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-b-8 border-b-brand-darkest"></div>
                                     </div>
                                 </div>
