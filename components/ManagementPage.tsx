@@ -297,7 +297,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                                         <span className="text-[9px] text-brand-med-gray uppercase">{baseline.location}</span>
                                                     </div>
                                                     <h3 className="text-base font-bold text-gray-300">{baseline.title}</h3>
-                                                    <p className="text-[10px] text-green-500 font-bold uppercase tracking-widest mt-1">✓ ITEM FINALIZADO (DATA DE CORTE)</p>
+                                                    <p className="text-[10px] text-green-500 font-bold uppercase tracking-widest mt-1">✓ ITEM FINALIZADO</p>
                                                 </div>
                                             </div>
                                             <div className="text-right">
