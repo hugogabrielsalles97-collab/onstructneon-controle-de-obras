@@ -122,6 +122,21 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, baselineTasks, onEdi
                         const displayStatus = getDisplayStatus(task);
                         const baselineTask = baselineTasks.find(bt => bt.id === task.id);
 
+                        // Visual Limit Logic: Clamp progress bar to "Today"
+                        let visualProgress = task.progress;
+                        // Only clamp if the task overlaps with today or is in the future relative to today
+                        if (taskStart <= today) {
+                            if (taskEnd >= today) {
+                                const daysToToday = getDaysDifference(taskStart, today) + 1;
+                                const maxPossibleProgress = (daysToToday / duration) * 100;
+                                visualProgress = Math.min(task.progress, maxPossibleProgress);
+                            }
+                            // If taskEnd < today, allow full progress (100% or whatever it is)
+                        } else {
+                            // Task starts in future
+                            visualProgress = 0;
+                        }
+
                         if (startOffset < 0 || duration <= 0) return null;
 
                         return (
@@ -166,7 +181,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, baselineTasks, onEdi
                                         {task.progress > 0 && (
                                             <div
                                                 className={`absolute top-0 left-0 h-full ${statusColors[displayStatus]} rounded-md`}
-                                                style={{ width: `${task.progress}%` }}
+                                                style={{ width: `${visualProgress}%` }}
                                             ></div>
                                         )}
                                         <p className="relative z-10 text-sm font-semibold text-white truncate text-shadow px-3">
