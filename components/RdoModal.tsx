@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Task } from '../types';
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { useData } from '../context/DataProvider';
 import XIcon from './icons/XIcon';
 import SparkleIcon from './icons/SparkleIcon';
 
@@ -11,6 +12,7 @@ interface RdoModalProps {
 }
 
 const RdoModal: React.FC<RdoModalProps> = ({ isOpen, onClose, tasks }) => {
+    const { currentUser: user } = useData();
     const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
     const [generatedReport, setGeneratedReport] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -20,6 +22,11 @@ const RdoModal: React.FC<RdoModalProps> = ({ isOpen, onClose, tasks }) => {
     if (!isOpen) return null;
 
     const handleGenerate = async () => {
+        const canUseAI = user?.role === 'Master' || user?.role === 'Gerenciador';
+        if (!canUseAI) {
+            alert('Upgrade necessário para usar IA.');
+            return;
+        }
         setIsGenerating(true);
         setGeneratedReport('');
         setError('');
@@ -135,7 +142,7 @@ const RdoModal: React.FC<RdoModalProps> = ({ isOpen, onClose, tasks }) => {
                             className="w-full sm:w-auto mt-2 sm:mt-6 flex items-center justify-center gap-2 px-6 py-2 bg-brand-accent text-white rounded-md hover:bg-orange-600 transition shadow-lg shadow-brand-accent/20 hover:shadow-brand-accent/40 disabled:bg-gray-500 disabled:cursor-not-allowed"
                         >
                             <SparkleIcon className="w-5 h-5" />
-                            {isGenerating ? 'Gerando...' : 'Gerar Relatório'}
+                            {isGenerating ? 'Gerando...' : 'Gerar Relatório com IA'}
                         </button>
                     </div>
 

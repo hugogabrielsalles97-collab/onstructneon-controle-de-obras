@@ -12,6 +12,7 @@ interface ManagementPageProps {
     onNavigateToBaseline: () => void;
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
+    onUpgradeClick: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
@@ -21,9 +22,10 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
     onNavigateToBaseline,
     onNavigateToAnalysis,
     onNavigateToLean,
+    onUpgradeClick,
     showToast
 }) => {
-    const { currentUser: user, tasks, baselineTasks, signOut, cutOffDateStr, setCutOffDateStr } = useData();
+    const { currentUser: user, tasks, baselineTasks, signOut, cutOffDateStr } = useData();
     const [selectedStatuses, setSelectedStatuses] = React.useState<string[]>(['Concluída', 'Em Andamento', 'Não Iniciada', 'Atrasada']);
     const [dateFilters, setDateFilters] = React.useState({ startDate: '', endDate: '' });
 
@@ -175,6 +177,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 onNavigateToBaseline={onNavigateToBaseline}
                 onNavigateToAnalysis={() => { }}
                 onNavigateToLean={onNavigateToLean}
+                onUpgradeClick={onUpgradeClick}
                 activeScreen="management"
             />
             <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto bg-brand-darkest/50">
@@ -212,16 +215,6 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                 </div>
                             </div>
 
-                            {/* Filtro de Corte (Retroatividade) */}
-                            <div className="flex flex-col border-l border-brand-dark pl-4">
-                                <label className="text-[10px] text-brand-accent uppercase font-black mb-1">Data de Corte (Analítica)</label>
-                                <input
-                                    type="date"
-                                    value={cutOffDateStr}
-                                    onChange={(e) => setCutOffDateStr(e.target.value)}
-                                    className="bg-brand-darkest border border-brand-accent/30 rounded text-[10px] p-1.5 text-brand-accent font-bold focus:ring-1 focus:ring-brand-accent outline-none"
-                                />
-                            </div>
 
                             <div className="flex flex-col border-l border-brand-dark pl-4">
                                 <label className="text-[10px] text-brand-med-gray uppercase font-black mb-1">Filtro de Status</label>

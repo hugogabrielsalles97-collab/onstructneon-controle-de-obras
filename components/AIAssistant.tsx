@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Task } from '../types';
+import { useData } from '../context/DataProvider';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import XIcon from './icons/XIcon';
 import SendIcon from './icons/SendIcon';
@@ -16,11 +17,14 @@ interface Message {
 }
 
 const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks }) => {
+  const { currentUser: user } = useData();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const canUseAI = user?.role === 'Master' || user?.role === 'Gerenciador';
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -85,6 +89,10 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks }) => {
   };
 
   const toggleOpen = () => {
+    if (!isOpen && !canUseAI) {
+      alert('Upgrade necessário para usar o Assistente Hugo com IA.');
+      return;
+    }
     setIsOpen(!isOpen);
   };
 
@@ -110,7 +118,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks }) => {
         <div className="flex justify-between items-center p-4 border-b border-brand-accent/20">
           <h3 className="text-lg font-bold text-brand-accent flex items-center gap-2">
             <LightbulbIcon className="w-6 h-6" />
-            <span>Assistente Hugo</span>
+            <span>Assistente Hugo com IA</span>
           </h3>
           <button onClick={toggleOpen} className="text-brand-med-gray hover:text-white">
             <XIcon className="w-6 h-6" />

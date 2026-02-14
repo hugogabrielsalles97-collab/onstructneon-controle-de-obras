@@ -28,6 +28,7 @@ interface DashboardProps {
   onNavigateToBaseline: () => void;
   onNavigateToAnalysis: () => void;
   onNavigateToLean: () => void;
+  onUpgradeClick: () => void;
   showToast: (message: string, type: 'success' | 'error') => void;
 }
 
@@ -43,13 +44,15 @@ const initialFilters = {
   endDate: '',
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToReports, onNavigateToBaseline, onNavigateToAnalysis, onNavigateToLean, showToast }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToReports, onNavigateToBaseline, onNavigateToAnalysis, onNavigateToLean, onUpgradeClick, showToast }) => {
   const { currentUser: user, tasks, baselineTasks, signOut, deleteTask } = useData();
   const [filters, setFilters] = useState(initialFilters);
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'dueDate', direction: 'asc' });
 
   if (!user) return null;
-  const isPlanner = user.role === 'Planejador';
+  const showFullMenu = user.role !== 'Executor';
+  const canWritePlanning = user.role === 'Master' || user.role === 'Planejador';
+  const canUseAI = user.role === 'Master' || user.role === 'Gerenciador';
 
   const handleLogout = async () => {
     const { success, error } = await signOut();
@@ -186,7 +189,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
           <nav className="space-y-2">
             <h3 className="text-[10px] text-brand-med-gray font-black uppercase tracking-[2px] mb-4 ml-2">Menu Principal</h3>
             <NavButton active icon={<ChartIcon className="w-5 h-5" />} label="Painel de Controle" onClick={() => { }} />
-            {isPlanner && (
+            {showFullMenu && (
               <>
                 <NavButton icon={<BaselineIcon className="w-5 h-5" />} label="Linha Base" onClick={onNavigateToBaseline} />
                 <NavButton icon={<ChartIcon className="w-5 h-5" />} label="Dashboards" onClick={onNavigateToReports} />
@@ -204,7 +207,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-black text-white truncate leading-none">{user.fullName}</p>
-              <p className="text-[10px] font-bold text-brand-med-gray mt-1 uppercase tracking-wider">{user.role}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-[10px] font-bold text-brand-med-gray uppercase tracking-wider">{user.role}</p>
+                <button
+                  onClick={onUpgradeClick}
+                  className="text-[8px] bg-brand-accent/20 text-brand-accent border border-brand-accent/30 px-1 py-0.5 rounded hover:bg-brand-accent hover:text-white transition-all font-black uppercase"
+                >
+                  Upgrade
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -220,6 +231,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
           onNavigateToBaseline={onNavigateToBaseline}
           onNavigateToAnalysis={onNavigateToAnalysis}
           onNavigateToLean={onNavigateToLean}
+          onUpgradeClick={onUpgradeClick}
           activeScreen="dashboard"
         />
 
@@ -234,23 +246,23 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
               </div>
 
               <div className="flex items-center gap-3 w-full md:w-auto">
-                {isPlanner && (
-                  <>
-                    <button
-                      onClick={onOpenRdoModal}
-                      className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-[#121c2e] text-cyan-400 px-5 py-3 rounded-xl hover:bg-cyan-500 hover:text-white transition-all duration-300 font-bold border border-cyan-500/20 shadow-xl shadow-cyan-500/5 group"
-                    >
-                      <FileTextIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                      <span>Gerar RDO</span>
-                    </button>
-                    <button
-                      onClick={() => onOpenModal(null)}
-                      className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-brand-accent text-white px-6 py-3 rounded-xl hover:bg-[#e35a10] transition-all duration-300 font-bold shadow-xl shadow-brand-accent/20 border border-white/10"
-                    >
-                      <PlusIcon className="w-5 h-5" />
-                      <span>Nova Tarefa</span>
-                    </button>
-                  </>
+                {(canWritePlanning || user.role === 'Gerenciador') && (
+                  <button
+                    onClick={canUseAI ? onOpenRdoModal : () => showToast('Upgrade necessário para usar IA.', 'error')}
+                    className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-[#121c2e] text-cyan-400 px-5 py-3 rounded-xl hover:bg-cyan-500 hover:text-white transition-all duration-300 font-bold border border-cyan-500/20 shadow-xl shadow-cyan-500/5 group"
+                  >
+                    <FileTextIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    <span>Gerar RDO com IA</span>
+                  </button>
+                )}
+                {canWritePlanning && (
+                  <button
+                    onClick={() => onOpenModal(null)}
+                    className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-brand-accent text-white px-6 py-3 rounded-xl hover:bg-[#e35a10] transition-all duration-300 font-bold shadow-xl shadow-brand-accent/20 border border-white/10"
+                  >
+                    <PlusIcon className="w-5 h-5" />
+                    <span>Nova Tarefa</span>
+                  </button>
                 )}
               </div>
             </div>
@@ -292,6 +304,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
 
             {/* Task Table Container */}
             <div className="printable-area bg-[#111827]/40 rounded-2xl border border-white/5 overflow-hidden shadow-inner animate-slide-up animate-stagger-3">
+              <div className="flex items-center gap-3 px-6 pt-5 pb-3 border-b border-white/5">
+                <div className="w-1.5 h-6 bg-brand-accent rounded-full"></div>
+                <h3 className="text-lg font-black text-white uppercase tracking-wide">Programação Semanal</h3>
+                <span className="text-[10px] font-bold text-brand-med-gray bg-white/5 px-2 py-1 rounded-full">{filteredAndSortedTasks.length} tarefas</span>
+              </div>
               <TaskListView
                 tasks={filteredAndSortedTasks}
                 baselineTasks={baselineTasks}

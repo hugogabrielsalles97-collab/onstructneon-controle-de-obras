@@ -42,7 +42,48 @@ export interface Task {
 export interface User {
   id: string;
   username: string;
-  role: 'Planejador' | 'Executor' | 'Visitante';
+  role: 'Master' | 'Planejador' | 'Gerenciador' | 'Executor';
   fullName?: string;
   whatsapp?: string;
+}
+
+// Sistema de Restrições (Lean Construction)
+export enum RestrictionType {
+  Material = 'Material',
+  Labor = 'Mão de Obra',
+  Equipment = 'Equipamento',
+  Design = 'Projeto/Desenho',
+  Safety = 'Segurança',
+  Weather = 'Clima',
+  Predecessor = 'Atividade Predecessora',
+  Other = 'Outro'
+}
+
+export enum RestrictionStatus {
+  Pending = 'Pendente',
+  InProgress = 'Em Resolução',
+  Resolved = 'Resolvida'
+}
+
+export enum RestrictionPriority {
+  Critical = 'Crítica',
+  High = 'Alta',
+  Medium = 'Média',
+  Low = 'Baixa'
+}
+
+export interface Restriction {
+  id: string;
+  baseline_task_id: string; // Referência à tarefa da baseline
+  type: RestrictionType;
+  description: string;
+  status: RestrictionStatus;
+  priority: RestrictionPriority;
+  responsible: string; // Responsável pela remoção
+  department?: string; // Setor responsável
+  due_date?: string; // Data limite para conclusão
+  created_at: string;
+  resolved_at?: string;
+  resolution_notes?: string;
+  user_id?: string; // Quem criou a restrição
 }

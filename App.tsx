@@ -6,20 +6,26 @@ import ReportsPage from './components/ReportsPage';
 import BaselinePage from './components/BaselinePage';
 import ManagementPage from './components/ManagementPage';
 import LeanPage from './components/LeanPage';
+import RestrictionsAnalysisPage from './components/RestrictionsAnalysisPage';
 import TaskModal from './components/TaskModal';
 import RdoModal from './components/RdoModal';
 import AIAssistant from './components/AIAssistant';
+import UpgradeModal from './components/UpgradeModal';
 import Toast from './components/Toast';
-import { Task } from './types';
+import { Task, Restriction } from './types';
 import { DataProvider, useData } from './context/DataProvider';
 
-type Screen = 'login' | 'register' | 'dashboard' | 'reports' | 'baseline' | 'management' | 'lean';
+type Screen = 'login' | 'register' | 'dashboard' | 'reports' | 'baseline' | 'management' | 'lean' | 'restrictions';
 
 const AppContent: React.FC = () => {
-  const { session, currentUser, allUsers, tasks, baselineTasks, isLoading, saveTask, loginAsVisitor } = useData();
-  const [screen, setScreen] = useState<Screen>('dashboard');
+  const {
+    session, currentUser, allUsers, tasks, baselineTasks, restrictions, isLoading,
+    saveTask, signOut, saveRestriction, updateRestriction, deleteRestriction
+  } = useData();
+  const [screen, setScreen] = useState<Screen>('login');
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isRdoModalOpen, setIsRdoModalOpen] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -89,47 +95,64 @@ Por favor, acesse o aplicativo para mais detalhes.
     handleCloseTaskModal();
   };
 
-  const handleVisitorLoginWrapper = () => {
-    loginAsVisitor();
-    setScreen('dashboard');
-  };
 
   const renderContent = () => {
     if (isLoading) {
       return <div className="flex justify-center items-center h-screen text-brand-accent text-xl">Carregando...</div>;
     }
-    if (!session && !currentUser) {
+
+    if (!currentUser) {
       switch (screen) {
-        case 'login': return <LoginScreen onNavigateToRegister={() => setScreen('register')} onVisitorLogin={handleVisitorLoginWrapper} showToast={showToast} />;
         case 'register': return <RegisterScreen onNavigateToLogin={() => setScreen('login')} showToast={showToast} />;
-        default: return <LoginScreen onNavigateToRegister={() => setScreen('register')} onVisitorLogin={handleVisitorLoginWrapper} showToast={showToast} />;
+        case 'login':
+        default: return <LoginScreen onNavigateToRegister={() => setScreen('register')} showToast={showToast} onVisitorLogin={() => { }} />;
       }
     }
 
-    if (currentUser) {
-      const isPlanner = currentUser.role === 'Planejador';
-      const currentScreen = isPlanner ? screen : 'dashboard';
+    const navigationProps = {
+      onNavigateToDashboard: () => setScreen('dashboard'),
+      onNavigateToReports: () => setScreen('reports'),
+      onNavigateToBaseline: () => setScreen('baseline'),
+      onNavigateToAnalysis: () => setScreen('management'),
+      onNavigateToLean: () => setScreen('lean'),
+      onUpgradeClick: () => setIsUpgradeModalOpen(true),
+    };
 
-      const navigationProps = {
-        onNavigateToDashboard: () => setScreen('dashboard'),
-        onNavigateToReports: () => setScreen('reports'),
-        onNavigateToBaseline: () => setScreen('baseline'),
-        onNavigateToAnalysis: () => setScreen('management'),
-        onNavigateToLean: () => setScreen('lean'),
-      };
-
-      switch (currentScreen) {
-        case 'dashboard': return <Dashboard onOpenModal={handleOpenTaskModal} onOpenRdoModal={handleOpenRdoModal} {...navigationProps} showToast={showToast} />;
-        case 'reports': return <ReportsPage {...navigationProps} showToast={showToast} />;
-        case 'baseline': return <BaselinePage {...navigationProps} showToast={showToast} />;
-        case 'management': return <ManagementPage {...navigationProps} showToast={showToast} />;
-        case 'lean': return <LeanPage {...navigationProps} showToast={showToast} />;
-        default: return <Dashboard onOpenModal={handleOpenTaskModal} onOpenRdoModal={handleOpenRdoModal} {...navigationProps} showToast={showToast} />;
-      }
+    switch (screen) {
+      case 'dashboard': return <Dashboard onOpenModal={handleOpenTaskModal} onOpenRdoModal={handleOpenRdoModal} {...navigationProps} showToast={showToast} />;
+      case 'reports': return <ReportsPage {...navigationProps} showToast={showToast} />;
+      case 'baseline': return <BaselinePage {...navigationProps} showToast={showToast} />;
+      case 'management': return <ManagementPage {...navigationProps} showToast={showToast} />;
+      case 'lean': return (
+        <LeanPage
+          {...navigationProps}
+          onNavigateToRestrictions={() => setScreen('restrictions')}
+          onSaveRestriction={saveRestriction}
+          onUpdateRestriction={updateRestriction}
+          onDeleteRestriction={deleteRestriction}
+          restrictions={restrictions}
+          showToast={showToast}
+        />
+      );
+      case 'restrictions': return (
+        <RestrictionsAnalysisPage
+          user={currentUser}
+          restrictions={restrictions}
+          baselineTasks={baselineTasks}
+          onLogout={async () => {
+            const { success, error } = await signOut();
+            if (!success && error) showToast(`Erro ao sair: ${error}`, 'error');
+            setScreen('login');
+          }}
+          {...navigationProps}
+          onNavigateToRestrictions={() => setScreen('restrictions')}
+          onUpdateRestriction={updateRestriction}
+          onDeleteRestriction={deleteRestriction}
+        />
+      );
+      default: return <Dashboard onOpenModal={handleOpenTaskModal} onOpenRdoModal={handleOpenRdoModal} {...navigationProps} showToast={showToast} />;
     }
-
-    return <LoginScreen onNavigateToRegister={() => setScreen('register')} onVisitorLogin={handleVisitorLoginWrapper} showToast={showToast} />;
-  }
+  };
 
   return (
     <div className="min-h-screen bg-brand-darkest text-gray-100">
@@ -155,6 +178,13 @@ Por favor, acesse o aplicativo para mais detalhes.
       )}
       {currentUser && (
         <AIAssistant tasks={tasks} baselineTasks={baselineTasks} />
+      )}
+      {isUpgradeModalOpen && (
+        <UpgradeModal
+          isOpen={isUpgradeModalOpen}
+          onClose={() => setIsUpgradeModalOpen(false)}
+          showToast={showToast}
+        />
       )}
       {toast && (
         <Toast

@@ -139,10 +139,19 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
     const [analyzingPhotoIndex, setAnalyzingPhotoIndex] = useState<number | null>(null);
     const [safetyAnalysisResult, setSafetyAnalysisResult] = useState<{ status: 'idle' | 'safe' | 'risk'; message: string }>({ status: 'idle', message: '' });
 
-    const isReadOnlyPlanning = user.role !== 'Planejador';
-    const isReadOnlyExecution = user.role === 'Visitante';
+    const isMaster = user.role === 'Master';
+    const isPlanner = user.role === 'Planejador';
+    const isManager = user.role === 'Gerenciador';
+    const isExecutor = user.role === 'Executor';
 
-    const assignableUsers = (allUsers || []).filter(u => u.role === 'Planejador' || u.role === 'Executor');
+    const canEditPlanning = isMaster || isPlanner;
+    const canEditExecution = isMaster || isPlanner || isExecutor;
+    const canUseAI = isMaster || isManager;
+
+    const isReadOnlyPlanning = !canEditPlanning;
+    const isReadOnlyExecution = !canEditExecution;
+
+    const assignableUsers = (allUsers || []).filter(u => u.role !== 'Gerenciador');
 
     useEffect(() => {
         if (isOpen) {
@@ -695,12 +704,12 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                         <label htmlFor="baseline_id" className="block text-sm font-medium text-brand-med-gray">Vínculo com Linha de Base (Macro)</label>
                                         <button
                                             type="button"
-                                            onClick={handleSuggestBaseline}
+                                            onClick={() => canUseAI ? handleSuggestBaseline() : alert('Upgrade necessário para usar IA.')}
                                             disabled={isMappingBaseline || !formData.title || isReadOnlyPlanning}
                                             className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-md bg-purple-500/20 text-purple-400 border border-purple-500/50 hover:bg-purple-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                         >
                                             <SparkleIcon className="w-3.5 h-3.5" />
-                                            {isMappingBaseline ? 'Vinculando...' : 'IA: Sugerir Vínculo'}
+                                            {isMappingBaseline ? 'Vinculando...' : 'Sugerir Vínculo com IA'}
                                         </button>
                                     </div>
                                     <select
@@ -748,12 +757,12 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                             <label htmlFor="dueDate" className="block text-sm font-medium text-brand-med-gray">Fim (Prev.)</label>
                                             <button
                                                 type="button"
-                                                onClick={handleFetchPlannedWeather}
+                                                onClick={() => canUseAI ? handleFetchPlannedWeather() : alert('Upgrade necessário para usar IA.')}
                                                 disabled={isFetchingPlannedWeather || !formData.startDate || !formData.dueDate || isReadOnlyPlanning}
                                                 className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-md bg-cyan-500/20 text-cyan-400 border border-cyan-500/50 hover:bg-cyan-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                             >
                                                 <WeatherIcon className="w-3.5 h-3.5" />
-                                                {isFetchingPlannedWeather ? 'Verificando...' : 'Verificar Previsão'}
+                                                {isFetchingPlannedWeather ? 'Verificando...' : 'Previsão do Tempo com IA'}
                                             </button>
                                         </div>
                                         <input type="date" name="dueDate" id="dueDate" value={formData.dueDate} onChange={handleChange} required disabled={isReadOnlyPlanning} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed" />
@@ -820,12 +829,12 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                             <label htmlFor="actualStartDate" className="block text-sm font-medium text-brand-med-gray">Início (Real)</label>
                                             <button
                                                 type="button"
-                                                onClick={handleFetchActualWeather}
+                                                onClick={() => canUseAI ? handleFetchActualWeather() : alert('Upgrade necessário para usar IA.')}
                                                 disabled={isFetchingActualWeather || !formData.actualStartDate || isReadOnlyExecution}
                                                 className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-md bg-cyan-500/20 text-cyan-400 border border-cyan-500/50 hover:bg-cyan-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                             >
                                                 <WeatherIcon className="w-3.5 h-3.5" />
-                                                {isFetchingActualWeather ? 'Verificando...' : 'Verificar Meteorologia (Real)'}
+                                                {isFetchingActualWeather ? 'Verificando...' : 'Meteorologia (Real) com IA'}
                                             </button>
                                         </div>
                                         <input type="date" name="actualStartDate" id="actualStartDate" value={formData.actualStartDate} onChange={handleChange} disabled={isReadOnlyExecution} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed" />
@@ -874,12 +883,12 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                         <label htmlFor="observations" className="block text-sm font-medium text-brand-med-gray">Observações da Produção</label>
                                         <button
                                             type="button"
-                                            onClick={handleAIAssist}
+                                            onClick={() => canUseAI ? handleAIAssist() : alert('Upgrade necessário para usar IA.')}
                                             disabled={isAnalyzing || !formData.actualStartDate || isReadOnlyExecution}
                                             className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-md bg-brand-accent/20 text-brand-accent border border-brand-accent/50 hover:bg-brand-accent/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                         >
                                             <SparkleIcon className="w-3.5 h-3.5" />
-                                            {isAnalyzing ? 'Analisando...' : 'Análise de IA'}
+                                            {isAnalyzing ? 'Analisando...' : 'Gerar Análise com IA'}
                                         </button>
                                     </div>
                                     <textarea name="observations" id="observations" value={formData.observations || ''} onChange={handleChange} rows={3} disabled={isReadOnlyExecution} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed" placeholder="Anote aqui qualquer ocorrência, problema ou detalhe relevante da execução..." />
@@ -912,10 +921,10 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                                             </button>
                                                             <button
                                                                 type="button"
-                                                                onClick={() => handleAnalyzeSafety(photo, index)}
+                                                                onClick={() => canUseAI ? handleAnalyzeSafety(photo, index) : alert('Upgrade necessário para usar IA.')}
                                                                 disabled={analyzingPhotoIndex !== null}
                                                                 className="absolute bottom-1 left-1 bg-black/60 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-500 disabled:bg-gray-500 disabled:cursor-wait"
-                                                                title="Analisar Segurança da Foto"
+                                                                title="Analisar Segurança com IA"
                                                             >
                                                                 {analyzingPhotoIndex === index
                                                                     ? <div className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
@@ -946,7 +955,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                         </div>
                         <div className="mt-6 flex justify-end space-x-3">
                             <button type="button" onClick={onClose} className="px-4 py-2 bg-brand-med-gray/30 text-gray-100 rounded-md hover:bg-brand-med-gray/50 transition">Cancelar</button>
-                            <button type="submit" disabled={user.role === 'Visitante'} className="px-4 py-2 bg-brand-accent text-white rounded-md hover:bg-orange-600 transition shadow-lg shadow-brand-accent/20 hover:shadow-brand-accent/40 disabled:bg-gray-500 disabled:cursor-not-allowed">Salvar</button>
+                            <button type="submit" disabled={isManager} className="px-4 py-2 bg-brand-accent text-white rounded-md hover:bg-orange-600 transition shadow-lg shadow-brand-accent/20 hover:shadow-brand-accent/40 disabled:bg-gray-500 disabled:cursor-not-allowed">Salvar</button>
                         </div>
                     </form>
                 </div>

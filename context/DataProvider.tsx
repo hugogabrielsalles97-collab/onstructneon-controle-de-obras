@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient';
-import { User, Task } from '../types';
+import { User, Task, Restriction } from '../types';
 
 interface DataContextType {
     session: Session | null;
@@ -14,10 +14,14 @@ interface DataContextType {
     saveTask: (task: Task) => Promise<{ success: boolean; error?: string }>;
     deleteTask: (taskId: string) => Promise<{ success: boolean; error?: string }>;
     importBaseline: (tasks: Task[]) => Promise<{ success: boolean; error?: string }>;
+    restrictions: Restriction[];
+    saveRestriction: (restriction: Omit<Restriction, 'id' | 'created_at' | 'user_id'>) => Promise<{ success: boolean; error?: string }>;
+    updateRestriction: (id: string, updates: Partial<Restriction>) => Promise<{ success: boolean; error?: string }>;
+    deleteRestriction: (id: string) => Promise<{ success: boolean; error?: string }>;
     cutOffDateStr: string;
     setCutOffDateStr: (date: string) => void;
-    loginAsVisitor: () => void;
     signOut: () => Promise<{ success: boolean; error?: string }>;
+    upgradeRole: (newRole: User['role']) => Promise<{ success: boolean; error?: string }>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -28,6 +32,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [tasks, setTasks] = useState<Task[]>([]);
     const [baselineTasks, setBaselineTasks] = useState<Task[]>([]);
+    const [restrictions, setRestrictions] = useState<Restriction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [cutOffDateStr, setCutOffDateStr] = useState('2026-01-10');
 
@@ -73,7 +78,20 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 .single();
 
             if (profileError) console.error("Error fetching profile:", profileError);
-            if (profile) setCurrentUser(profile);
+            if (profile) {
+                // Check if this is the master user and update role if necessary
+                if (profile.username === 'hugo.sales@egtc.com.br' && profile.role !== 'Master') {
+                    const { error: updateError } = await supabase
+                        .from('profiles')
+                        .update({ role: 'Master' })
+                        .eq('id', profile.id);
+
+                    if (!updateError) {
+                        profile.role = 'Master';
+                    }
+                }
+                setCurrentUser(profile);
+            }
 
             // Fetch all users
             const { data: allProfiles, error: allProfilesError } = await supabase
@@ -90,6 +108,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             // Fetch baseline (All rows)
             const baselineResult = await fetchAllRows('baseline_tasks');
             setBaselineTasks(baselineResult.data || []);
+
+            // Fetch restrictions (All rows)
+            const restrictionsResult = await fetchAllRows('restrictions');
+            setRestrictions(restrictionsResult.data || []);
 
         } catch (error: any) {
             console.error('Erro ao carregar dados:', error.message);
@@ -184,7 +206,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const importBaseline = async (newTasks: Task[]) => {
         if (!session) return { success: false, error: 'No session' };
         try {
-            const { error: deleteError } = await supabase.from('baseline_tasks').delete().eq('user_id', session.user.id);
+            // Limpa a linha de base globalmente antes de importar a nova
+            const { error: deleteError } = await supabase.from('baseline_tasks').delete().neq('id', 'clear_all_rows');
             if (deleteError) throw deleteError;
 
             const tasksToInsert = newTasks.map(t => ({ ...t, user_id: session.user.id }));
@@ -198,10 +221,44 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
-    const loginAsVisitor = () => {
-        const visitorUser: User = { id: 'visitor', username: 'Visitante', role: 'Visitante' };
-        setCurrentUser(visitorUser);
+    const saveRestriction = async (restriction: Omit<Restriction, 'id' | 'created_at' | 'user_id'>) => {
+        if (!session) return { success: false, error: 'No session' };
+        try {
+            const { data, error } = await supabase.from('restrictions').insert([{ ...restriction, user_id: session.user.id }]).select();
+            if (error) throw error;
+            if (data?.[0]) {
+                setRestrictions(prev => [...prev, data[0]]);
+            }
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
     };
+
+    const updateRestriction = async (id: string, updates: Partial<Restriction>) => {
+        try {
+            const { data, error } = await supabase.from('restrictions').update(updates).eq('id', id).select();
+            if (error) throw error;
+            if (data?.[0]) {
+                setRestrictions(prev => prev.map(r => r.id === id ? data[0] : r));
+            }
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    };
+
+    const deleteRestriction = async (id: string) => {
+        try {
+            const { error } = await supabase.from('restrictions').delete().eq('id', id);
+            if (error) throw error;
+            setRestrictions(prev => prev.filter(r => r.id !== id));
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    };
+
 
     const signOut = async () => {
         const { error } = await supabase.auth.signOut();
@@ -209,11 +266,28 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return { success: true };
     };
 
+    const upgradeRole = async (newRole: User['role']) => {
+        if (!session || !currentUser) return { success: false, error: 'Usuário não autenticado' };
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({ role: newRole })
+                .eq('id', currentUser.id);
+
+            if (error) throw error;
+
+            setCurrentUser(prev => prev ? { ...prev, role: newRole } : null);
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    };
+
     return (
         <DataContext.Provider value={{
-            session, currentUser, allUsers, tasks, baselineTasks, isLoading, refreshData,
-            saveTask, deleteTask, importBaseline, cutOffDateStr, setCutOffDateStr,
-            loginAsVisitor, signOut
+            session, currentUser, allUsers, tasks, baselineTasks, restrictions, isLoading, refreshData,
+            saveTask, deleteTask, importBaseline, saveRestriction, updateRestriction, deleteRestriction,
+            cutOffDateStr, setCutOffDateStr, signOut, upgradeRole
         }}>
             {children}
         </DataContext.Provider>

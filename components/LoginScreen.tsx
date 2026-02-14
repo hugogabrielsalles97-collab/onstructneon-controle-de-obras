@@ -102,21 +102,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister, onVisit
           </button>
         </p>
 
-        <div className="relative flex py-2 items-center">
-          <div className="flex-grow border-t border-brand-dark"></div>
-          <span className="flex-shrink mx-4 text-brand-med-gray text-xs">OU</span>
-          <div className="flex-grow border-t border-brand-dark"></div>
-        </div>
-
-        <div>
-          <button
-            type="button"
-            onClick={onVisitorLogin}
-            className="group relative w-full flex justify-center py-2 px-4 border border-brand-accent text-sm font-medium rounded-md text-brand-accent bg-transparent hover:bg-brand-accent hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent focus:ring-offset-brand-dark transition-all duration-300"
-          >
-            Acessar como Visitante
-          </button>
-        </div>
       </div>
     </div>
   );

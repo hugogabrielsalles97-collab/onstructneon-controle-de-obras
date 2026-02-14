@@ -195,16 +195,14 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEdi
                 </td>
                 <td className="px-5 py-5 rounded-r-2xl border-r border-t border-b border-white/5 align-middle text-right non-printable">
                   <div className="flex justify-end gap-2">
-                    {userRole !== 'Visitante' && (
-                      <button
-                        onClick={() => onEditTask(task)}
-                        className="p-2 bg-white/5 hover:bg-brand-accent/20 text-brand-med-gray hover:text-brand-accent rounded-lg transition-all duration-300 border border-white/5"
-                        title="Editar"
-                      >
-                        <EditIcon className="w-4 h-4" />
-                      </button>
-                    )}
-                    {userRole === 'Planejador' && (
+                    <button
+                      onClick={() => onEditTask(task)}
+                      className="p-2 bg-white/5 hover:bg-brand-accent/20 text-brand-med-gray hover:text-brand-accent rounded-lg transition-all duration-300 border border-white/5"
+                      title="Editar"
+                    >
+                      <EditIcon className="w-4 h-4" />
+                    </button>
+                    {(userRole === 'Master' || userRole === 'Planejador') && (
                       <button
                         onClick={() => onDeleteTask(task.id)}
                         className="p-2 bg-white/5 hover:bg-red-500/20 text-brand-med-gray hover:text-red-500 rounded-lg transition-all duration-300 border border-white/5"

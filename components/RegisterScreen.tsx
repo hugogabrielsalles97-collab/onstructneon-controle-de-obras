@@ -7,13 +7,34 @@ interface RegisterScreenProps {
   showToast: (message: string, type: 'success' | 'error') => void;
 }
 
-const TOKENS: Record<'Planejador' | 'Executor', string> = {
-  'Planejador': 'admin',
-  'Executor': 'producao',
+const TOKENS: Record<'Master' | 'Planejador' | 'Gerenciador' | 'Executor', string> = {
+  'Master': 'admin',
+  'Planejador': 'planning',
+  'Gerenciador': 'manager',
+  'Executor': 'production',
+};
+
+const ROLE_INFO: Record<'Master' | 'Planejador' | 'Gerenciador' | 'Executor', { desc: string; highlights: string[] }> = {
+  'Master': {
+    desc: 'Controle total da obra e do sistema.',
+    highlights: ['Planejamento e Execução', 'Linha Base e Relatórios', 'IA Assistant e IA Insights']
+  },
+  'Planejador': {
+    desc: 'Gestão estratégica e cronograma.',
+    highlights: ['Edição de Planejamento', 'Gestão de Linha Base', 'Análise de Restrições']
+  },
+  'Gerenciador': {
+    desc: 'Monitoramento e Análise Inteligente.',
+    highlights: ['IA Assistant de Elite', 'Visualização de Relatórios', 'Acesso Full Read-only']
+  },
+  'Executor': {
+    desc: 'Foco operacional e campo.',
+    highlights: ['Lançamento de Produção', 'Visualização de Tarefas', 'Geração de RDO']
+  }
 };
 
 const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin, showToast }) => {
-  const [role, setRole] = useState<'Planejador' | 'Executor'>('Executor');
+  const [role, setRole] = useState<'Master' | 'Planejador' | 'Gerenciador' | 'Executor'>('Executor');
   const [token, setToken] = useState('');
   const [fullName, setFullName] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
@@ -86,12 +107,12 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin, show
     }
 
     if (user) {
-      // The trigger in Supabase will now handle profile creation automatically.
-      setSuccess('Usuário cadastrado com sucesso! Verifique seu e-mail para confirmar a conta e depois faça o login.');
-      showToast('Cadastro realizado! Verifique seu e-mail.', 'success');
+      // Com a confirmação de e-mail desativada no Supabase, a conta está ativa na hora.
+      setSuccess('Usuário cadastrado com sucesso! Você já pode realizar o seu login.');
+      showToast('Cadastro realizado com sucesso!', 'success');
       setTimeout(() => {
         onNavigateToLogin();
-      }, 4000);
+      }, 2500);
     }
     setLoading(false);
   };
@@ -108,17 +129,31 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin, show
         </div>
 
         <form className="mt-8 space-y-4" onSubmit={handleRegister}>
+          <div className="bg-brand-darkest/30 p-4 rounded-lg border border-brand-accent/10 mb-4 animate-fade-in" key={role}>
+            <h4 className="text-xs font-bold text-brand-accent uppercase tracking-widest mb-2">Permissões do Perfil</h4>
+            <p className="text-sm text-white font-semibold mb-2">{ROLE_INFO[role].desc}</p>
+            <ul className="grid grid-cols-1 gap-1">
+              {ROLE_INFO[role].highlights.map((item, idx) => (
+                <li key={idx} className="flex items-center gap-2 text-[10px] text-brand-med-gray">
+                  <span className="w-1 h-1 bg-brand-accent rounded-full"></span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="role" className="block text-sm font-medium text-brand-med-gray mb-1">Tipo de Usuário</label>
               <select
                 id="role"
                 value={role}
-                onChange={(e) => setRole(e.target.value as 'Planejador' | 'Executor')}
+                onChange={(e) => setRole(e.target.value as 'Master' | 'Planejador' | 'Gerenciador' | 'Executor')}
                 className="appearance-none block w-full px-3 py-2 border border-brand-darkest bg-brand-darkest/50 text-gray-100 rounded-md focus:outline-none focus:ring-brand-accent focus:border-brand-accent sm:text-sm"
               >
                 <option value="Executor">Executor</option>
                 <option value="Planejador">Planejador</option>
+                <option value="Gerenciador">Gerenciador</option>
+                <option value="Master">Master</option>
               </select>
             </div>
             <div>

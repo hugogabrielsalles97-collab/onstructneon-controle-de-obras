@@ -17,6 +17,7 @@ interface HeaderProps {
   onNavigateToBaseline?: () => void;
   onNavigateToAnalysis?: () => void;
   onNavigateToLean?: () => void;
+  onUpgradeClick?: () => void;
   activeScreen?: string;
 }
 
@@ -28,17 +29,18 @@ const Header: React.FC<HeaderProps> = ({
   onNavigateToBaseline,
   onNavigateToAnalysis,
   onNavigateToLean,
+  onUpgradeClick,
   activeScreen = 'dashboard'
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const isPlanner = user.role === 'Planejador';
+  const showFullMenu = user.role !== 'Executor';
 
   const menuItems = [
     { id: 'dashboard', label: 'Painel de Controle', icon: <ChartIcon className="w-5 h-5" />, onClick: onNavigateToDashboard, show: true },
-    { id: 'baseline', label: 'Linha Base', icon: <BaselineIcon className="w-5 h-5" />, onClick: onNavigateToBaseline, show: isPlanner },
-    { id: 'reports', label: 'Dashboards', icon: <ChartIcon className="w-5 h-5" />, onClick: onNavigateToReports, show: isPlanner },
-    { id: 'management', label: 'Painel Gerencial', icon: <ManagementIcon className="w-5 h-5" />, onClick: onNavigateToAnalysis, show: isPlanner },
-    { id: 'lean', label: 'Sistema Lean', icon: <LeanIcon className="w-5 h-5" />, onClick: onNavigateToLean, show: isPlanner },
+    { id: 'baseline', label: 'Linha Base', icon: <BaselineIcon className="w-5 h-5" />, onClick: onNavigateToBaseline, show: showFullMenu },
+    { id: 'reports', label: 'Dashboards', icon: <ChartIcon className="w-5 h-5" />, onClick: onNavigateToReports, show: showFullMenu },
+    { id: 'management', label: 'Painel Gerencial', icon: <ManagementIcon className="w-5 h-5" />, onClick: onNavigateToAnalysis, show: showFullMenu },
+    { id: 'lean', label: 'Sistema Lean', icon: <LeanIcon className="w-5 h-5" />, onClick: onNavigateToLean, show: showFullMenu },
   ];
 
   const handleMenuClick = (onClick?: () => void) => {
@@ -74,8 +76,16 @@ const Header: React.FC<HeaderProps> = ({
 
           <div className="flex-1 flex items-center justify-end gap-6 text-sm">
             <div className="hidden sm:flex flex-col items-end leading-none text-right">
-              <span className="text-[10px] text-brand-med-gray font-black uppercase tracking-widest mb-1">Unidade Serra das Araras</span>
-              <span className="text-sm font-black text-white italic tracking-tight uppercase">EGTC - NSA</span>
+              <span className="text-[10px] text-brand-med-gray font-black uppercase tracking-widest mb-1">{user.fullName}</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onUpgradeClick}
+                  className="text-[9px] bg-brand-accent/10 text-brand-accent border border-brand-accent/30 px-1.5 py-0.5 rounded hover:bg-brand-accent hover:text-white transition-all uppercase font-bold"
+                >
+                  Fazer Upgrade
+                </button>
+                <span className="text-sm font-black text-white italic tracking-tight uppercase">{user.role}</span>
+              </div>
             </div>
 
             <div className="h-8 w-px bg-white/5 hidden sm:block"></div>
@@ -122,8 +132,8 @@ const Header: React.FC<HeaderProps> = ({
                   onClick={() => handleMenuClick(item.onClick)}
                   disabled={activeScreen === item.id}
                   className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 ${activeScreen === item.id
-                      ? 'bg-brand-accent text-white font-bold shadow-lg shadow-brand-accent/20'
-                      : 'text-brand-med-gray hover:bg-white/5 hover:text-white'
+                    ? 'bg-brand-accent text-white font-bold shadow-lg shadow-brand-accent/20'
+                    : 'text-brand-med-gray hover:bg-white/5 hover:text-white'
                     }`}
                 >
                   <div className={activeScreen === item.id ? 'text-white' : 'text-brand-accent'}>
@@ -141,7 +151,15 @@ const Header: React.FC<HeaderProps> = ({
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-black text-white truncate leading-none">{user.fullName}</p>
-                  <p className="text-[10px] font-bold text-brand-med-gray mt-1 uppercase tracking-wider">{user.role}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-[10px] font-bold text-brand-med-gray uppercase tracking-wider">{user.role}</p>
+                    <button
+                      onClick={onUpgradeClick}
+                      className="text-[8px] bg-brand-accent/20 text-brand-accent border border-brand-accent/30 px-1 py-0.5 rounded hover:bg-brand-accent hover:text-white transition-all font-black uppercase"
+                    >
+                      Upgrade
+                    </button>
+                  </div>
                 </div>
               </div>
               <button

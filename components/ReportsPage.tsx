@@ -17,6 +17,7 @@ interface ReportsPageProps {
   onNavigateToBaseline: () => void;
   onNavigateToAnalysis: () => void;
   onNavigateToLean: () => void;
+  onUpgradeClick: () => void;
   showToast: (message: string, type: 'success' | 'error') => void;
 }
 
@@ -33,6 +34,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
   onNavigateToBaseline,
   onNavigateToAnalysis,
   onNavigateToLean,
+  onUpgradeClick,
   showToast
 }) => {
   const { currentUser: user, tasks, baselineTasks, signOut } = useData();
@@ -107,6 +109,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
         onNavigateToBaseline={onNavigateToBaseline}
         onNavigateToAnalysis={onNavigateToAnalysis}
         onNavigateToLean={onNavigateToLean}
+        onUpgradeClick={onUpgradeClick}
         activeScreen="reports"
       />
 

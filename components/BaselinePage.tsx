@@ -13,6 +13,7 @@ interface BaselinePageProps {
     onNavigateToBaseline: () => void;
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
+    onUpgradeClick: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
@@ -46,6 +47,7 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
     onNavigateToBaseline,
     onNavigateToAnalysis,
     onNavigateToLean,
+    onUpgradeClick,
     showToast
 }) => {
     const { currentUser: user, baselineTasks, importBaseline, signOut, cutOffDateStr, setCutOffDateStr } = useData();
@@ -351,7 +353,13 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                 <h3 className="text-xl font-bold text-gray-100">Linha Base Atual</h3>
                 <button
-                    onClick={() => setIsImporting(true)}
+                    onClick={() => {
+                        if (user.role === 'Master' || user.role === 'Planejador') {
+                            setIsImporting(true);
+                        } else {
+                            alert('Apenas usuários Master ou Planejador podem substituir a linha de base.');
+                        }
+                    }}
                     className="flex items-center gap-2 bg-brand-accent text-white px-3 py-1.5 rounded-md hover:bg-orange-600 transition-colors shadow-lg shadow-brand-accent/20 hover:shadow-brand-accent/40 text-sm"
                 >
                     <BaselineIcon className="w-4 h-4" />
@@ -415,6 +423,7 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
                 onNavigateToBaseline={() => { }}
                 onNavigateToAnalysis={onNavigateToAnalysis}
                 onNavigateToLean={onNavigateToLean}
+                onUpgradeClick={onUpgradeClick}
                 activeScreen="baseline"
             />
             <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto bg-brand-darkest/50">
