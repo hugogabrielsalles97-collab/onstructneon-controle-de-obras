@@ -127,9 +127,10 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, baselineTasks, onEdi
                         // Only clamp if the task overlaps with today or is in the future relative to today
                         if (taskStart <= today) {
                             if (taskEnd >= today) {
-                                const daysToToday = getDaysDifference(taskStart, today) + 1;
+                                // Calculate days passed until start of today (exclusive of today)
+                                const daysToToday = getDaysDifference(taskStart, today);
                                 const maxPossibleProgress = (daysToToday / duration) * 100;
-                                visualProgress = Math.min(task.progress, maxPossibleProgress);
+                                visualProgress = Math.max(0, Math.min(task.progress, maxPossibleProgress));
                             }
                             // If taskEnd < today, allow full progress (100% or whatever it is)
                         } else {
