@@ -63,12 +63,12 @@ const Header: React.FC<HeaderProps> = ({
             <button
               onClick={() => setIsMenuOpen(true)}
               className="lg:hidden mr-4 p-2 hover:bg-white/5 rounded-lg transition-colors text-brand-med-gray hover:text-white"
-              aria-label="Menu"
+              aria-label="Abrir Menu Principal"
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="1" fill="currentColor" />
-                <circle cx="12" cy="5" r="1" fill="currentColor" />
-                <circle cx="12" cy="19" r="1" fill="currentColor" />
+                <line x1="4" y1="6" x2="20" y2="6" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <line x1="4" y1="18" x2="20" y2="18" />
               </svg>
             </button>
 
@@ -128,7 +128,7 @@ const Header: React.FC<HeaderProps> = ({
               </button>
             </div>
 
-            <nav className="flex-1 space-y-2">
+            <nav className="flex-1 space-y-2 overflow-y-auto">
               <h3 className="text-[10px] text-brand-med-gray font-black uppercase tracking-[2px] mb-4 ml-2">Ir para:</h3>
               {menuItems.filter(item => item.show).map((item) => (
                 <button
