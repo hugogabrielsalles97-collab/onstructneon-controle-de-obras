@@ -6,7 +6,6 @@ import DashboardSummary from './DashboardSummary';
 import StatusChart from './StatusChart';
 import TimelineView from './TimelineView';
 import AssigneeSummaryChart from './AssigneeSummaryChart';
-import PpcChart from './PpcChart';
 import CumulativeProgressChart from './CumulativeProgressChart';
 import ClearIcon from './icons/ClearIcon';
 import FilterInput from './ui/FilterInput';
@@ -198,26 +197,12 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
               </div>
             </section>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <section className="bg-[#111827]/60 backdrop-blur-md p-8 rounded-2xl border border-white/5 shadow-2xl hover:border-brand-accent/10 transition-colors">
-                <h4 className="text-xs font-black text-brand-accent mb-8 uppercase tracking-[3px] text-center italic">Curva PPC (Programação Prazo Cumprida)</h4>
-                <div className="h-[400px]">
-                  <PpcChart
-                    tasks={filteredTasks}
-                    baselineTasks={filteredBaselineTasks}
-                    startDate={dateFilters.startDate}
-                    endDate={dateFilters.endDate}
-                  />
-                </div>
-              </section>
-
-              <section className="bg-[#111827]/60 backdrop-blur-md p-8 rounded-2xl border border-white/5 shadow-2xl hover:border-brand-accent/10 transition-colors">
-                <h4 className="text-xs font-black text-brand-accent mb-8 uppercase tracking-[3px] text-center italic">Avanço Físico Acumulado (PPC)</h4>
-                <div className="h-[400px]">
-                  <CumulativeProgressChart tasks={filteredTasks} baselineTasks={filteredBaselineTasks} />
-                </div>
-              </section>
-            </div>
+            <section className="bg-[#111827]/60 backdrop-blur-md p-8 rounded-2xl border border-white/5 shadow-2xl hover:border-brand-accent/10 transition-colors w-full">
+              <h4 className="text-xs font-black text-brand-accent mb-8 uppercase tracking-[3px] text-center italic">Avanço Físico Acumulado (PPC)</h4>
+              <div className="h-[500px]">
+                <CumulativeProgressChart tasks={filteredTasks} baselineTasks={filteredBaselineTasks} />
+              </div>
+            </section>
           </div>
         </div>
       </main>
