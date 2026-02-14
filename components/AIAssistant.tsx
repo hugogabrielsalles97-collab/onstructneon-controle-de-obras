@@ -42,6 +42,11 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks }) => {
     e.preventDefault();
     if (!userInput.trim() || isLoading) return;
 
+    if (!canUseAI) {
+      alert("Upgrade necessário para enviar solicitações ao Assistente Hugo com IA.");
+      return;
+    }
+
     const newMessages: Message[] = [...messages, { sender: 'user', text: userInput }];
     setMessages(newMessages);
     setUserInput('');
@@ -77,9 +82,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks }) => {
 
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt);
-      const aiText = result.response.text();
+      const output = await result.response.text();
 
-      setMessages([...newMessages, { sender: 'ai', text: aiText }]);
+      setMessages([...newMessages, { sender: 'ai', text: output }]);
     } catch (error) {
       console.error("Erro ao chamar a API Gemini:", error);
       setMessages([...newMessages, { sender: 'ai', text: "Erro: " + (error instanceof Error ? error.message : String(error)) }]);
@@ -89,10 +94,6 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks }) => {
   };
 
   const toggleOpen = () => {
-    if (!isOpen && !canUseAI) {
-      alert('Upgrade necessário para usar o Assistente Hugo com IA.');
-      return;
-    }
     setIsOpen(!isOpen);
   };
 

@@ -11,36 +11,37 @@ interface PpcChartProps {
 
 const PpcChart: React.FC<PpcChartProps> = ({ tasks, baselineTasks, startDate, endDate }) => {
     const chartData = useMemo(() => {
-        if (baselineTasks.length === 0) return [];
+        if (tasks.length === 0) return [];
 
-        const start = startDate ? new Date(startDate + 'T00:00:00') : new Date(Math.min(...baselineTasks.map(t => new Date(t.startDate).getTime())));
-        const end = endDate ? new Date(endDate + 'T23:59:59') : new Date(Math.max(...baselineTasks.map(t => new Date(t.dueDate).getTime())));
+        const start = startDate ? new Date(startDate + 'T00:00:00') : new Date(Math.min(...tasks.map(t => new Date(t.startDate).getTime())));
+        const end = endDate ? new Date(endDate + 'T23:59:59') : new Date(Math.max(...tasks.map(t => new Date(t.dueDate).getTime())));
 
         // Group by weeks
         const weeks: { [key: string]: { planned: number; completed: number } } = {};
 
-        baselineTasks.forEach(bt => {
-            const btDueDate = new Date(bt.dueDate);
-            if (btDueDate >= start && btDueDate <= end) {
+        tasks.forEach(task => {
+            const taskDueDate = new Date(task.dueDate + 'T23:59:59'); // Set to end of day
+
+            if (taskDueDate >= start && taskDueDate <= end) {
                 // Get week identifier (Sunday to Saturday)
-                const d = new Date(btDueDate);
-                d.setDate(d.getDate() - d.getDay()); // Start of week
+                const d = new Date(taskDueDate);
+                d.setDate(d.getDate() - d.getDay()); // Start of week (Sunday)
                 const weekKey = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 
                 if (!weeks[weekKey]) weeks[weekKey] = { planned: 0, completed: 0 };
                 weeks[weekKey].planned += 1;
 
-                // Check if this specific item is completed (any linked task makes it completed? No, total progress >= 100)
-                const linkedTasks = tasks.filter(t => String(t.baseline_id) === String(bt.id));
-                const totalPlannedQty = Number(bt.quantity) || 0;
-                const rawActualQty = linkedTasks.reduce((acc, t) => acc + (Number(t.actualQuantity) || 0), 0);
+                // Check if completed on time (or completed generally? PPC usually means on time)
+                // Assuming PPC = Plan Percent Complete (Completed On Time / Planned)
+                // Strict PPC: Completed on or before Due Date
 
-                let progress = 0;
-                if (totalPlannedQty > 0) progress = (rawActualQty / totalPlannedQty) * 100;
-                else if (linkedTasks.length > 0) progress = linkedTasks.reduce((acc, t) => acc + (Number(t.progress) || 0), 0) / linkedTasks.length;
+                if (task.status === 'Concluído' && task.actualEndDate) {
+                    const actualEnd = new Date(task.actualEndDate + 'T00:00:00'); // Start of day comparison
+                    const dueLimit = new Date(task.dueDate + 'T23:59:59');
 
-                if (progress >= 100) {
-                    weeks[weekKey].completed += 1;
+                    if (actualEnd <= dueLimit) {
+                        weeks[weekKey].completed += 1;
+                    }
                 }
             }
         });
@@ -51,11 +52,11 @@ const PpcChart: React.FC<PpcChartProps> = ({ tasks, baselineTasks, startDate, en
             return (ma * 100 + da) - (mb * 100 + db);
         }).map(week => ({
             name: `Sem. ${week}`,
-            ppc: Math.round((weeks[week].completed / weeks[week].planned) * 100),
+            ppc: weeks[week].planned > 0 ? Math.round((weeks[week].completed / weeks[week].planned) * 100) : 0,
             planned: weeks[week].planned,
             completed: weeks[week].completed
         }));
-    }, [tasks, baselineTasks, startDate, endDate]);
+    }, [tasks, startDate, endDate]);
 
     const averagePpc = useMemo(() => {
         if (chartData.length === 0) return 0;
