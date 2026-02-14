@@ -2,18 +2,18 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { User, Task, TaskStatus } from '../types';
 import { useData } from '../context/DataProvider';
 import Header from './Header';
-import BaselineIcon from './icons/BaselineIcon';
+import ScheduleIcon from './icons/ScheduleIcon';
 
 // Esta variável global é declarada pelo script tag da biblioteca xlsx em index.html
 declare var XLSX: any;
 
-interface BaselinePageProps {
+interface CurrentSchedulePageProps {
     onNavigateToDashboard: () => void;
     onNavigateToReports: () => void;
     onNavigateToBaseline: () => void;
-    onNavigateToCurrentSchedule: () => void;
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
+    onNavigateToCurrentSchedule: () => void;
     onUpgradeClick: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
@@ -42,18 +42,18 @@ const formatDate = (dateString: string | undefined) => {
     return new Date(dateString).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
 };
 
-const BaselinePage: React.FC<BaselinePageProps> = ({
+const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
     onNavigateToDashboard,
     onNavigateToReports,
     onNavigateToBaseline,
-    onNavigateToCurrentSchedule,
     onNavigateToAnalysis,
     onNavigateToLean,
+    onNavigateToCurrentSchedule,
     onUpgradeClick,
     showToast
 }) => {
-    const { currentUser: user, baselineTasks, importBaseline, signOut, cutOffDateStr, setCutOffDateStr } = useData();
-    const [isImporting, setIsImporting] = useState(baselineTasks.length === 0);
+    const { currentUser: user, currentScheduleTasks, importCurrentSchedule, signOut, cutOffDateStr, setCutOffDateStr } = useData();
+    const [isImporting, setIsImporting] = useState(currentScheduleTasks.length === 0);
     const [file, setFile] = useState<File | null>(null);
     const [fileHeaders, setFileHeaders] = useState<string[]>([]);
     const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
@@ -69,13 +69,13 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
     };
 
     const handleImport = async (tasks: Task[]) => {
-        const { success, error } = await importBaseline(tasks);
+        const { success, error } = await importCurrentSchedule(tasks);
         if (success) {
-            showToast('Linha de base importada com sucesso!', 'success');
+            showToast('Cronograma corrente importado com sucesso!', 'success');
             setIsImporting(false);
             resetImportState();
         } else if (error) {
-            showToast(`Erro ao importar linha de base: ${error}`, 'error');
+            showToast(`Erro ao importar cronograma corrente: ${error}`, 'error');
         }
     };
 
@@ -239,8 +239,8 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
     const ImportView = () => (
         <div className="bg-brand-dark/70 p-6 rounded-lg animate-fade-in space-y-8">
             <div className="flex justify-between items-center">
-                <h3 className="text-xl font-bold text-gray-100">Importar Nova Linha Base</h3>
-                {baselineTasks.length > 0 && (
+                <h3 className="text-xl font-bold text-gray-100">Importar Cronograma Corrente</h3>
+                {currentScheduleTasks.length > 0 && (
                     <button
                         onClick={() => { setIsImporting(false); resetImportState(); }}
                         className="bg-brand-dark/80 text-brand-med-gray px-4 py-2 rounded-md hover:bg-brand-dark transition-colors text-sm"
@@ -254,7 +254,7 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
                 <div>
                     <h3 className="text-lg font-semibold text-gray-100 mb-2">Passo 1: Instruções</h3>
                     <p className="text-sm text-brand-med-gray">
-                        Envie seu cronograma em formato XLSX. O sistema se adaptará à sua planilha através do mapeamento de colunas.
+                        Envie seu cronograma corrente em formato XLSX. O sistema se adaptará à sua planilha através do mapeamento de colunas.
                     </p>
                 </div>
                 <div>
@@ -264,7 +264,7 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
                         onDragOver={(e) => e.preventDefault()}
                         className="relative border-2 border-dashed border-brand-med-gray/50 rounded-lg p-12 text-center cursor-pointer hover:border-brand-accent transition-colors"
                     >
-                        <input type="file" id="file-upload" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept=".xlsx, .xls" onChange={(e) => e.target.files && handleFileSelected(e.target.files[0])} />
+                        <input type="file" id="file-upload-current" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept=".xlsx, .xls" onChange={(e) => e.target.files && handleFileSelected(e.target.files[0])} />
                         <p className="text-brand-med-gray">{file ? `Arquivo: ${file.name}` : 'Arraste e solte ou clique para selecionar.'}</p>
                     </div>
                 </div>
@@ -342,7 +342,7 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
                     </div>
                     <div className="mt-6 flex justify-end">
                         <button onClick={handleSave} className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition shadow-lg shadow-green-500/20 hover:shadow-green-500/40">
-                            Definir como Linha Base
+                            Definir como Cronograma Corrente
                         </button>
                     </div>
                 </div>
@@ -353,19 +353,19 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
     const DisplayView = () => (
         <div className="bg-brand-dark/70 p-4 rounded-lg animate-fade-in space-y-4">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                <h3 className="text-xl font-bold text-gray-100">Linha Base Atual</h3>
+                <h3 className="text-xl font-bold text-gray-100">Cronograma Corrente</h3>
                 <button
                     onClick={() => {
                         if (user.role === 'Master' || user.role === 'Planejador') {
                             setIsImporting(true);
                         } else {
-                            alert('Apenas usuários Master ou Planejador podem substituir a linha de base.');
+                            alert('Apenas usuários Master ou Planejador podem substituir o cronograma corrente.');
                         }
                     }}
                     className="flex items-center gap-2 bg-brand-accent text-white px-3 py-1.5 rounded-md hover:bg-orange-600 transition-colors shadow-lg shadow-brand-accent/20 hover:shadow-brand-accent/40 text-sm"
                 >
-                    <BaselineIcon className="w-4 h-4" />
-                    Substituir Linha Base
+                    <ScheduleIcon className="w-4 h-4" />
+                    Substituir Cronograma Corrente
                 </button>
             </div>
 
@@ -388,7 +388,7 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-brand-darkest">
-                        {baselineTasks.map(task => (
+                        {currentScheduleTasks.map(task => (
                             <tr key={task.id} className="hover:bg-brand-dark/50 transition-colors">
                                 <td className="px-2 py-1.5 align-middle text-gray-300 font-mono">{task.id}</td>
                                 <td className="px-2 py-1.5 align-middle text-gray-100 font-semibold break-words max-w-[150px]">{task.title}</td>
@@ -406,9 +406,9 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
                         ))}
                     </tbody>
                 </table>
-                {baselineTasks.length === 0 && (
+                {currentScheduleTasks.length === 0 && (
                     <div className="text-center py-10 text-brand-med-gray text-sm">
-                        Nenhuma linha de base foi importada ainda.
+                        Nenhum cronograma corrente foi importado ainda.
                     </div>
                 )}
             </div>
@@ -422,18 +422,18 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
                 onLogout={handleLogout}
                 onNavigateToDashboard={onNavigateToDashboard}
                 onNavigateToReports={onNavigateToReports}
-                onNavigateToBaseline={() => { }}
-                onNavigateToCurrentSchedule={onNavigateToCurrentSchedule}
+                onNavigateToBaseline={onNavigateToBaseline}
+                onNavigateToCurrentSchedule={() => { }}
                 onNavigateToAnalysis={onNavigateToAnalysis}
                 onNavigateToLean={onNavigateToLean}
                 onUpgradeClick={onUpgradeClick}
-                activeScreen="baseline"
+                activeScreen="currentSchedule"
             />
             <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto bg-brand-darkest/50">
                 <div className="max-w-7xl mx-auto">
                     <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
                         <div className="flex flex-col">
-                            <h2 className="text-2xl font-bold text-brand-accent">Painel da Linha Base</h2>
+                            <h2 className="text-2xl font-bold text-brand-accent">Cronograma Corrente</h2>
                             <div className="flex items-center gap-2 mt-2 bg-brand-dark/50 p-2 rounded border border-brand-darkest">
                                 <label className="text-[10px] text-brand-med-gray uppercase font-bold">Data de Corte:</label>
                                 <input
@@ -458,4 +458,4 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
     );
 };
 
-export default BaselinePage;
+export default CurrentSchedulePage;

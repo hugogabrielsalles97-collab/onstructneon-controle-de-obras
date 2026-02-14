@@ -43,17 +43,19 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, baselineTasks, onEdi
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const allTasks = [...tasks, ...baselineTasks];
+        // Ajuste: Definir o range baseado APENAS nas tarefas criadas (tasks), ignorando a baseline para o zoom inicial
+        // Se não houver tasks, usa a baseline como fallback
+        const tasksForRange = tasks.length > 0 ? tasks : baselineTasks;
 
-        if (allTasks.length === 0) {
+        if (tasksForRange.length === 0) {
             const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
             const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
             return { dateRange: [], projectStart: monthStart, projectEnd: monthEnd, today };
         }
 
-        const sortedTasks = allTasks.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+        const sortedTasks = tasksForRange.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
         const projectStart = new Date(sortedTasks[0].startDate);
-        const projectEnd = new Date(Math.max(...allTasks.map(t => new Date(t.dueDate).getTime())));
+        const projectEnd = new Date(Math.max(...tasksForRange.map(t => new Date(t.dueDate).getTime())));
 
         projectStart.setDate(projectStart.getDate() - 2); // Add some padding
         projectEnd.setDate(projectEnd.getDate() + 2); // Add some padding

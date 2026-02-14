@@ -15,6 +15,7 @@ interface ReportsPageProps {
   onNavigateToDashboard: () => void;
   onNavigateToReports: () => void;
   onNavigateToBaseline: () => void;
+  onNavigateToCurrentSchedule: () => void;
   onNavigateToAnalysis: () => void;
   onNavigateToLean: () => void;
   onUpgradeClick: () => void;
@@ -32,6 +33,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
   onNavigateToDashboard,
   onNavigateToReports,
   onNavigateToBaseline,
+  onNavigateToCurrentSchedule,
   onNavigateToAnalysis,
   onNavigateToLean,
   onUpgradeClick,
@@ -107,6 +109,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
         onNavigateToDashboard={onNavigateToDashboard}
         onNavigateToReports={() => { }}
         onNavigateToBaseline={onNavigateToBaseline}
+        onNavigateToCurrentSchedule={onNavigateToCurrentSchedule}
         onNavigateToAnalysis={onNavigateToAnalysis}
         onNavigateToLean={onNavigateToLean}
         onUpgradeClick={onUpgradeClick}
@@ -209,7 +212,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
               </section>
 
               <section className="bg-[#111827]/60 backdrop-blur-md p-8 rounded-2xl border border-white/5 shadow-2xl hover:border-brand-accent/10 transition-colors">
-                <h4 className="text-xs font-black text-brand-accent mb-8 uppercase tracking-[3px] text-center italic">Avanço Físico Acumulado</h4>
+                <h4 className="text-xs font-black text-brand-accent mb-8 uppercase tracking-[3px] text-center italic">Avanço Físico Acumulado (PPC)</h4>
                 <div className="h-[400px]">
                   <CumulativeProgressChart tasks={filteredTasks} baselineTasks={filteredBaselineTasks} />
                 </div>

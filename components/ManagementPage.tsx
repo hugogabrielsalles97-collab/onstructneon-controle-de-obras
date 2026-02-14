@@ -10,6 +10,7 @@ interface ManagementPageProps {
     onNavigateToDashboard: () => void;
     onNavigateToReports: () => void;
     onNavigateToBaseline: () => void;
+    onNavigateToCurrentSchedule: () => void;
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
     onUpgradeClick: () => void;
@@ -20,6 +21,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
     onNavigateToDashboard,
     onNavigateToReports,
     onNavigateToBaseline,
+    onNavigateToCurrentSchedule,
     onNavigateToAnalysis,
     onNavigateToLean,
     onUpgradeClick,
@@ -175,6 +177,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 onNavigateToDashboard={onNavigateToDashboard}
                 onNavigateToReports={onNavigateToReports}
                 onNavigateToBaseline={onNavigateToBaseline}
+                onNavigateToCurrentSchedule={onNavigateToCurrentSchedule}
                 onNavigateToAnalysis={() => { }}
                 onNavigateToLean={onNavigateToLean}
                 onUpgradeClick={onUpgradeClick}

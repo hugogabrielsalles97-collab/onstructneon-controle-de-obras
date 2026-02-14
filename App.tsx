@@ -4,6 +4,7 @@ import RegisterScreen from './components/RegisterScreen';
 import Dashboard from './components/Dashboard';
 import ReportsPage from './components/ReportsPage';
 import BaselinePage from './components/BaselinePage';
+import CurrentSchedulePage from './components/CurrentSchedulePage';
 import ManagementPage from './components/ManagementPage';
 import LeanPage from './components/LeanPage';
 import RestrictionsAnalysisPage from './components/RestrictionsAnalysisPage';
@@ -15,7 +16,7 @@ import Toast from './components/Toast';
 import { Task, Restriction } from './types';
 import { DataProvider, useData } from './context/DataProvider';
 
-type Screen = 'login' | 'register' | 'dashboard' | 'reports' | 'baseline' | 'management' | 'lean' | 'restrictions';
+type Screen = 'login' | 'register' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'restrictions';
 
 const AppContent: React.FC = () => {
   const {
@@ -113,6 +114,7 @@ Por favor, acesse o aplicativo para mais detalhes.
       onNavigateToDashboard: () => setScreen('dashboard'),
       onNavigateToReports: () => setScreen('reports'),
       onNavigateToBaseline: () => setScreen('baseline'),
+      onNavigateToCurrentSchedule: () => setScreen('currentSchedule'),
       onNavigateToAnalysis: () => setScreen('management'),
       onNavigateToLean: () => setScreen('lean'),
       onUpgradeClick: () => setIsUpgradeModalOpen(true),
@@ -122,6 +124,7 @@ Por favor, acesse o aplicativo para mais detalhes.
       case 'dashboard': return <Dashboard onOpenModal={handleOpenTaskModal} onOpenRdoModal={handleOpenRdoModal} {...navigationProps} showToast={showToast} />;
       case 'reports': return <ReportsPage {...navigationProps} showToast={showToast} />;
       case 'baseline': return <BaselinePage {...navigationProps} showToast={showToast} />;
+      case 'currentSchedule': return <CurrentSchedulePage {...navigationProps} showToast={showToast} />;
       case 'management': return <ManagementPage {...navigationProps} showToast={showToast} />;
       case 'lean': return (
         <LeanPage

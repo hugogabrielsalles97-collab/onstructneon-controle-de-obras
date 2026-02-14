@@ -5,6 +5,7 @@ import LogoutIcon from './icons/LogoutIcon';
 import ConstructionIcon from './icons/ConstructionIcon';
 import ChartIcon from './icons/ChartIcon';
 import BaselineIcon from './icons/BaselineIcon';
+import ScheduleIcon from './icons/ScheduleIcon';
 import ManagementIcon from './icons/ManagementIcon';
 import LeanIcon from './icons/LeanIcon';
 import XIcon from './icons/XIcon';
@@ -15,6 +16,7 @@ interface HeaderProps {
   onNavigateToDashboard?: () => void;
   onNavigateToReports?: () => void;
   onNavigateToBaseline?: () => void;
+  onNavigateToCurrentSchedule?: () => void;
   onNavigateToAnalysis?: () => void;
   onNavigateToLean?: () => void;
   onUpgradeClick?: () => void;
@@ -27,6 +29,7 @@ const Header: React.FC<HeaderProps> = ({
   onNavigateToDashboard,
   onNavigateToReports,
   onNavigateToBaseline,
+  onNavigateToCurrentSchedule,
   onNavigateToAnalysis,
   onNavigateToLean,
   onUpgradeClick,
@@ -38,6 +41,7 @@ const Header: React.FC<HeaderProps> = ({
   const menuItems = [
     { id: 'dashboard', label: 'Painel de Controle', icon: <ChartIcon className="w-5 h-5" />, onClick: onNavigateToDashboard, show: true },
     { id: 'baseline', label: 'Linha Base', icon: <BaselineIcon className="w-5 h-5" />, onClick: onNavigateToBaseline, show: showFullMenu },
+    { id: 'currentSchedule', label: 'Cronograma Corrente', icon: <ScheduleIcon className="w-5 h-5" />, onClick: onNavigateToCurrentSchedule, show: showFullMenu },
     { id: 'reports', label: 'Dashboards', icon: <ChartIcon className="w-5 h-5" />, onClick: onNavigateToReports, show: showFullMenu },
     { id: 'management', label: 'Painel Gerencial', icon: <ManagementIcon className="w-5 h-5" />, onClick: onNavigateToAnalysis, show: showFullMenu },
     { id: 'lean', label: 'Sistema Lean', icon: <LeanIcon className="w-5 h-5" />, onClick: onNavigateToLean, show: showFullMenu },
@@ -139,7 +143,7 @@ const Header: React.FC<HeaderProps> = ({
                   <div className={activeScreen === item.id ? 'text-white' : 'text-brand-accent'}>
                     {item.icon}
                   </div>
-                  <span className="text-sm">{item.label}</span>
+                  <span className="text-sm whitespace-nowrap">{item.label}</span>
                 </button>
               ))}
             </nav>

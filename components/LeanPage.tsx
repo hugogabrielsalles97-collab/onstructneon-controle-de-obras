@@ -12,6 +12,7 @@ interface LeanPageProps {
     onNavigateToDashboard: () => void;
     onNavigateToReports: () => void;
     onNavigateToBaseline: () => void;
+    onNavigateToCurrentSchedule: () => void;
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
     onNavigateToRestrictions: () => void;
@@ -28,6 +29,7 @@ const LeanPage: React.FC<LeanPageProps> = ({
     onNavigateToDashboard,
     onNavigateToReports,
     onNavigateToBaseline,
+    onNavigateToCurrentSchedule,
     onNavigateToAnalysis,
     onNavigateToLean,
     onNavigateToRestrictions,
@@ -38,7 +40,7 @@ const LeanPage: React.FC<LeanPageProps> = ({
     onUpgradeClick,
     showToast
 }) => {
-    const { currentUser: user, tasks, baselineTasks, cutOffDateStr, signOut } = useData();
+    const { currentUser: user, tasks, baselineTasks, currentScheduleTasks, cutOffDateStr, signOut } = useData();
     const [restrictionModal, setRestrictionModal] = useState<{
         taskId: string;
         taskTitle: string;
@@ -51,6 +53,8 @@ const LeanPage: React.FC<LeanPageProps> = ({
         taskStartDate: string;
     } | null>(null);
     const [lookaheadWeeks, setLookaheadWeeks] = useState(2);
+    const [filterDiscipline, setFilterDiscipline] = useState('');
+    const [filterLocation, setFilterLocation] = useState('');
 
     if (!user) return null;
 
@@ -59,24 +63,33 @@ const LeanPage: React.FC<LeanPageProps> = ({
         if (!success && error) showToast(`Erro ao sair: ${error}`, 'error');
     };
 
-    // Cálculos de Período (Lookahead de 1 semana a frente + atual)
+    // Cálculos de Período (Lookahead de N semanas a partir da data de corte)
     const lookaheadData = useMemo(() => {
-        const today = new Date();
-        const startOfCurrentWeek = new Date(today);
-        startOfCurrentWeek.setDate(today.getDate() - today.getDay());
-        startOfCurrentWeek.setHours(0, 0, 0, 0);
+        const cutOffDate = new Date(cutOffDateStr);
+        cutOffDate.setHours(0, 0, 0, 0);
 
-        const endOfLookahead = new Date(startOfCurrentWeek);
-        endOfLookahead.setDate(startOfCurrentWeek.getDate() + (lookaheadWeeks * 7 + 6)); // Atual + N semanas de Lookahead
+        // Limite do lookahead: N semanas a partir da data de corte
+        const endOfLookahead = new Date(cutOffDate);
+        endOfLookahead.setDate(cutOffDate.getDate() + (lookaheadWeeks * 7));
         endOfLookahead.setHours(23, 59, 59, 999);
 
-        const filtered = baselineTasks.filter(bt => {
+        // Filtrar apenas atividades reais (não marcos) e que não estejam já concluídas pelo corte
+        const activeTasks = currentScheduleTasks.filter(bt => {
+            // Excluir marcos: sem data de início ou data de fim
+            if (!bt.startDate || !bt.dueDate) return false;
+
             const btStart = new Date(bt.startDate);
             const btEnd = new Date(bt.dueDate);
+            btStart.setHours(0, 0, 0, 0);
+            btEnd.setHours(0, 0, 0, 0);
 
-            // Atividade intercepta o período (Hoje até Fim do Lookahead)
-            return (btStart <= endOfLookahead && btEnd >= today) ||
-                (btEnd >= today && btEnd <= endOfLookahead);
+            // Excluir marcos: início e fim no mesmo dia
+            if (btStart.getTime() === btEnd.getTime()) return false;
+
+            // Data de término anterior à data de corte = já concluída, não aparece
+            if (btEnd < cutOffDate) return false;
+
+            return true;
         }).map(bt => {
             const linkedTasks = tasks.filter(t => String(t.baseline_id) === String(bt.id));
             const totalPlannedQty = Number(bt.quantity) || 0;
@@ -86,38 +99,29 @@ const LeanPage: React.FC<LeanPageProps> = ({
             if (totalPlannedQty > 0) progress = Math.min(100, (rawActualQty / totalPlannedQty) * 100);
             else if (linkedTasks.length > 0) progress = linkedTasks.reduce((acc, t) => acc + (Number(t.progress) || 0), 0) / linkedTasks.length;
 
-            const isNextWeek = new Date(bt.dueDate) > new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-
             return {
                 ...bt,
                 currentProgress: Math.round(progress),
                 linkedTasks,
-                isNextWeek,
                 status: progress >= 100 ? 'Pronto' : progress > 0 ? 'Em Fluxo' : 'Planejado'
             };
         });
 
-        const cutOffDate = new Date(cutOffDateStr);
-        cutOffDate.setHours(0, 0, 0, 0);
-
-        const currentWeekTasks = filtered.filter(t => {
-            const startDate = new Date(t.startDate);
-            // Se começou antes ou na data de corte, ou se vence na semana atual
-            return startDate <= cutOffDate || !t.isNextWeek;
-        });
-
-        const nextWeekTasks = filtered.filter(t => {
-            const startDate = new Date(t.startDate);
-            // Apenas o que começa estritamente após a data de corte E é uma tarefa futura
-            return startDate > cutOffDate && t.isNextWeek;
-        });
+        // LOOKAHEAD:
+        // Início > data de corte, limitado pelo filtro de semanas
+        const nextWeekTasks = activeTasks
+            .filter(t => {
+                const btStart = new Date(t.startDate);
+                btStart.setHours(0, 0, 0, 0);
+                return btStart > cutOffDate && btStart <= endOfLookahead;
+            })
+            .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()); // Ordenar por início mais próximo
 
         const impactedRestrictionsCount = restrictions.filter(r => {
             if (!r.due_date || r.status === 'Resolvida') return false;
-            const task = baselineTasks.find(t => String(t.id) === String(r.baseline_task_id));
+            const task = currentScheduleTasks.find(t => String(t.id) === String(r.baseline_task_id));
             if (!task) return false;
 
-            // Lógica de Impacto: Data limite > (Início da Tarefa - 2 dias)
             const startDate = new Date(task.startDate);
             const impactLimit = new Date(startDate);
             impactLimit.setDate(startDate.getDate() - 2);
@@ -125,13 +129,39 @@ const LeanPage: React.FC<LeanPageProps> = ({
             return new Date(r.due_date) > impactLimit;
         }).length;
 
+        // Opções únicas para filtros (apenas das tarefas do lookahead)
+        const disciplines = Array.from(new Set(activeTasks.map(t => t.discipline).filter(Boolean))).sort();
+        const locations = Array.from(new Set(activeTasks.map(t => t.location).filter(Boolean))).sort();
+
         return {
-            currentWeekTasks,
             nextWeekTasks,
-            totalActive: filtered.length,
-            impactedRestrictionsCount
+            impactedRestrictionsCount,
+            disciplines,
+            locations
         };
-    }, [baselineTasks, tasks, restrictions, lookaheadWeeks, cutOffDateStr]);
+    }, [currentScheduleTasks, tasks, restrictions, lookaheadWeeks, cutOffDateStr]);
+
+    // SEMANA ATUAL (EXECUÇÃO): tarefas do Painel de Controle
+    const dashboardTasks = useMemo(() => {
+        return tasks
+            .filter(t => {
+                // Excluir tarefas concluídas ou com 100%
+                if (t.status === 'Concluído') return false;
+                if (t.progress >= 100) return false;
+                return true;
+            })
+            .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+    }, [tasks]);
+
+    // Aplicar filtros SOMENTE ao Lookahead
+    const filteredNextWeek = useMemo(() => {
+        return lookaheadData.nextWeekTasks.filter(t => {
+            if (filterDiscipline && t.discipline !== filterDiscipline) return false;
+            if (filterLocation && t.location !== filterLocation) return false;
+            return true;
+        });
+    }, [lookaheadData.nextWeekTasks, filterDiscipline, filterLocation]);
+
 
     const formatDate = (date: string) => {
         return new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
@@ -196,6 +226,7 @@ const LeanPage: React.FC<LeanPageProps> = ({
                 onNavigateToDashboard={onNavigateToDashboard}
                 onNavigateToReports={onNavigateToReports}
                 onNavigateToBaseline={onNavigateToBaseline}
+                onNavigateToCurrentSchedule={onNavigateToCurrentSchedule}
                 onNavigateToAnalysis={onNavigateToAnalysis}
                 onNavigateToLean={() => { }}
                 onUpgradeClick={onUpgradeClick}
@@ -249,7 +280,7 @@ const LeanPage: React.FC<LeanPageProps> = ({
                             <div className="absolute top-0 right-0 w-32 h-32 bg-brand-accent/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-brand-accent/10 transition-all"></div>
                             <h3 className="text-xs font-black text-brand-med-gray uppercase tracking-widest mb-4">Saúde do Fluxo</h3>
                             <div className="flex items-end gap-2">
-                                <span className="text-4xl font-black text-white">{lookaheadData.totalActive}</span>
+                                <span className="text-4xl font-black text-white">{dashboardTasks.length}</span>
                                 <span className="text-xs text-brand-med-gray font-bold mb-2">Atividades</span>
                             </div>
                             <p className="text-[11px] text-brand-med-gray mt-4 leading-relaxed">
@@ -297,6 +328,51 @@ const LeanPage: React.FC<LeanPageProps> = ({
                         </div>
                     </div>
 
+                    {/* Filtros de Disciplina e Frente */}
+                    <div className="bg-[#111827] p-4 rounded-2xl border border-white/5 shadow-xl">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="w-1 h-4 bg-brand-accent rounded-full"></div>
+                            <h3 className="text-[10px] font-black text-white uppercase tracking-widest">Filtros</h3>
+                            {(filterDiscipline || filterLocation) && (
+                                <button
+                                    onClick={() => { setFilterDiscipline(''); setFilterLocation(''); }}
+                                    className="ml-auto text-[10px] text-brand-med-gray hover:text-white font-bold flex items-center gap-1 transition-colors"
+                                >
+                                    <ClearIcon className="w-3.5 h-3.5" />
+                                    Limpar
+                                </button>
+                            )}
+                        </div>
+                        <div className="flex flex-wrap gap-3">
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[9px] text-brand-med-gray uppercase font-black">Disciplina</label>
+                                <select
+                                    value={filterDiscipline}
+                                    onChange={(e) => setFilterDiscipline(e.target.value)}
+                                    className="bg-brand-darkest border border-white/10 text-white text-[11px] font-bold rounded-lg px-3 py-2 outline-none focus:border-brand-accent/50 min-w-[180px]"
+                                >
+                                    <option value="">Todas</option>
+                                    {lookaheadData.disciplines.map(d => (
+                                        <option key={d} value={d}>{d}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[9px] text-brand-med-gray uppercase font-black">Frente / Local</label>
+                                <select
+                                    value={filterLocation}
+                                    onChange={(e) => setFilterLocation(e.target.value)}
+                                    className="bg-brand-darkest border border-white/10 text-white text-[11px] font-bold rounded-lg px-3 py-2 outline-none focus:border-brand-accent/50 min-w-[180px]"
+                                >
+                                    <option value="">Todas</option>
+                                    {lookaheadData.locations.map(l => (
+                                        <option key={l} value={l}>{l}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Quadro de Programação Lookahead */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
@@ -307,46 +383,51 @@ const LeanPage: React.FC<LeanPageProps> = ({
                                 <h3 className="text-lg font-bold text-white uppercase tracking-tight">Semana Atual (Execução)</h3>
                             </div>
                             <div className="space-y-3">
-                                {lookaheadData.currentWeekTasks.length === 0 ? (
+                                {dashboardTasks.length === 0 ? (
                                     <div className="p-10 text-center bg-white/5 rounded-2xl border border-dashed border-white/10 text-brand-med-gray text-sm">
-                                        Nenhuma atividade planejada para finalização esta semana.
+                                        Nenhuma atividade programada no painel de controle.
                                     </div>
                                 ) : (
-                                    lookaheadData.currentWeekTasks.map(task => (
+                                    dashboardTasks.map(task => (
                                         <div key={task.id} className="bg-[#111827] border border-white/5 rounded-xl p-4 hover:border-brand-accent/30 transition-all">
                                             <div className="flex justify-between items-start">
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-2 mb-1">
-                                                        <span className="text-[9px] font-black text-brand-accent uppercase bg-brand-accent/10 px-1.5 py-0.5 rounded">#{task.id}</span>
+                                                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${task.status === 'Em Andamento' ? 'text-yellow-400 bg-yellow-400/10' : 'text-brand-accent bg-brand-accent/10'
+                                                            }`}>{task.status}</span>
                                                         <span className="text-[10px] text-brand-med-gray uppercase font-bold">
                                                             {task.location}
                                                             {task.level && task.level !== '-' && ` • ${task.level}`}
+                                                            {task.support && task.support !== '' && task.support !== 'undefined' && ` • ${task.support}`}
                                                         </span>
                                                     </div>
                                                     <h4 className="text-sm font-bold text-gray-100">{task.title}</h4>
+                                                    {task.assignee && task.assignee !== '' && (
+                                                        <p className="text-[10px] text-emerald-400 font-bold mt-1">Resp: {task.assignee}</p>
+                                                    )}
                                                     <div className="mt-3 w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
                                                         <div
-                                                            className={`h-full rounded-full transition-all duration-500 ${task.currentProgress >= 100 ? 'bg-green-500' : 'bg-brand-accent'}`}
-                                                            style={{ width: `${task.currentProgress}%` }}
+                                                            className={`h-full rounded-full transition-all duration-500 ${task.progress >= 100 ? 'bg-green-500' : 'bg-brand-accent'}`}
+                                                            style={{ width: `${task.progress}%` }}
                                                         ></div>
                                                     </div>
                                                 </div>
                                                 <div className="text-right flex flex-col gap-2">
                                                     <div>
-                                                        <span className={`text-[10px] font-black uppercase ${task.currentProgress >= 100 ? 'text-green-500' : 'text-yellow-500'}`}>
-                                                            {task.currentProgress}%
+                                                        <span className={`text-[10px] font-black uppercase ${task.progress >= 100 ? 'text-green-500' : 'text-yellow-500'}`}>
+                                                            {task.progress}%
                                                         </span>
                                                         <p className="text-[9px] text-brand-med-gray font-mono mt-0.5">FIM: {formatDate(task.dueDate)}</p>
                                                     </div>
                                                     <button
-                                                        onClick={() => setViewingTaskRestrictions({ taskId: task.id, taskTitle: task.title, taskStartDate: task.startDate })}
-                                                        className={`px-3 py-1.5 rounded-lg transition-all font-bold text-xs border flex items-center gap-1.5 ${getTaskRestrictionButtonColor(task.id)}`}
+                                                        onClick={() => setViewingTaskRestrictions({ taskId: task.baseline_id || task.id, taskTitle: task.title, taskStartDate: task.startDate })}
+                                                        className={`px-3 py-1.5 rounded-lg transition-all font-bold text-xs border flex items-center gap-1.5 ${getTaskRestrictionButtonColor(task.baseline_id || task.id)}`}
                                                     >
                                                         <AlertIcon className="w-3.5 h-3.5" />
                                                         Restrição
-                                                        {restrictions.filter(r => String(r.baseline_task_id) === String(task.id) && r.status !== 'Resolvida').length > 0 && (
+                                                        {restrictions.filter(r => String(r.baseline_task_id) === String(task.baseline_id || task.id) && r.status !== 'Resolvida').length > 0 && (
                                                             <span className="px-1.5 py-0.5 bg-white/20 text-white rounded-full text-[9px] font-black">
-                                                                {restrictions.filter(r => String(r.baseline_task_id) === String(task.id) && r.status !== 'Resolvida').length}
+                                                                {restrictions.filter(r => String(r.baseline_task_id) === String(task.baseline_id || task.id) && r.status !== 'Resolvida').length}
                                                             </span>
                                                         )}
                                                     </button>
@@ -365,12 +446,12 @@ const LeanPage: React.FC<LeanPageProps> = ({
                                 <h3 className="text-lg font-bold text-white uppercase tracking-tight">Horizonte 2 Semanas (Lookahead)</h3>
                             </div>
                             <div className="space-y-3">
-                                {lookaheadData.nextWeekTasks.length === 0 ? (
+                                {filteredNextWeek.length === 0 ? (
                                     <div className="p-10 text-center bg-white/5 rounded-2xl border border-dashed border-white/10 text-brand-med-gray text-sm">
-                                        Monitorando o horizonte... Sem tarefas planejadas para as próximas 2 semanas.
+                                        Monitorando o horizonte... Sem tarefas planejadas para as próximas {lookaheadWeeks} semanas.
                                     </div>
                                 ) : (
-                                    lookaheadData.nextWeekTasks.map(task => (
+                                    filteredNextWeek.map(task => (
                                         <div key={task.id} className="bg-[#111827]/60 border border-white/5 rounded-xl p-4 hover:border-purple-500/30 transition-all opacity-80 hover:opacity-100">
                                             <div className="flex justify-between items-center">
                                                 <div>
@@ -379,6 +460,7 @@ const LeanPage: React.FC<LeanPageProps> = ({
                                                         <span className="text-[10px] text-brand-med-gray uppercase font-bold">
                                                             {task.location}
                                                             {task.level && task.level !== '-' && ` • ${task.level}`}
+                                                            {task.support && task.support !== '' && task.support !== 'undefined' && ` • ${task.support}`}
                                                         </span>
                                                     </div>
                                                     <h4 className="text-sm font-bold text-gray-300">{task.title}</h4>

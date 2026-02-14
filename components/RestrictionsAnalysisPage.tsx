@@ -17,6 +17,7 @@ interface RestrictionsAnalysisPageProps {
     onNavigateToDashboard: () => void;
     onNavigateToReports: () => void;
     onNavigateToBaseline: () => void;
+    onNavigateToCurrentSchedule: () => void;
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
     onUpdateRestriction: (id: string, updates: Partial<Restriction>) => Promise<void>;
@@ -32,13 +33,14 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
     onNavigateToDashboard,
     onNavigateToReports,
     onNavigateToBaseline,
+    onNavigateToCurrentSchedule,
     onNavigateToAnalysis,
     onNavigateToLean,
     onUpdateRestriction,
     onDeleteRestriction,
     onUpgradeClick
 }) => {
-    const [filterStatus, setFilterStatus] = useState<RestrictionStatus | 'all'>('all');
+    const [filterStatuses, setFilterStatuses] = useState<RestrictionStatus[]>(Object.values(RestrictionStatus));
     const [filterType, setFilterType] = useState<RestrictionType | 'all'>('all');
     const [filterPriority, setFilterPriority] = useState<RestrictionPriority | 'all'>('all');
     const [filterDepartment, setFilterDepartment] = useState<string>('all');
@@ -100,13 +102,13 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
     // Filtrar restrições
     const filteredRestrictions = useMemo(() => {
         return restrictions.filter(r => {
-            const matchStatus = filterStatus === 'all' || r.status === filterStatus;
+            const matchStatus = filterStatuses.length === 0 || filterStatuses.includes(r.status as RestrictionStatus);
             const matchType = filterType === 'all' || r.type === filterType;
             const matchPriority = filterPriority === 'all' || r.priority === filterPriority;
             const matchDepartment = filterDepartment === 'all' || r.department === filterDepartment;
             return matchStatus && matchType && matchPriority && matchDepartment;
         });
-    }, [restrictions, filterStatus, filterType, filterPriority, filterDepartment]);
+    }, [restrictions, filterStatuses, filterType, filterPriority, filterDepartment]);
 
     const getTaskDetails = (baselineTaskId: string) => {
         const task = baselineTasks.find(t => String(t.id) === String(baselineTaskId));
@@ -232,6 +234,7 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                 onNavigateToDashboard={onNavigateToDashboard}
                 onNavigateToReports={onNavigateToReports}
                 onNavigateToBaseline={onNavigateToBaseline}
+                onNavigateToCurrentSchedule={onNavigateToCurrentSchedule}
                 onNavigateToAnalysis={onNavigateToAnalysis}
                 onNavigateToLean={onNavigateToLean}
                 onUpgradeClick={onUpgradeClick}
@@ -342,16 +345,44 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                             <div>
                                 <label className="block text-xs font-bold text-brand-med-gray uppercase mb-2">Status</label>
-                                <select
-                                    value={filterStatus}
-                                    onChange={(e) => setFilterStatus(e.target.value as any)}
-                                    className="w-full bg-brand-dark border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-brand-accent focus:outline-none"
-                                >
-                                    <option value="all">Todos</option>
-                                    {Object.values(RestrictionStatus).map(status => (
-                                        <option key={status} value={status}>{status}</option>
-                                    ))}
-                                </select>
+                                <div className="flex flex-wrap gap-2">
+                                    {Object.values(RestrictionStatus).map(status => {
+                                        const isActive = filterStatuses.includes(status);
+                                        return (
+                                            <button
+                                                key={status}
+                                                onClick={() => {
+                                                    setFilterStatuses(prev =>
+                                                        prev.includes(status)
+                                                            ? prev.filter(s => s !== status)
+                                                            : [...prev, status]
+                                                    );
+                                                }}
+                                                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-200 ${isActive
+                                                        ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/50'
+                                                        : 'bg-brand-dark text-brand-med-gray border-white/10 hover:border-white/20'
+                                                    }`}
+                                            >
+                                                {status}
+                                            </button>
+                                        );
+                                    })}
+                                    <button
+                                        onClick={() => {
+                                            if (filterStatuses.length === Object.values(RestrictionStatus).length) {
+                                                setFilterStatuses([]);
+                                            } else {
+                                                setFilterStatuses(Object.values(RestrictionStatus));
+                                            }
+                                        }}
+                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-200 ${filterStatuses.length === Object.values(RestrictionStatus).length
+                                                ? 'bg-purple-500/20 text-purple-400 border-purple-500/50'
+                                                : 'bg-brand-dark text-brand-med-gray border-white/10 hover:border-white/20'
+                                            }`}
+                                    >
+                                        Todos
+                                    </button>
+                                </div>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-brand-med-gray uppercase mb-2">Tipo</label>

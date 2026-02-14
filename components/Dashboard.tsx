@@ -9,6 +9,7 @@ import PrintIcon from './icons/PrintIcon';
 import TaskListView from './TaskListView';
 import ClearIcon from './icons/ClearIcon';
 import BaselineIcon from './icons/BaselineIcon';
+import ScheduleIcon from './icons/ScheduleIcon';
 import ManagementIcon from './icons/ManagementIcon';
 import LeanIcon from './icons/LeanIcon';
 import ConstructionIcon from './icons/ConstructionIcon';
@@ -26,6 +27,7 @@ interface DashboardProps {
   onOpenRdoModal: () => void;
   onNavigateToReports: () => void;
   onNavigateToBaseline: () => void;
+  onNavigateToCurrentSchedule: () => void;
   onNavigateToAnalysis: () => void;
   onNavigateToLean: () => void;
   onUpgradeClick: () => void;
@@ -44,7 +46,7 @@ const initialFilters = {
   endDate: '',
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToReports, onNavigateToBaseline, onNavigateToAnalysis, onNavigateToLean, onUpgradeClick, showToast }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onUpgradeClick, showToast }) => {
   const { currentUser: user, tasks, baselineTasks, signOut, deleteTask } = useData();
   const [filters, setFilters] = useState(initialFilters);
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'dueDate', direction: 'asc' });
@@ -174,7 +176,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
   return (
     <div className="flex h-screen bg-[#060a12] overflow-hidden">
       {/* Sidebar Navigation - Fixed on left for desktop */}
-      <aside className="hidden lg:flex flex-col w-64 bg-[#0a0f18] border-r border-white/5 non-printable transition-all duration-300">
+      <aside className="hidden lg:flex flex-col w-72 bg-[#0a0f18] border-r border-white/5 non-printable transition-all duration-300">
         <div className="p-8 flex-1">
           <div className="flex flex-col mb-10">
             <div className="flex items-center gap-3">
@@ -192,6 +194,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
             {showFullMenu && (
               <>
                 <NavButton icon={<BaselineIcon className="w-5 h-5" />} label="Linha Base" onClick={onNavigateToBaseline} />
+                <NavButton icon={<ScheduleIcon className="w-5 h-5" />} label="Cronograma Corrente" onClick={onNavigateToCurrentSchedule} />
                 <NavButton icon={<ChartIcon className="w-5 h-5" />} label="Dashboards" onClick={onNavigateToReports} />
                 <NavButton icon={<ManagementIcon className="w-5 h-5" />} label="Painel Gerencial" onClick={onNavigateToAnalysis} />
                 <NavButton icon={<LeanIcon className="w-5 h-5 text-brand-accent" />} label="Sistema Lean" onClick={onNavigateToLean} />
@@ -229,6 +232,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
           onNavigateToDashboard={() => { }}
           onNavigateToReports={onNavigateToReports}
           onNavigateToBaseline={onNavigateToBaseline}
+          onNavigateToCurrentSchedule={onNavigateToCurrentSchedule}
           onNavigateToAnalysis={onNavigateToAnalysis}
           onNavigateToLean={onNavigateToLean}
           onUpgradeClick={onUpgradeClick}
@@ -338,7 +342,7 @@ const NavButton: React.FC<{ icon: React.ReactNode, label: string, onClick: () =>
     <div className={`transition-transform duration-300 group-hover:scale-110 ${active ? 'text-white' : 'text-brand-accent/70'}`}>
       {icon}
     </div>
-    <span className="text-sm tracking-tight">{label}</span>
+    <span className="text-sm tracking-tight whitespace-nowrap">{label}</span>
   </button>
 );
 

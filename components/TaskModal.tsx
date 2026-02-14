@@ -735,7 +735,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                         id="assignee"
                                         value={formData.assignee}
                                         onChange={handleChange}
-                                        required
                                         disabled={isReadOnlyPlanning}
                                         className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed"
                                     >

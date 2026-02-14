@@ -9,11 +9,13 @@ interface DataContextType {
     allUsers: User[];
     tasks: Task[];
     baselineTasks: Task[];
+    currentScheduleTasks: Task[];
     isLoading: boolean;
     refreshData: () => Promise<void>;
     saveTask: (task: Task) => Promise<{ success: boolean; error?: string }>;
     deleteTask: (taskId: string) => Promise<{ success: boolean; error?: string }>;
     importBaseline: (tasks: Task[]) => Promise<{ success: boolean; error?: string }>;
+    importCurrentSchedule: (tasks: Task[]) => Promise<{ success: boolean; error?: string }>;
     restrictions: Restriction[];
     saveRestriction: (restriction: Omit<Restriction, 'id' | 'created_at' | 'user_id'>) => Promise<{ success: boolean; error?: string }>;
     updateRestriction: (id: string, updates: Partial<Restriction>) => Promise<{ success: boolean; error?: string }>;
@@ -32,6 +34,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [tasks, setTasks] = useState<Task[]>([]);
     const [baselineTasks, setBaselineTasks] = useState<Task[]>([]);
+    const [currentScheduleTasks, setCurrentScheduleTasks] = useState<Task[]>([]);
     const [restrictions, setRestrictions] = useState<Restriction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [cutOffDateStr, setCutOffDateStr] = useState('2026-01-10');
@@ -109,6 +112,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const baselineResult = await fetchAllRows('baseline_tasks');
             setBaselineTasks(baselineResult.data || []);
 
+            // Fetch current schedule (All rows)
+            const currentScheduleResult = await fetchAllRows('current_schedule_tasks');
+            setCurrentScheduleTasks(currentScheduleResult.data || []);
+
             // Fetch restrictions (All rows)
             const restrictionsResult = await fetchAllRows('restrictions');
             setRestrictions(restrictionsResult.data || []);
@@ -142,6 +149,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     setCurrentUser(null);
                     setTasks([]);
                     setBaselineTasks([]);
+                    setCurrentScheduleTasks([]);
                     setAllUsers([]);
                     setIsLoading(false);
                 }
@@ -206,7 +214,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const importBaseline = async (newTasks: Task[]) => {
         if (!session) return { success: false, error: 'No session' };
         try {
-            // Limpa a linha de base globalmente antes de importar a nova
             const { error: deleteError } = await supabase.from('baseline_tasks').delete().neq('id', 'clear_all_rows');
             if (deleteError) throw deleteError;
 
@@ -215,6 +222,23 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (insertError) throw insertError;
 
             setBaselineTasks(data || []);
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    };
+
+    const importCurrentSchedule = async (newTasks: Task[]) => {
+        if (!session) return { success: false, error: 'No session' };
+        try {
+            const { error: deleteError } = await supabase.from('current_schedule_tasks').delete().neq('id', 'clear_all_rows');
+            if (deleteError) throw deleteError;
+
+            const tasksToInsert = newTasks.map(t => ({ ...t, user_id: session.user.id }));
+            const { data, error: insertError } = await supabase.from('current_schedule_tasks').insert(tasksToInsert).select();
+            if (insertError) throw insertError;
+
+            setCurrentScheduleTasks(data || []);
             return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };
@@ -285,8 +309,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     return (
         <DataContext.Provider value={{
-            session, currentUser, allUsers, tasks, baselineTasks, restrictions, isLoading, refreshData,
-            saveTask, deleteTask, importBaseline, saveRestriction, updateRestriction, deleteRestriction,
+            session, currentUser, allUsers, tasks, baselineTasks, currentScheduleTasks, restrictions, isLoading, refreshData,
+            saveTask, deleteTask, importBaseline, importCurrentSchedule, saveRestriction, updateRestriction, deleteRestriction,
             cutOffDateStr, setCutOffDateStr, signOut, upgradeRole
         }}>
             {children}
