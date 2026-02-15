@@ -31,6 +31,7 @@ interface DashboardProps {
   onNavigateToCurrentSchedule: () => void;
   onNavigateToAnalysis: () => void;
   onNavigateToLean: () => void;
+  onNavigateToLeanConstruction: () => void;
   onUpgradeClick: () => void;
   showToast: (message: string, type: 'success' | 'error') => void;
 }
@@ -47,7 +48,7 @@ const initialFilters = {
   endDate: '',
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onUpgradeClick, showToast }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onUpgradeClick, showToast }) => {
   const { currentUser: user, tasks, baselineTasks, signOut, deleteTask } = useData();
   const [filters, setFilters] = useState(initialFilters);
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'dueDate', direction: 'asc' });
@@ -206,7 +207,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
                 <NavButton icon={<ScheduleIcon className="w-5 h-5" />} label="Cronograma Corrente" onClick={onNavigateToCurrentSchedule} />
                 <NavButton icon={<ChartIcon className="w-5 h-5" />} label="Dashboards" onClick={onNavigateToReports} />
                 <NavButton icon={<ManagementIcon className="w-5 h-5" />} label="Painel Gerencial" onClick={onNavigateToAnalysis} />
-                <NavButton icon={<LeanIcon className="w-5 h-5 text-brand-accent" />} label="Sistema Lean" onClick={onNavigateToLean} />
+                <NavButton icon={<LeanIcon className="w-5 h-5" />} label="Sistema LPS" onClick={onNavigateToLean} />
+                <NavButton icon={<LeanIcon className="w-5 h-5 text-cyan-400" />} label="Lean Construction" onClick={onNavigateToLeanConstruction} />
               </>
             )}
           </nav>
@@ -244,6 +246,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
           onNavigateToCurrentSchedule={onNavigateToCurrentSchedule}
           onNavigateToAnalysis={onNavigateToAnalysis}
           onNavigateToLean={onNavigateToLean}
+          onNavigateToLeanConstruction={onNavigateToLeanConstruction}
           onUpgradeClick={onUpgradeClick}
           activeScreen="dashboard"
         />

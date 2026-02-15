@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient';
 import { User, Task, Restriction } from '../types';
+import { useQueryClient } from '@tanstack/react-query';
+import { useTasks, useBaselineTasks, useCurrentScheduleTasks, useRestrictions, useAllUsers, useCurrentUser } from '../hooks/dataHooks';
 
 interface DataContextType {
     session: Session | null;
@@ -24,135 +26,33 @@ interface DataContextType {
     setCutOffDateStr: (date: string) => void;
     signOut: () => Promise<{ success: boolean; error?: string }>;
     upgradeRole: (newRole: User['role']) => Promise<{ success: boolean; error?: string }>;
+    updateUser: (userId: string, updates: Partial<User>) => Promise<{ success: boolean; error?: string }>;
+    deleteUser: (userId: string) => Promise<{ success: boolean; error?: string }>;
+    isDevToolsOpen: boolean;
+    setIsDevToolsOpen: (isOpen: boolean) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [session, setSession] = useState<Session | null>(null);
-    const [currentUser, setCurrentUser] = useState<User | null>(null);
-    const [allUsers, setAllUsers] = useState<User[]>([]);
-    const [tasks, setTasks] = useState<Task[]>([]);
-    const [baselineTasks, setBaselineTasks] = useState<Task[]>([]);
-    const [currentScheduleTasks, setCurrentScheduleTasks] = useState<Task[]>([]);
-    const [restrictions, setRestrictions] = useState<Restriction[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
     const [cutOffDateStr, setCutOffDateStr] = useState('2026-01-10');
-
-    const fetchProfileAndTasks = useCallback(async (currentSession: Session) => {
-        setIsLoading(true);
-
-        // Função auxiliar para buscar TODOS os registros (bypass do limite de 1000 do Supabase)
-        const fetchAllRows = async (tableName: string) => {
-            let allRows: any[] = [];
-            let errorOccurred = false;
-            let from = 0;
-            const step = 1000;
-
-            while (true) {
-                const { data, error } = await supabase
-                    .from(tableName)
-                    .select('*')
-                    .range(from, from + step - 1);
-
-                if (error) {
-                    console.error(`Error fetching ${tableName}:`, error);
-                    errorOccurred = true;
-                    break;
-                }
-
-                if (data && data.length > 0) {
-                    allRows = [...allRows, ...data];
-                    if (data.length < step) break; // Chegou ao fim
-                    from += step;
-                } else {
-                    break;
-                }
-            }
-            return { data: allRows, error: errorOccurred };
-        };
-
-        try {
-            // Fetch user profile
-            const { data: profile, error: profileError } = await supabase
-                .from('profiles')
-                .select(`id, username, role, fullName: full_name, whatsapp`)
-                .eq('id', currentSession.user.id)
-                .single();
-
-            if (profileError) console.error("Error fetching profile:", profileError);
-            if (profile) {
-                // Check if this is the master user and update role if necessary
-                if (profile.username === 'hugo.sales@egtc.com.br' && profile.role !== 'Master') {
-                    const { error: updateError } = await supabase
-                        .from('profiles')
-                        .update({ role: 'Master' })
-                        .eq('id', profile.id);
-
-                    if (!updateError) {
-                        profile.role = 'Master';
-                    }
-                }
-                setCurrentUser(profile);
-            }
-
-            // Fetch all users
-            const { data: allProfiles, error: allProfilesError } = await supabase
-                .from('profiles')
-                .select(`id, username, role, fullName: full_name, whatsapp`);
-
-            if (allProfilesError) console.error("Error fetching users:", allProfilesError);
-            setAllUsers(allProfiles || []);
-
-            // Fetch tasks (All rows)
-            const tasksResult = await fetchAllRows('tasks');
-            setTasks(tasksResult.data || []);
-
-            // Fetch baseline (All rows)
-            const baselineResult = await fetchAllRows('baseline_tasks');
-            setBaselineTasks(baselineResult.data || []);
-
-            // Fetch current schedule (All rows)
-            const currentScheduleResult = await fetchAllRows('current_schedule_tasks');
-            setCurrentScheduleTasks(currentScheduleResult.data || []);
-
-            // Fetch restrictions (All rows)
-            const restrictionsResult = await fetchAllRows('restrictions');
-            setRestrictions(restrictionsResult.data || []);
-
-        } catch (error: any) {
-            console.error('Erro ao carregar dados:', error.message);
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
+    const [isAuthLoading, setIsAuthLoading] = useState(true);
+    const queryClient = useQueryClient();
 
     useEffect(() => {
         let mounted = true;
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (mounted) {
                 setSession(session);
-                if (session) {
-                    fetchProfileAndTasks(session);
-                } else {
-                    setIsLoading(false);
-                }
+                setIsAuthLoading(false);
             }
         });
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             if (mounted) {
                 setSession(session);
-                if (session) {
-                    fetchProfileAndTasks(session);
-                } else {
-                    setCurrentUser(null);
-                    setTasks([]);
-                    setBaselineTasks([]);
-                    setCurrentScheduleTasks([]);
-                    setAllUsers([]);
-                    setIsLoading(false);
-                }
+                setIsAuthLoading(false);
             }
         });
 
@@ -160,12 +60,27 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             mounted = false;
             subscription.unsubscribe();
         };
-    }, [fetchProfileAndTasks]);
+    }, []);
+
+    const userId = session?.user?.id;
+    const isLoggedIn = !!session;
+
+    // React Query Hooks
+    const { data: currentUser, isLoading: loadingUser } = useCurrentUser(userId);
+    const { data: allUsers = [], isLoading: loadingAllUsers } = useAllUsers(isLoggedIn);
+    const { data: tasks = [], isLoading: loadingTasks } = useTasks(isLoggedIn);
+    const { data: baselineTasks = [], isLoading: loadingBaseline } = useBaselineTasks(isLoggedIn);
+    const { data: currentScheduleTasks = [], isLoading: loadingCurrentSchedule } = useCurrentScheduleTasks(isLoggedIn);
+    const { data: restrictions = [], isLoading: loadingRestrictions } = useRestrictions(isLoggedIn);
+
+    // isLoading logic:
+    // 1. Auth is loading? -> True
+    // 2. User logged in? -> Wait for queries
+    // 3. User logged out? -> False (show login)
+    const isLoading = isAuthLoading || (isLoggedIn && (loadingUser || loadingAllUsers || loadingTasks || loadingBaseline || loadingCurrentSchedule || loadingRestrictions));
 
     const refreshData = async () => {
-        if (session) {
-            await fetchProfileAndTasks(session);
-        }
+        await queryClient.invalidateQueries();
     };
 
     const saveTask = async (task: Task) => {
@@ -174,26 +89,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const existingTask = tasks.find(t => t.id === task.id);
 
         try {
-            let result;
             if (existingTask) {
                 // Update
                 const { id, ...taskUpdates } = task;
-                const { data, error } = await supabase.from('tasks').update({ ...taskUpdates, user_id: session.user.id }).eq('id', id).select();
+                const { error } = await supabase.from('tasks').update({ ...taskUpdates, user_id: session.user.id }).eq('id', id);
                 if (error) throw error;
-                result = data?.[0];
-                if (result) {
-                    setTasks(prev => prev.map(t => t.id === id ? result : t));
-                }
             } else {
                 // Insert
                 const { id, ...taskData } = task;
-                const { data, error } = await supabase.from('tasks').insert([{ ...taskData, user_id: session.user.id }]).select();
+                const { error } = await supabase.from('tasks').insert([{ ...taskData, user_id: session.user.id }]);
                 if (error) throw error;
-                result = data?.[0];
-                if (result) {
-                    setTasks(prev => [...prev, result]);
-                }
             }
+            // Invalidate query to refetch data
+            queryClient.invalidateQueries({ queryKey: ['tasks'] });
             return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };
@@ -204,7 +112,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
             const { error } = await supabase.from('tasks').delete().eq('id', taskId);
             if (error) throw error;
-            setTasks(prev => prev.filter(t => t.id !== taskId));
+            // Invalidate query to refetch data
+            queryClient.invalidateQueries({ queryKey: ['tasks'] });
             return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };
@@ -218,10 +127,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (deleteError) throw deleteError;
 
             const tasksToInsert = newTasks.map(t => ({ ...t, user_id: session.user.id }));
-            const { data, error: insertError } = await supabase.from('baseline_tasks').insert(tasksToInsert).select();
-            if (insertError) throw insertError;
+            const step = 1000;
 
-            setBaselineTasks(data || []);
+            // Batch insert to avoid limitations if needed, though supabase-js handles some, explicit is safer for large imports
+            for (let i = 0; i < tasksToInsert.length; i += step) {
+                const batch = tasksToInsert.slice(i, i + step);
+                const { error: insertError } = await supabase.from('baseline_tasks').insert(batch);
+                if (insertError) throw insertError;
+            }
+
+            queryClient.invalidateQueries({ queryKey: ['baselineTasks'] });
             return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };
@@ -235,10 +150,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (deleteError) throw deleteError;
 
             const tasksToInsert = newTasks.map(t => ({ ...t, user_id: session.user.id }));
-            const { data, error: insertError } = await supabase.from('current_schedule_tasks').insert(tasksToInsert).select();
-            if (insertError) throw insertError;
+            const step = 1000;
 
-            setCurrentScheduleTasks(data || []);
+            for (let i = 0; i < tasksToInsert.length; i += step) {
+                const batch = tasksToInsert.slice(i, i + step);
+                const { error: insertError } = await supabase.from('current_schedule_tasks').insert(batch);
+                if (insertError) throw insertError;
+            }
+
+            queryClient.invalidateQueries({ queryKey: ['currentScheduleTasks'] });
             return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };
@@ -248,11 +168,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const saveRestriction = async (restriction: Omit<Restriction, 'id' | 'created_at' | 'user_id'>) => {
         if (!session) return { success: false, error: 'No session' };
         try {
-            const { data, error } = await supabase.from('restrictions').insert([{ ...restriction, user_id: session.user.id }]).select();
+            const { error } = await supabase.from('restrictions').insert([{ ...restriction, user_id: session.user.id }]);
             if (error) throw error;
-            if (data?.[0]) {
-                setRestrictions(prev => [...prev, data[0]]);
-            }
+            queryClient.invalidateQueries({ queryKey: ['restrictions'] });
             return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };
@@ -261,11 +179,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const updateRestriction = async (id: string, updates: Partial<Restriction>) => {
         try {
-            const { data, error } = await supabase.from('restrictions').update(updates).eq('id', id).select();
+            const { error } = await supabase.from('restrictions').update(updates).eq('id', id);
             if (error) throw error;
-            if (data?.[0]) {
-                setRestrictions(prev => prev.map(r => r.id === id ? data[0] : r));
-            }
+            queryClient.invalidateQueries({ queryKey: ['restrictions'] });
             return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };
@@ -276,19 +192,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
             const { error } = await supabase.from('restrictions').delete().eq('id', id);
             if (error) throw error;
-            setRestrictions(prev => prev.filter(r => r.id !== id));
+            queryClient.invalidateQueries({ queryKey: ['restrictions'] });
             return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };
         }
     };
 
-
     const signOut = async () => {
         const { error } = await supabase.auth.signOut();
         if (error) return { success: false, error: error.message };
+        queryClient.clear(); // Clear cache on sign out
         return { success: true };
     };
+
+    // Dev Tools State
+    const [isDevToolsOpen, setIsDevToolsOpen] = useState(false);
 
     const upgradeRole = async (newRole: User['role']) => {
         if (!session || !currentUser) return { success: false, error: 'Usuário não autenticado' };
@@ -300,7 +219,41 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             if (error) throw error;
 
-            setCurrentUser(prev => prev ? { ...prev, role: newRole } : null);
+            queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    };
+
+    const updateUser = async (userId: string, updates: Partial<User>) => {
+        if (!session || currentUser?.role !== 'Master') return { success: false, error: 'Permissão negada' };
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update(updates)
+                .eq('id', userId);
+
+            if (error) throw error;
+
+            queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    };
+
+    const deleteUser = async (userId: string) => {
+        if (!session || currentUser?.role !== 'Master') return { success: false, error: 'Permissão negada' };
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .delete()
+                .eq('id', userId);
+
+            if (error) throw error;
+
+            queryClient.invalidateQueries({ queryKey: ['allUsers'] });
             return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };
@@ -309,9 +262,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     return (
         <DataContext.Provider value={{
-            session, currentUser, allUsers, tasks, baselineTasks, currentScheduleTasks, restrictions, isLoading, refreshData,
+            session, currentUser: currentUser || null, allUsers, tasks, baselineTasks, currentScheduleTasks, restrictions, isLoading, refreshData,
             saveTask, deleteTask, importBaseline, importCurrentSchedule, saveRestriction, updateRestriction, deleteRestriction,
-            cutOffDateStr, setCutOffDateStr, signOut, upgradeRole
+            cutOffDateStr, setCutOffDateStr, signOut, upgradeRole, updateUser, deleteUser, isDevToolsOpen, setIsDevToolsOpen
         }}>
             {children}
         </DataContext.Provider>

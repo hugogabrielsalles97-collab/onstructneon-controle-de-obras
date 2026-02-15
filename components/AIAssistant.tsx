@@ -17,7 +17,7 @@ interface Message {
 }
 
 const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks }) => {
-  const { currentUser: user } = useData();
+  const { currentUser: user, isDevToolsOpen, setIsDevToolsOpen } = useData();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [userInput, setUserInput] = useState('');
@@ -41,6 +41,15 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks }) => {
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userInput.trim() || isLoading) return;
+
+    // Secret Command: Toggle TanStack Query DevTools
+    if (userInput.toLowerCase().trim() === 'abrir tanstak' || userInput.toLowerCase().trim() === 'abrir tanstack') {
+      const newState = !isDevToolsOpen;
+      setIsDevToolsOpen(newState);
+      setMessages([...messages, { sender: 'user', text: userInput }, { sender: 'ai', text: newState ? "✅ Modo Desenvolvedor ativado: Ferramentas TanStack abertas." : "🔒 Modo Desenvolvedor desativado." }]);
+      setUserInput('');
+      return;
+    }
 
     if (!canUseAI) {
       alert("Upgrade necessário para enviar solicitações ao Assistente Hugo com IA.");

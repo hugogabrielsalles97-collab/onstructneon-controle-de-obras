@@ -7,6 +7,7 @@ import BaselinePage from './components/BaselinePage';
 import CurrentSchedulePage from './components/CurrentSchedulePage';
 import ManagementPage from './components/ManagementPage';
 import LeanPage from './components/LeanPage';
+import LeanConstructionPage from './components/LeanConstructionPage';
 import RestrictionsAnalysisPage from './components/RestrictionsAnalysisPage';
 import TaskModal from './components/TaskModal';
 import RdoModal from './components/RdoModal';
@@ -16,8 +17,9 @@ import Toast from './components/Toast';
 import ConstructionIcon from './components/icons/ConstructionIcon';
 import { Task, Restriction } from './types';
 import { DataProvider, useData } from './context/DataProvider';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
-type Screen = 'login' | 'register' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'restrictions';
+type Screen = 'login' | 'register' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'restrictions';
 
 const AppContent: React.FC = () => {
   const {
@@ -162,6 +164,7 @@ Por favor, acesse o aplicativo para mais detalhes.
       onNavigateToCurrentSchedule: () => setScreen('currentSchedule'),
       onNavigateToAnalysis: () => setScreen('management'),
       onNavigateToLean: () => setScreen('lean'),
+      onNavigateToLeanConstruction: () => setScreen('leanConstruction'),
       onUpgradeClick: () => setIsUpgradeModalOpen(true),
     };
 
@@ -171,6 +174,7 @@ Por favor, acesse o aplicativo para mais detalhes.
       case 'baseline': return <BaselinePage {...navigationProps} showToast={showToast} />;
       case 'currentSchedule': return <CurrentSchedulePage {...navigationProps} showToast={showToast} />;
       case 'management': return <ManagementPage {...navigationProps} showToast={showToast} />;
+      case 'leanConstruction': return <LeanConstructionPage {...navigationProps} showToast={showToast} />;
       case 'lean': return (
         <LeanPage
           {...navigationProps}
@@ -241,6 +245,7 @@ Por favor, acesse o aplicativo para mais detalhes.
           onClose={() => setToast(null)}
         />
       )}
+      {useData().isDevToolsOpen && <ReactQueryDevtools initialIsOpen={true} />}
     </div>
   );
 };

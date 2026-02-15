@@ -8,7 +8,10 @@ import BaselineIcon from './icons/BaselineIcon';
 import ScheduleIcon from './icons/ScheduleIcon';
 import ManagementIcon from './icons/ManagementIcon';
 import LeanIcon from './icons/LeanIcon';
+import LeanConstructionIcon from './icons/LeanConstructionIcon';
 import XIcon from './icons/XIcon';
+import UserManagementModal from './UserManagementModal';
+import Toast from './Toast';
 
 interface HeaderProps {
   user: User;
@@ -19,6 +22,7 @@ interface HeaderProps {
   onNavigateToCurrentSchedule?: () => void;
   onNavigateToAnalysis?: () => void;
   onNavigateToLean?: () => void;
+  onNavigateToLeanConstruction?: () => void;
   onUpgradeClick?: () => void;
   activeScreen?: string;
 }
@@ -32,11 +36,19 @@ const Header: React.FC<HeaderProps> = ({
   onNavigateToCurrentSchedule,
   onNavigateToAnalysis,
   onNavigateToLean,
+  onNavigateToLeanConstruction,
   onUpgradeClick,
   activeScreen = 'dashboard'
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const showFullMenu = user.role !== 'Executor';
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const menuItems = [
     { id: 'dashboard', label: 'Painel de Controle', icon: <ChartIcon className="w-5 h-5" />, onClick: onNavigateToDashboard, show: true },
@@ -44,7 +56,8 @@ const Header: React.FC<HeaderProps> = ({
     { id: 'currentSchedule', label: 'Cronograma Corrente', icon: <ScheduleIcon className="w-5 h-5" />, onClick: onNavigateToCurrentSchedule, show: showFullMenu },
     { id: 'reports', label: 'Dashboards', icon: <ChartIcon className="w-5 h-5" />, onClick: onNavigateToReports, show: showFullMenu },
     { id: 'management', label: 'Painel Gerencial', icon: <ManagementIcon className="w-5 h-5" />, onClick: onNavigateToAnalysis, show: showFullMenu },
-    { id: 'lean', label: 'Sistema Lean', icon: <LeanIcon className="w-5 h-5" />, onClick: onNavigateToLean, show: showFullMenu },
+    { id: 'lean', label: 'Sistema LPS', icon: <LeanIcon className="w-5 h-5" />, onClick: onNavigateToLean, show: showFullMenu },
+    { id: 'leanConstruction', label: 'Lean Construction', icon: <LeanConstructionIcon className="w-5 h-5 text-cyan-400" />, onClick: onNavigateToLeanConstruction, show: showFullMenu },
   ];
 
   const handleMenuClick = (onClick?: () => void) => {
@@ -88,6 +101,14 @@ const Header: React.FC<HeaderProps> = ({
                 >
                   Fazer Upgrade
                 </button>
+                {user.role === 'Master' && (
+                  <button
+                    onClick={() => setIsUserManagementOpen(true)}
+                    className="text-[9px] bg-purple-500/10 text-purple-400 border border-purple-500/30 px-1.5 py-0.5 rounded hover:bg-purple-500 hover:text-white transition-all uppercase font-bold ml-1 animate-pulse"
+                  >
+                    Admin
+                  </button>
+                )}
                 <span className="text-sm font-black text-white italic tracking-tight uppercase">{user.role}</span>
               </div>
             </div>
@@ -177,6 +198,10 @@ const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
       )}
+      {isUserManagementOpen && (
+        <UserManagementModal onClose={() => setIsUserManagementOpen(false)} showToast={showToast} />
+      )}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </>
   );
 };

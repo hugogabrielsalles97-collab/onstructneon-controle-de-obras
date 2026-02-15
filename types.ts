@@ -45,6 +45,8 @@ export interface User {
   role: 'Master' | 'Planejador' | 'Gerenciador' | 'Executor';
   fullName?: string;
   whatsapp?: string;
+  email?: string;
+  avatar_url?: string;
 }
 
 // Sistema de Restrições (Lean Construction)
