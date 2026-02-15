@@ -36,9 +36,9 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
     });
 
     const [newSubTask, setNewSubTask] = useState<{
-        description: string; startTime: string; endTime: string; machinery: number; isUnproductive: boolean; workers: Worker[];
+        description: string; startTime: string; endTime: string; machinery: number; isUnproductive: boolean; workers: Worker[]; producedQuantity: number; unit: string;
     }>({
-        description: '', startTime: '07:00', endTime: '17:00', machinery: 0, isUnproductive: false, workers: []
+        description: '', startTime: '07:00', endTime: '17:00', machinery: 0, isUnproductive: false, workers: [], producedQuantity: 0, unit: 'un'
     });
 
     const [tempWorkerRole, setTempWorkerRole] = useState<string>('Servente');
@@ -211,7 +211,9 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
             endTime: newSubTask.endTime,
             workers: newSubTask.workers,
             machinery: Number(newSubTask.machinery) || 0,
-            isUnproductive: newSubTask.isUnproductive
+            isUnproductive: newSubTask.isUnproductive,
+            producedQuantity: Number(newSubTask.producedQuantity) || 0,
+            unit: newSubTask.unit || 'un'
         };
 
         let updatedTask: LeanTask;
@@ -237,7 +239,11 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
     };
 
     const handleEditSubTaskClick = (sub: LeanSubTask) => {
-        setNewSubTask({ ...sub });
+        setNewSubTask({
+            ...sub,
+            producedQuantity: sub.producedQuantity || 0,
+            unit: sub.unit || 'un'
+        });
         setEditingSubTaskId(sub.id);
         setIsSubFormOpen(true);
     };
@@ -245,7 +251,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
     const handleCancelSubTaskForm = () => {
         setIsSubFormOpen(false);
         setEditingSubTaskId(null);
-        setNewSubTask({ description: '', startTime: '07:00', endTime: '17:00', machinery: 0, isUnproductive: false, workers: [] });
+        setNewSubTask({ description: '', startTime: '07:00', endTime: '17:00', machinery: 0, isUnproductive: false, workers: [], producedQuantity: 0, unit: 'un' });
     };
 
     const handleDeleteSubTask = async (subId: string) => {
@@ -457,6 +463,8 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                     <div className="col-span-1"><label className="text-[10px] text-gray-500 font-bold uppercase">Descrição</label><input type="text" className="w-full bg-[#111827] border border-white/10 rounded text-white p-2 text-sm" value={newSubTask.description} onChange={e => setNewSubTask({ ...newSubTask, description: e.target.value })} placeholder="Ex: Armação" /></div>
                                                     <div className="col-span-1"><label className="text-[10px] text-gray-500 font-bold uppercase">Início</label><input type="time" className="w-full bg-[#111827] border border-white/10 rounded text-white p-2 text-sm" value={newSubTask.startTime} onChange={e => setNewSubTask({ ...newSubTask, startTime: e.target.value })} /></div>
                                                     <div className="col-span-1"><label className="text-[10px] text-gray-500 font-bold uppercase">Fim</label><input type="time" className="w-full bg-[#111827] border border-white/10 rounded text-white p-2 text-sm" value={newSubTask.endTime} onChange={e => setNewSubTask({ ...newSubTask, endTime: e.target.value })} /></div>
+                                                    <div className="col-span-1"><label className="text-[10px] text-gray-500 font-bold uppercase">Qtd. Produzida</label><input type="number" className="w-full bg-[#111827] border border-white/10 rounded text-white p-2 text-sm" value={newSubTask.producedQuantity} onChange={e => setNewSubTask({ ...newSubTask, producedQuantity: Number(e.target.value) })} /></div>
+                                                    <div className="col-span-1"><label className="text-[10px] text-gray-500 font-bold uppercase">Unidade</label><input type="text" className="w-full bg-[#111827] border border-white/10 rounded text-white p-2 text-sm" value={newSubTask.unit} onChange={e => setNewSubTask({ ...newSubTask, unit: e.target.value })} /></div>
                                                 </div>
 
                                                 <div className="mb-4 bg-[#111827]/50 p-3 rounded border border-white/5">
@@ -497,6 +505,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                         <div className="text-xs text-gray-500 flex flex-wrap gap-2 mt-1">
                                                             {sub.workers.map((w, i) => <span key={i} className="bg-white/5 px-1.5 rounded">{w.count} {w.role === 'Outro' ? w.customRole : w.role}</span>)}
                                                             {sub.machinery > 0 && <span className="text-cyan-400">{sub.machinery} Máq.</span>}
+                                                            {sub.producedQuantity && sub.producedQuantity > 0 && <span className="text-green-400 font-bold border border-green-500/30 px-1.5 rounded">{sub.producedQuantity} {sub.unit}</span>}
                                                         </div>
                                                     </div>
                                                     {user.role !== 'Gerenciador' && (

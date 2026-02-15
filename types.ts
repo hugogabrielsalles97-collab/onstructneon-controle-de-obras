@@ -109,6 +109,8 @@ export interface LeanSubTask {
   workers: Worker[];
   machinery: number;
   isUnproductive: boolean;
+  producedQuantity?: number;
+  unit?: string;
 }
 
 export interface AISuggestion {
