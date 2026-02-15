@@ -378,7 +378,9 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                         <div className="space-y-6">
                             <div className="flex justify-between items-end border-b border-white/5 pb-4">
                                 <p className="text-gray-400 text-sm">Gerencie suas atividades.</p>
-                                <button onClick={() => setIsMainFormOpen(!isMainFormOpen)} className="bg-cyan-500 hover:bg-cyan-600 text-white px-5 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2"><PlusIcon className="w-4 h-4" /> {isMainFormOpen ? 'Fechar' : 'Nova Atividade'}</button>
+                                {user.role !== 'Gerenciador' && (
+                                    <button onClick={() => setIsMainFormOpen(!isMainFormOpen)} className="bg-cyan-500 hover:bg-cyan-600 text-white px-5 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2"><PlusIcon className="w-4 h-4" /> {isMainFormOpen ? 'Fechar' : 'Nova Atividade'}</button>
+                                )}
                             </div>
 
                             {isMainFormOpen && (
@@ -398,7 +400,9 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                 const metrics = calculateTaskMetrics(task);
                                 return (
                                     <div key={task.id} onClick={() => setSelectedTask(task)} className="bg-[#111827]/50 border border-white/5 p-5 rounded-2xl hover:border-cyan-500/30 cursor-pointer flex justify-between items-center transition-all group relative pr-12">
-                                        <button onClick={(e) => handleDeleteMainTask(task.id, e)} className="absolute top-1/2 -translate-y-1/2 right-4 p-2 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-[#060a12] rounded-full shadow-lg border border-white/10"><DeleteIcon className="w-5 h-5" /></button>
+                                        {user.role !== 'Gerenciador' && (
+                                            <button onClick={(e) => handleDeleteMainTask(task.id, e)} className="absolute top-1/2 -translate-y-1/2 right-4 p-2 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-[#060a12] rounded-full shadow-lg border border-white/10"><DeleteIcon className="w-5 h-5" /></button>
+                                        )}
                                         <div>
                                             <h3 className="font-bold text-white text-lg group-hover:text-cyan-400">{task.service}</h3>
                                             <p className="text-gray-500 text-xs">{task.discipline} • {task.location}</p>
@@ -420,8 +424,8 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                 <div>
                                     <h2 className="text-2xl font-bold text-white">{selectedTask.service}</h2>
                                     <div className="flex flex-wrap gap-4 mt-2">
-                                        <div className="bg-white/5 px-3 py-1 rounded text-xs text-gray-300">Turno: <input type="time" className="bg-transparent w-16 text-center outline-none text-cyan-400" value={selectedTask.shiftStartTime} onChange={e => handleUpdateTaskSettings({ shiftStartTime: e.target.value })} /> - <input type="time" className="bg-transparent w-16 text-center outline-none text-cyan-400" value={selectedTask.shiftEndTime} onChange={e => handleUpdateTaskSettings({ shiftEndTime: e.target.value })} /></div>
-                                        <div className="bg-white/5 px-3 py-1 rounded text-xs text-gray-300">Almoço: <input type="time" className="bg-transparent w-16 text-center outline-none text-yellow-400" value={selectedTask.lunchStartTime} onChange={e => handleUpdateTaskSettings({ lunchStartTime: e.target.value })} /> - <input type="time" className="bg-transparent w-16 text-center outline-none text-yellow-400" value={selectedTask.lunchEndTime} onChange={e => handleUpdateTaskSettings({ lunchEndTime: e.target.value })} /></div>
+                                        <div className="bg-white/5 px-3 py-1 rounded text-xs text-gray-300">Turno: <input type="time" disabled={user.role === 'Gerenciador'} className="bg-transparent w-16 text-center outline-none text-cyan-400 disabled:opacity-50" value={selectedTask.shiftStartTime} onChange={e => handleUpdateTaskSettings({ shiftStartTime: e.target.value })} /> - <input type="time" disabled={user.role === 'Gerenciador'} className="bg-transparent w-16 text-center outline-none text-cyan-400 disabled:opacity-50" value={selectedTask.shiftEndTime} onChange={e => handleUpdateTaskSettings({ shiftEndTime: e.target.value })} /></div>
+                                        <div className="bg-white/5 px-3 py-1 rounded text-xs text-gray-300">Almoço: <input type="time" disabled={user.role === 'Gerenciador'} className="bg-transparent w-16 text-center outline-none text-yellow-400 disabled:opacity-50" value={selectedTask.lunchStartTime} onChange={e => handleUpdateTaskSettings({ lunchStartTime: e.target.value })} /> - <input type="time" disabled={user.role === 'Gerenciador'} className="bg-transparent w-16 text-center outline-none text-yellow-400 disabled:opacity-50" value={selectedTask.lunchEndTime} onChange={e => handleUpdateTaskSettings({ lunchEndTime: e.target.value })} /></div>
                                     </div>
                                 </div>
                                 <div className="ml-auto flex gap-4">
@@ -441,7 +445,9 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                     <div className="bg-[#111827] rounded-2xl border border-white/10 p-6 min-h-[500px]">
                                         <div className="flex justify-between items-center mb-6">
                                             <h3 className="text-lg font-bold text-white">Fluxo de Subtarefas</h3>
-                                            <button onClick={() => { if (isSubFormOpen) handleCancelSubTaskForm(); else { setEditingSubTaskId(null); setIsSubFormOpen(true); } }} className="px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 text-xs font-bold border border-cyan-500/20">{isSubFormOpen ? 'Cancelar' : '+ Adicionar Etapa'}</button>
+                                            {user.role !== 'Gerenciador' && (
+                                                <button onClick={() => { if (isSubFormOpen) handleCancelSubTaskForm(); else { setEditingSubTaskId(null); setIsSubFormOpen(true); } }} className="px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 text-xs font-bold border border-cyan-500/20">{isSubFormOpen ? 'Cancelar' : '+ Adicionar Etapa'}</button>
+                                            )}
                                         </div>
 
                                         {isSubFormOpen && (
@@ -493,10 +499,12 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                             {sub.machinery > 0 && <span className="text-cyan-400">{sub.machinery} Máq.</span>}
                                                         </div>
                                                     </div>
-                                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <button onClick={() => handleEditSubTaskClick(sub)} className="p-2 text-gray-500 hover:text-cyan-400 hover:bg-cyan-500/10 rounded"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
-                                                        <button onClick={() => handleDeleteSubTask(sub.id)} className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded"><DeleteIcon className="w-4 h-4" /></button>
-                                                    </div>
+                                                    {user.role !== 'Gerenciador' && (
+                                                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <button onClick={() => handleEditSubTaskClick(sub)} className="p-2 text-gray-500 hover:text-cyan-400 hover:bg-cyan-500/10 rounded"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
+                                                            <button onClick={() => handleDeleteSubTask(sub.id)} className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded"><DeleteIcon className="w-4 h-4" /></button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
