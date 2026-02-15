@@ -3,6 +3,7 @@ import { User, Task, TaskStatus } from '../types';
 import { useData } from '../context/DataProvider';
 import Header from './Header';
 import ScheduleIcon from './icons/ScheduleIcon';
+import Sidebar from './Sidebar';
 
 // Esta variável global é declarada pelo script tag da biblioteca xlsx em index.html
 declare var XLSX: any;
@@ -422,10 +423,11 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
     );
 
     return (
-        <div className="flex flex-col h-screen">
-            <Header
+        <div className="flex h-screen bg-[#060a12] overflow-hidden">
+            <Sidebar
                 user={user}
-                onLogout={handleLogout}
+                activeScreen="currentSchedule"
+                onNavigateToHome={onNavigateToHome}
                 onNavigateToDashboard={onNavigateToDashboard}
                 onNavigateToReports={onNavigateToReports}
                 onNavigateToBaseline={onNavigateToBaseline}
@@ -433,33 +435,50 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
                 onNavigateToAnalysis={onNavigateToAnalysis}
                 onNavigateToLean={onNavigateToLean}
                 onNavigateToLeanConstruction={onNavigateToLeanConstruction}
-                onNavigateToCost={onNavigateToCost}
                 onUpgradeClick={onUpgradeClick}
-                activeScreen="currentSchedule"
             />
-            <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto bg-brand-darkest/50">
-                <div className="max-w-7xl mx-auto">
-                    <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
-                        <div className="flex flex-col">
-                            <h2 className="text-2xl font-bold text-brand-accent">Cronograma Corrente</h2>
-                            <div className="flex items-center gap-2 mt-2 bg-brand-dark/50 p-2 rounded border border-brand-darkest">
-                                <label className="text-[10px] text-brand-med-gray uppercase font-bold">Data de Corte:</label>
-                                <input
-                                    type="date"
-                                    value={cutOffDateStr}
-                                    onChange={(e) => setCutOffDateStr(e.target.value)}
-                                    className="bg-brand-darkest text-white text-xs border-none rounded p-1 focus:ring-1 focus:ring-purple-500"
-                                />
+
+            <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-brand-darkest/50 relative">
+                <Header
+                    user={user}
+                    onLogout={handleLogout}
+                    onNavigateToHome={onNavigateToHome}
+                    onNavigateToDashboard={onNavigateToDashboard}
+                    onNavigateToReports={onNavigateToReports}
+                    onNavigateToBaseline={onNavigateToBaseline}
+                    onNavigateToCurrentSchedule={() => { }}
+                    onNavigateToAnalysis={onNavigateToAnalysis}
+                    onNavigateToLean={onNavigateToLean}
+                    onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                    onNavigateToCost={onNavigateToCost}
+                    onUpgradeClick={onUpgradeClick}
+                    activeScreen="currentSchedule"
+                />
+
+                <div className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-8 animate-slide-up animate-stagger-2">
+                    <div className="max-w-screen-2xl mx-auto space-y-8">
+                        <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
+                            <div className="flex flex-col">
+                                <h2 className="text-2xl font-bold text-brand-accent">Cronograma Corrente</h2>
+                                <div className="flex items-center gap-2 mt-2 bg-brand-dark/50 p-2 rounded border border-brand-darkest">
+                                    <label className="text-[10px] text-brand-med-gray uppercase font-bold">Data de Corte:</label>
+                                    <input
+                                        type="date"
+                                        value={cutOffDateStr}
+                                        onChange={(e) => setCutOffDateStr(e.target.value)}
+                                        className="bg-brand-darkest text-white text-xs border-none rounded p-1 focus:ring-1 focus:ring-brand-accent/50"
+                                    />
+                                </div>
                             </div>
+                            <button
+                                onClick={onNavigateToDashboard}
+                                className="bg-brand-dark/80 text-brand-med-gray px-4 py-2 rounded-md hover:bg-brand-dark transition-colors"
+                            >
+                                &larr; Voltar ao Quadro
+                            </button>
                         </div>
-                        <button
-                            onClick={onNavigateToDashboard}
-                            className="bg-brand-dark/80 text-brand-med-gray px-4 py-2 rounded-md hover:bg-brand-dark transition-colors"
-                        >
-                            &larr; Voltar ao Quadro
-                        </button>
+                        {isImporting ? <ImportView /> : <DisplayView />}
                     </div>
-                    {isImporting ? <ImportView /> : <DisplayView />}
                 </div>
             </main>
         </div>

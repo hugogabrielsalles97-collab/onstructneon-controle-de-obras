@@ -6,7 +6,8 @@ import LeanIcon from './icons/LeanIcon';
 import PpcChart from './PpcChart';
 import AlertIcon from './icons/AlertIcon';
 import RestrictionModal from './RestrictionModal';
-import ClearIcon from './icons/ClearIcon';
+import ClearIcon from './icons/AlertIcon';
+import Sidebar from './Sidebar';
 
 interface LeanPageProps {
     onNavigateToDashboard: () => void;
@@ -216,10 +217,11 @@ const LeanPage: React.FC<LeanPageProps> = ({
     };
 
     return (
-        <div className="flex flex-col h-screen">
-            <Header
+        <div className="flex h-screen bg-[#060a12] overflow-hidden">
+            <Sidebar
                 user={user}
-                onLogout={handleLogout}
+                activeScreen="lean"
+                onNavigateToHome={onNavigateToHome}
                 onNavigateToDashboard={onNavigateToDashboard}
                 onNavigateToReports={onNavigateToReports}
                 onNavigateToBaseline={onNavigateToBaseline}
@@ -227,307 +229,325 @@ const LeanPage: React.FC<LeanPageProps> = ({
                 onNavigateToAnalysis={onNavigateToAnalysis}
                 onNavigateToLean={() => { }}
                 onNavigateToLeanConstruction={onNavigateToLeanConstruction}
-                onNavigateToCost={onNavigateToCost}
                 onUpgradeClick={onUpgradeClick}
-                activeScreen="lean"
             />
-            {lookaheadData.impactedRestrictionsCount > 0 && (
-                <div className="bg-red-500 text-white px-4 py-2 flex items-center justify-center gap-3 animate-pulse font-black text-sm uppercase tracking-widest z-20">
-                    <span>⚠️ {lookaheadData.impactedRestrictionsCount} RESTRIÇÕES COM PRAZO IMPACTANDO O INÍCIO DAS ATIVIDADES</span>
-                </div>
-            )}
-            <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto bg-[#0a0f18]">
-                <div className="max-w-7xl mx-auto space-y-8">
 
-                    {/* Header Lean */}
-                    <div className="flex justify-between items-center bg-[#111827] p-6 rounded-2xl border border-white/5 shadow-2xl">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-brand-accent/10 rounded-xl border border-brand-accent/20">
-                                <LeanIcon className="w-8 h-8 text-brand-accent" />
-                            </div>
-                            <div>
-                                <h2 className="text-2xl font-black text-white tracking-tight">Sistema Last Planner</h2>
-                                <p className="text-xs text-brand-med-gray uppercase font-bold tracking-[0.2em]">Lean Construction • Dashboard de Fluxo</p>
-                            </div>
-                        </div>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={onNavigateToRestrictions}
-                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all duration-300 font-bold border-2 ${lookaheadData.impactedRestrictionsCount > 0 ? 'bg-red-500/20 text-red-400 border-red-500/30 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.2)]' : getHeaderRestrictionButtonColor()}`}
-                            >
-                                <AlertIcon className="w-5 h-5" />
-                                <span className="uppercase tracking-wider text-[11px]">Resumo de Restrições</span>
-                                {restrictions.filter(r => r.status !== 'Resolvida').length > 0 && (
-                                    <span className="ml-1 w-6 h-6 flex items-center justify-center bg-white/20 text-white rounded-full text-[10px] font-black shadow-inner">
-                                        {restrictions.filter(r => r.status !== 'Resolvida').length}
-                                    </span>
-                                )}
-                            </button>
-                            <button
-                                onClick={onNavigateToDashboard}
-                                className="px-6 py-2 bg-brand-dark/50 text-brand-med-gray rounded-xl hover:bg-brand-accent hover:text-white transition-all duration-300 font-bold border border-white/5"
-                            >
-                                ← Voltar
-                            </button>
-                        </div>
+            <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-brand-darkest/50 relative">
+                <Header
+                    user={user}
+                    onLogout={handleLogout}
+                    onNavigateToHome={onNavigateToHome}
+                    onNavigateToDashboard={onNavigateToDashboard}
+                    onNavigateToReports={onNavigateToReports}
+                    onNavigateToBaseline={onNavigateToBaseline}
+                    onNavigateToCurrentSchedule={onNavigateToCurrentSchedule}
+                    onNavigateToAnalysis={onNavigateToAnalysis}
+                    onNavigateToLean={() => { }}
+                    onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                    onNavigateToCost={onNavigateToCost}
+                    onUpgradeClick={onUpgradeClick}
+                    activeScreen="lean"
+                />
+
+                {lookaheadData.impactedRestrictionsCount > 0 && (
+                    <div className="bg-red-500 text-white px-4 py-2 flex items-center justify-center gap-3 animate-pulse font-black text-sm uppercase tracking-widest z-20">
+                        <span>⚠️ {lookaheadData.impactedRestrictionsCount} RESTRIÇÕES COM PRAZO IMPACTANDO O INÍCIO DAS ATIVIDADES</span>
                     </div>
+                )}
 
-                    {/* Resumos Lean */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                        {/* Status do Fluxo */}
-                        <div className="bg-[#111827] p-6 rounded-2xl border border-white/5 relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-brand-accent/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-brand-accent/10 transition-all"></div>
-                            <h3 className="text-xs font-black text-brand-med-gray uppercase tracking-widest mb-4">Saúde do Fluxo</h3>
-                            <div className="flex items-end gap-2">
-                                <span className="text-4xl font-black text-white">{dashboardTasks.length}</span>
-                                <span className="text-xs text-brand-med-gray font-bold mb-2">Atividades</span>
-                            </div>
-                            <p className="text-[11px] text-brand-med-gray mt-4 leading-relaxed">
-                                Atividades que <span className="text-brand-accent font-bold">devem</span> estar em execução hoje.
-                            </p>
-                        </div>
+                <div className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-8 animate-slide-up animate-stagger-2">
+                    <div className="max-w-screen-2xl mx-auto space-y-8">
 
-
-                        {/* Total de Restrições */}
-                        <div className="bg-[#111827] p-6 rounded-2xl border border-white/5 relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-orange-500/10 transition-all"></div>
-                            <h3 className="text-xs font-black text-brand-med-gray uppercase tracking-widest mb-4">Restrições Ativas</h3>
-                            <div className="flex items-end gap-2 text-orange-400">
-                                <span className="text-4xl font-black">{restrictions.filter(r => r.status !== 'Resolvida').length}</span>
-                                <span className="text-xs font-bold mb-2">Pendências Atuais</span>
-                            </div>
-                            <p className="text-[11px] text-brand-med-gray mt-4 leading-relaxed">
-                                <span className="text-orange-400 font-bold">{lookaheadData.impactedRestrictionsCount}</span> impactam o início das tarefas.
-                            </p>
-                        </div>
-
-                        {/* Lookahead Info */}
-                        <div className="bg-[#111827] p-6 rounded-2xl border border-white/5 relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-purple-500/10 transition-all"></div>
-                            <h3 className="text-xs font-black text-brand-med-gray uppercase tracking-widest mb-4">Lookahead ({lookaheadWeeks} sem)</h3>
-                            <div className="flex items-end justify-between">
-                                <div className="flex items-end gap-2 text-purple-400">
-                                    <span className="text-4xl font-black">{lookaheadData.nextWeekTasks.length}</span>
-                                    <span className="text-xs font-bold mb-2">Planejados</span>
+                        {/* Header Lean */}
+                        <div className="flex justify-between items-center bg-[#111827] p-6 rounded-2xl border border-white/5 shadow-2xl">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-brand-accent/10 rounded-xl border border-brand-accent/20">
+                                    <LeanIcon className="w-8 h-8 text-brand-accent" />
                                 </div>
-                                <select
-                                    value={lookaheadWeeks}
-                                    onChange={(e) => setLookaheadWeeks(Number(e.target.value))}
-                                    className="bg-purple-500/10 border border-purple-500/20 text-purple-400 text-[10px] font-black rounded-lg px-2 py-1 outline-none focus:border-purple-500/50"
-                                >
-                                    <option value={1}>1 Sem</option>
-                                    <option value={2}>2 Sem</option>
-                                    <option value={3}>3 Sem</option>
-                                    <option value={4}>4 Sem</option>
-                                    <option value={5}>5 Sem</option>
-                                    <option value={6}>6 Sem</option>
-                                </select>
+                                <div>
+                                    <h2 className="text-2xl font-black text-white tracking-tight">Sistema Last Planner</h2>
+                                    <p className="text-xs text-brand-med-gray uppercase font-bold tracking-[0.2em]">Lean Construction • Dashboard de Fluxo</p>
+                                </div>
                             </div>
-                            <p className="text-[11px] text-brand-med-gray mt-4 leading-relaxed">
-                                Liberação de frentes para os próximos {lookaheadWeeks * 7} dias.
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Filtros de Disciplina e Frente */}
-                    <div className="bg-[#111827] p-4 rounded-2xl border border-white/5 shadow-xl">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="w-1 h-4 bg-brand-accent rounded-full"></div>
-                            <h3 className="text-[10px] font-black text-white uppercase tracking-widest">Filtros</h3>
-                            {(filterDiscipline || filterLocation) && (
+                            <div className="flex gap-3">
                                 <button
-                                    onClick={() => { setFilterDiscipline(''); setFilterLocation(''); }}
-                                    className="ml-auto text-[10px] text-brand-med-gray hover:text-white font-bold flex items-center gap-1 transition-colors"
+                                    onClick={onNavigateToRestrictions}
+                                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all duration-300 font-bold border-2 ${lookaheadData.impactedRestrictionsCount > 0 ? 'bg-red-500/20 text-red-400 border-red-500/30 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.2)]' : getHeaderRestrictionButtonColor()}`}
                                 >
-                                    <ClearIcon className="w-3.5 h-3.5" />
-                                    Limpar
+                                    <AlertIcon className="w-5 h-5" />
+                                    <span className="uppercase tracking-wider text-[11px]">Resumo de Restrições</span>
+                                    {restrictions.filter(r => r.status !== 'Resolvida').length > 0 && (
+                                        <span className="ml-1 w-6 h-6 flex items-center justify-center bg-white/20 text-white rounded-full text-[10px] font-black shadow-inner">
+                                            {restrictions.filter(r => r.status !== 'Resolvida').length}
+                                        </span>
+                                    )}
                                 </button>
-                            )}
-                        </div>
-                        <div className="flex flex-wrap gap-3">
-                            <div className="flex flex-col gap-1">
-                                <label className="text-[9px] text-brand-med-gray uppercase font-black">Disciplina</label>
-                                <select
-                                    value={filterDiscipline}
-                                    onChange={(e) => setFilterDiscipline(e.target.value)}
-                                    className="bg-brand-darkest border border-white/10 text-white text-[11px] font-bold rounded-lg px-3 py-2 outline-none focus:border-brand-accent/50 min-w-[180px]"
+                                <button
+                                    onClick={onNavigateToDashboard}
+                                    className="px-6 py-2 bg-brand-dark/50 text-brand-med-gray rounded-xl hover:bg-brand-accent hover:text-white transition-all duration-300 font-bold border border-white/5"
                                 >
-                                    <option value="">Todas</option>
-                                    {lookaheadData.disciplines.map(d => (
-                                        <option key={d} value={d}>{d}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="flex flex-col gap-1">
-                                <label className="text-[9px] text-brand-med-gray uppercase font-black">Frente / Local</label>
-                                <select
-                                    value={filterLocation}
-                                    onChange={(e) => setFilterLocation(e.target.value)}
-                                    className="bg-brand-darkest border border-white/10 text-white text-[11px] font-bold rounded-lg px-3 py-2 outline-none focus:border-brand-accent/50 min-w-[180px]"
-                                >
-                                    <option value="">Todas</option>
-                                    {lookaheadData.locations.map(l => (
-                                        <option key={l} value={l}>{l}</option>
-                                    ))}
-                                </select>
+                                    ← Voltar
+                                </button>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Quadro de Programação Lookahead */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
-                        {/* Semana Atual - O QUE ESTOU FAZENDO? */}
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-3 ml-2">
-                                <div className="w-2 h-6 bg-brand-accent rounded-full"></div>
-                                <h3 className="text-lg font-bold text-white uppercase tracking-tight">Semana Atual (Execução)</h3>
+                        {/* Resumos Lean */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                            {/* Status do Fluxo */}
+                            <div className="bg-[#111827] p-6 rounded-2xl border border-white/5 relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-accent/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-brand-accent/10 transition-all"></div>
+                                <h3 className="text-xs font-black text-brand-med-gray uppercase tracking-widest mb-4">Saúde do Fluxo</h3>
+                                <div className="flex items-end gap-2">
+                                    <span className="text-4xl font-black text-white">{dashboardTasks.length}</span>
+                                    <span className="text-xs text-brand-med-gray font-bold mb-2">Atividades</span>
+                                </div>
+                                <p className="text-[11px] text-brand-med-gray mt-4 leading-relaxed">
+                                    Atividades que <span className="text-brand-accent font-bold">devem</span> estar em execução hoje.
+                                </p>
                             </div>
-                            <div className="space-y-3">
-                                {dashboardTasks.length === 0 ? (
-                                    <div className="p-10 text-center bg-white/5 rounded-2xl border border-dashed border-white/10 text-brand-med-gray text-sm">
-                                        Nenhuma atividade programada no painel de controle.
+
+
+                            {/* Total de Restrições */}
+                            <div className="bg-[#111827] p-6 rounded-2xl border border-white/5 relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-orange-500/10 transition-all"></div>
+                                <h3 className="text-xs font-black text-brand-med-gray uppercase tracking-widest mb-4">Restrições Ativas</h3>
+                                <div className="flex items-end gap-2 text-orange-400">
+                                    <span className="text-4xl font-black">{restrictions.filter(r => r.status !== 'Resolvida').length}</span>
+                                    <span className="text-xs font-bold mb-2">Pendências Atuais</span>
+                                </div>
+                                <p className="text-[11px] text-brand-med-gray mt-4 leading-relaxed">
+                                    <span className="text-orange-400 font-bold">{lookaheadData.impactedRestrictionsCount}</span> impactam o início das tarefas.
+                                </p>
+                            </div>
+
+                            {/* Lookahead Info */}
+                            <div className="bg-[#111827] p-6 rounded-2xl border border-white/5 relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-purple-500/10 transition-all"></div>
+                                <h3 className="text-xs font-black text-brand-med-gray uppercase tracking-widest mb-4">Lookahead ({lookaheadWeeks} sem)</h3>
+                                <div className="flex items-end justify-between">
+                                    <div className="flex items-end gap-2 text-purple-400">
+                                        <span className="text-4xl font-black">{lookaheadData.nextWeekTasks.length}</span>
+                                        <span className="text-xs font-bold mb-2">Planejados</span>
                                     </div>
-                                ) : (
-                                    dashboardTasks.map(task => (
-                                        <div key={task.id} className="bg-[#111827] border border-white/5 rounded-xl p-4 hover:border-brand-accent/30 transition-all">
-                                            <div className="flex justify-between items-start">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${task.status === 'Em Andamento' ? 'text-yellow-400 bg-yellow-400/10' : 'text-brand-accent bg-brand-accent/10'
-                                                            }`}>{task.status}</span>
-                                                        <span className="text-[10px] text-brand-med-gray uppercase font-bold">
-                                                            {task.location}
-                                                            {task.level && task.level !== '-' && ` • ${task.level}`}
-                                                            {task.support && task.support !== '' && task.support !== 'undefined' && ` • ${task.support}`}
-                                                        </span>
-                                                    </div>
-                                                    <h4 className="text-sm font-bold text-gray-100">{task.title}</h4>
-                                                    {task.assignee && task.assignee !== '' && (
-                                                        <p className="text-[10px] text-emerald-400 font-bold mt-1">Resp: {task.assignee}</p>
-                                                    )}
-                                                    <div className="mt-3 w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
-                                                        <div
-                                                            className={`h-full rounded-full transition-all duration-500 ${task.progress >= 100 ? 'bg-green-500' : 'bg-brand-accent'}`}
-                                                            style={{ width: `${task.progress}%` }}
-                                                        ></div>
-                                                    </div>
-                                                </div>
-                                                <div className="text-right flex flex-col gap-2">
-                                                    <div>
-                                                        <span className={`text-[10px] font-black uppercase ${task.progress >= 100 ? 'text-green-500' : 'text-yellow-500'}`}>
-                                                            {task.progress}%
-                                                        </span>
-                                                        <p className="text-[9px] text-brand-med-gray font-mono mt-0.5">FIM: {formatDate(task.dueDate)}</p>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => setViewingTaskRestrictions({ taskId: task.baseline_id || task.id, taskTitle: task.title, taskStartDate: task.startDate })}
-                                                        className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-500 font-black text-[10px] uppercase tracking-[0.1em] border shadow-lg ${getTaskRestrictionButtonColor(task.baseline_id || task.id)}`}
-                                                    >
-                                                        <AlertIcon className="w-4 h-4" />
-                                                        Restrições
-                                                        {restrictions.filter(r => String(r.baseline_task_id) === String(task.baseline_id || task.id) && r.status !== 'Resolvida').length > 0 && (
-                                                            <span className="w-5 h-5 flex items-center justify-center bg-white/20 text-white rounded-full text-[9px] font-black shadow-inner ml-0.5">
-                                                                {restrictions.filter(r => String(r.baseline_task_id) === String(task.baseline_id || task.id) && r.status !== 'Resolvida').length}
-                                                            </span>
-                                                        )}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))
+                                    <select
+                                        value={lookaheadWeeks}
+                                        onChange={(e) => setLookaheadWeeks(Number(e.target.value))}
+                                        className="bg-purple-500/10 border border-purple-500/20 text-purple-400 text-[10px] font-black rounded-lg px-2 py-1 outline-none focus:border-purple-500/50"
+                                    >
+                                        <option value={1}>1 Sem</option>
+                                        <option value={2}>2 Sem</option>
+                                        <option value={3}>3 Sem</option>
+                                        <option value={4}>4 Sem</option>
+                                        <option value={5}>5 Sem</option>
+                                        <option value={6}>6 Sem</option>
+                                    </select>
+                                </div>
+                                <p className="text-[11px] text-brand-med-gray mt-4 leading-relaxed">
+                                    Liberação de frentes para os próximos {lookaheadWeeks * 7} dias.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Filtros de Disciplina e Frente */}
+                        <div className="bg-[#111827] p-4 rounded-2xl border border-white/5 shadow-xl">
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="w-1 h-4 bg-brand-accent rounded-full"></div>
+                                <h3 className="text-[10px] font-black text-white uppercase tracking-widest">Filtros</h3>
+                                {(filterDiscipline || filterLocation) && (
+                                    <button
+                                        onClick={() => { setFilterDiscipline(''); setFilterLocation(''); }}
+                                        className="ml-auto text-[10px] text-brand-med-gray hover:text-white font-bold flex items-center gap-1 transition-colors"
+                                    >
+                                        <ClearIcon className="w-3.5 h-3.5" />
+                                        Limpar
+                                    </button>
                                 )}
                             </div>
+                            <div className="flex flex-wrap gap-3">
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-[9px] text-brand-med-gray uppercase font-black">Disciplina</label>
+                                    <select
+                                        value={filterDiscipline}
+                                        onChange={(e) => setFilterDiscipline(e.target.value)}
+                                        className="bg-brand-darkest border border-white/10 text-white text-[11px] font-bold rounded-lg px-3 py-2 outline-none focus:border-brand-accent/50 min-w-[180px]"
+                                    >
+                                        <option value="">Todas</option>
+                                        {lookaheadData.disciplines.map(d => (
+                                            <option key={d} value={d}>{d}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-[9px] text-brand-med-gray uppercase font-black">Frente / Local</label>
+                                    <select
+                                        value={filterLocation}
+                                        onChange={(e) => setFilterLocation(e.target.value)}
+                                        className="bg-brand-darkest border border-white/10 text-white text-[11px] font-bold rounded-lg px-3 py-2 outline-none focus:border-brand-accent/50 min-w-[180px]"
+                                    >
+                                        <option value="">Todas</option>
+                                        {lookaheadData.locations.map(l => (
+                                            <option key={l} value={l}>{l}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Lookahead - O QUE VOU FAZER? */}
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-3 ml-2">
-                                <div className="w-2 h-6 bg-purple-500 rounded-full"></div>
-                                <h3 className="text-lg font-bold text-white uppercase tracking-tight">
-                                    Horizonte {lookaheadWeeks} Semana{lookaheadWeeks !== 1 && 's'} (Lookahead)
-                                </h3>
-                            </div>
-                            <div className="space-y-3">
-                                {filteredNextWeek.length === 0 ? (
-                                    <div className="p-10 text-center bg-white/5 rounded-2xl border border-dashed border-white/10 text-brand-med-gray text-sm">
-                                        Monitorando o horizonte... Sem tarefas planejadas para as próximas {lookaheadWeeks} semanas.
-                                    </div>
-                                ) : (
-                                    filteredNextWeek.map(task => (
-                                        <div key={task.id} className="bg-[#111827]/60 border border-white/5 rounded-xl p-4 hover:border-purple-500/30 transition-all opacity-80 hover:opacity-100">
-                                            <div className="flex justify-between items-center">
-                                                <div>
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className="text-[9px] font-black text-purple-400 uppercase bg-purple-400/10 px-1.5 py-0.5 rounded">#{task.id}</span>
-                                                        <span className="text-[10px] text-brand-med-gray uppercase font-bold">
-                                                            {task.location}
-                                                            {task.level && task.level !== '-' && ` • ${task.level}`}
-                                                            {task.support && task.support !== '' && task.support !== 'undefined' && ` • ${task.support}`}
-                                                        </span>
-                                                    </div>
-                                                    <h4 className="text-sm font-bold text-gray-300">{task.title}</h4>
-                                                </div>
-                                                <div className="text-right flex flex-col gap-2">
-                                                    <div>
-                                                        <p className="text-[10px] text-purple-400 font-bold">PLANEJADO</p>
-                                                        <p className="text-[9px] text-brand-med-gray font-mono mt-1">INÍCIO: {formatDate(task.startDate)}</p>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => setViewingTaskRestrictions({ taskId: task.id, taskTitle: task.title, taskStartDate: task.startDate })}
-                                                        className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-500 font-black text-[10px] uppercase tracking-[0.1em] border shadow-lg ${getTaskRestrictionButtonColor(task.id)}`}
-                                                    >
-                                                        <AlertIcon className="w-4 h-4" />
-                                                        Restrições
-                                                        {restrictions.filter(r => String(r.baseline_task_id) === String(task.id) && r.status !== 'Resolvida').length > 0 && (
-                                                            <span className="w-5 h-5 flex items-center justify-center bg-white/20 text-white rounded-full text-[9px] font-black shadow-inner ml-0.5">
-                                                                {restrictions.filter(r => String(r.baseline_task_id) === String(task.id) && r.status !== 'Resolvida').length}
+                        {/* Quadro de Programação Lookahead */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+                            {/* Semana Atual - O QUE ESTOU FAZENDO? */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-3 ml-2">
+                                    <div className="w-2 h-6 bg-brand-accent rounded-full"></div>
+                                    <h3 className="text-lg font-bold text-white uppercase tracking-tight">Semana Atual (Execução)</h3>
+                                </div>
+                                <div className="space-y-3">
+                                    {dashboardTasks.length === 0 ? (
+                                        <div className="p-10 text-center bg-white/5 rounded-2xl border border-dashed border-white/10 text-brand-med-gray text-sm">
+                                            Nenhuma atividade programada no painel de controle.
+                                        </div>
+                                    ) : (
+                                        dashboardTasks.map(task => (
+                                            <div key={task.id} className="bg-[#111827] border border-white/5 rounded-xl p-4 hover:border-brand-accent/30 transition-all">
+                                                <div className="flex justify-between items-start">
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${task.status === 'Em Andamento' ? 'text-yellow-400 bg-yellow-400/10' : 'text-brand-accent bg-brand-accent/10'
+                                                                }`}>{task.status}</span>
+                                                            <span className="text-[10px] text-brand-med-gray uppercase font-bold">
+                                                                {task.location}
+                                                                {task.level && task.level !== '-' && ` • ${task.level}`}
+                                                                {task.support && task.support !== '' && task.support !== 'undefined' && ` • ${task.support}`}
                                                             </span>
+                                                        </div>
+                                                        <h4 className="text-sm font-bold text-gray-100">{task.title}</h4>
+                                                        {task.assignee && task.assignee !== '' && (
+                                                            <p className="text-[10px] text-emerald-400 font-bold mt-1">Resp: {task.assignee}</p>
                                                         )}
-                                                    </button>
+                                                        <div className="mt-3 w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
+                                                            <div
+                                                                className={`h-full rounded-full transition-all duration-500 ${task.progress >= 100 ? 'bg-green-500' : 'bg-brand-accent'}`}
+                                                                style={{ width: `${task.progress}%` }}
+                                                            ></div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right flex flex-col gap-2">
+                                                        <div>
+                                                            <span className={`text-[10px] font-black uppercase ${task.progress >= 100 ? 'text-green-500' : 'text-yellow-500'}`}>
+                                                                {task.progress}%
+                                                            </span>
+                                                            <p className="text-[9px] text-brand-med-gray font-mono mt-0.5">FIM: {formatDate(task.dueDate)}</p>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => setViewingTaskRestrictions({ taskId: task.baseline_id || task.id, taskTitle: task.title, taskStartDate: task.startDate })}
+                                                            className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-500 font-black text-[10px] uppercase tracking-[0.1em] border shadow-lg ${getTaskRestrictionButtonColor(task.baseline_id || task.id)}`}
+                                                        >
+                                                            <AlertIcon className="w-4 h-4" />
+                                                            Restrições
+                                                            {restrictions.filter(r => String(r.baseline_task_id) === String(task.baseline_id || task.id) && r.status !== 'Resolvida').length > 0 && (
+                                                                <span className="w-5 h-5 flex items-center justify-center bg-white/20 text-white rounded-full text-[9px] font-black shadow-inner ml-0.5">
+                                                                    {restrictions.filter(r => String(r.baseline_task_id) === String(task.baseline_id || task.id) && r.status !== 'Resolvida').length}
+                                                                </span>
+                                                            )}
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Lookahead - O QUE VOU FAZER? */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-3 ml-2">
+                                    <div className="w-2 h-6 bg-purple-500 rounded-full"></div>
+                                    <h3 className="text-lg font-bold text-white uppercase tracking-tight">
+                                        Horizonte {lookaheadWeeks} Semana{lookaheadWeeks !== 1 && 's'} (Lookahead)
+                                    </h3>
+                                </div>
+                                <div className="space-y-3">
+                                    {filteredNextWeek.length === 0 ? (
+                                        <div className="p-10 text-center bg-white/5 rounded-2xl border border-dashed border-white/10 text-brand-med-gray text-sm">
+                                            Monitorando o horizonte... Sem tarefas planejadas para as próximas {lookaheadWeeks} semanas.
                                         </div>
-                                    ))
-                                )}
+                                    ) : (
+                                        filteredNextWeek.map(task => (
+                                            <div key={task.id} className="bg-[#111827]/60 border border-white/5 rounded-xl p-4 hover:border-purple-500/30 transition-all opacity-80 hover:opacity-100">
+                                                <div className="flex justify-between items-center">
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className="text-[9px] font-black text-purple-400 uppercase bg-purple-400/10 px-1.5 py-0.5 rounded">#{task.id}</span>
+                                                            <span className="text-[10px] text-brand-med-gray uppercase font-bold">
+                                                                {task.location}
+                                                                {task.level && task.level !== '-' && ` • ${task.level}`}
+                                                                {task.support && task.support !== '' && task.support !== 'undefined' && ` • ${task.support}`}
+                                                            </span>
+                                                        </div>
+                                                        <h4 className="text-sm font-bold text-gray-300">{task.title}</h4>
+                                                    </div>
+                                                    <div className="text-right flex flex-col gap-2">
+                                                        <div>
+                                                            <p className="text-[10px] text-purple-400 font-bold">PLANEJADO</p>
+                                                            <p className="text-[9px] text-brand-med-gray font-mono mt-1">INÍCIO: {formatDate(task.startDate)}</p>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => setViewingTaskRestrictions({ taskId: task.id, taskTitle: task.title, taskStartDate: task.startDate })}
+                                                            className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-500 font-black text-[10px] uppercase tracking-[0.1em] border shadow-lg ${getTaskRestrictionButtonColor(task.id)}`}
+                                                        >
+                                                            <AlertIcon className="w-4 h-4" />
+                                                            Restrições
+                                                            {restrictions.filter(r => String(r.baseline_task_id) === String(task.id) && r.status !== 'Resolvida').length > 0 && (
+                                                                <span className="w-5 h-5 flex items-center justify-center bg-white/20 text-white rounded-full text-[9px] font-black shadow-inner ml-0.5">
+                                                                    {restrictions.filter(r => String(r.baseline_task_id) === String(task.id) && r.status !== 'Resolvida').length}
+                                                                </span>
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+
+                        </div>
+
+                        {/* Insights de Desperdício (Muda) */}
+                        <div className="bg-[#111827] border border-white/5 rounded-2xl p-8 relative overflow-hidden">
+                            <div className="relative z-10">
+                                <h3 className="text-xl font-black text-white mb-2">Gestão de Restrições</h3>
+                                <p className="text-sm text-brand-med-gray mb-6 leading-relaxed max-w-3xl">
+                                    Para o Lean Construction, não basta Planejar. É preciso <span className="text-brand-accent">Remover Restrições</span>.
+                                    Confira se as frentes de serviço das próximas 2 semanas estão liberadas (Materiais, Equipamentos, Projetos e Mão de Obra).
+                                </p>
+                                <div className="flex flex-wrap gap-4">
+                                    {[
+                                        { name: 'Materiais', type: RestrictionType.Material },
+                                        { name: 'Mão de Obra', type: RestrictionType.Labor },
+                                        { name: 'Projetos', type: RestrictionType.Design },
+                                        { name: 'Segurança', type: RestrictionType.Safety },
+                                        { name: 'Ferramentas', type: RestrictionType.Equipment }
+                                    ].map(cat => {
+                                        const activeCount = restrictions.filter(r => r.type === cat.type && r.status !== 'Resolvida').length;
+                                        const hasRestriction = activeCount > 0;
+
+                                        return (
+                                            <div key={cat.name} className={`flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-lg border transition-all duration-300 ${hasRestriction ? 'border-red-500/50 text-red-400' : 'border-white/10 text-brand-med-gray'} text-[10px] font-bold uppercase tracking-wider`}>
+                                                <div className={`w-1.5 h-1.5 rounded-full ${hasRestriction ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}></div>
+                                                {cat.name} {hasRestriction ? 'COM RESTRIÇÃO' : 'OK'}
+                                                {hasRestriction && (
+                                                    <span className="ml-1 px-1.5 py-0.5 bg-red-500/20 rounded text-[9px]">{activeCount}</span>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </div>
 
                     </div>
-
-                    {/* Insights de Desperdício (Muda) */}
-                    <div className="bg-[#111827] border border-white/5 rounded-2xl p-8 relative overflow-hidden">
-                        <div className="relative z-10">
-                            <h3 className="text-xl font-black text-white mb-2">Gestão de Restrições</h3>
-                            <p className="text-sm text-brand-med-gray mb-6 leading-relaxed max-w-3xl">
-                                Para o Lean Construction, não basta Planejar. É preciso <span className="text-brand-accent">Remover Restrições</span>.
-                                Confira se as frentes de serviço das próximas 2 semanas estão liberadas (Materiais, Equipamentos, Projetos e Mão de Obra).
-                            </p>
-                            <div className="flex flex-wrap gap-4">
-                                {[
-                                    { name: 'Materiais', type: RestrictionType.Material },
-                                    { name: 'Mão de Obra', type: RestrictionType.Labor },
-                                    { name: 'Projetos', type: RestrictionType.Design },
-                                    { name: 'Segurança', type: RestrictionType.Safety },
-                                    { name: 'Ferramentas', type: RestrictionType.Equipment }
-                                ].map(cat => {
-                                    const activeCount = restrictions.filter(r => r.type === cat.type && r.status !== 'Resolvida').length;
-                                    const hasRestriction = activeCount > 0;
-
-                                    return (
-                                        <div key={cat.name} className={`flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-lg border transition-all duration-300 ${hasRestriction ? 'border-red-500/50 text-red-400' : 'border-white/10 text-brand-med-gray'} text-[10px] font-bold uppercase tracking-wider`}>
-                                            <div className={`w-1.5 h-1.5 rounded-full ${hasRestriction ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}></div>
-                                            {cat.name} {hasRestriction ? 'COM RESTRIÇÃO' : 'OK'}
-                                            {hasRestriction && (
-                                                <span className="ml-1 px-1.5 py-0.5 bg-red-500/20 rounded text-[9px]">{activeCount}</span>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </div>
-
                 </div>
             </main>
 

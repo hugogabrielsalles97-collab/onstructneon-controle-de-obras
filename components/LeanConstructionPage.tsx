@@ -2,9 +2,12 @@
 import React, { useState, useMemo } from 'react';
 import { useData } from '../context/DataProvider';
 import Header from './Header';
+import Sidebar from './Sidebar';
 import { LeanTask, LeanSubTask, Worker, MacroDiscipline, AISuggestion } from '../types';
 import PlusIcon from './icons/PlusIcon';
 import DeleteIcon from './icons/DeleteIcon';
+import XIcon from './icons/XIcon';
+import ConstructionIcon from './icons/ConstructionIcon';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 interface LeanConstructionPageProps {
@@ -372,251 +375,507 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
     if (!user) return null;
 
     return (
-        <div className="flex flex-col h-screen bg-[#060a12] text-gray-100 overflow-hidden font-sans selection:bg-cyan-500 selection:text-white">
-            <Header user={user} onLogout={handleLogout} onNavigateToHome={onNavigateToHome} onNavigateToDashboard={onNavigateToDashboard} onNavigateToReports={onNavigateToReports} onNavigateToBaseline={onNavigateToBaseline} onNavigateToCurrentSchedule={onNavigateToCurrentSchedule} onNavigateToAnalysis={onNavigateToAnalysis} onNavigateToLean={onNavigateToLean} onNavigateToLeanConstruction={onNavigateToLeanConstruction} onNavigateToCost={onNavigateToCost} onUpgradeClick={onUpgradeClick} activeScreen="leanConstruction" />
+        <div className="flex h-screen bg-[#060a12] overflow-hidden">
+            <Sidebar
+                user={user}
+                activeScreen="leanConstruction"
+                onNavigateToHome={onNavigateToHome}
+                onNavigateToDashboard={onNavigateToDashboard}
+                onNavigateToReports={onNavigateToReports}
+                onNavigateToBaseline={onNavigateToBaseline}
+                onNavigateToCurrentSchedule={onNavigateToCurrentSchedule}
+                onNavigateToAnalysis={onNavigateToAnalysis}
+                onNavigateToLean={onNavigateToLean}
+                onNavigateToLeanConstruction={() => { }}
+                onUpgradeClick={onUpgradeClick}
+            />
 
-            <main className="flex-1 overflow-y-auto p-4 md:p-8 animate-fade-in relative text-sm">
-                <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-cyan-900/10 to-transparent pointer-events-none"></div>
-                <div className="max-w-7xl mx-auto relative z-10">
+            <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-brand-darkest/50 relative">
+                <Header
+                    user={user}
+                    onLogout={handleLogout}
+                    onNavigateToHome={onNavigateToHome}
+                    onNavigateToDashboard={onNavigateToDashboard}
+                    onNavigateToReports={onNavigateToReports}
+                    onNavigateToBaseline={onNavigateToBaseline}
+                    onNavigateToCurrentSchedule={onNavigateToCurrentSchedule}
+                    onNavigateToAnalysis={onNavigateToAnalysis}
+                    onNavigateToLean={onNavigateToLean}
+                    onNavigateToLeanConstruction={() => { }}
+                    onNavigateToCost={onNavigateToCost}
+                    onUpgradeClick={onUpgradeClick}
+                    activeScreen="leanConstruction"
+                />
 
-                    {!selectedTask && (
-                        <div className="mb-8 flex items-center gap-4">
-                            <button onClick={onNavigateToDashboard} className="p-3 bg-white/5 hover:bg-white/10 rounded-xl text-white transition-all border border-white/5"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg></button>
-                            <div className="flex-1">
-                                <h1 className="text-3xl font-black text-white tracking-widest uppercase mb-1">Lean <span className="text-cyan-400">Analytics</span></h1>
-                                <p className="text-xs text-gray-400 uppercase tracking-widest">Controle de Fluxo & RUP</p>
-                            </div>
-                        </div>
-                    )}
+                <div className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-8 animate-slide-up animate-stagger-2">
+                    <div className="max-w-screen-2xl mx-auto space-y-8">
 
-                    {!selectedTask ? (
-                        <div className="space-y-6">
-                            <div className="flex justify-between items-end border-b border-white/5 pb-4">
-                                <p className="text-gray-400 text-sm">Gerencie suas atividades.</p>
-                                {user.role !== 'Gerenciador' && (
-                                    <button onClick={() => setIsMainFormOpen(!isMainFormOpen)} className="bg-cyan-500 hover:bg-cyan-600 text-white px-5 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2"><PlusIcon className="w-4 h-4" /> {isMainFormOpen ? 'Fechar' : 'Nova Atividade'}</button>
-                                )}
-                            </div>
-
-                            {isMainFormOpen && (
-                                <div className="bg-[#111827] rounded-xl p-6 border border-cyan-500/30 shadow-2xl mb-6">
-                                    <h3 className="font-bold text-white mb-4"><PlusIcon className="w-4 h-4 text-cyan-400 inline mr-2" /> Nova Atividade</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                                        <div className="col-span-1"><label className="text-[10px] uppercase font-bold text-gray-500">Disciplina</label><select className="w-full bg-[#0a0f18] border border-white/10 rounded-lg p-2 text-white" value={newTask.discipline} onChange={e => setNewTask({ ...newTask, discipline: e.target.value as MacroDiscipline })}><option>Terraplenagem</option><option>Drenagem</option><option>Obra de Arte Especial</option><option>Fabricação</option><option>Contenções</option></select></div>
-                                        <div className="col-span-2"><label className="text-[10px] uppercase font-bold text-gray-500">Serviço</label><input type="text" className="w-full bg-[#0a0f18] border border-white/10 rounded-lg p-2 text-white" value={newTask.service} onChange={e => setNewTask({ ...newTask, service: e.target.value })} placeholder="Ex: Concretagem" /></div>
-                                        <div className="col-span-1"><label className="text-[10px] uppercase font-bold text-gray-500">Local</label><input type="text" className="w-full bg-[#0a0f18] border border-white/10 rounded-lg p-2 text-white" value={newTask.location} onChange={e => setNewTask({ ...newTask, location: e.target.value })} /></div>
-                                        <div className="col-span-1"><label className="text-[10px] uppercase font-bold text-gray-500">Meta / Un</label><div className="flex gap-2"><input type="number" className="w-2/3 bg-[#0a0f18] border border-white/10 rounded-lg p-2 text-white" value={newTask.quantity} onChange={e => setNewTask({ ...newTask, quantity: Number(e.target.value) })} /><input type="text" className="w-1/3 bg-[#0a0f18] border border-white/10 rounded-lg p-2 text-white text-center" value={newTask.unit} onChange={e => setNewTask({ ...newTask, unit: e.target.value })} /></div></div>
-                                    </div>
-                                    <button onClick={handleAddMainTask} className="w-full py-2 bg-cyan-500 rounded-lg text-white font-bold">Salvar</button>
-                                </div>
-                            )}
-
-                            {leanTasks.map(task => {
-                                const metrics = calculateTaskMetrics(task);
-                                return (
-                                    <div key={task.id} onClick={() => setSelectedTask(task)} className="bg-[#111827]/50 border border-white/5 p-5 rounded-2xl hover:border-cyan-500/30 cursor-pointer flex justify-between items-center transition-all group relative pr-12">
-                                        {user.role !== 'Gerenciador' && (
-                                            <button onClick={(e) => handleDeleteMainTask(task.id, e)} className="absolute top-1/2 -translate-y-1/2 right-4 p-2 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-[#060a12] rounded-full shadow-lg border border-white/10"><DeleteIcon className="w-5 h-5" /></button>
-                                        )}
-                                        <div>
-                                            <h3 className="font-bold text-white text-lg group-hover:text-cyan-400">{task.service}</h3>
-                                            <p className="text-gray-500 text-xs">{task.discipline} • {task.location}</p>
-                                        </div>
-                                        <div className="flex gap-6 text-center">
-                                            <div><span className="block font-bold text-cyan-400 text-xl">{metrics.rup} <span className="text-[10px] text-gray-500 font-normal">Hh/{task.unit}</span></span><span className="text-[9px] uppercase text-gray-500">RUP</span></div>
-                                            <div><span className="block font-bold text-green-400 text-xl">{metrics.productivity} <span className="text-[10px] text-gray-500 font-normal">{task.unit}/Hh</span></span><span className="text-[9px] uppercase text-gray-500">Produt.</span></div>
-                                            <div><span className="block font-bold text-white text-xl">{task.subtasks.length}</span><span className="text-[9px] uppercase text-gray-500">Etapas</span></div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <div className="animate-slide-up">
-                            <div className="flex flex-col md:flex-row gap-4 mb-6 border-b border-white/5 pb-6 items-start md:items-center">
-                                <button onClick={handleEditSubTaskClick} className="hidden"></button>
-                                <button onClick={() => setSelectedTask(null)} className="p-2 bg-white/5 rounded-lg text-white hover:bg-white/10"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg></button>
-                                <div>
-                                    <h2 className="text-2xl font-bold text-white">{selectedTask.service}</h2>
-                                    <div className="flex flex-wrap gap-4 mt-2">
-                                        <div className="bg-white/5 px-3 py-1 rounded text-xs text-gray-300">Turno: <input type="time" disabled={user.role === 'Gerenciador'} className="bg-transparent w-16 text-center outline-none text-cyan-400 disabled:opacity-50" value={selectedTask.shiftStartTime} onChange={e => handleUpdateTaskSettings({ shiftStartTime: e.target.value })} /> - <input type="time" disabled={user.role === 'Gerenciador'} className="bg-transparent w-16 text-center outline-none text-cyan-400 disabled:opacity-50" value={selectedTask.shiftEndTime} onChange={e => handleUpdateTaskSettings({ shiftEndTime: e.target.value })} /></div>
-                                        <div className="bg-white/5 px-3 py-1 rounded text-xs text-gray-300">Almoço: <input type="time" disabled={user.role === 'Gerenciador'} className="bg-transparent w-16 text-center outline-none text-yellow-400 disabled:opacity-50" value={selectedTask.lunchStartTime} onChange={e => handleUpdateTaskSettings({ lunchStartTime: e.target.value })} /> - <input type="time" disabled={user.role === 'Gerenciador'} className="bg-transparent w-16 text-center outline-none text-yellow-400 disabled:opacity-50" value={selectedTask.lunchEndTime} onChange={e => handleUpdateTaskSettings({ lunchEndTime: e.target.value })} /></div>
-                                    </div>
-                                </div>
-                                <div className="ml-auto flex gap-4">
-                                    <div className="bg-[#111827] px-4 py-2 rounded-lg border border-cyan-500/20 text-center">
-                                        <span className="text-[10px] text-gray-500 uppercase block font-bold">RUP</span>
-                                        <span className="text-xl font-bold text-cyan-400">{calculateTaskMetrics(selectedTask).rup} <span className="text-xs text-gray-600">Hh/{selectedTask.unit}</span></span>
-                                    </div>
-                                    <div className="bg-[#111827] px-4 py-2 rounded-lg border border-green-500/20 text-center">
-                                        <span className="text-[10px] text-gray-500 uppercase block font-bold">Produtividade</span>
-                                        <span className="text-xl font-bold text-green-400">{calculateTaskMetrics(selectedTask).productivity} <span className="text-xs text-gray-600">{selectedTask.unit}/Hh</span></span>
-                                    </div>
+                        {!selectedTask && (
+                            <div className="mb-8 flex items-center gap-4">
+                                <button onClick={onNavigateToDashboard} className="p-3 bg-white/5 hover:bg-white/10 rounded-xl text-white transition-all border border-white/5"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg></button>
+                                <div className="flex-1">
+                                    <h1 className="text-3xl font-black text-white tracking-widest uppercase mb-1">Lean <span className="text-cyan-400">Analytics</span></h1>
+                                    <p className="text-xs text-gray-400 uppercase tracking-widest">Controle de Fluxo & RUP</p>
                                 </div>
                             </div>
+                        )}
 
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                <div className="lg:col-span-2 space-y-6">
-                                    <div className="bg-[#111827] rounded-2xl border border-white/10 p-6 min-h-[500px]">
-                                        <div className="flex justify-between items-center mb-6">
-                                            <h3 className="text-lg font-bold text-white">Fluxo de Subtarefas</h3>
+                        {!selectedTask ? (
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-end border-b border-white/5 pb-4">
+                                    <p className="text-gray-400 text-sm">Gerencie suas atividades.</p>
+                                    {user.role !== 'Gerenciador' && (
+                                        <button onClick={() => setIsMainFormOpen(!isMainFormOpen)} className="bg-cyan-500 hover:bg-cyan-600 text-white px-5 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2"><PlusIcon className="w-4 h-4" /> {isMainFormOpen ? 'Fechar' : 'Nova Atividade'}</button>
+                                    )}
+                                </div>
+
+                                {leanTasks.map(task => {
+                                    const metrics = calculateTaskMetrics(task);
+                                    return (
+                                        <div key={task.id} onClick={() => setSelectedTask(task)} className="bg-[#111827]/50 border border-white/5 p-5 rounded-2xl hover:border-cyan-500/30 cursor-pointer flex justify-between items-center transition-all group relative pr-12">
                                             {user.role !== 'Gerenciador' && (
-                                                <button onClick={() => { if (isSubFormOpen) handleCancelSubTaskForm(); else { setEditingSubTaskId(null); setIsSubFormOpen(true); } }} className="px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 text-xs font-bold border border-cyan-500/20">{isSubFormOpen ? 'Cancelar' : '+ Adicionar Etapa'}</button>
+                                                <button onClick={(e) => handleDeleteMainTask(task.id, e)} className="absolute top-1/2 -translate-y-1/2 right-4 p-2 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-[#060a12] rounded-full shadow-lg border border-white/10"><DeleteIcon className="w-5 h-5" /></button>
                                             )}
-                                        </div>
-
-                                        {isSubFormOpen && (
-                                            <div className="mb-8 bg-[#0a0f18] p-5 rounded-xl border border-cyan-500/30">
-                                                <div className="mb-4"><label className="flex items-center gap-2 text-xs font-bold text-gray-400 cursor-pointer"><input type="checkbox" checked={newSubTask.isUnproductive} onChange={e => setNewSubTask({ ...newSubTask, isUnproductive: e.target.checked })} className="rounded bg-gray-700 border-gray-600 text-yellow-500" /> Atividade Improdutiva</label></div>
-                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-                                                    <div className="col-span-1"><label className="text-[10px] text-gray-500 font-bold uppercase">Descrição</label><input type="text" className="w-full bg-[#111827] border border-white/10 rounded text-white p-2 text-sm" value={newSubTask.description} onChange={e => setNewSubTask({ ...newSubTask, description: e.target.value })} placeholder="Ex: Armação" /></div>
-                                                    <div className="col-span-1"><label className="text-[10px] text-gray-500 font-bold uppercase">Início</label><input type="time" className="w-full bg-[#111827] border border-white/10 rounded text-white p-2 text-sm" value={newSubTask.startTime} onChange={e => setNewSubTask({ ...newSubTask, startTime: e.target.value })} /></div>
-                                                    <div className="col-span-1"><label className="text-[10px] text-gray-500 font-bold uppercase">Fim</label><input type="time" className="w-full bg-[#111827] border border-white/10 rounded text-white p-2 text-sm" value={newSubTask.endTime} onChange={e => setNewSubTask({ ...newSubTask, endTime: e.target.value })} /></div>
-                                                    <div className="col-span-1"><label className="text-[10px] text-gray-500 font-bold uppercase">Qtd. Produzida</label><input type="number" className="w-full bg-[#111827] border border-white/10 rounded text-white p-2 text-sm" value={newSubTask.producedQuantity} onChange={e => setNewSubTask({ ...newSubTask, producedQuantity: Number(e.target.value) })} /></div>
-                                                    <div className="col-span-1"><label className="text-[10px] text-gray-500 font-bold uppercase">Unidade</label><input type="text" className="w-full bg-[#111827] border border-white/10 rounded text-white p-2 text-sm" value={newSubTask.unit} onChange={e => setNewSubTask({ ...newSubTask, unit: e.target.value })} /></div>
-                                                </div>
-
-                                                <div className="mb-4 bg-[#111827]/50 p-3 rounded border border-white/5">
-                                                    <label className="text-[10px] text-gray-500 font-bold uppercase mb-2 block">Colaboradores & Recursos</label>
-                                                    <div className="flex gap-2 mb-3">
-                                                        <select className="bg-[#0a0f18] border border-white/10 rounded text-white text-xs p-2 flex-1" value={tempWorkerRole} onChange={e => setTempWorkerRole(e.target.value)}>
-                                                            <option>Servente</option><option>Pedreiro</option><option>Carpinteiro</option><option>Armador</option><option>Encarregado</option><option>Soldador</option><option>Operador</option><option>Motorista</option><option>Outro</option>
-                                                        </select>
-                                                        {tempWorkerRole === 'Outro' && (
-                                                            <input type="text" className="bg-[#0a0f18] border border-white/10 rounded text-white text-xs p-2 flex-1" placeholder="Qual função?" value={tempCustomWorkerRole} onChange={e => setTempCustomWorkerRole(e.target.value)} />
-                                                        )}
-                                                        <input type="number" className="bg-[#0a0f18] border border-white/10 rounded text-white text-xs p-2 w-20" min="1" value={tempWorkerCount} onChange={e => setTempWorkerCount(Number(e.target.value))} />
-                                                        <button onClick={addWorkerToSubTask} className="bg-cyan-500/20 text-cyan-400 px-3 rounded font-bold hover:bg-cyan-500 hover:text-white transition">+</button>
-                                                    </div>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {newSubTask.workers.map((w, idx) => (
-                                                            <span key={idx} className="bg-white/5 px-2 py-1 rounded text-xs text-gray-300 flex items-center gap-2 border border-white/10">
-                                                                {w.count}x {w.role === 'Outro' ? w.customRole : w.role} <button onClick={() => removeWorkerFromSubTask(idx)} className="text-red-400 hover:text-red-300">×</button>
-                                                            </span>
-                                                        ))}
-                                                        {newSubTask.workers.length === 0 && <span className="text-xs text-gray-600 italic">Nenhum colaborador adicionado.</span>}
-                                                    </div>
-                                                    <div className="mt-3"><label className="text-[10px] text-gray-500 font-bold uppercase mr-2">Máquinas:</label><input type="number" className="bg-[#0a0f18] border border-white/10 rounded text-white text-xs p-1 w-16" value={newSubTask.machinery} onChange={e => setNewSubTask({ ...newSubTask, machinery: Number(e.target.value) })} /></div>
-                                                </div>
-
-                                                <button onClick={handleSaveSubTask} className="w-full py-2 bg-cyan-500 rounded text-white font-bold text-sm">Salvar Etapa</button>
+                                            <div>
+                                                <h3 className="font-bold text-white text-lg group-hover:text-cyan-400">{task.service}</h3>
+                                                <p className="text-gray-500 text-xs">{task.discipline} • {task.location}</p>
                                             </div>
-                                        )}
-
-                                        <div className="space-y-3 mb-6">
-                                            {selectedTask.subtasks.sort((a, b) => a.startTime.localeCompare(b.startTime)).map((sub) => (
-                                                <div key={sub.id} className={`p-4 rounded-xl border flex justify-between items-center group relative ${sub.isUnproductive ? 'bg-yellow-500/5 border-yellow-500/20' : 'bg-[#0a0f18] border-white/5 hover:border-cyan-500/30'}`}>
-                                                    <div>
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${sub.isUnproductive ? 'text-yellow-400 border-yellow-500/20' : 'text-cyan-400 border-cyan-500/20'}`}>{sub.startTime} - {sub.endTime}</span>
-                                                            <span className="text-white font-bold text-sm">{sub.description}</span>
-                                                        </div>
-                                                        <div className="text-xs text-gray-500 flex flex-wrap gap-2 mt-1">
-                                                            {sub.workers.map((w, i) => <span key={i} className="bg-white/5 px-1.5 rounded">{w.count} {w.role === 'Outro' ? w.customRole : w.role}</span>)}
-                                                            {sub.machinery > 0 && <span className="text-cyan-400">{sub.machinery} Máq.</span>}
-                                                            {sub.producedQuantity && sub.producedQuantity > 0 && <span className="text-green-400 font-bold border border-green-500/30 px-1.5 rounded">{sub.producedQuantity} {sub.unit}</span>}
-                                                        </div>
-                                                    </div>
-                                                    {user.role !== 'Gerenciador' && (
-                                                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <button onClick={() => handleEditSubTaskClick(sub)} className="p-2 text-gray-500 hover:text-cyan-400 hover:bg-cyan-500/10 rounded"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
-                                                            <button onClick={() => handleDeleteSubTask(sub.id)} className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded"><DeleteIcon className="w-4 h-4" /></button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
+                                            <div className="flex gap-6 text-center">
+                                                <div><span className="block font-bold text-cyan-400 text-xl">{metrics.rup} <span className="text-[10px] text-gray-500 font-normal">Hh/{task.unit}</span></span><span className="text-[9px] uppercase text-gray-500">RUP</span></div>
+                                                <div><span className="block font-bold text-green-400 text-xl">{metrics.productivity} <span className="text-[10px] text-gray-500 font-normal">{task.unit}/Hh</span></span><span className="text-[9px] uppercase text-gray-500">Produt.</span></div>
+                                                <div><span className="block font-bold text-white text-xl">{task.subtasks.length}</span><span className="text-[9px] uppercase text-gray-500">Etapas</span></div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="animate-slide-up">
+                                <div className="flex flex-col md:flex-row gap-4 mb-6 border-b border-white/5 pb-6 items-start md:items-center">
+                                    <button onClick={handleEditSubTaskClick} className="hidden"></button>
+                                    <button onClick={() => setSelectedTask(null)} className="p-2 bg-white/5 rounded-lg text-white hover:bg-white/10"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg></button>
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-white">{selectedTask.service}</h2>
+                                        <div className="flex flex-wrap gap-4 mt-2">
+                                            <div className="bg-white/5 px-3 py-1 rounded text-xs text-gray-300">Turno: <input type="time" disabled={user.role === 'Gerenciador'} className="bg-transparent w-16 text-center outline-none text-cyan-400 disabled:opacity-50" value={selectedTask.shiftStartTime} onChange={e => handleUpdateTaskSettings({ shiftStartTime: e.target.value })} /> - <input type="time" disabled={user.role === 'Gerenciador'} className="bg-transparent w-16 text-center outline-none text-cyan-400 disabled:opacity-50" value={selectedTask.shiftEndTime} onChange={e => handleUpdateTaskSettings({ shiftEndTime: e.target.value })} /></div>
+                                            <div className="bg-white/5 px-3 py-1 rounded text-xs text-gray-300">Almoço: <input type="time" disabled={user.role === 'Gerenciador'} className="bg-transparent w-16 text-center outline-none text-yellow-400 disabled:opacity-50" value={selectedTask.lunchStartTime} onChange={e => handleUpdateTaskSettings({ lunchStartTime: e.target.value })} /> - <input type="time" disabled={user.role === 'Gerenciador'} className="bg-transparent w-16 text-center outline-none text-yellow-400 disabled:opacity-50" value={selectedTask.lunchEndTime} onChange={e => handleUpdateTaskSettings({ lunchEndTime: e.target.value })} /></div>
                                         </div>
                                     </div>
-
-                                    {/* AI Suggestion Section */}
-                                    <div className="bg-[#0a0f18]/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col relative w-full">
-                                        {/* Header */}
-                                        <div className="relative px-6 py-4 flex justify-between items-center border-b border-white/5 bg-gradient-to-r from-orange-500/10 via-transparent to-transparent">
-                                            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay pointer-events-none"></div>
-                                            <div className="flex items-center gap-4 relative z-10">
-                                                <div className="relative">
-                                                    <div className="absolute inset-0 bg-orange-500 rounded-full blur-md opacity-20 animate-pulse"></div>
-                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1f2937] to-[#111827] flex items-center justify-center border border-white/10 shadow-inner">
-                                                        <span className="text-orange-500 text-lg">✦</span>
-                                                    </div>
-                                                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-[#0a0f18] rounded-full"></div>
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-base font-bold text-white leading-tight tracking-wide">Hugo AI</h3>
-                                                    <p className="text-[10px] text-orange-500/80 font-mono tracking-wider uppercase flex items-center gap-1">
-                                                        <span className="w-1 h-1 bg-orange-500 rounded-full animate-blink"></span>
-                                                        Engenheiro Virtual
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <button onClick={handleGenerateAISuggestion} disabled={isAnalyzing} className="px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl shadow-lg shadow-orange-900/20 transition-all font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transform active:scale-95 group">
-                                                {isAnalyzing ? (
-                                                    <> <span className="animate-spin h-3 w-3 border-2 border-white rounded-full border-t-transparent"></span> Analyzing... </>
-                                                ) : (
-                                                    <> <span>⚡</span> Nova Análise </>
-                                                )}
-                                            </button>
+                                    <div className="ml-auto flex gap-4">
+                                        <div className="bg-[#111827] px-4 py-2 rounded-lg border border-cyan-500/20 text-center">
+                                            <span className="text-[10px] text-gray-500 uppercase block font-bold">RUP</span>
+                                            <span className="text-xl font-bold text-cyan-400">{calculateTaskMetrics(selectedTask).rup} <span className="text-xs text-gray-600">Hh/{selectedTask.unit}</span></span>
                                         </div>
-
-                                        {/* Content */}
-                                        <div className="p-6 space-y-5 max-h-[400px] overflow-y-auto custom-scrollbar">
-                                            {selectedTask.aiSuggestions && selectedTask.aiSuggestions.length > 0 ? (
-                                                selectedTask.aiSuggestions.map((sug, idx) => (
-                                                    <div key={idx} className="flex flex-col gap-2 animate-fade-in group">
-                                                        <div className="flex items-center gap-2 mb-1 px-1">
-                                                            <div className="w-6 h-6 rounded-full bg-[#1f2937] flex items-center justify-center border border-white/5 shadow-sm">
-                                                                <span className="text-[10px] font-bold text-orange-500">H</span>
-                                                            </div>
-                                                            <span className="text-[10px] text-gray-500 font-mono">{sug.date}</span>
-                                                        </div>
-                                                        <div className="bg-[#1f2937]/80 border border-white/5 text-gray-200 rounded-2xl rounded-tl-sm p-5 text-sm shadow-sm backdrop-blur-sm group-hover:border-orange-500/20 transition-colors">
-                                                            <div className="leading-relaxed whitespace-pre-line" dangerouslySetInnerHTML={{ __html: sug.text.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-bold">$1</strong>').replace(/^\s*-\s/gm, '• ') }} />
-                                                        </div>
-                                                    </div>
-                                                ))
-                                            ) : (
-                                                <div className="py-12 flex flex-col items-center justify-center text-center opacity-40">
-                                                    <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
-                                                        <span className="text-2xl grayscale">🤖</span>
-                                                    </div>
-                                                    <p className="text-gray-400 text-sm font-medium">O histórico de análises está vazio.</p>
-                                                    <p className="text-xs text-gray-600 mt-1">Peça para o Hugo IA analisar os dados de produtividade acima.</p>
-                                                </div>
-                                            )}
+                                        <div className="bg-[#111827] px-4 py-2 rounded-lg border border-green-500/20 text-center">
+                                            <span className="text-[10px] text-gray-500 uppercase block font-bold">Produtividade</span>
+                                            <span className="text-xl font-bold text-green-400">{calculateTaskMetrics(selectedTask).productivity} <span className="text-xs text-gray-600">{selectedTask.unit}/Hh</span></span>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="space-y-6">
-                                    <div className="bg-[#111827] rounded-2xl p-6 border border-white/10 shadow-xl flex flex-col">
-                                        <h3 className="text-lg font-bold text-white mb-4 border-b border-white/5 pb-4"><span className="text-red-400 mr-2">🚨</span> Monitor</h3>
-                                        <div className="flex-1 overflow-y-auto max-h-[300px] space-y-2 pr-2 custom-scrollbar">
-                                            {flowAnalysis.map((item, i) => (
-                                                <div key={i} className={`p-2 rounded border text-xs ${item.type === 'bad' ? 'bg-red-500/10 border-red-500/20 text-red-300' : item.type === 'neutral' ? 'bg-blue-500/5 border-blue-500/10 text-blue-300' : item.type === 'warn' ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-200' : 'bg-gray-800'}`}>
-                                                    <div className="flex justify-between font-bold mb-1"><span>{item.status}</span><span className="font-mono opacity-50">{item.time}</span></div>
-                                                    {item.msg}
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <div className="mt-4 pt-4 border-t border-white/5">
-                                            <h4 className="text-[10px] uppercase font-bold text-gray-500 mb-2">Resumo de Colaboradores</h4>
-                                            <div className="grid grid-cols-2 gap-2 text-xs">
-                                                {Object.entries(calculateTaskMetrics(selectedTask).resourceSummary).map(([role, hours]) => (
-                                                    <div key={role} className="flex justify-between bg-white/5 p-2 rounded border border-white/5">
-                                                        <span className="text-gray-300">{role}</span>
-                                                        <span className="font-mono text-cyan-400 font-bold">{(hours).toFixed(1)}h</span>
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    <div className="lg:col-span-2 space-y-6">
+                                        <div className="bg-[#111827] rounded-2xl border border-white/10 p-6 min-h-[500px]">
+                                            <div className="flex justify-between items-center mb-6">
+                                                <h3 className="text-lg font-bold text-white">Fluxo de Subtarefas</h3>
+                                                {user.role !== 'Gerenciador' && (
+                                                    <button onClick={() => { if (isSubFormOpen) handleCancelSubTaskForm(); else { setEditingSubTaskId(null); setIsSubFormOpen(true); } }} className="px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 text-xs font-bold border border-cyan-500/20">{isSubFormOpen ? 'Cancelar' : '+ Adicionar Etapa'}</button>
+                                                )}
+                                            </div>
+
+                                            <div className="space-y-3 mb-6">
+                                                {selectedTask.subtasks.sort((a, b) => a.startTime.localeCompare(b.startTime)).map((sub) => (
+                                                    <div key={sub.id} className={`p-4 rounded-xl border flex justify-between items-center group relative ${sub.isUnproductive ? 'bg-yellow-500/5 border-yellow-500/20' : 'bg-[#0a0f18] border-white/5 hover:border-cyan-500/30'}`}>
+                                                        <div>
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${sub.isUnproductive ? 'text-yellow-400 border-yellow-500/20' : 'text-cyan-400 border-cyan-500/20'}`}>{sub.startTime} - {sub.endTime}</span>
+                                                                <span className="text-white font-bold text-sm">{sub.description}</span>
+                                                            </div>
+                                                            <div className="text-xs text-gray-500 flex flex-wrap gap-2 mt-1">
+                                                                {sub.workers.map((w, i) => <span key={i} className="bg-white/5 px-1.5 rounded">{w.count} {w.role === 'Outro' ? w.customRole : w.role}</span>)}
+                                                                {sub.machinery > 0 && <span className="text-cyan-400">{sub.machinery} Máq.</span>}
+                                                                {sub.producedQuantity && sub.producedQuantity > 0 && <span className="text-green-400 font-bold border border-green-500/30 px-1.5 rounded">{sub.producedQuantity} {sub.unit}</span>}
+                                                            </div>
+                                                        </div>
+                                                        {user.role !== 'Gerenciador' && (
+                                                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <button onClick={() => handleEditSubTaskClick(sub)} className="p-2 text-gray-500 hover:text-cyan-400 hover:bg-cyan-500/10 rounded"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
+                                                                <button onClick={() => handleDeleteSubTask(sub.id)} className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded"><DeleteIcon className="w-4 h-4" /></button>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 ))}
-                                                {Object.keys(calculateTaskMetrics(selectedTask).resourceSummary).length === 0 && <span className="text-gray-600 col-span-2 text-center text-[10px]">Sem dados.</span>}
+                                            </div>
+                                        </div>
+
+                                        {/* AI Suggestion Section */}
+                                        <div className="bg-[#0a0f18]/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col relative w-full">
+                                            {/* Header */}
+                                            <div className="relative px-6 py-4 flex justify-between items-center border-b border-white/5 bg-gradient-to-r from-orange-500/10 via-transparent to-transparent">
+                                                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay pointer-events-none"></div>
+                                                <div className="flex items-center gap-4 relative z-10">
+                                                    <div className="relative">
+                                                        <div className="absolute inset-0 bg-orange-500 rounded-full blur-md opacity-20 animate-pulse"></div>
+                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1f2937] to-[#111827] flex items-center justify-center border border-white/10 shadow-inner">
+                                                            <span className="text-orange-500 text-lg">✦</span>
+                                                        </div>
+                                                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-[#0a0f18] rounded-full"></div>
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="text-base font-bold text-white leading-tight tracking-wide">Hugo AI</h3>
+                                                        <p className="text-[10px] text-orange-500/80 font-mono tracking-wider uppercase flex items-center gap-1">
+                                                            <span className="w-1 h-1 bg-orange-500 rounded-full animate-blink"></span>
+                                                            Engenheiro Virtual
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <button onClick={handleGenerateAISuggestion} disabled={isAnalyzing} className="px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl shadow-lg shadow-orange-900/20 transition-all font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transform active:scale-95 group">
+                                                    {isAnalyzing ? (
+                                                        <> <span className="animate-spin h-3 w-3 border-2 border-white rounded-full border-t-transparent"></span> Analyzing... </>
+                                                    ) : (
+                                                        <> <span>⚡</span> Nova Análise </>
+                                                    )}
+                                                </button>
+                                            </div>
+
+                                            {/* Content */}
+                                            <div className="p-6 space-y-5 max-h-[400px] overflow-y-auto custom-scrollbar">
+                                                {selectedTask.aiSuggestions && selectedTask.aiSuggestions.length > 0 ? (
+                                                    selectedTask.aiSuggestions.map((sug, idx) => (
+                                                        <div key={idx} className="flex flex-col gap-2 animate-fade-in group">
+                                                            <div className="flex items-center gap-2 mb-1 px-1">
+                                                                <div className="w-6 h-6 rounded-full bg-[#1f2937] flex items-center justify-center border border-white/5 shadow-sm">
+                                                                    <span className="text-[10px] font-bold text-orange-500">H</span>
+                                                                </div>
+                                                                <span className="text-[10px] text-gray-500 font-mono">{sug.date}</span>
+                                                            </div>
+                                                            <div className="bg-[#1f2937]/80 border border-white/5 text-gray-200 rounded-2xl rounded-tl-sm p-5 text-sm shadow-sm backdrop-blur-sm group-hover:border-orange-500/20 transition-colors">
+                                                                <div className="leading-relaxed whitespace-pre-line" dangerouslySetInnerHTML={{ __html: sug.text.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-bold">$1</strong>').replace(/^\s*-\s/gm, '• ') }} />
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div className="py-12 flex flex-col items-center justify-center text-center opacity-40">
+                                                        <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
+                                                            <span className="text-2xl grayscale">🤖</span>
+                                                        </div>
+                                                        <p className="text-gray-400 text-sm font-medium">O histórico de análises está vazio.</p>
+                                                        <p className="text-xs text-gray-600 mt-1">Peça para o Hugo IA analisar os dados de produtividade acima.</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-6">
+                                        <div className="bg-[#111827] rounded-2xl p-6 border border-white/10 shadow-xl flex flex-col">
+                                            <h3 className="text-lg font-bold text-white mb-4 border-b border-white/5 pb-4"><span className="text-red-400 mr-2">🚨</span> Monitor</h3>
+                                            <div className="flex-1 overflow-y-auto max-h-[300px] space-y-2 pr-2 custom-scrollbar">
+                                                {flowAnalysis.map((item, i) => (
+                                                    <div key={i} className={`p-2 rounded border text-xs ${item.type === 'bad' ? 'bg-red-500/10 border-red-500/20 text-red-300' : item.type === 'neutral' ? 'bg-blue-500/5 border-blue-500/10 text-blue-300' : item.type === 'warn' ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-200' : 'bg-gray-800'}`}>
+                                                        <div className="flex justify-between font-bold mb-1"><span>{item.status}</span><span className="font-mono opacity-50">{item.time}</span></div>
+                                                        {item.msg}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="mt-4 pt-4 border-t border-white/5">
+                                                <h4 className="text-[10px] uppercase font-bold text-gray-500 mb-2">Resumo de Colaboradores</h4>
+                                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                                    {Object.entries(calculateTaskMetrics(selectedTask).resourceSummary).map(([role, hours]) => (
+                                                        <div key={role} className="flex justify-between bg-white/5 p-2 rounded border border-white/5">
+                                                            <span className="text-gray-300">{role}</span>
+                                                            <span className="font-mono text-cyan-400 font-bold">{(hours).toFixed(1)}h</span>
+                                                        </div>
+                                                    ))}
+                                                    {Object.keys(calculateTaskMetrics(selectedTask).resourceSummary).length === 0 && <span className="text-gray-600 col-span-2 text-center text-[10px]">Sem dados.</span>}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             </main>
+
+            {/* Modal: Nova Atividade (Main Task) */}
+            {isMainFormOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setIsMainFormOpen(false)}>
+                    <div className="bg-[#0a0f18]/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] w-full max-w-2xl shadow-[0_0_100px_-20px_rgba(34,211,238,0.3)] max-h-[92vh] flex flex-col overflow-hidden animate-slide-up" onClick={e => e.stopPropagation()}>
+                        {/* Header */}
+                        <div className="p-8 pb-4 flex justify-between items-center border-b border-white/5 bg-gradient-to-r from-cyan-500/5 to-transparent">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-cyan-500 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/20 rotate-3 transition-transform hover:rotate-0">
+                                    <ConstructionIcon className="w-6 h-6 text-white" />
+                                </div>
+                                <div className="min-w-0">
+                                    <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic truncate">Nova <span className="text-cyan-400">Atividade</span></h2>
+                                    <p className="text-[10px] text-brand-med-gray font-black uppercase tracking-[2px] mt-0.5">Módulo Lean Analytics</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setIsMainFormOpen(false)} className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-brand-med-gray hover:text-white transition-all border border-white/10 shrink-0"><XIcon className="w-5 h-5" /></button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-8 custom-scrollbar">
+                            <div className="space-y-6">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-1.5 h-6 bg-cyan-500 rounded-full animate-pulse"></div>
+                                    <h3 className="text-sm font-black text-white uppercase tracking-widest">Configurações Gerais</h3>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Disciplina</label>
+                                        <select
+                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold appearance-none"
+                                            value={newTask.discipline}
+                                            onChange={e => setNewTask({ ...newTask, discipline: e.target.value as MacroDiscipline })}
+                                        >
+                                            <option>Terraplenagem</option>
+                                            <option>Drenagem</option>
+                                            <option>Obra de Arte Especial</option>
+                                            <option>Fabricação</option>
+                                            <option>Contenções</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Local / Trecho</label>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold placeholder:text-gray-600"
+                                            value={newTask.location}
+                                            onChange={e => setNewTask({ ...newTask, location: e.target.value })}
+                                            placeholder="Ex: Trecho A"
+                                        />
+                                    </div>
+                                    <div className="md:col-span-2 space-y-2">
+                                        <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Serviço / Atividade</label>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold placeholder:text-gray-600"
+                                            value={newTask.service}
+                                            onChange={e => setNewTask({ ...newTask, service: e.target.value })}
+                                            placeholder="Ex: Concretagem de Laje"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Meta Quantitativa</label>
+                                        <input
+                                            type="number"
+                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
+                                            value={newTask.quantity}
+                                            onChange={e => setNewTask({ ...newTask, quantity: Number(e.target.value) })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Unidade</label>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold placeholder:text-gray-600"
+                                            value={newTask.unit}
+                                            onChange={e => setNewTask({ ...newTask, unit: e.target.value })}
+                                            placeholder="Ex: m3"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-8 border-t border-white/5 bg-black/20 flex gap-4">
+                            <button onClick={() => setIsMainFormOpen(false)} className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl text-white font-black uppercase tracking-widest text-xs hover:bg-white/10 transition-all active:scale-95">Cancelar</button>
+                            <button onClick={handleAddMainTask} className="flex-[2] py-4 bg-cyan-500 hover:bg-cyan-400 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-cyan-500/20 transition-all transform hover:-translate-y-1 active:scale-95">Salvar Atividade</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Nova Etapa (Sub Task) */}
+            {isSubFormOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={handleCancelSubTaskForm}>
+                    <div className="bg-[#0a0f18]/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] w-full max-w-3xl shadow-[0_0_100px_-20px_rgba(34,211,238,0.3)] max-h-[92vh] flex flex-col overflow-hidden animate-slide-up" onClick={e => e.stopPropagation()}>
+                        {/* Header */}
+                        <div className="p-8 pb-4 flex justify-between items-center border-b border-white/5 bg-gradient-to-r from-cyan-500/5 to-transparent">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-cyan-500 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/20 rotate-3 transition-transform hover:rotate-0">
+                                    <PlusIcon className="w-6 h-6 text-white" />
+                                </div>
+                                <div className="min-w-0">
+                                    <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic truncate">{editingSubTaskId ? 'Editar' : 'Nova'} <span className="text-cyan-400">Etapa</span></h2>
+                                    <p className="text-[10px] text-brand-med-gray font-black uppercase tracking-[2px] mt-0.5 italic truncate">Atividade: {selectedTask?.service}</p>
+                                </div>
+                            </div>
+                            <button onClick={handleCancelSubTaskForm} className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-brand-med-gray hover:text-white transition-all border border-white/10 shrink-0"><XIcon className="w-5 h-5" /></button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-10 custom-scrollbar">
+                            <div className="space-y-6">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-1.5 h-6 bg-cyan-500 rounded-full animate-pulse"></div>
+                                        <h3 className="text-sm font-black text-white uppercase tracking-widest">Informações da Etapa</h3>
+                                    </div>
+                                    <label className="flex items-center gap-3 px-4 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl cursor-pointer group transition-all hover:bg-yellow-500/20">
+                                        <input
+                                            type="checkbox"
+                                            checked={newSubTask.isUnproductive}
+                                            onChange={e => setNewSubTask({ ...newSubTask, isUnproductive: e.target.checked })}
+                                            className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-yellow-500 focus:ring-0 focus:ring-offset-0"
+                                        />
+                                        <span className="text-[10px] font-black text-yellow-500 uppercase tracking-widest">Improdutivo / Apoio</span>
+                                    </label>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    <div className="md:col-span-2 space-y-2">
+                                        <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Descrição do Trabalho</label>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold placeholder:text-gray-600"
+                                            value={newSubTask.description}
+                                            onChange={e => setNewSubTask({ ...newSubTask, description: e.target.value })}
+                                            placeholder="Ex: Montagem de fôrmas"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Volume Realizado</label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="number"
+                                                className="flex-1 bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
+                                                value={newSubTask.producedQuantity}
+                                                onChange={e => setNewSubTask({ ...newSubTask, producedQuantity: Number(e.target.value) })}
+                                            />
+                                            <input
+                                                type="text"
+                                                className="w-20 bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 text-center text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
+                                                value={newSubTask.unit}
+                                                onChange={e => setNewSubTask({ ...newSubTask, unit: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Início</label>
+                                        <input
+                                            type="time"
+                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
+                                            value={newSubTask.startTime}
+                                            onChange={e => setNewSubTask({ ...newSubTask, startTime: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Término</label>
+                                        <input
+                                            type="time"
+                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
+                                            value={newSubTask.endTime}
+                                            onChange={e => setNewSubTask({ ...newSubTask, endTime: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Horas Máquina</label>
+                                        <input
+                                            type="number"
+                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
+                                            value={newSubTask.machinery}
+                                            onChange={e => setNewSubTask({ ...newSubTask, machinery: Number(e.target.value) })}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Recursos Humanos */}
+                            <div className="space-y-6">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-1.5 h-6 bg-cyan-500 rounded-full pulse-neon"></div>
+                                    <h3 className="text-sm font-black text-white uppercase tracking-widest">Equipe Alocada</h3>
+                                </div>
+
+                                <div className="p-6 bg-white/5 rounded-3xl border border-white/10 space-y-6">
+                                    <div className="flex flex-col md:flex-row gap-4 items-end">
+                                        <div className="flex-1 space-y-2">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Profissão / Função</label>
+                                            <select
+                                                className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold appearance-none"
+                                                value={tempWorkerRole}
+                                                onChange={e => setTempWorkerRole(e.target.value)}
+                                            >
+                                                <option>Servente</option>
+                                                <option>Pedreiro</option>
+                                                <option>Carpinteiro</option>
+                                                <option>Armador</option>
+                                                <option>Encarregado</option>
+                                                <option>Soldador</option>
+                                                <option>Operador</option>
+                                                <option>Motorista</option>
+                                                <option>Outro</option>
+                                            </select>
+                                        </div>
+                                        {tempWorkerRole === 'Outro' && (
+                                            <div className="flex-1 space-y-2">
+                                                <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Especificar</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold placeholder:text-gray-600"
+                                                    placeholder="Qual função?"
+                                                    value={tempCustomWorkerRole}
+                                                    onChange={e => setTempCustomWorkerRole(e.target.value)}
+                                                />
+                                            </div>
+                                        )}
+                                        <div className="w-full md:w-40 space-y-2">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Quantidade</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="number"
+                                                    className="flex-1 bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white text-center focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
+                                                    min="1"
+                                                    value={tempWorkerCount}
+                                                    onChange={e => setTempWorkerCount(Number(e.target.value))}
+                                                />
+                                                <button
+                                                    onClick={addWorkerToSubTask}
+                                                    className="p-3.5 bg-cyan-500 hover:bg-cyan-400 text-white rounded-2xl shadow-lg shadow-cyan-500/20 transition-all transform active:scale-90"
+                                                >
+                                                    <PlusIcon className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Lista de Colaboradores */}
+                                    <div className="flex flex-wrap gap-2 pt-2">
+                                        {newSubTask.workers.map((w, idx) => (
+                                            <div key={idx} className="flex items-center gap-3 pl-4 pr-1 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-xl animate-fade-in group hover:bg-cyan-500/20 transition-all">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[8px] text-cyan-500/60 font-black uppercase tracking-tighter">Colaborador</span>
+                                                    <span className="text-xs font-bold text-white uppercase">{w.count}x {w.role === 'Outro' ? w.customRole : w.role}</span>
+                                                </div>
+                                                <button onClick={() => removeWorkerFromSubTask(idx)} className="p-2 text-cyan-500/50 hover:text-red-400 transition-all"><XIcon className="w-4 h-4" /></button>
+                                            </div>
+                                        ))}
+                                        {newSubTask.workers.length === 0 && (
+                                            <div className="w-full py-10 border-2 border-dashed border-white/5 rounded-[2rem] flex flex-col items-center justify-center text-brand-med-gray/30 transition-colors group-hover:border-white/10">
+                                                <ConstructionIcon className="w-8 h-8 mb-2 opacity-10" />
+                                                <p className="text-[10px] font-black uppercase tracking-[3px]">Nenhum colaborador alocado</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-8 border-t border-white/5 bg-black/20 flex gap-4">
+                            <button onClick={handleCancelSubTaskForm} className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl text-white font-black uppercase tracking-widest text-xs hover:bg-white/10 transition-all active:scale-95">Cancelar</button>
+                            <button onClick={handleSaveSubTask} className="flex-[2] py-4 bg-cyan-500 hover:bg-cyan-400 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-cyan-500/20 transition-all transform hover:-translate-y-1 active:scale-95">Salvar Etapa do Fluxo</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
