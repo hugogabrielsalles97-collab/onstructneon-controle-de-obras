@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import LoginScreen from './components/LoginScreen';
 import RegisterScreen from './components/RegisterScreen';
+import ModuleSelectionScreen from './components/ModuleSelectionScreen';
 import Dashboard from './components/Dashboard';
 import ReportsPage from './components/ReportsPage';
 import BaselinePage from './components/BaselinePage';
@@ -9,6 +10,7 @@ import ManagementPage from './components/ManagementPage';
 import LeanPage from './components/LeanPage';
 import LeanConstructionPage from './components/LeanConstructionPage';
 import RestrictionsAnalysisPage from './components/RestrictionsAnalysisPage';
+import CostPage from './components/CostPage';
 import TaskModal from './components/TaskModal';
 import RdoModal from './components/RdoModal';
 import AIAssistant from './components/AIAssistant';
@@ -19,19 +21,31 @@ import { Task, Restriction } from './types';
 import { DataProvider, useData } from './context/DataProvider';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
-type Screen = 'login' | 'register' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'restrictions';
+type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'restrictions' | 'cost';
 
 const AppContent: React.FC = () => {
   const {
     session, currentUser, allUsers, tasks, baselineTasks, restrictions, isLoading,
     saveTask, signOut, saveRestriction, updateRestriction, deleteRestriction
   } = useData();
-  const [screen, setScreen] = useState<Screen>('login');
+
+  const [screen, setScreen] = useState<Screen>('moduleSelection');
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isRdoModalOpen, setIsRdoModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  // Efeito para redirecionar para login se não houver usuário, ou moduleSelection se houver e a tela for login
+  useEffect(() => {
+    if (!isLoading) {
+      if (!currentUser && screen !== 'register') {
+        setScreen('login');
+      } else if (currentUser && (screen === 'login' || screen === 'register')) {
+        setScreen('moduleSelection');
+      }
+    }
+  }, [currentUser, isLoading, screen]);
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -157,6 +171,8 @@ Por favor, acesse o aplicativo para mais detalhes.
       }
     }
 
+    const handleNavigateToHome = () => setScreen('moduleSelection');
+
     const navigationProps = {
       onNavigateToDashboard: () => setScreen('dashboard'),
       onNavigateToReports: () => setScreen('reports'),
@@ -169,12 +185,28 @@ Por favor, acesse o aplicativo para mais detalhes.
     };
 
     switch (screen) {
-      case 'dashboard': return <Dashboard onOpenModal={handleOpenTaskModal} onOpenRdoModal={handleOpenRdoModal} {...navigationProps} showToast={showToast} />;
+      case 'moduleSelection':
+        return (
+          <ModuleSelectionScreen
+            onSelectPlanning={() => setScreen('dashboard')}
+            onSelectCost={() => setScreen('cost')}
+            showToast={showToast}
+          />
+        );
+      case 'dashboard': return <Dashboard onOpenModal={handleOpenTaskModal} onOpenRdoModal={handleOpenRdoModal} {...navigationProps} onNavigateToHome={handleNavigateToHome} showToast={showToast} />;
       case 'reports': return <ReportsPage {...navigationProps} showToast={showToast} />;
       case 'baseline': return <BaselinePage {...navigationProps} showToast={showToast} />;
       case 'currentSchedule': return <CurrentSchedulePage {...navigationProps} showToast={showToast} />;
       case 'management': return <ManagementPage {...navigationProps} showToast={showToast} />;
       case 'leanConstruction': return <LeanConstructionPage {...navigationProps} showToast={showToast} />;
+      case 'cost': return (
+        <CostPage
+          {...navigationProps}
+          onNavigateToLeanConstruction={() => setScreen('leanConstruction')}
+          onNavigateToHome={handleNavigateToHome}
+          showToast={showToast}
+        />
+      );
       case 'lean': return (
         <LeanPage
           {...navigationProps}
@@ -202,7 +234,13 @@ Por favor, acesse o aplicativo para mais detalhes.
           onDeleteRestriction={deleteRestriction}
         />
       );
-      default: return <Dashboard onOpenModal={handleOpenTaskModal} onOpenRdoModal={handleOpenRdoModal} {...navigationProps} showToast={showToast} />;
+      default: return (
+        <ModuleSelectionScreen
+          onSelectPlanning={() => setScreen('dashboard')}
+          onSelectCost={() => setScreen('cost')}
+          showToast={showToast}
+        />
+      );
     }
   };
 

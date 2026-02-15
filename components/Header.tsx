@@ -16,6 +16,7 @@ import Toast from './Toast';
 interface HeaderProps {
   user: User;
   onLogout: () => void;
+  onNavigateToHome?: () => void;
   onNavigateToDashboard?: () => void;
   onNavigateToReports?: () => void;
   onNavigateToBaseline?: () => void;
@@ -30,6 +31,7 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({
   user,
   onLogout,
+  onNavigateToHome,
   onNavigateToDashboard,
   onNavigateToReports,
   onNavigateToBaseline,
@@ -85,10 +87,14 @@ const Header: React.FC<HeaderProps> = ({
               </svg>
             </button>
 
-            <div className="flex items-center">
+            <button
+              onClick={onNavigateToHome}
+              className={`flex items-center transition-opacity ${onNavigateToHome ? 'hover:opacity-80 cursor-pointer' : 'cursor-default'}`}
+              disabled={!onNavigateToHome}
+            >
               <ConstructionIcon className="h-6 w-6 text-brand-accent" />
               <span className="ml-2.5 text-lg font-black text-white italic tracking-tighter">LEAN SOLUTION</span>
-            </div>
+            </button>
           </div>
 
           <div className="flex-1 flex items-center justify-end gap-6 text-sm">

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { User, Task, TaskStatus } from '../types';
 import { useData } from '../context/DataProvider';
@@ -26,6 +27,7 @@ type StatusFilter = TaskStatus | 'all' | 'overdue';
 interface DashboardProps {
   onOpenModal: (task: Task | null) => void;
   onOpenRdoModal: () => void;
+  onNavigateToHome?: () => void;
   onNavigateToReports: () => void;
   onNavigateToBaseline: () => void;
   onNavigateToCurrentSchedule: () => void;
@@ -48,7 +50,7 @@ const initialFilters = {
   endDate: '',
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onUpgradeClick, showToast }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToHome, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onUpgradeClick, showToast }) => {
   const { currentUser: user, tasks, baselineTasks, signOut, deleteTask } = useData();
   const [filters, setFilters] = useState(initialFilters);
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'dueDate', direction: 'asc' });
@@ -240,6 +242,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
         <Header
           user={user}
           onLogout={handleLogout}
+          onNavigateToHome={onNavigateToHome}
           onNavigateToDashboard={() => { }}
           onNavigateToReports={onNavigateToReports}
           onNavigateToBaseline={onNavigateToBaseline}
