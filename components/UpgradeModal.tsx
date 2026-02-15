@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import { useData } from '../context/DataProvider';
+import XIcon from './icons/XIcon';
+import ConstructionIcon from './icons/ConstructionIcon';
 
 interface UpgradeModalProps {
     isOpen: boolean;
@@ -51,62 +53,78 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, showToast 
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-            <div className="bg-brand-dark w-full max-w-md rounded-xl shadow-2xl border border-brand-accent/30 overflow-hidden transform animate-scale-up">
-                <div className="bg-brand-darkest/80 px-6 py-4 border-b border-brand-accent/20 flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                        <span className="text-brand-accent">⚡</span> Upgrade de Perfil
-                    </h2>
-                    <button onClick={onClose} className="text-brand-med-gray hover:text-white transition-colors">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+            <div className="bg-[#0a0f18]/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] w-full max-w-md shadow-[0_0_100px_-20px_rgba(227,90,16,0.3)] max-h-[92vh] flex flex-col overflow-hidden animate-slide-up" onClick={e => e.stopPropagation()}>
+                {/* Header */}
+                <div className="p-8 pb-4 flex justify-between items-center border-b border-white/5 bg-gradient-to-r from-brand-accent/5 to-transparent">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-brand-accent rounded-2xl flex items-center justify-center shadow-lg shadow-brand-accent/20 rotate-3 transition-transform hover:rotate-0">
+                            <span className="text-2xl text-white">⚡</span>
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic">Upgrade <span className="text-brand-accent">Perfil</span></h2>
+                            <p className="text-[10px] text-brand-med-gray font-black uppercase tracking-[2px] mt-0.5">Gestão de Acesso</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-brand-med-gray hover:text-white transition-all border border-white/10"><XIcon className="w-5 h-5" /></button>
                 </div>
 
-                <form onSubmit={handleUpgrade} className="p-6 space-y-4">
-                    <p className="text-sm text-brand-med-gray italic">
-                        Perfil atual: <span className="text-brand-accent font-bold uppercase">{currentUser.role}</span>
-                    </p>
+                {/* Content */}
+                <form onSubmit={handleUpgrade} className="flex-1 overflow-y-auto p-8 pt-6 space-y-8 custom-scrollbar">
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3 p-4 bg-white/5 rounded-2xl border border-white/5">
+                            <div className="flex-1">
+                                <p className="text-[10px] text-brand-med-gray font-black uppercase tracking-[2px] mb-1">Perfil Atual</p>
+                                <p className="text-lg font-black text-brand-accent uppercase italic">{currentUser.role}</p>
+                            </div>
+                            <div className="w-10 h-10 rounded-full bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center">
+                                <ConstructionIcon className="w-5 h-5 text-brand-accent opacity-50" />
+                            </div>
+                        </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Selecione o novo perfil</label>
-                        <select
-                            value={targetRole}
-                            onChange={(e) => setTargetRole(e.target.value as User['role'])}
-                            className="w-full bg-brand-darkest/50 border border-brand-darkest rounded-md py-2 px-3 text-white focus:ring-brand-accent focus:border-brand-accent outline-none"
-                        >
-                            <option value="Executor">Executor</option>
-                            <option value="Gerenciador">Gerenciador</option>
-                            <option value="Planejador">Planejador</option>
-                            <option value="Master">Master</option>
-                        </select>
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Selecione o novo perfil</label>
+                                <select
+                                    className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 transition-all font-bold appearance-none cursor-pointer"
+                                    value={targetRole}
+                                    onChange={(e) => setTargetRole(e.target.value as User['role'])}
+                                >
+                                    <option value="Executor">Executor</option>
+                                    <option value="Gerenciador">Gerenciador</option>
+                                    <option value="Planejador">Planejador</option>
+                                    <option value="Master">Master</option>
+                                </select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Token de Acesso</label>
+                                <input
+                                    type="password"
+                                    placeholder="Digite o token do perfil"
+                                    value={token}
+                                    onChange={(e) => setToken(e.target.value)}
+                                    required
+                                    className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 transition-all font-bold placeholder:text-gray-600"
+                                />
+                            </div>
+                        </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Token de Acesso</label>
-                        <input
-                            type="password"
-                            placeholder="Digite o token do perfil"
-                            value={token}
-                            onChange={(e) => setToken(e.target.value)}
-                            required
-                            className="w-full bg-brand-darkest/50 border border-brand-darkest rounded-md py-2 px-3 text-white placeholder-brand-med-gray focus:ring-brand-accent focus:border-brand-accent outline-none"
-                        />
-                    </div>
-
-                    <div className="pt-4 flex gap-3">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="flex-1 px-4 py-2 border border-brand-darkest text-brand-med-gray rounded-md hover:bg-brand-darkest transition-colors font-medium shadow-sm"
-                        >
-                            Cancelar
-                        </button>
+                    <div className="pt-2 space-y-3">
                         <button
                             type="submit"
                             disabled={loading}
-                            className="flex-1 px-4 py-2 bg-brand-accent text-white rounded-md hover:bg-orange-600 transition-all font-bold shadow-lg shadow-brand-accent/20 disabled:opacity-50"
+                            className="w-full py-4 bg-brand-accent hover:bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-brand-accent/20 transition-all transform hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:transform-none"
                         >
                             {loading ? 'Processando...' : 'Confirmar Upgrade'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl text-white font-black uppercase tracking-widest text-xs hover:bg-white/10 transition-all active:scale-95"
+                        >
+                            Cancelar
                         </button>
                     </div>
                 </form>
