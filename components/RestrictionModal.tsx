@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Restriction, RestrictionType, RestrictionStatus, RestrictionPriority } from '../types';
-import ClearIcon from './icons/ClearIcon';
+import XIcon from './icons/XIcon';
+import AlertIcon from './icons/AlertIcon';
 
 interface RestrictionModalProps {
     baselineTaskId: string;
@@ -40,7 +41,6 @@ const RestrictionModal: React.FC<RestrictionModalProps> = ({
             const suggested = new Date(startDate);
             suggested.setDate(startDate.getDate() - 2);
 
-            // Formatar para YYYY-MM-DD (compatível com input date)
             const yyyy = suggested.getFullYear();
             const mm = String(suggested.getMonth() + 1).padStart(2, '0');
             const dd = String(suggested.getDate()).padStart(2, '0');
@@ -51,9 +51,8 @@ const RestrictionModal: React.FC<RestrictionModalProps> = ({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
         if (!formData.description.trim() || !formData.responsible.trim()) {
-            alert('Preencha todos os campos obrigatórios');
+            alert('Preencha os campos obrigatórios (Descrição e Responsável)');
             return;
         }
 
@@ -80,12 +79,10 @@ const RestrictionModal: React.FC<RestrictionModalProps> = ({
             if (result.success) {
                 onClose();
             } else {
-                console.error('Erro ao salvar restrição:', result.error);
-                alert(`Erro ao salvar restrição: ${result.error}`);
+                alert(`Erro: ${result.error}`);
             }
         } catch (error) {
-            console.error('Erro ao salvar restrição:', error);
-            alert('Erro ao salvar restrição');
+            alert('Erro ao processar solicitação');
         } finally {
             setIsSubmitting(false);
         }
@@ -105,194 +102,203 @@ const RestrictionModal: React.FC<RestrictionModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-[#111827] rounded-2xl border border-white/10 shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-hidden">
+            {/* Backdrop com desfoque profundo */}
+            <div
+                className="absolute inset-0 bg-[#060a12]/80 backdrop-blur-2xl animate-fade-in"
+                onClick={onClose}
+            ></div>
+
+            {/* Modal Container Glassmorphism */}
+            <div className="relative w-full max-w-2xl bg-[#0a0f18]/90 backdrop-blur-xl rounded-[2.5rem] border border-white/10 shadow-[0_0_50px_rgba(227,90,16,0.15)] overflow-hidden flex flex-col animate-slide-up max-h-[90vh]">
+
+                {/* Brand Accent Glow */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-gradient-to-r from-transparent via-brand-accent to-transparent opacity-50"></div>
+
                 {/* Header */}
-                <div className="sticky top-0 bg-[#111827] border-b border-white/10 p-6 flex justify-between items-center">
-                    <div>
-                        <h2 className="text-2xl font-black text-white">
-                            {restriction ? 'Editar Restrição' : 'Adicionar Restrição'}
-                        </h2>
-                        <p className="text-sm text-brand-med-gray mt-1">
-                            Atividade: <span className="text-brand-accent font-bold">{baselineTaskTitle}</span>
+                <div className="px-8 py-6 flex justify-between items-start border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent shrink-0">
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-brand-accent/20 flex items-center justify-center border border-brand-accent/30 shadow-lg shadow-brand-accent/10">
+                                <AlertIcon className="w-6 h-6 text-brand-accent" />
+                            </div>
+                            <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase">
+                                {restriction ? 'Editar' : 'Nova'} <span className="text-brand-accent">Restrição</span>
+                            </h2>
+                        </div>
+                        <p className="text-[10px] text-brand-med-gray font-black uppercase tracking-[0.2em] mt-1 pl-13 flex items-center gap-2">
+                            Atividade: <span className="text-white bg-white/5 px-2 py-0.5 rounded italic">{baselineTaskTitle}</span>
                         </p>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 hover:bg-white/5 rounded-lg transition-colors"
-                        disabled={isSubmitting}
+                        className="p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-500 text-brand-med-gray transition-all group"
                     >
-                        <ClearIcon className="w-6 h-6 text-brand-med-gray hover:text-white" />
+                        <XIcon className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
                     </button>
                 </div>
 
-                {/* Form */}
-                <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                    {/* Tipo de Restrição */}
-                    <div>
-                        <label className="block text-sm font-bold text-white mb-2">
-                            Tipo de Restrição *
-                        </label>
-                        <select
-                            name="type"
-                            value={formData.type}
-                            onChange={handleChange}
-                            className="w-full bg-brand-dark border border-white/10 rounded-xl px-4 py-3 text-white focus:border-brand-accent focus:outline-none transition-colors border-2 border-transparent focus:border-brand-accent"
-                            required
-                        >
-                            {Object.values(RestrictionType).map(type => (
-                                <option key={type} value={type}>{type}</option>
-                            ))}
-                        </select>
-                    </div>
+                {/* Form Body */}
+                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
 
-                    {/* Prioridade */}
-                    <div>
-                        <label className="block text-sm font-bold text-white mb-2">
-                            Prioridade *
-                        </label>
-                        <div className="grid grid-cols-4 gap-2">
-                            {Object.values(RestrictionPriority).map(priority => (
-                                <button
-                                    key={priority}
-                                    type="button"
-                                    onClick={() => setFormData(prev => ({ ...prev, priority }))}
-                                    className={`px-4 py-2 rounded-lg font-bold text-xs uppercase transition-all ${formData.priority === priority
-                                        ? priority === RestrictionPriority.Critical
-                                            ? 'bg-red-500 text-white border-2 border-red-400'
-                                            : priority === RestrictionPriority.High
-                                                ? 'bg-orange-500 text-white border-2 border-orange-400'
-                                                : priority === RestrictionPriority.Medium
-                                                    ? 'bg-yellow-500 text-white border-2 border-yellow-400'
-                                                    : 'bg-green-500 text-white border-2 border-green-400'
-                                        : 'bg-white/5 text-brand-med-gray border-2 border-transparent hover:bg-white/10'
-                                        }`}
+                    {/* Seção 1: Classificação */}
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-1.5 h-4 bg-brand-accent rounded-full"></div>
+                            <h3 className="text-[10px] font-black text-white uppercase tracking-widest">Classificação e Prioridade</h3>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-white/5 rounded-3xl border border-white/5">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Tipo de Impedimento</label>
+                                <select
+                                    name="type"
+                                    value={formData.type}
+                                    onChange={handleChange}
+                                    className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all font-bold appearance-none"
                                 >
-                                    {priority}
-                                </button>
-                            ))}
+                                    {Object.values(RestrictionType).map(type => (
+                                        <option key={type} value={type}>{type}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Impacto (Prioridade)</label>
+                                <div className="flex gap-2">
+                                    {[RestrictionPriority.Low, RestrictionPriority.Medium, RestrictionPriority.High, RestrictionPriority.Critical].map(p => (
+                                        <button
+                                            key={p}
+                                            type="button"
+                                            onClick={() => setFormData(prev => ({ ...prev, priority: p }))}
+                                            className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-tighter transition-all ${formData.priority === p
+                                                ? (p === RestrictionPriority.Critical ? 'bg-red-500 text-white shadow-lg shadow-red-500/30 scale-105' :
+                                                    p === RestrictionPriority.High ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105' :
+                                                        p === RestrictionPriority.Medium ? 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/30 scale-105' :
+                                                            'bg-green-500 text-white shadow-lg shadow-green-500/30 scale-105')
+                                                : 'bg-white/5 text-brand-med-gray border border-white/5 hover:bg-white/10'
+                                                }`}
+                                        >
+                                            {p}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Descrição */}
-                    <div>
-                        <label className="block text-sm font-bold text-white mb-2">
-                            Descrição da Restrição *
-                        </label>
-                        <textarea
-                            name="description"
-                            value={formData.description}
-                            onChange={handleChange}
-                            rows={4}
-                            placeholder="Descreva detalhadamente a restrição que impede o início ou continuidade desta atividade..."
-                            className="w-full bg-brand-dark border border-white/10 rounded-xl px-4 py-3 text-white placeholder-brand-med-gray focus:border-brand-accent focus:outline-none transition-colors resize-none border-2 border-transparent focus:border-brand-accent"
-                            required
-                        />
-                    </div>
-
-                    {/* Responsável e Setor */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-bold text-white mb-2">
-                                Responsável pela Remoção *
-                            </label>
-                            <input
-                                type="text"
-                                name="responsible"
-                                value={formData.responsible}
+                    {/* Seção 2: Detalhes */}
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-1.5 h-4 bg-brand-accent rounded-full"></div>
+                            <h3 className="text-[10px] font-black text-white uppercase tracking-widest">Descrição detalhada</h3>
+                        </div>
+                        <div className="p-5 bg-white/5 rounded-3xl border border-white/5">
+                            <textarea
+                                name="description"
+                                value={formData.description}
                                 onChange={handleChange}
-                                placeholder="Nome do indivíduo"
-                                className="w-full bg-brand-dark border border-white/10 rounded-xl px-4 py-3 text-white placeholder-brand-med-gray focus:border-brand-accent focus:outline-none transition-colors border-2 border-transparent focus:border-brand-accent"
+                                placeholder="O que está impedindo a atividade? Ex: Aguardando entrega de vergalhões CA-50..."
+                                className="w-full h-28 bg-[#111827]/40 border border-white/10 rounded-2xl p-4 text-white placeholder:text-gray-600 focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all font-bold resize-none"
                                 required
                             />
                         </div>
-                        <div>
-                            <label className="block text-sm font-bold text-white mb-2">
-                                Setor Responsável
-                            </label>
-                            <select
-                                name="department"
-                                value={formData.department}
-                                onChange={handleChange}
-                                className="w-full bg-brand-dark border border-white/10 rounded-xl px-4 py-3 text-white focus:border-brand-accent focus:outline-none transition-colors border-2 border-transparent focus:border-brand-accent"
-                            >
-                                <option value="">Selecione o setor...</option>
-                                <option value="Engenharia">Engenharia</option>
-                                <option value="Suprimentos">Suprimentos</option>
-                                <option value="Financeiro">Financeiro</option>
-                                <option value="RH">RH</option>
-                                <option value="Logística">Logística</option>
-                                <option value="Qualidade">Qualidade</option>
-                                <option value="Manutenção">Manutenção</option>
-                                <option value="Segurança">Segurança (SESMT)</option>
-                                <option value="Produção">Produção</option>
-                                <option value="Cliente">Cliente / Fiscalização</option>
-                            </select>
-                        </div>
                     </div>
 
-                    {/* Status e Data Limite */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <div className="flex justify-between items-center mb-2">
-                                <label className="block text-sm font-bold text-white">
-                                    Data Limite (Conclusão)
-                                </label>
+                    {/* Seção 3: Responsabilidade */}
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-1.5 h-4 bg-brand-accent rounded-full"></div>
+                            <h3 className="text-[10px] font-black text-white uppercase tracking-widest">Responsabilidade e Prazos</h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-white/5 rounded-3xl border border-white/5">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Responsável pela Remoção</label>
+                                <input
+                                    type="text"
+                                    name="responsible"
+                                    value={formData.responsible}
+                                    onChange={handleChange}
+                                    placeholder="Nome do responsável..."
+                                    className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all font-bold"
+                                    required
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Setor / Departamento</label>
+                                <select
+                                    name="department"
+                                    value={formData.department}
+                                    onChange={handleChange}
+                                    className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all font-bold appearance-none"
+                                >
+                                    <option value="">Selecione o setor...</option>
+                                    <option value="Engenharia">Engenharia</option>
+                                    <option value="Suprimentos">Suprimentos</option>
+                                    <option value="Financeiro">Financeiro</option>
+                                    <option value="RH">RH</option>
+                                    <option value="Logística">Logística</option>
+                                    <option value="Qualidade">Qualidade</option>
+                                    <option value="Manutenção">Manutenção</option>
+                                    <option value="Segurança">Segurança (SESMT)</option>
+                                    <option value="Produção">Produção</option>
+                                    <option value="Cliente">Cliente / Fiscalização</option>
+                                </select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center px-1">
+                                    <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px]">Data de Resolução (Limite)</label>
+                                </div>
+                                <input
+                                    type="date"
+                                    name="due_date"
+                                    value={formData.due_date}
+                                    onChange={handleChange}
+                                    className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all font-bold"
+                                />
                                 {baselineTaskStartDate && (
-                                    <span className="text-[10px] text-brand-accent font-black uppercase bg-brand-accent/10 px-2 py-0.5 rounded">
-                                        Sugestão do Sistema
-                                    </span>
+                                    <p className="text-[9px] text-brand-accent/70 font-bold uppercase tracking-widest mt-1 ml-1 animate-pulse">
+                                        Data Sugerida: {getFormattedSuggestedDate()}
+                                    </p>
                                 )}
                             </div>
-                            <input
-                                type="date"
-                                name="due_date"
-                                value={formData.due_date}
-                                onChange={handleChange}
-                                className="w-full bg-brand-dark border border-white/10 rounded-xl px-4 py-3 text-white focus:border-brand-accent focus:outline-none transition-colors border-2 border-transparent focus:border-brand-accent"
-                            />
-                            {baselineTaskStartDate && (
-                                <p className="text-[10px] text-brand-med-gray mt-1.5 ml-1">
-                                    Data sugerida: <span className="text-white font-bold">{getFormattedSuggestedDate()}</span> (2 dias antes do início)
-                                </p>
-                            )}
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-white mb-2">
-                                Status Inicial
-                            </label>
-                            <select
-                                name="status"
-                                value={formData.status}
-                                onChange={handleChange}
-                                className="w-full bg-brand-dark border border-white/10 rounded-xl px-4 py-3 text-white focus:border-brand-accent focus:outline-none transition-colors border-2 border-transparent focus:border-brand-accent"
-                            >
-                                {Object.values(RestrictionStatus).map(status => (
-                                    <option key={status} value={status}>{status}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
 
-                    {/* Actions */}
-                    <div className="flex gap-3 pt-4">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            disabled={isSubmitting}
-                            className="flex-1 px-6 py-3 bg-white/5 text-white rounded-xl hover:bg-white/10 transition-all font-bold border border-white/10 disabled:opacity-50"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="flex-1 px-6 py-3 bg-brand-accent text-white rounded-xl hover:bg-[#e35a10] transition-all font-bold shadow-lg shadow-brand-accent/20 disabled:opacity-50"
-                        >
-                            {isSubmitting ? 'Salvando...' : restriction ? 'Salvar Alterações' : 'Adicionar Restrição'}
-                        </button>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Status da Restrição</label>
+                                <select
+                                    name="status"
+                                    value={formData.status}
+                                    onChange={handleChange}
+                                    className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all font-bold appearance-none"
+                                >
+                                    {Object.values(RestrictionStatus).map(status => (
+                                        <option key={status} value={status}>{status}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </form>
+
+                {/* Footer Actions */}
+                <div className="p-6 bg-black/20 border-t border-white/5 flex gap-4 shrink-0">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl text-white font-black uppercase tracking-widest text-xs hover:bg-white/10 transition-all active:scale-95"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={isSubmitting}
+                        className="flex-[2] py-4 bg-brand-accent text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-brand-accent/20 hover:bg-[#e35a10] transition-all hover:-translate-y-1 active:scale-95 disabled:opacity-50"
+                    >
+                        {isSubmitting ? 'Processando...' : restriction ? 'Gravar Alterações' : 'Confirmar Restrição'}
+                    </button>
+                </div>
             </div>
         </div>
     );

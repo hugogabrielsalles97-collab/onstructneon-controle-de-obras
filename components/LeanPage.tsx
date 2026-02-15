@@ -15,6 +15,9 @@ interface LeanPageProps {
     onNavigateToCurrentSchedule: () => void;
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
+    onNavigateToLeanConstruction: () => void;
+    onNavigateToCost: () => void;
+    onNavigateToHome?: () => void;
     onNavigateToRestrictions: () => void;
     onSaveRestriction: (restriction: Omit<Restriction, 'id' | 'created_at' | 'user_id'>) => Promise<void>;
     onUpdateRestriction: (id: string, updates: Partial<Restriction>) => Promise<void>;
@@ -32,6 +35,9 @@ const LeanPage: React.FC<LeanPageProps> = ({
     onNavigateToCurrentSchedule,
     onNavigateToAnalysis,
     onNavigateToLean,
+    onNavigateToLeanConstruction,
+    onNavigateToCost,
+    onNavigateToHome,
     onNavigateToRestrictions,
     onSaveRestriction,
     onUpdateRestriction,
@@ -172,30 +178,20 @@ const LeanPage: React.FC<LeanPageProps> = ({
         const activeRestrictions = restrictions.filter(r => r.status !== 'Resolvida');
 
         if (activeRestrictions.length === 0) {
-            // Sem restrições: verde (sucesso)
-            return 'bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30';
+            // Sem restrições: neutral com hover sutil
+            return 'bg-white/5 text-gray-400 border-white/10 hover:bg-green-500/10 hover:text-green-400 hover:border-green-500/20';
         }
 
-        // Verificar se há restrições críticas
         const hasCritical = activeRestrictions.some(r => r.priority === 'Crítica');
-        if (hasCritical) {
-            return 'bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30';
-        }
+        if (hasCritical) return 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_20px_rgba(239,68,68,0.15)]';
 
-        // Verificar se há restrições de alta prioridade
         const hasHigh = activeRestrictions.some(r => r.priority === 'Alta');
-        if (hasHigh) {
-            return 'bg-orange-500/20 text-orange-400 border-orange-500/30 hover:bg-orange-500/30';
-        }
+        if (hasHigh) return 'bg-orange-500/10 text-orange-400 border-orange-500/20 hover:bg-orange-500/20 hover:shadow-[0_0_20px_rgba(249,115,22,0.15)]';
 
-        // Verificar se há restrições de média prioridade
         const hasMedium = activeRestrictions.some(r => r.priority === 'Média');
-        if (hasMedium) {
-            return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30';
-        }
+        if (hasMedium) return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/20 hover:shadow-[0_0_20px_rgba(234,179,8,0.15)]';
 
-        // Apenas restrições de baixa prioridade
-        return 'bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30';
+        return 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20 hover:shadow-[0_0_20px_rgba(34,197,94,0.15)]';
     };
 
     // Função para obter a cor do botão de restrição baseada na prioridade mais alta da TAREFA
@@ -203,19 +199,20 @@ const LeanPage: React.FC<LeanPageProps> = ({
         const taskRestrictions = restrictions.filter(r => String(r.baseline_task_id) === String(taskId) && r.status !== 'Resolvida');
 
         if (taskRestrictions.length === 0) {
-            return 'bg-gray-500/20 text-gray-400 border-gray-500/30 hover:bg-gray-500/30';
+            // Cor neutra inicial (Premium Glass)
+            return 'bg-white/5 text-brand-med-gray border-white/10 hover:bg-white/10 hover:text-white hover:border-white/20 shadow-sm';
         }
 
         const hasCritical = taskRestrictions.some(r => r.priority === 'Crítica');
-        if (hasCritical) return 'bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30';
+        if (hasCritical) return 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]';
 
         const hasHigh = taskRestrictions.some(r => r.priority === 'Alta');
-        if (hasHigh) return 'bg-orange-500/20 text-orange-400 border-orange-500/30 hover:bg-orange-500/30';
+        if (hasHigh) return 'bg-orange-500/10 text-orange-400 border-orange-500/20 hover:bg-orange-500/20 hover:shadow-[0_0_15px_rgba(249,115,22,0.2)]';
 
         const hasMedium = taskRestrictions.some(r => r.priority === 'Média');
-        if (hasMedium) return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30';
+        if (hasMedium) return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/20 hover:shadow-[0_0_15px_rgba(234,179,8,0.2)]';
 
-        return 'bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30';
+        return 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20 hover:shadow-[0_0_15px_rgba(34,197,94,0.2)]';
     };
 
     return (
@@ -229,6 +226,8 @@ const LeanPage: React.FC<LeanPageProps> = ({
                 onNavigateToCurrentSchedule={onNavigateToCurrentSchedule}
                 onNavigateToAnalysis={onNavigateToAnalysis}
                 onNavigateToLean={() => { }}
+                onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToCost={onNavigateToCost}
                 onUpgradeClick={onUpgradeClick}
                 activeScreen="lean"
             />
@@ -254,12 +253,12 @@ const LeanPage: React.FC<LeanPageProps> = ({
                         <div className="flex gap-3">
                             <button
                                 onClick={onNavigateToRestrictions}
-                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all duration-300 font-bold border ${lookaheadData.impactedRestrictionsCount > 0 ? 'bg-red-500/20 text-red-400 border-red-500/50 animate-pulse' : getHeaderRestrictionButtonColor()}`}
+                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all duration-300 font-bold border-2 ${lookaheadData.impactedRestrictionsCount > 0 ? 'bg-red-500/20 text-red-400 border-red-500/30 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.2)]' : getHeaderRestrictionButtonColor()}`}
                             >
                                 <AlertIcon className="w-5 h-5" />
-                                <span>Resumo de Restrições</span>
+                                <span className="uppercase tracking-wider text-[11px]">Resumo de Restrições</span>
                                 {restrictions.filter(r => r.status !== 'Resolvida').length > 0 && (
-                                    <span className="px-2 py-0.5 bg-white/20 text-white rounded-full text-xs font-black">
+                                    <span className="ml-1 w-6 h-6 flex items-center justify-center bg-white/20 text-white rounded-full text-[10px] font-black shadow-inner">
                                         {restrictions.filter(r => r.status !== 'Resolvida').length}
                                     </span>
                                 )}
@@ -423,12 +422,12 @@ const LeanPage: React.FC<LeanPageProps> = ({
                                                     </div>
                                                     <button
                                                         onClick={() => setViewingTaskRestrictions({ taskId: task.baseline_id || task.id, taskTitle: task.title, taskStartDate: task.startDate })}
-                                                        className={`px-3 py-1.5 rounded-lg transition-all font-bold text-xs border flex items-center gap-1.5 ${getTaskRestrictionButtonColor(task.baseline_id || task.id)}`}
+                                                        className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-500 font-black text-[10px] uppercase tracking-[0.1em] border shadow-lg ${getTaskRestrictionButtonColor(task.baseline_id || task.id)}`}
                                                     >
-                                                        <AlertIcon className="w-3.5 h-3.5" />
-                                                        Restrição
+                                                        <AlertIcon className="w-4 h-4" />
+                                                        Restrições
                                                         {restrictions.filter(r => String(r.baseline_task_id) === String(task.baseline_id || task.id) && r.status !== 'Resolvida').length > 0 && (
-                                                            <span className="px-1.5 py-0.5 bg-white/20 text-white rounded-full text-[9px] font-black">
+                                                            <span className="w-5 h-5 flex items-center justify-center bg-white/20 text-white rounded-full text-[9px] font-black shadow-inner ml-0.5">
                                                                 {restrictions.filter(r => String(r.baseline_task_id) === String(task.baseline_id || task.id) && r.status !== 'Resolvida').length}
                                                             </span>
                                                         )}
@@ -476,12 +475,12 @@ const LeanPage: React.FC<LeanPageProps> = ({
                                                     </div>
                                                     <button
                                                         onClick={() => setViewingTaskRestrictions({ taskId: task.id, taskTitle: task.title, taskStartDate: task.startDate })}
-                                                        className={`px-3 py-1.5 rounded-lg transition-all font-bold text-xs border flex items-center gap-1.5 ${getTaskRestrictionButtonColor(task.id)}`}
+                                                        className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-500 font-black text-[10px] uppercase tracking-[0.1em] border shadow-lg ${getTaskRestrictionButtonColor(task.id)}`}
                                                     >
-                                                        <AlertIcon className="w-3.5 h-3.5" />
-                                                        Restrição
+                                                        <AlertIcon className="w-4 h-4" />
+                                                        Restrições
                                                         {restrictions.filter(r => String(r.baseline_task_id) === String(task.id) && r.status !== 'Resolvida').length > 0 && (
-                                                            <span className="px-1.5 py-0.5 bg-white/20 text-white rounded-full text-[9px] font-black">
+                                                            <span className="w-5 h-5 flex items-center justify-center bg-white/20 text-white rounded-full text-[9px] font-black shadow-inner ml-0.5">
                                                                 {restrictions.filter(r => String(r.baseline_task_id) === String(task.id) && r.status !== 'Resolvida').length}
                                                             </span>
                                                         )}
@@ -532,26 +531,46 @@ const LeanPage: React.FC<LeanPageProps> = ({
                 </div>
             </main>
 
-            {/* Modal de Gerenciamento de Restrições da Tarefa */}
+            {/* Modal de Gerenciamento de Restrições da Tarefa - PREMIUM DESIGN */}
             {viewingTaskRestrictions && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-40 p-4">
-                    <div className="bg-[#111827] rounded-3xl border border-white/10 shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden">
-                        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-brand-darkest">
-                            <div>
-                                <h2 className="text-xl font-black text-white">Restrições da Atividade</h2>
-                                <p className="text-xs text-brand-med-gray mt-1 font-bold">
-                                    TAREFA: <span className="text-brand-accent">{viewingTaskRestrictions.taskTitle}</span>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-hidden">
+                    {/* Backdrop com desfoque profundo */}
+                    <div
+                        className="absolute inset-0 bg-[#060a12]/80 backdrop-blur-2xl animate-fade-in"
+                        onClick={() => setViewingTaskRestrictions(null)}
+                    ></div>
+
+                    {/* Modal Container Glassmorphism */}
+                    <div className="relative w-full max-w-2xl bg-[#0a0f18]/90 backdrop-blur-xl rounded-[2.5rem] border border-white/10 shadow-[0_0_50px_rgba(227,90,16,0.15)] overflow-hidden flex flex-col animate-slide-up max-h-[90vh]">
+
+                        {/* Brand Accent Glow */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-gradient-to-r from-transparent via-brand-accent to-transparent opacity-50"></div>
+
+                        {/* Header */}
+                        <div className="px-8 py-6 flex justify-between items-start border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent shrink-0">
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-brand-accent/20 flex items-center justify-center border border-brand-accent/30 shadow-lg shadow-brand-accent/10">
+                                        <LeanIcon className="w-6 h-6 text-brand-accent" />
+                                    </div>
+                                    <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase">
+                                        Restrições da <span className="text-brand-accent">Atividade</span>
+                                    </h2>
+                                </div>
+                                <p className="text-[10px] text-brand-med-gray font-black uppercase tracking-[0.2em] mt-2 flex items-center gap-2">
+                                    Tarefa: <span className="text-white bg-white/5 px-2 py-0.5 rounded italic">{viewingTaskRestrictions.taskTitle}</span>
                                 </p>
                             </div>
                             <button
                                 onClick={() => setViewingTaskRestrictions(null)}
-                                className="p-2 hover:bg-white/5 rounded-lg transition-colors group"
+                                className="p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-500 text-brand-med-gray transition-all group"
                             >
-                                <ClearIcon className="w-5 h-5 text-brand-med-gray group-hover:text-white" />
+                                <ClearIcon className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
                             </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-brand-darkest/30">
+                        {/* Content Area */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-5">
                             {restrictions
                                 .filter(r => String(r.baseline_task_id) === String(viewingTaskRestrictions.taskId))
                                 .sort((a, b) => {
@@ -560,40 +579,59 @@ const LeanPage: React.FC<LeanPageProps> = ({
                                     return 0;
                                 })
                                 .map(restriction => (
-                                    <div key={restriction.id} className={`p-5 rounded-2xl border transition-all ${restriction.status === 'Resolvida' ? 'bg-green-500/5 border-green-500/20 opacity-70' : 'bg-[#1a2232] border-white/5 shadow-lg'}`}>
-                                        <div className="flex justify-between items-start gap-4">
-                                            <div className="flex-1">
-                                                <div className="flex flex-wrap items-center gap-2 mb-3">
-                                                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${restriction.priority === 'Crítica' ? 'bg-red-500 text-white' :
-                                                        restriction.priority === 'Alta' ? 'bg-orange-500 text-white' :
+                                    <div
+                                        key={restriction.id}
+                                        className={`p-6 rounded-3xl border transition-all duration-300 group ${restriction.status === 'Resolvida'
+                                            ? 'bg-green-500/5 border-green-500/10 opacity-60'
+                                            : 'bg-white/5 border-white/5 hover:border-white/20 shadow-xl'
+                                            }`}
+                                    >
+                                        <div className="flex justify-between items-start gap-6">
+                                            <div className="flex-1 space-y-4">
+                                                <div className="flex flex-wrap items-center gap-3">
+                                                    <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-lg tracking-widest ${restriction.priority === 'Crítica' ? 'bg-red-500 text-white shadow-lg shadow-red-500/30' :
+                                                        restriction.priority === 'Alta' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' :
                                                             restriction.priority === 'Média' ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30' :
                                                                 'bg-green-500/20 text-green-500 border border-green-500/30'
                                                         }`}>
                                                         {restriction.priority}
                                                     </span>
-                                                    <span className="text-[10px] text-brand-med-gray font-black uppercase opacity-60">/</span>
-                                                    <span className="text-[10px] text-brand-accent font-black uppercase tracking-wider">{restriction.type}</span>
+                                                    <span className="text-[11px] text-brand-accent font-black uppercase tracking-[0.1em]">{restriction.type}</span>
                                                     {restriction.status === 'Resolvida' && (
-                                                        <span className="text-[9px] font-black text-green-400 uppercase bg-green-400/10 px-2 py-0.5 rounded ml-2">Resolvida</span>
+                                                        <span className="flex items-center gap-1.5 text-[9px] font-black text-green-400 uppercase bg-green-400/10 px-2 py-1 rounded-lg">
+                                                            <div className="w-1 h-1 bg-green-400 rounded-full"></div>
+                                                            Resolvida
+                                                        </span>
                                                     )}
                                                 </div>
-                                                <p className={`text-sm leading-relaxed ${restriction.status === 'Resolvida' ? 'text-gray-500 line-through italic' : 'text-gray-200'}`}>
+
+                                                <p className={`text-base leading-relaxed font-medium ${restriction.status === 'Resolvida' ? 'text-gray-500 line-through italic' : 'text-gray-200'}`}>
                                                     {restriction.description}
                                                 </p>
-                                                <div className="mt-4 grid grid-cols-2 gap-4">
+
+                                                <div className="grid grid-cols-2 gap-6 pt-2">
                                                     <div>
-                                                        <p className="text-[9px] text-brand-med-gray font-black uppercase tracking-widest mb-1">Responsável</p>
-                                                        <p className="text-xs text-gray-300 font-bold">{restriction.responsible} {restriction.department && <span className="text-brand-med-gray opacity-60 ml-1 font-normal">| {restriction.department}</span>}</p>
+                                                        <p className="text-[9px] text-brand-med-gray font-black uppercase tracking-[0.2em] mb-1.5">Responsável</p>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center text-[10px] text-brand-accent font-black">
+                                                                {restriction.responsible.charAt(0)}
+                                                            </div>
+                                                            <p className="text-xs text-gray-300 font-bold">
+                                                                {restriction.responsible}
+                                                                {restriction.department && <span className="text-brand-med-gray/60 font-medium italic block text-[10px] mt-0.5">{restriction.department}</span>}
+                                                            </p>
+                                                        </div>
                                                     </div>
                                                     <div>
-                                                        <p className="text-[9px] text-brand-med-gray font-black uppercase tracking-widest mb-1">Data Limite</p>
-                                                        <p className={`text-xs font-bold ${restriction.due_date && new Date(restriction.due_date) < new Date() && restriction.status !== 'Resolvida' ? 'text-red-400' : 'text-gray-300'}`}>
+                                                        <p className="text-[9px] text-brand-med-gray font-black uppercase tracking-[0.2em] mb-1.5">Data Limite</p>
+                                                        <p className={`text-xs font-black italic ${restriction.due_date && new Date(restriction.due_date) < new Date() && restriction.status !== 'Resolvida' ? 'text-red-400 animate-pulse' : 'text-white'}`}>
                                                             {restriction.due_date ? formatDate(restriction.due_date) : '-'}
                                                         </p>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="flex flex-col gap-2 shrink-0">
+
+                                            <div className="flex flex-col gap-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
                                                     onClick={() => setRestrictionModal({
                                                         taskId: viewingTaskRestrictions.taskId,
@@ -601,10 +639,10 @@ const LeanPage: React.FC<LeanPageProps> = ({
                                                         taskStartDate: viewingTaskRestrictions.taskStartDate,
                                                         restriction
                                                     })}
-                                                    className="p-2 bg-white/5 text-brand-med-gray rounded-lg hover:bg-white/10 hover:text-white transition-all border border-white/5"
+                                                    className="p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-brand-accent hover:text-white transition-all shadow-lg"
                                                     title="Editar"
                                                 >
-                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                                     </svg>
                                                 </button>
@@ -612,12 +650,12 @@ const LeanPage: React.FC<LeanPageProps> = ({
                                                     <button
                                                         onClick={async () => {
                                                             await onUpdateRestriction(restriction.id, { status: 'Resolvida' });
-                                                            showToast('Restrição marcada como resolvida!', 'success');
+                                                            showToast('Restrição resolvida!', 'success');
                                                         }}
-                                                        className="p-2 bg-green-500/10 text-green-400 rounded-lg hover:bg-green-500 hover:text-white transition-all border border-green-500/20"
-                                                        title="Marcar como Resolvida"
+                                                        className="p-3 bg-green-500/10 border border-green-500/20 text-green-400 rounded-2xl hover:bg-green-500 hover:text-white transition-all shadow-lg shadow-green-500/20"
+                                                        title="Resolver"
                                                     >
-                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                                                         </svg>
                                                     </button>
@@ -628,27 +666,32 @@ const LeanPage: React.FC<LeanPageProps> = ({
                                 ))}
 
                             {restrictions.filter(r => String(r.baseline_task_id) === String(viewingTaskRestrictions.taskId)).length === 0 && (
-                                <div className="text-center py-16 bg-white/5 rounded-3xl border-2 border-dashed border-white/5 flex flex-col items-center justify-center">
-                                    <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center mb-4 text-brand-med-gray">
-                                        <AlertIcon className="w-6 h-6 opacity-30" />
+                                <div className="text-center py-24 bg-white/5 rounded-[2.5rem] border-2 border-dashed border-white/5 flex flex-col items-center justify-center space-y-4">
+                                    <div className="w-20 h-20 bg-brand-accent/10 rounded-full flex items-center justify-center text-brand-accent animate-pulse">
+                                        <AlertIcon className="w-10 h-10 opacity-40" />
                                     </div>
-                                    <p className="text-brand-med-gray text-sm font-bold">Nenhuma restrição cadastrada.</p>
-                                    <p className="text-[11px] text-brand-med-gray opacity-60 mt-1">Esta atividade está livre para execução.</p>
+                                    <div className="space-y-1">
+                                        <p className="text-white text-lg font-black italic uppercase tracking-tighter">Campo Limpo</p>
+                                        <p className="text-xs text-brand-med-gray font-bold tracking-wide">Esta atividade está livre para execução.</p>
+                                    </div>
                                 </div>
                             )}
                         </div>
 
-                        <div className="p-6 border-t border-white/10 bg-brand-darkest">
+                        {/* Footer */}
+                        <div className="p-6 bg-black/20 border-t border-white/5 shrink-0">
                             <button
                                 onClick={() => setRestrictionModal({
                                     taskId: viewingTaskRestrictions.taskId,
                                     taskTitle: viewingTaskRestrictions.taskTitle,
                                     taskStartDate: viewingTaskRestrictions.taskStartDate
                                 })}
-                                className="w-full py-4 bg-brand-accent text-white rounded-2xl font-black uppercase tracking-widest hover:bg-[#e35a10] transition-all shadow-xl shadow-brand-accent/20 flex items-center justify-center gap-3 group"
+                                className="w-full py-5 bg-brand-accent text-white rounded-3xl font-black uppercase tracking-[0.2em] shadow-[0_10px_30px_rgba(227,90,16,0.3)] hover:bg-[#e35a10] hover:-translate-y-1 transition-all active:scale-95 flex items-center justify-center gap-4 group"
                             >
-                                <span className="text-lg group-hover:scale-125 transition-transform">+</span>
-                                <span>Cadastrar Nova Restrição</span>
+                                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center group-hover:rotate-180 transition-transform duration-500 shadow-inner">
+                                    <span className="text-xl">+</span>
+                                </div>
+                                Cadastrar Nova Restrição
                             </button>
                         </div>
                     </div>

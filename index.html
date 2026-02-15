@@ -248,6 +248,52 @@
       }
     }
 
+    @keyframes shake {
+
+      0%,
+      100% {
+        transform: translateX(0);
+      }
+
+      25% {
+        transform: translateX(-5px);
+      }
+
+      75% {
+        transform: translateX(5px);
+      }
+    }
+
+    .animate-shake {
+      animation: shake 0.4s ease-in-out;
+    }
+
+    @keyframes pulse-glitch {
+      0% {
+        text-shadow: 2px 0 0 #e35a10, -2px 0 0 #0ea5e9;
+      }
+
+      25% {
+        text-shadow: -2px 0 0 #e35a10, 2px 0 0 #0ea5e9;
+      }
+
+      50% {
+        text-shadow: 2px 0 0 #e35a10, -2px 0 0 #0ea5e9;
+      }
+
+      75% {
+        text-shadow: -2px 0 0 #e35a10, 2px 0 0 #0ea5e9;
+      }
+
+      100% {
+        text-shadow: 2px 0 0 #e35a10, -2px 0 0 #0ea5e9;
+      }
+    }
+
+    .pulse-glitch:hover {
+      animation: pulse-glitch 0.3s infinite;
+    }
+
     .smooth-transition {
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }

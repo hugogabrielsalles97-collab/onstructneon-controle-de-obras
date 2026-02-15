@@ -34,6 +34,7 @@ interface DashboardProps {
   onNavigateToAnalysis: () => void;
   onNavigateToLean: () => void;
   onNavigateToLeanConstruction: () => void;
+  onNavigateToCost: () => void;
   onUpgradeClick: () => void;
   showToast: (message: string, type: 'success' | 'error') => void;
 }
@@ -50,7 +51,7 @@ const initialFilters = {
   endDate: '',
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToHome, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onUpgradeClick, showToast }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToHome, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToCost, onUpgradeClick, showToast }) => {
   const { currentUser: user, tasks, baselineTasks, signOut, deleteTask } = useData();
   const [filters, setFilters] = useState(initialFilters);
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'dueDate', direction: 'asc' });
@@ -261,6 +262,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
           onNavigateToAnalysis={onNavigateToAnalysis}
           onNavigateToLean={onNavigateToLean}
           onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+          onNavigateToCost={onNavigateToCost}
           onUpgradeClick={onUpgradeClick}
           activeScreen="dashboard"
         />

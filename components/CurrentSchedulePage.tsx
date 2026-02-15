@@ -14,6 +14,9 @@ interface CurrentSchedulePageProps {
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
     onNavigateToCurrentSchedule: () => void;
+    onNavigateToLeanConstruction: () => void;
+    onNavigateToCost: () => void;
+    onNavigateToHome?: () => void;
     onUpgradeClick: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
@@ -49,6 +52,9 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
     onNavigateToAnalysis,
     onNavigateToLean,
     onNavigateToCurrentSchedule,
+    onNavigateToLeanConstruction,
+    onNavigateToCost,
+    onNavigateToHome,
     onUpgradeClick,
     showToast
 }) => {
@@ -426,6 +432,8 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
                 onNavigateToCurrentSchedule={() => { }}
                 onNavigateToAnalysis={onNavigateToAnalysis}
                 onNavigateToLean={onNavigateToLean}
+                onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToCost={onNavigateToCost}
                 onUpgradeClick={onUpgradeClick}
                 activeScreen="currentSchedule"
             />

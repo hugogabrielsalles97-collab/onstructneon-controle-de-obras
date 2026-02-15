@@ -6,6 +6,7 @@ import PlusIcon from './icons/PlusIcon';
 import SparkleIcon from './icons/SparkleIcon';
 import WeatherIcon from './icons/WeatherIcon';
 import SafetyAnalysisIcon from './icons/SafetyAnalysisIcon';
+import ConstructionIcon from './icons/ConstructionIcon';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { disciplineOptions, taskTitleOptions, oaeLocations, frentes, apoios, vaos, unitOptions } from '../utils/constants';
 
@@ -22,8 +23,6 @@ interface TaskModalProps {
 }
 
 type ResourceField = 'plannedManpower' | 'plannedMachinery' | 'actualManpower' | 'actualMachinery';
-
-
 
 const ResourceSection: React.FC<{
     title: string;
@@ -46,50 +45,50 @@ const ResourceSection: React.FC<{
     };
 
     return (
-        <div>
-            <label className="block text-sm font-medium text-brand-med-gray mb-1">{title}</label>
-            <div className="space-y-1.5 max-h-28 overflow-y-auto pr-2">
+        <div className="space-y-3">
+            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] block mb-1">{title}</label>
+            <div className="space-y-2 max-h-32 overflow-y-auto pr-2 custom-scrollbar">
                 {resources.map((res, index) => (
-                    <div key={index} className="flex items-center gap-2">
+                    <div key={index} className="flex items-center gap-2 animate-fade-in group">
                         <input
                             type="text"
                             value={res.role}
                             onChange={(e) => onUpdate(index, { ...res, role: e.target.value })}
-                            className="flex-grow bg-brand-darkest/50 border border-brand-darkest rounded-md py-1 px-2 text-white focus:outline-none focus:ring-1 focus:ring-brand-accent text-sm disabled:opacity-50"
+                            className="flex-grow bg-white/5 border border-white/5 rounded-xl py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-accent/50 text-sm disabled:opacity-50 transition-all font-medium"
                             disabled={disabled}
                         />
                         <input
                             type="number"
                             value={res.quantity}
                             onChange={(e) => onUpdate(index, { ...res, quantity: parseInt(e.target.value, 10) || 0 })}
-                            className="w-16 bg-brand-darkest/50 border border-brand-darkest rounded-md py-1 px-2 text-white focus:outline-none focus:ring-1 focus:ring-brand-accent text-sm disabled:opacity-50"
+                            className="w-16 bg-white/5 border border-white/5 rounded-xl py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-accent/50 text-sm disabled:opacity-50 text-center font-bold"
                             min="0"
                             disabled={disabled}
                         />
-                        <button type="button" onClick={() => onRemove(index)} className="text-red-500/70 hover:text-red-500 disabled:opacity-50 disabled:cursor-not-allowed" disabled={disabled} title="Remover Recurso">
+                        <button type="button" onClick={() => onRemove(index)} className="p-2 text-red-500/50 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed" disabled={disabled} title="Remover Recurso">
                             <XIcon className="w-4 h-4" />
                         </button>
                     </div>
                 ))}
             </div>
             {!disabled && (
-                <div className="flex items-center gap-2 mt-2 border-t border-brand-dark pt-2">
+                <div className="flex items-center gap-2 p-2 bg-white/5 rounded-2xl border border-white/10 mt-2">
                     <input
                         type="text"
                         placeholder={rolePlaceholder}
                         value={newRole}
                         onChange={(e) => setNewRole(e.target.value)}
-                        className="flex-grow bg-brand-darkest/50 border border-brand-darkest rounded-md py-1 px-2 text-white focus:outline-none focus:ring-1 focus:ring-brand-accent text-sm"
+                        className="flex-grow bg-white/5 border-none rounded-xl py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-accent/50 text-sm placeholder:text-gray-600"
                     />
                     <input
                         type="number"
                         placeholder="Qtd"
                         value={newQuantity}
                         onChange={(e) => setNewQuantity(parseInt(e.target.value, 10) || 1)}
-                        className="w-16 bg-brand-darkest/50 border border-brand-darkest rounded-md py-1 px-2 text-white focus:outline-none focus:ring-1 focus:ring-brand-accent text-sm"
+                        className="w-16 bg-white/5 border-none rounded-xl py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-accent/50 text-sm text-center font-bold"
                         min="1"
                     />
-                    <button type="button" onClick={handleAddClick} className="bg-brand-accent/80 text-white rounded p-1.5 hover:bg-brand-accent" title="Adicionar Recurso">
+                    <button type="button" onClick={handleAddClick} className="bg-brand-accent text-white rounded-xl p-2.5 hover:bg-[#e35a10] transition-all shadow-lg shadow-brand-accent/20" title="Adicionar Recurso">
                         <PlusIcon className="w-4 h-4" />
                     </button>
                 </div>
@@ -226,7 +225,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
 
-        // Validação de datas futuras para campos de avanço (real)
         if ((name === 'actualStartDate' || name === 'actualEndDate') && value) {
             const selectedDate = new Date(value + 'T00:00:00');
             const today = new Date();
@@ -294,7 +292,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         });
     };
 
-
     const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             for (const file of e.target.files) {
@@ -322,7 +319,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         setIsAnalyzing(true);
         try {
             const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY);
-
             const { progress, actualEndDate } = formData;
             const currentStatus = progress >= 100 && actualEndDate ? TaskStatus.Completed : (progress > 0 ? TaskStatus.InProgress : TaskStatus.ToDo);
 
@@ -344,14 +340,14 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
 
             Com base nesses dados, gere uma observação para o relatório. A observação deve:
             1. Ser em português do Brasil, em tom técnico e formal.
-            2. Resumir o estado atual da tarefa (ex: "Atividade em andamento com X% de avanço físico.").
-            3. Identificar potenciais riscos com base nas datas e progresso. Se a data de término prevista está próxima e o progresso está baixo, aponte o risco de atraso.
-            4. Se houver riscos, sugerir um ponto de atenção (ex: "Ponto de atenção: necessidade de intensificar os trabalhos para cumprimento do prazo.").
+            2. Resumir o estado atual da tarefa.
+            3. Identificar potenciais riscos com base nas datas e progresso.
+            4. Se houver riscos, sugerir um ponto de atenção.
             5. Se a tarefa está adiantada ou concluída, dê um parecer positivo.
-            6. Seja breve e direto ao ponto (máximo 3 frases).
-        `;
+            6. Seja breve (máximo 3 frases).
+            `;
 
-            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+            const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
             const result = await model.generateContent(prompt);
             const aiText = result.response.text();
 
@@ -361,7 +357,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             }));
 
         } catch (error) {
-            console.error("Erro ao chamar a API Gemini:", error);
+            console.error("Erro ao chamar a IA:", error);
             alert(`Erro na IA: ${(error instanceof Error ? error.message : String(error))}`);
         } finally {
             setIsAnalyzing(false);
@@ -377,7 +373,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         setIsMappingBaseline(true);
         try {
             const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY);
-            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+            const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
             const baselineSummary = baselineTasks.map(t => ({
                 id: t.id,
@@ -385,34 +381,13 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                 discipline: t.discipline,
                 level: t.level,
                 location: t.location,
-                quantity: t.quantity,
-                unit: t.unit,
-                support: t.support,
-                corte: t.corte,
-                description: t.description
             }));
 
             const prompt = `
-            Você é um assistente de planejamento de obras. Sua tarefa é vincular uma tarefa de execução (que é mais detalhada/nível abaixo) a uma tarefa da Linha de Base (que é macro/nível acima).
-
-            Tarefa de Execução:
-            - Título: ${formData.title}
-            - Disciplina: ${formData.discipline}
-            - Nível: ${formData.level}
-            - Local/Frente: ${formData.location}
-            - Quantidade: ${formData.quantity} ${formData.unit}
-            - Apoio/Vão: ${formData.support || 'N/A'}
-            - Corte: ${formData.corte || 'N/A'}
-            - Descrição: ${formData.description || 'N/A'}
-
-            Linha de Base Disponível (JSON):
-            ${JSON.stringify(baselineSummary)}
-
-            Instruções:
-            1. Encontre a tarefa da Linha de Base que melhor engloba esta tarefa de execução. 
-            2. Use todas as informações disponíveis (Local, Disciplina, Apoio, Corte, etc.) para garantir que a tarefa de execução pertence a este macro.
-            3. Tarefas de execução são sub-atividades de um item da linha de base.
-            4. Responda APENAS o ID da tarefa da Linha de Base escolhida. Se não encontrar nenhuma correspondência mínima, responda "null".
+            Vincule esta tarefa de execução a um item da Linha de Base (Macro).
+            Tarefa: ${formData.title} / ${formData.discipline} / ${formData.location}
+            Opções: ${JSON.stringify(baselineSummary)}
+            Responda APENAS o ID escolhido ou "null".
             `;
 
             const result = await model.generateContent(prompt);
@@ -423,15 +398,14 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                 setFormData(prev => ({ ...prev, baseline_id: sugeridoId }));
                 const baselineTask = baselineTasks.find(t => t.id === sugeridoId);
                 if (baselineTask) {
-                    alert(`Vínculo sugerido com a Linha de Base: "${baselineTask.title}" (${baselineTask.id})`);
+                    alert(`Vínculo sugerido: "${baselineTask.title}"`);
                 }
             } else {
-                alert("A IA não encontrou uma correspondência clara na Linha de Base.");
+                alert("Nenhuma correspondência clara encontrada.");
             }
 
         } catch (error) {
             console.error("Erro na sugestão de vínculo:", error);
-            alert(`Erro na IA: ${(error instanceof Error ? error.message : String(error))}`);
         } finally {
             setIsMappingBaseline(false);
         }
@@ -442,35 +416,23 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         setSafetyAnalysisResult({ status: 'idle', message: '' });
         try {
             const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY);
-
             const mimeType = photoBase64.split(';')[0].split(':')[1];
             const imageData = photoBase64.split(',')[1];
 
             const prompt = `
-            Você é um especialista em segurança do trabalho na construção civil. Analise a imagem fornecida em busca de riscos de segurança.
-            Sua resposta DEVE ser um objeto JSON com a seguinte estrutura: {"is_safe": boolean, "findings": "descrição"}.
-            - "is_safe": deve ser 'true' se NENHUM risco for encontrado, e 'false' caso contrário.
-            - "findings": deve conter uma descrição. Se 'is_safe' for true, a mensagem deve ser "A cena aparenta estar segura e em conformidade com as boas práticas.". Se 'is_safe' for false, liste os riscos encontrados de forma clara e objetiva (ex: "Trabalhador sem capacete.", "Falta de guarda-corpo em plataforma elevada.", "Materiais obstruindo passagem.").
+            Analise a imagem em busca de riscos de segurança na obra (EPIs, queda, organização).
+            Retorne JSON: {"is_safe": boolean, "findings": "descrição"}.
+            `;
 
-            Foque em riscos comuns:
-            - Falta de Equipamento de Proteção Individual (EPI): capacetes, botas, luvas, óculos, coletes, cintos de segurança para altura.
-            - Condições de trabalho em altura: falta de guarda-corpo, andaimes instáveis, uso incorreto de escadas.
-            - Riscos de tropeço e queda: cabos expostos, materiais desorganizados no chão.
-            - Proximidade perigosa a máquinas pesadas sem sinalização.
-            - Escavações sem escoramento adequado.
-        `;
-
-            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+            const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
             const result = await model.generateContent([
                 prompt,
                 { inlineData: { data: imageData, mimeType } }
             ]);
 
             const responseText = result.response.text();
-
-            // Tenta extrair JSON da resposta
             const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-            const analysis = jsonMatch ? JSON.parse(jsonMatch[0]) : { is_safe: false, findings: "Erro ao analisar resposta. Formato inválido." };
+            const analysis = jsonMatch ? JSON.parse(jsonMatch[0]) : { is_safe: false, findings: "Falha na análise." };
 
             setSafetyAnalysisResult({
                 status: analysis.is_safe ? 'safe' : 'risk',
@@ -478,11 +440,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             });
 
         } catch (error) {
-            console.error("Erro na análise de segurança da IA:", error);
-            setSafetyAnalysisResult({
-                status: 'risk',
-                message: 'Não foi possível analisar a imagem. A resposta da IA pode estar em um formato inesperado. Verifique o console.'
-            });
+            console.error("Erro na análise de segurança:", error);
         } finally {
             setAnalyzingPhotoIndex(null);
         }
@@ -492,24 +450,12 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         const hardcodedLocation = "PARACAMBI-RJ";
         try {
             const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY);
-            const promptType = isForecast ? "previsão do tempo" : "meteorologia histórica";
-            const prompt = `
-            Aja como um serviço de meteorologia. Forneça um resumo conciso da ${promptType} para a cidade ou localidade de "${hardcodedLocation}" entre as datas ${startDate} e ${endDate}.
-            A resposta deve ser curta e direta, ideal para um relatório de construção. Inclua:
-            - Condição principal (ex: Ensolarado, Parcialmente Nublado, Chuva, Tempestades).
-            - Temperatura média aproximada.
-            - Chance ou resumo de precipitação.
-            Exemplo de resposta: "Parcialmente nublado com chance de chuvas isoladas. Temp. média de 25°C. Baixa probabilidade de chuva contínua."
-        `;
-
-            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+            const prompt = `Meteorologia para ${hardcodedLocation} entre ${startDate} e ${endDate}. Resumo técnico curto.`;
+            const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
             const result = await model.generateContent(prompt);
-
             return result.response.text();
-
         } catch (error) {
-            console.error("Erro ao buscar dados meteorológicos:", error);
-            return "Não foi possível obter os dados meteorológicos.";
+            return "Indisponível.";
         }
     };
 
@@ -531,10 +477,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         setIsFetchingActualWeather(false);
     };
 
-
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-
         let finalStatus: TaskStatus;
         if (formData.progress >= 100 && formData.actualEndDate) {
             finalStatus = TaskStatus.Completed;
@@ -550,12 +494,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             finalFormData.actualQuantity = finalFormData.quantity;
         }
 
-        if (finalFormData.discipline === 'Obras de arte especiais') {
-            finalFormData.corte = '';
-        } else {
-            finalFormData.support = '';
-        }
-
         const taskToSave: Task = {
             id: task?.id || new Date().toISOString(),
             ...finalFormData,
@@ -568,407 +506,440 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
 
     if (!isOpen) return null;
 
-    const getProgressHelpText = () => {
-        if (!formData.actualStartDate) {
-            return "Defina uma data de início real para registrar a quantidade executada.";
-        }
-        if (formData.progress >= 100 && !formData.actualEndDate) {
-            return "Defina uma data de fim real para marcar a tarefa como Concluída.";
-        }
-        if (formData.quantity <= 0) {
-            return "Defina a quantidade planejada para calcular o avanço.";
-        }
-        return "O avanço é calculado automaticamente com base na quantidade real.";
-    };
-
     const levelOptions = formData.discipline ? disciplineOptions[formData.discipline] || [] : [];
     const isOAE = formData.discipline === 'Obras de arte especiais';
     const isOAESuperestrutura = isOAE && formData.level === 'Superestrutura';
-    const isOtherDiscipline = formData.discipline && !isOAE;
-
     const specificTaskOptions = formData.discipline && formData.level ? taskTitleOptions[formData.discipline]?.[formData.level] : undefined;
     const isTitleAutoPopulated = ['Terraplenagem', 'Contenções'].includes(formData.discipline);
 
-
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex justify-center items-center p-4">
-            <div className="bg-brand-dark rounded-lg shadow-2xl shadow-brand-accent/20 border border-brand-accent/30 w-full max-w-3xl max-h-[90vh] overflow-y-auto animate-fade-in">
-                <div className="p-6">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-bold text-brand-accent">{task ? 'Editar Tarefa' : 'Nova Tarefa'}</h2>
-                        <button onClick={onClose} className="text-brand-med-gray hover:text-white text-3xl leading-none">&times;</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+            <div
+                className="bg-[#0a0f18]/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] w-full max-w-4xl shadow-[0_0_100px_-20px_rgba(227,90,16,0.3)] max-h-[92vh] flex flex-col overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Header Section */}
+                <div className="p-8 pb-4 flex justify-between items-center border-b border-white/5 bg-gradient-to-r from-brand-accent/5 to-transparent">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-brand-accent rounded-2xl flex items-center justify-center shadow-lg shadow-brand-accent/20 rotate-3 transition-transform hover:rotate-0 cursor-default">
+                            <ConstructionIcon className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic">
+                                {task ? 'Detalhes da Tarefa' : 'Nova Atividade'}
+                            </h2>
+                            <p className="text-[10px] text-brand-med-gray font-black uppercase tracking-[2px] mt-0.5">Módulo de Planejamento e Controle</p>
+                        </div>
                     </div>
-                    <form onSubmit={handleSubmit}>
-                        {/* --- SEÇÃO DE PLANEJAMENTO --- */}
-                        <div className={`bg-brand-darkest/20 p-4 rounded-lg ${isReadOnlyPlanning ? 'opacity-70' : ''}`}>
-                            <h3 className="text-lg font-semibold text-brand-accent mb-4 border-b border-brand-accent/20 pb-2">Planejamento</h3>
+                    <button
+                        onClick={onClose}
+                        className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-brand-med-gray hover:text-white hover:bg-white/10 transition-all border border-white/10"
+                    >
+                        <XIcon className="w-5 h-5" />
+                    </button>
+                </div>
 
-                            {conflictingTasks.length > 0 && (
-                                <div className="p-3 mb-4 border-2 border-red-500 bg-red-500/10 rounded-lg animate-blinking-border">
-                                    <h4 className="font-bold text-red-400">Atenção: Conflito de Alocação</h4>
-                                    <p className="text-sm text-red-300 mt-1">
-                                        Já existem {conflictingTasks.length} tarefas "{formData.title}" alocadas neste período.
-                                    </p>
-                                    <ul className="text-xs text-red-300/80 mt-2 list-disc list-inside space-y-1 max-h-24 overflow-y-auto">
-                                        {conflictingTasks.map(t => (
-                                            <li key={t.id}>
-                                                <strong>{t.location || 'N/A'} ({t.assignee}):</strong> {new Date(t.startDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} a {new Date(t.dueDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
-                                            </li>
-                                        ))}
-                                    </ul>
+                {/* Main Content Area */}
+                <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-10 custom-scrollbar">
+                    <form id="task-form" onSubmit={handleSubmit} className="space-y-12">
+
+                        {/* 1. SEÇÃO DE PLANEJAMENTO */}
+                        <section className="space-y-6">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="w-1.5 h-6 bg-brand-accent rounded-full pulse-neon"></div>
+                                <h3 className="text-sm font-black text-white uppercase tracking-widest">Configurações de Planejamento</h3>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-white/5 rounded-3xl border border-white/5 group hover:border-brand-accent/20 transition-all duration-500">
+
+                                {conflictingTasks.length > 0 && (
+                                    <div className="col-span-1 md:col-span-2 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-4 animate-shake">
+                                        <div className="w-10 h-10 rounded-xl bg-red-500 flex items-center justify-center shrink-0">
+                                            <XIcon className="w-5 h-5 text-white" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-red-400 uppercase tracking-tight">Conflito de Alocação Detectado</p>
+                                            <p className="text-xs text-red-300 opacity-80 mt-0.5">
+                                                Já existem {conflictingTasks.length} tarefa(s) "{formData.title}" alocando um total de <strong>{conflictingTasks.reduce((acc, t) => acc + (t.quantity || 0), 0)} {formData.unit}</strong> para este período.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Inputs Estilizados */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Disciplina</label>
+                                    <select
+                                        name="discipline"
+                                        value={formData.discipline}
+                                        onChange={handleChange}
+                                        required
+                                        disabled={isReadOnlyPlanning}
+                                        className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all disabled:opacity-50 appearance-none font-bold"
+                                        style={{ backgroundImage: 'linear-gradient(45deg, transparent 50%, gray 50%), linear-gradient(135deg, gray 50%, transparent 50%)', backgroundPosition: 'calc(100% - 20px) calc(1em + 2px), calc(100% - 15px) calc(1em + 2px)', backgroundSize: '5px 5px, 5px 5px', backgroundRepeat: 'no-repeat' }}
+                                    >
+                                        <option value="">Selecione a Disciplina</option>
+                                        {Object.keys(disciplineOptions).map(disc => <option key={disc} value={disc}>{disc}</option>)}
+                                    </select>
                                 </div>
-                            )}
 
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label htmlFor="discipline" className="block text-sm font-medium text-brand-med-gray">Disciplina</label>
-                                        <select name="discipline" id="discipline" value={formData.discipline} onChange={handleChange} required disabled={isReadOnlyPlanning} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed">
-                                            <option value="">Selecione a Disciplina</option>
-                                            {Object.keys(disciplineOptions).map(disc => (
-                                                <option key={disc} value={disc}>{disc}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label htmlFor="level" className="block text-sm font-medium text-brand-med-gray">Nível</label>
-                                        <select name="level" id="level" value={formData.level} onChange={handleChange} required disabled={!formData.discipline || isReadOnlyPlanning} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:opacity-50 disabled:cursor-not-allowed">
-                                            <option value="">Selecione o Nível</option>
-                                            {levelOptions.map(lvl => (
-                                                <option key={lvl} value={lvl}>{lvl}</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Nível / Item</label>
+                                    <select
+                                        name="level"
+                                        value={formData.level}
+                                        onChange={handleChange}
+                                        required
+                                        disabled={!formData.discipline || isReadOnlyPlanning}
+                                        className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all appearance-none font-bold"
+                                    >
+                                        <option value="">Selecione o Nível</option>
+                                        {levelOptions.map(lvl => <option key={lvl} value={lvl}>{lvl}</option>)}
+                                    </select>
                                 </div>
 
-                                {isOAE && (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <label htmlFor="location" className="block text-sm font-medium text-brand-med-gray">Local</label>
-                                            <select name="location" id="location" value={formData.location} onChange={handleChange} required disabled={isReadOnlyPlanning} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed">
-                                                <option value="">Selecione o Local</option>
-                                                {oaeLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            {isOAESuperestrutura ? (
-                                                <>
-                                                    <label htmlFor="support" className="block text-sm font-medium text-brand-med-gray">Vão</label>
-                                                    <select name="support" id="support" value={formData.support} onChange={handleChange} required disabled={isReadOnlyPlanning} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed">
-                                                        <option value="">Selecione o Vão</option>
-                                                        {vaos.map(v => <option key={v} value={v}>{v}</option>)}
-                                                    </select>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <label htmlFor="support" className="block text-sm font-medium text-brand-med-gray">Apoio</label>
-                                                    <select name="support" id="support" value={formData.support} onChange={handleChange} required disabled={isReadOnlyPlanning} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed">
-                                                        <option value="">Selecione o Apoio</option>
-                                                        {apoios.map(a => <option key={a} value={a}>{a}</option>)}
-                                                    </select>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {isOtherDiscipline && (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <label htmlFor="location" className="block text-sm font-medium text-brand-med-gray">Frente</label>
-                                            <select name="location" id="location" value={formData.location} onChange={handleChange} required disabled={isReadOnlyPlanning} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed">
-                                                <option value="">Selecione a Frente</option>
-                                                {frentes.map(frt => <option key={frt} value={frt}>{frt}</option>)}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label htmlFor="corte" className="block text-sm font-medium text-brand-med-gray">Corte</label>
-                                            <input type="text" name="corte" id="corte" value={formData.corte} onChange={handleChange} placeholder="Ex: Estaca 10-20" disabled={isReadOnlyPlanning} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed" />
-                                        </div>
-                                    </div>
-                                )}
-
-                                {!formData.discipline && (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div className="sm:col-span-2">
-                                            <label htmlFor="location" className="block text-sm font-medium text-brand-med-gray">Local / Frente</label>
-                                            <input type="text" disabled placeholder="Selecione uma disciplina" className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:opacity-50" />
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div>
-                                    <label htmlFor="title" className="block text-sm font-medium text-brand-med-gray">Tarefa</label>
+                                <div className="col-span-1 md:col-span-2 space-y-2">
+                                    <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Título da Atividade</label>
                                     {isTitleAutoPopulated ? (
-                                        <input type="text" name="title" id="title" value={formData.title} readOnly className="mt-1 block w-full bg-brand-darkest/80 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-brand-med-gray focus:outline-none cursor-not-allowed" />
+                                        <div className="w-full bg-white/5 border border-white/5 rounded-2xl py-3 px-4 text-brand-accent/80 font-black italic tracking-tight">{formData.title}</div>
                                     ) : specificTaskOptions ? (
-                                        <select name="title" id="title" value={formData.title} onChange={handleChange} required disabled={isReadOnlyPlanning} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed">
+                                        <select
+                                            name="title"
+                                            value={formData.title}
+                                            onChange={handleChange}
+                                            required
+                                            disabled={isReadOnlyPlanning}
+                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all appearance-none font-bold"
+                                        >
                                             <option value="">Selecione a Tarefa</option>
                                             {specificTaskOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                                         </select>
                                     ) : (
-                                        <input type="text" name="title" id="title" value={formData.title} onChange={handleChange} required disabled={!formData.discipline || !formData.level || isReadOnlyPlanning} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:opacity-50 disabled:cursor-not-allowed" />
+                                        <input
+                                            type="text"
+                                            name="title"
+                                            value={formData.title}
+                                            onChange={handleChange}
+                                            placeholder="Descreva a atividade..."
+                                            required
+                                            disabled={!formData.discipline || !formData.level || isReadOnlyPlanning}
+                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white placeholder:text-gray-600 focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all font-bold"
+                                        />
                                     )}
                                 </div>
 
-                                <div>
-                                    <div className="flex justify-between items-center mb-1">
-                                        <label htmlFor="baseline_id" className="block text-sm font-medium text-brand-med-gray">Vínculo com Linha de Base (Macro)</label>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Localização</label>
+                                    <select
+                                        name="location"
+                                        value={formData.location}
+                                        onChange={handleChange}
+                                        required
+                                        disabled={isReadOnlyPlanning}
+                                        className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all font-bold"
+                                    >
+                                        <option value="">Selecione o Local</option>
+                                        {(isOAE ? oaeLocations : frentes).map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                                    </select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">
+                                        {isOAE ? (isOAESuperestrutura ? 'Vão' : 'Apoio') : 'Sub-Trecho (Corte)'}
+                                    </label>
+                                    {isOAE ? (
+                                        <select
+                                            name="support"
+                                            value={formData.support}
+                                            onChange={handleChange}
+                                            required
+                                            disabled={isReadOnlyPlanning}
+                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all appearance-none font-bold"
+                                        >
+                                            <option value="">{isOAESuperestrutura ? 'Selecione o Vão' : 'Selecione o Apoio'}</option>
+                                            {(isOAESuperestrutura ? vaos : apoios).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                        </select>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            name="corte"
+                                            value={formData.corte}
+                                            onChange={handleChange}
+                                            placeholder="Ex: Estaca 100+10"
+                                            disabled={isReadOnlyPlanning}
+                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all font-bold"
+                                        />
+                                    )}
+                                </div>
+
+                                <div className="col-span-1 md:col-span-2 p-6 bg-brand-accent/5 rounded-3xl border border-brand-accent/10 space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-[10px] font-black text-brand-accent uppercase tracking-[2px]">Vínculo com Linha de Base (Macro)</label>
                                         <button
                                             type="button"
-                                            onClick={() => canUseAI ? handleSuggestBaseline() : alert('Upgrade necessário para usar IA.')}
+                                            onClick={handleSuggestBaseline}
                                             disabled={isMappingBaseline || !formData.title || isReadOnlyPlanning}
-                                            className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-md bg-purple-500/20 text-purple-400 border border-purple-500/50 hover:bg-purple-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-white/5 py-2 px-4 rounded-xl hover:bg-white/10 transition-all border border-white/10 text-brand-med-gray"
                                         >
-                                            <SparkleIcon className="w-3.5 h-3.5" />
-                                            {isMappingBaseline ? 'Vinculando...' : 'Sugerir Vínculo com IA'}
+                                            <SparkleIcon className={`w-3.5 h-3.5 ${isMappingBaseline ? 'animate-spin' : 'text-purple-400'}`} />
+                                            {isMappingBaseline ? 'MAPEANDO...' : 'Sugerir com IA'}
                                         </button>
                                     </div>
                                     <select
                                         name="baseline_id"
-                                        id="baseline_id"
-                                        value={formData.baseline_id || ''}
+                                        value={formData.baseline_id}
                                         onChange={handleChange}
                                         disabled={isReadOnlyPlanning}
-                                        className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed text-xs"
+                                        className="w-full bg-[#0a0f18]/60 border border-brand-accent/10 rounded-2xl py-3 px-4 text-white font-medium text-sm"
                                     >
-                                        <option value="">Nenhum vínculo selecionado</option>
-                                        {baselineTasks.map(bt => (
-                                            <option key={bt.id} value={bt.id}>
-                                                [{bt.id}] {bt.title} - {bt.discipline}
-                                            </option>
-                                        ))}
+                                        <option value="">Busca inteligente de macro-atividades...</option>
+                                        {baselineTasks.map(bt => <option key={bt.id} value={bt.id}>{bt.title} [{bt.discipline}]</option>)}
                                     </select>
                                 </div>
-                                <div>
-                                    <label htmlFor="assignee" className="block text-sm font-medium text-brand-med-gray">Responsável</label>
-                                    <select
-                                        name="assignee"
-                                        id="assignee"
-                                        value={formData.assignee}
-                                        onChange={handleChange}
-                                        disabled={isReadOnlyPlanning}
-                                        className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed"
-                                    >
-                                        <option value="">Selecione um responsável</option>
-                                        {assignableUsers.map(u => (
-                                            <option key={u.username} value={u.fullName}>
-                                                {u.fullName} ({u.role})
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
-                                    <div>
-                                        <label htmlFor="startDate" className="block text-sm font-medium text-brand-med-gray">Início (Prev.)</label>
-                                        <input type="date" name="startDate" id="startDate" value={formData.startDate} onChange={handleChange} required disabled={isReadOnlyPlanning} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed" />
-                                    </div>
-                                    <div>
-                                        <div className="flex justify-between items-center">
-                                            <label htmlFor="dueDate" className="block text-sm font-medium text-brand-med-gray">Fim (Prev.)</label>
-                                            <button
-                                                type="button"
-                                                onClick={() => canUseAI ? handleFetchPlannedWeather() : alert('Upgrade necessário para usar IA.')}
-                                                disabled={isFetchingPlannedWeather || !formData.startDate || !formData.dueDate || isReadOnlyPlanning}
-                                                className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-md bg-cyan-500/20 text-cyan-400 border border-cyan-500/50 hover:bg-cyan-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                            >
-                                                <WeatherIcon className="w-3.5 h-3.5" />
-                                                {isFetchingPlannedWeather ? 'Verificando...' : 'Previsão do Tempo com IA'}
-                                            </button>
+                            </div>
+                        </section>
+
+                        {/* 2. RECURSOS E PRAZOS */}
+                        <section className="space-y-6">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="w-1.5 h-6 bg-blue-500 rounded-full"></div>
+                                <h3 className="text-sm font-black text-white uppercase tracking-widest">Recursos e Cronograma</h3>
+                            </div>
+
+                            <div className="p-8 bg-white/5 rounded-[2rem] border border-white/5 space-y-8">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px]">Responsável</label>
                                         </div>
-                                        <input type="date" name="dueDate" id="dueDate" value={formData.dueDate} onChange={handleChange} required disabled={isReadOnlyPlanning} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed" />
-                                    </div>
-                                </div>
-
-                                {(isFetchingPlannedWeather || plannedWeather) && (
-                                    <div className="mt-2 p-2 bg-brand-darkest/50 border border-brand-dark rounded-md text-sm text-cyan-300">
-                                        {isFetchingPlannedWeather ? 'Analisando previsão do tempo...' : plannedWeather}
-                                    </div>
-                                )}
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    <ResourceSection
-                                        title="Rec. Humanos (Previsto)"
-                                        resources={formData.plannedManpower}
-                                        onAdd={(res) => handleResourceChange('plannedManpower', 'add', { resource: res })}
-                                        onRemove={(idx) => handleResourceChange('plannedManpower', 'remove', { index: idx })}
-                                        onUpdate={(idx, res) => handleResourceChange('plannedManpower', 'update', { index: idx, resource: res })}
-                                        rolePlaceholder="Função do colaborador"
-                                        disabled={isReadOnlyPlanning}
-                                    />
-                                    <ResourceSection
-                                        title="Maquinário (Previsto)"
-                                        resources={formData.plannedMachinery}
-                                        onAdd={(res) => handleResourceChange('plannedMachinery', 'add', { resource: res })}
-                                        onRemove={(idx) => handleResourceChange('plannedMachinery', 'remove', { index: idx })}
-                                        onUpdate={(idx, res) => handleResourceChange('plannedMachinery', 'update', { index: idx, resource: res })}
-                                        rolePlaceholder="Tipo de máquina"
-                                        disabled={isReadOnlyPlanning}
-                                    />
-                                </div>
-                                <div className="flex items-end gap-2">
-                                    <div className="flex-grow">
-                                        <label htmlFor="quantity" className="block text-sm font-medium text-brand-med-gray">Quantidade Prevista</label>
-                                        <input type="number" name="quantity" id="quantity" value={formData.quantity} onChange={handleChange} min="0" disabled={isReadOnlyPlanning} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed" />
-                                    </div>
-                                    <div className="w-1/3">
-                                        <label htmlFor="unit" className="block text-sm font-medium text-brand-med-gray">Unidade</label>
                                         <select
-                                            name="unit"
-                                            id="unit"
-                                            value={formData.unit}
+                                            name="assignee"
+                                            value={formData.assignee}
                                             onChange={handleChange}
-                                            required
                                             disabled={isReadOnlyPlanning}
-                                            className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed"
+                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-4 px-5 text-white focus:ring-2 focus:ring-brand-accent/50 font-bold tracking-tight"
                                         >
-                                            <option value="">Selecione</option>
-                                            {unitOptions.map(u => <option key={u} value={u}>{u}</option>)}
+                                            <option value="">Selecione um responsável...</option>
+                                            {assignableUsers.map(u => <option key={u.username} value={u.fullName}>{u.fullName} • {u.role}</option>)}
                                         </select>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
 
-                        {/* --- SEÇÃO DE EXECUÇÃO --- */}
-                        <div className={`mt-6 pt-4 border-t border-brand-accent/50 bg-brand-darkest/40 p-4 rounded-lg ${isReadOnlyExecution ? 'opacity-70' : ''}`}>
-                            <h3 className="text-lg font-semibold text-brand-accent mb-4 border-b border-brand-accent/20 pb-2">Execução (Produção)</h3>
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
-                                    <div>
-                                        <div className="flex justify-between items-center">
-                                            <label htmlFor="actualStartDate" className="block text-sm font-medium text-brand-med-gray">Início (Real)</label>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px]">Qnt. Prevista</label>
+                                            <input type="number" name="quantity" value={formData.quantity} onChange={handleChange} className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-4 px-4 text-white text-center font-black text-lg" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px]">Unidade</label>
+                                            <select name="unit" value={formData.unit} onChange={handleChange} className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-4 px-4 text-white text-center font-black">
+                                                <option value="">MUD</option>
+                                                {unitOptions.map(u => <option key={u} value={u}>{u}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-4 p-6 bg-white/5 rounded-3xl border border-white/5">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <label className="text-[10px] font-black text-cyan-400 uppercase tracking-[2px]">Prazo de Execução</label>
                                             <button
                                                 type="button"
-                                                onClick={() => canUseAI ? handleFetchActualWeather() : alert('Upgrade necessário para usar IA.')}
-                                                disabled={isFetchingActualWeather || !formData.actualStartDate || isReadOnlyExecution}
-                                                className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-md bg-cyan-500/20 text-cyan-400 border border-cyan-500/50 hover:bg-cyan-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                onClick={handleFetchPlannedWeather}
+                                                className="text-[9px] font-black text-white/50 hover:text-cyan-400 uppercase tracking-widest flex items-center gap-2 transition-all p-1"
                                             >
-                                                <WeatherIcon className="w-3.5 h-3.5" />
-                                                {isFetchingActualWeather ? 'Verificando...' : 'Meteorologia (Real) com IA'}
+                                                <WeatherIcon className="w-3.5 h-3.5" /> Predição Meteorológica
                                             </button>
                                         </div>
-                                        <input type="date" name="actualStartDate" id="actualStartDate" value={formData.actualStartDate} onChange={handleChange} max={new Date().toISOString().split('T')[0]} disabled={isReadOnlyExecution} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed" />
+                                        <div className="flex items-center gap-3">
+                                            <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} className="flex-1 bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-white text-xs font-mono" />
+                                            <div className="text-gray-600 font-bold">→</div>
+                                            <input type="date" name="dueDate" value={formData.dueDate} onChange={handleChange} className="flex-1 bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-white text-xs font-mono" />
+                                        </div>
+                                        {plannedWeather && (
+                                            <div className="mt-4 p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-[10px] text-cyan-300 font-medium leading-relaxed italic">
+                                                " {plannedWeather} "
+                                            </div>
+                                        )}
                                     </div>
-                                    <div>
-                                        <label htmlFor="actualEndDate" className="block text-sm font-medium text-brand-med-gray">Fim (Real)</label>
-                                        <input type="date" name="actualEndDate" id="actualEndDate" value={formData.actualEndDate} onChange={handleChange} max={new Date().toISOString().split('T')[0]} disabled={isReadOnlyExecution} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed" />
+
+                                    <div className="space-y-6">
+                                        <ResourceSection
+                                            title="Equipe Necessária"
+                                            resources={formData.plannedManpower}
+                                            onAdd={(res) => handleResourceChange('plannedManpower', 'add', { resource: res })}
+                                            onRemove={(idx) => handleResourceChange('plannedManpower', 'remove', { index: idx })}
+                                            onUpdate={(idx, res) => handleResourceChange('plannedManpower', 'update', { index: idx, resource: res })}
+                                            rolePlaceholder="Ex: Carpinteiro"
+                                            disabled={isReadOnlyPlanning}
+                                        />
+                                        <ResourceSection
+                                            title="Frota de Apoio"
+                                            resources={formData.plannedMachinery}
+                                            onAdd={(res) => handleResourceChange('plannedMachinery', 'add', { resource: res })}
+                                            onRemove={(idx) => handleResourceChange('plannedMachinery', 'remove', { index: idx })}
+                                            onUpdate={(idx, res) => handleResourceChange('plannedMachinery', 'update', { index: idx, resource: res })}
+                                            rolePlaceholder="Ex: Caminhão Munck"
+                                            disabled={isReadOnlyPlanning}
+                                        />
                                     </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* 3. CONTROLE DE EXECUÇÃO */}
+                        {(task || formData.actualStartDate) && (
+                            <section className="space-y-6 animate-slide-up">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-1.5 h-6 bg-green-500 rounded-full shadow-[0_0_15px_rgba(34,197,94,0.5)]"></div>
+                                    <h3 className="text-sm font-black text-white uppercase tracking-widest">Avanço Físico e Diário de Obras</h3>
                                 </div>
 
-                                {(isFetchingActualWeather || actualWeather) && (
-                                    <div className="mt-2 p-2 bg-brand-darkest/50 border border-brand-dark rounded-md text-sm text-cyan-300">
-                                        {isFetchingActualWeather ? 'Analisando meteorologia do período...' : actualWeather}
-                                    </div>
-                                )}
+                                <div className="p-8 bg-green-500/5 rounded-[2.5rem] border border-green-500/10 space-y-10">
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div className="sm:col-span-2">
-                                        <label htmlFor="actualQuantity" className="block text-sm font-medium text-brand-med-gray">Quantidade Real</label>
-                                        <input type="number" name="actualQuantity" id="actualQuantity" value={formData.actualQuantity} onChange={handleChange} max={formData.quantity} min="0" disabled={!formData.actualStartDate || isReadOnlyExecution} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:opacity-50 disabled:cursor-not-allowed" />
-                                    </div>
-                                </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <div className="space-y-4">
+                                            <label className="text-[10px] font-black text-green-400 uppercase tracking-[2px]">Cronograma Realizado</label>
+                                            <div className="flex gap-4">
+                                                <input type="date" name="actualStartDate" value={formData.actualStartDate || ''} onChange={handleChange} className="flex-1 bg-white/5 border border-white/10 rounded-2xl py-4 px-5 text-white font-mono text-center" />
+                                                <input type="date" name="actualEndDate" value={formData.actualEndDate || ''} onChange={handleChange} className="flex-1 bg-white/5 border border-white/10 rounded-2xl py-4 px-5 text-white font-mono text-center" />
+                                            </div>
+                                        </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    <ResourceSection
-                                        title="Rec. Humanos (Real)"
-                                        resources={formData.actualManpower || []}
-                                        onAdd={(res) => handleResourceChange('actualManpower', 'add', { resource: res })}
-                                        onRemove={(idx) => handleResourceChange('actualManpower', 'remove', { index: idx })}
-                                        onUpdate={(idx, res) => handleResourceChange('actualManpower', 'update', { index: idx, resource: res })}
-                                        rolePlaceholder="Função do colaborador"
-                                        disabled={!formData.actualStartDate || isReadOnlyExecution}
-                                    />
-                                    <ResourceSection
-                                        title="Maquinário (Real)"
-                                        resources={formData.actualMachinery || []}
-                                        onAdd={(res) => handleResourceChange('actualMachinery', 'add', { resource: res })}
-                                        onRemove={(idx) => handleResourceChange('actualMachinery', 'remove', { index: idx })}
-                                        onUpdate={(idx, res) => handleResourceChange('actualMachinery', 'update', { index: idx, resource: res })}
-                                        rolePlaceholder="Tipo de máquina"
-                                        disabled={!formData.actualStartDate || isReadOnlyExecution}
-                                    />
-                                </div>
-                                <div>
-                                    <div className="flex items-center justify-between mb-1">
-                                        <label htmlFor="observations" className="block text-sm font-medium text-brand-med-gray">Observações da Produção</label>
-                                        <button
-                                            type="button"
-                                            onClick={() => canUseAI ? handleAIAssist() : alert('Upgrade necessário para usar IA.')}
-                                            disabled={isAnalyzing || !formData.actualStartDate || isReadOnlyExecution}
-                                            className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-md bg-brand-accent/20 text-brand-accent border border-brand-accent/50 hover:bg-brand-accent/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                        >
-                                            <SparkleIcon className="w-3.5 h-3.5" />
-                                            {isAnalyzing ? 'Analisando...' : 'Gerar Análise com IA'}
-                                        </button>
+                                        <div className="space-y-4">
+                                            <div className="flex justify-between items-end mb-1">
+                                                <label className="text-[10px] font-black text-green-400 uppercase tracking-[2px]">Avanço ({formData.progress}%)</label>
+                                                <span className="text-[10px] font-bold text-brand-med-gray italic tracking-tight">{formData.actualQuantity} / {formData.quantity} {formData.unit}</span>
+                                            </div>
+                                            <div className="relative h-12 bg-black/40 rounded-2xl border border-white/5 overflow-hidden group">
+                                                <div
+                                                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-600 to-green-400 transition-all duration-1000 ease-out shadow-[0_0_20px_rgba(34,197,94,0.3)]"
+                                                    style={{ width: `${formData.progress}%` }}
+                                                >
+                                                    <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.1)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.1)_50%,rgba(255,255,255,0.1)_75%,transparent_75%,transparent)] bg-[length:20px_20px] animate-[shimmer_2s_infinite_linear]"></div>
+                                                </div>
+                                                <input
+                                                    type="number"
+                                                    name="actualQuantity"
+                                                    value={formData.actualQuantity}
+                                                    onChange={handleChange}
+                                                    className="absolute inset-0 w-full h-full bg-transparent text-center font-black text-xl text-white focus:outline-none"
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
-                                    <textarea name="observations" id="observations" value={formData.observations || ''} onChange={handleChange} rows={3} disabled={isReadOnlyExecution} className="mt-1 block w-full bg-brand-darkest/50 border border-brand-darkest rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-brand-accent focus:border-brand-accent disabled:cursor-not-allowed" placeholder="Anote aqui qualquer ocorrência, problema ou detalhe relevante da execução..." />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-brand-med-gray">Percentual de Avanço ({formData.progress}%)</label>
-                                    <div className="w-full bg-brand-darkest/50 rounded-full h-4 mt-2 border border-brand-darkest">
-                                        <div className="bg-brand-accent h-full rounded-full transition-all duration-300" style={{ width: `${formData.progress}%` }}></div>
-                                    </div>
-                                    <p className="text-xs text-brand-med-gray mt-1 h-4">{getProgressHelpText()}</p>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-brand-med-gray">Fotos da Execução</label>
-                                    <div className="mt-2">
-                                        <label htmlFor="photo-upload" className={`w-full p-6 border-2 border-dashed rounded-md flex flex-col items-center justify-center transition-colors border-brand-med-gray/50 text-brand-med-gray bg-brand-darkest/50 ${isReadOnlyExecution ? 'cursor-not-allowed' : 'cursor-pointer hover:border-brand-accent hover:text-brand-accent'}`}>
-                                            <PlusIcon className="w-8 h-8 mb-2" />
-                                            <span className="font-semibold text-center">Adicionar Fotos</span>
-                                        </label>
-                                        <input id="photo-upload" name="photo-upload" type="file" className="sr-only" accept="image/*" multiple onChange={handlePhotoUpload} disabled={isReadOnlyExecution} />
-                                    </div>
-                                    {formData.photos && formData.photos.length > 0 && (
-                                        <div className="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
-                                            {formData.photos.map((photo, index) => (
-                                                <div key={index} className="relative group">
-                                                    <img src={photo} alt={`Foto ${index + 1}`} className="w-full h-24 object-cover rounded-md border-2 border-brand-darkest" />
-                                                    {!isReadOnlyExecution && (
-                                                        <>
-                                                            <button type="button" onClick={() => handleRemovePhoto(index)} className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500" title="Remover foto">
-                                                                <XIcon className="w-4 h-4" />
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => canUseAI ? handleAnalyzeSafety(photo, index) : alert('Upgrade necessário para usar IA.')}
-                                                                disabled={analyzingPhotoIndex !== null}
-                                                                className="absolute bottom-1 left-1 bg-black/60 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-500 disabled:bg-gray-500 disabled:cursor-wait"
-                                                                title="Analisar Segurança com IA"
-                                                            >
-                                                                {analyzingPhotoIndex === index
-                                                                    ? <div className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
-                                                                    : <SafetyAnalysisIcon className="w-4 h-4" />
-                                                                }
-                                                            </button>
-                                                        </>
-                                                    )}
+
+                                    <div className="space-y-6">
+                                        <div className="flex justify-between items-center">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px]">Galeria de Evidências</label>
+                                            <label htmlFor="photo-upload" className="cursor-pointer text-[9px] font-black text-brand-accent uppercase border border-brand-accent/30 py-1.5 px-4 rounded-xl hover:bg-brand-accent hover:text-white transition-all">
+                                                Adicionar Registro
+                                            </label>
+                                            <input id="photo-upload" type="file" className="sr-only" accept="image/*" multiple onChange={handlePhotoUpload} />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4">
+                                            {formData.photos?.map((photo, idx) => (
+                                                <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden border-2 border-white/5 group hover:border-brand-accent/50 transition-all shadow-xl">
+                                                    <img src={photo} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                                        <button type="button" onClick={() => handleAnalyzeSafety(photo, idx)} className="p-2 bg-blue-500 rounded-lg hover:bg-blue-600 shadow-lg transition-transform active:scale-90"><SafetyAnalysisIcon className="w-4 h-4 text-white" /></button>
+                                                        <button type="button" onClick={() => handleRemovePhoto(idx)} className="p-2 bg-red-500 rounded-lg hover:bg-red-600 shadow-lg transition-transform active:scale-90"><XIcon className="w-4 h-4 text-white" /></button>
+                                                    </div>
                                                 </div>
                                             ))}
+                                            <label htmlFor="photo-upload" className="aspect-square rounded-2xl border-2 border-dashed border-white/5 hover:border-white/20 hover:bg-white/5 flex flex-col items-center justify-center cursor-pointer transition-all group">
+                                                <PlusIcon className="w-6 h-6 text-gray-700 group-hover:text-brand-accent transition-colors" />
+                                            </label>
                                         </div>
-                                    )}
-                                </div>
 
-                                {safetyAnalysisResult.status !== 'idle' && (
-                                    <div className={`mt-4 p-3 rounded-lg border ${safetyAnalysisResult.status === 'safe' ? 'border-green-500 bg-green-500/10' : 'border-red-500 bg-red-500/10'}`}>
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-4 h-4 rounded-full ${safetyAnalysisResult.status === 'safe' ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`}></div>
-                                            <h4 className={`font-bold ${safetyAnalysisResult.status === 'safe' ? 'text-green-400' : 'text-red-400'}`}>
-                                                {safetyAnalysisResult.status === 'safe' ? 'Análise Segura' : 'Alerta de Risco Detectado'}
-                                            </h4>
-                                        </div>
-                                        <p className="text-sm text-gray-300 mt-2 ml-7 whitespace-pre-wrap">{safetyAnalysisResult.message}</p>
+                                        {safetyAnalysisResult.status !== 'idle' && (
+                                            <div className={`p-4 rounded-2xl border ${safetyAnalysisResult.status === 'safe' ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'} animate-fade-in`}>
+                                                <p className="text-[10px] font-black uppercase tracking-widest mb-1">{safetyAnalysisResult.status === 'safe' ? 'Verificação Positiva' : 'Alerta de Segurança'}</p>
+                                                <p className="text-xs text-brand-med-gray italic tracking-tight leading-relaxed">"{safetyAnalysisResult.message}"</p>
+                                            </div>
+                                        )}
                                     </div>
-                                )}
 
-                            </div>
-                        </div>
-                        <div className="mt-6 flex justify-end space-x-3">
-                            <button type="button" onClick={onClose} className="px-4 py-2 bg-brand-med-gray/30 text-gray-100 rounded-md hover:bg-brand-med-gray/50 transition">Cancelar</button>
-                            <button type="submit" disabled={isManager} className="px-4 py-2 bg-brand-accent text-white rounded-md hover:bg-orange-600 transition shadow-lg shadow-brand-accent/20 hover:shadow-brand-accent/40 disabled:bg-gray-500 disabled:cursor-not-allowed">Salvar</button>
-                        </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-white/5">
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="w-1 h-4 bg-green-500 rounded-full"></div>
+                                                <label className="text-[10px] font-black text-white uppercase tracking-[2px]">Mão de Obra Realizada</label>
+                                            </div>
+                                            <ResourceSection
+                                                title="Mão de Obra Real"
+                                                resources={formData.actualManpower || []}
+                                                onAdd={(res) => handleResourceChange('actualManpower', 'add', { resource: res })}
+                                                onRemove={(idx) => handleResourceChange('actualManpower', 'remove', { index: idx })}
+                                                onUpdate={(idx, res) => handleResourceChange('actualManpower', 'update', { index: idx, resource: res })}
+                                                rolePlaceholder="Cargo/Função Real"
+                                            />
+                                        </div>
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="w-1 h-4 bg-green-500 rounded-full"></div>
+                                                <label className="text-[10px] font-black text-white uppercase tracking-[2px]">Equipamentos Reais</label>
+                                            </div>
+                                            <ResourceSection
+                                                title="Equipamentos Reais"
+                                                resources={formData.actualMachinery || []}
+                                                onAdd={(res) => handleResourceChange('actualMachinery', 'add', { resource: res })}
+                                                onRemove={(idx) => handleResourceChange('actualMachinery', 'remove', { index: idx })}
+                                                onUpdate={(idx, res) => handleResourceChange('actualMachinery', 'update', { index: idx, resource: res })}
+                                                rolePlaceholder="Equipamento Real"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px]">Observações Técnicas (RDO)</label>
+                                            <button
+                                                type="button"
+                                                onClick={handleAIAssist}
+                                                disabled={isAnalyzing}
+                                                className="text-[9px] font-black text-brand-accent uppercase flex items-center gap-2 bg-brand-accent/10 py-1.5 px-4 rounded-xl border border-brand-accent/20 hover:bg-brand-accent hover:text-white transition-all shadow-inner"
+                                            >
+                                                <SparkleIcon className={`w-3 h-3 ${isAnalyzing ? 'animate-spin' : ''}`} />
+                                                Gerador Assistido por IA
+                                            </button>
+                                        </div>
+                                        <textarea
+                                            name="observations"
+                                            value={formData.observations || ''}
+                                            onChange={handleChange}
+                                            rows={4}
+                                            placeholder="Descreva as ocorrências do dia, motivos de atraso ou observações de campo..."
+                                            className="w-full bg-black/40 border border-white/10 rounded-3xl py-4 px-6 text-white text-sm placeholder:text-gray-700 focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all"
+                                        />
+                                    </div>
+                                </div>
+                            </section>
+                        )}
                     </form>
+                </div>
+
+                {/* Footer / Actions */}
+                <div className="p-8 border-t border-white/10 bg-[#060a12]/80 flex justify-between items-center gap-4">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="px-8 py-3.5 rounded-2xl text-brand-med-gray hover:text-white hover:bg-white/5 transition-all text-sm font-black uppercase tracking-widest border border-white/5"
+                    >
+                        Descartar
+                    </button>
+                    <div className="flex gap-4">
+                        <button
+                            form="task-form"
+                            type="submit"
+                            disabled={isManager}
+                            className="px-10 py-3.5 bg-brand-accent text-white rounded-2xl font-black text-sm uppercase tracking-widest transition-all hover:bg-[#e35a10] hover:scale-105 active:scale-95 shadow-xl shadow-brand-accent/30 disabled:opacity-50 disabled:cursor-not-allowed group flex items-center gap-3"
+                        >
+                            <span>Efetivar Lançamento</span>
+                            <div className="w-2 h-2 rounded-full bg-white animate-ping opacity-75 group-hover:block hidden"></div>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

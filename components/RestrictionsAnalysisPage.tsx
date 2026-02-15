@@ -20,6 +20,9 @@ interface RestrictionsAnalysisPageProps {
     onNavigateToCurrentSchedule: () => void;
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
+    onNavigateToLeanConstruction: () => void;
+    onNavigateToCost: () => void;
+    onNavigateToHome?: () => void;
     onUpdateRestriction: (id: string, updates: Partial<Restriction>) => Promise<void>;
     onDeleteRestriction: (id: string) => Promise<void>;
     onUpgradeClick: () => void;
@@ -36,6 +39,9 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
     onNavigateToCurrentSchedule,
     onNavigateToAnalysis,
     onNavigateToLean,
+    onNavigateToLeanConstruction,
+    onNavigateToCost,
+    onNavigateToHome,
     onUpdateRestriction,
     onDeleteRestriction,
     onUpgradeClick
@@ -174,32 +180,42 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
         setResolutionNotes('');
     };
 
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     const handleConfirmAction = async () => {
-        if (!selectedRestriction || !actionType) return;
+        if (!selectedRestriction || !actionType || isSubmitting) return;
 
         if (actionType === 'resolve' && !resolutionNotes.trim()) {
             alert('Por favor, adicione notas de resolução');
             return;
         }
 
-        const updates: Partial<Restriction> = {};
+        setIsSubmitting(true);
+        try {
+            const updates: Partial<Restriction> = {};
 
-        if (actionType === 'start') {
-            updates.status = RestrictionStatus.InProgress;
-            updates.actual_start_date = new Date(actionDate).toISOString();
-        } else {
-            updates.status = RestrictionStatus.Resolved;
-            updates.resolved_at = new Date(actionDate).toISOString();
-            updates.actual_completion_date = new Date(actionDate).toISOString();
-            updates.resolution_notes = resolutionNotes;
+            if (actionType === 'start') {
+                updates.status = RestrictionStatus.InProgress;
+                updates.actual_start_date = new Date(actionDate).toISOString();
+            } else {
+                updates.status = RestrictionStatus.Resolved;
+                updates.resolved_at = new Date(actionDate).toISOString();
+                updates.actual_completion_date = new Date(actionDate).toISOString();
+                updates.resolution_notes = resolutionNotes;
+            }
+
+            await onUpdateRestriction(selectedRestriction.id, updates);
+
+            setSelectedRestriction(null);
+            setActionType(null);
+            setResolutionNotes('');
+            setActionDate('');
+        } catch (error) {
+            console.error('Erro ao salvar ação:', error);
+            alert('Erro ao salvar as alterações da restrição.');
+        } finally {
+            setIsSubmitting(false);
         }
-
-        await onUpdateRestriction(selectedRestriction.id, updates);
-
-        setSelectedRestriction(null);
-        setActionType(null);
-        setResolutionNotes('');
-        setActionDate('');
     };
 
     const handleGenerateAI = async () => {
@@ -291,6 +307,8 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                 onNavigateToCurrentSchedule={onNavigateToCurrentSchedule}
                 onNavigateToAnalysis={onNavigateToAnalysis}
                 onNavigateToLean={onNavigateToLean}
+                onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToCost={onNavigateToCost}
                 onUpgradeClick={onUpgradeClick}
                 activeScreen="lean"
             />
@@ -713,75 +731,96 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                 </div>
             </main>
 
-            {/* Modal de Ação (Iniciar / Resolver) */}
+            {/* Modal de Ação (Iniciar / Resolver) - Premium Glass Design */}
             {selectedRestriction && actionType && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-[#111827] rounded-2xl border border-white/10 shadow-2xl max-w-lg w-full p-6 animate-in fade-in zoom-in duration-200">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-xl font-black text-white">
-                                {actionType === 'start' ? 'Iniciar Resolução' : 'Concluir Restrição'}
-                            </h3>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-hidden">
+                    {/* Backdrop com desfoque profundo */}
+                    <div
+                        className="absolute inset-0 bg-[#060a12]/80 backdrop-blur-2xl animate-fade-in"
+                        onClick={() => !isSubmitting && (setSelectedRestriction(null), setActionType(null))}
+                    ></div>
+
+                    {/* Modal Container Glassmorphism */}
+                    <div className="relative w-full max-w-lg bg-[#0a0f18]/90 backdrop-blur-xl rounded-[2.5rem] border border-white/10 shadow-[0_0_50px_rgba(227,90,16,0.15)] overflow-hidden flex flex-col animate-slide-up max-h-[90vh]">
+
+                        {/* Brand Accent Glow */}
+                        <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-gradient-to-r from-transparent ${actionType === 'start' ? 'via-blue-500' : 'via-green-500'} to-transparent opacity-50`}></div>
+
+                        {/* Header */}
+                        <div className="px-8 py-6 flex justify-between items-start border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent shrink-0">
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-xl ${actionType === 'start' ? 'bg-blue-500/20 border-blue-500/30' : 'bg-green-500/20 border-green-500/30'} flex items-center justify-center border shadow-lg`}>
+                                        {actionType === 'start' ? (
+                                            <SparkleIcon className="w-5 h-5 text-blue-400" />
+                                        ) : (
+                                            <CheckIcon className="w-5 h-5 text-green-400" />
+                                        )}
+                                    </div>
+                                    <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase">
+                                        {actionType === 'start' ? 'Iniciar' : 'Concluir'} <span className={actionType === 'start' ? 'text-blue-400' : 'text-green-400'}>Resolução</span>
+                                    </h2>
+                                </div>
+                                <p className="text-[10px] text-brand-med-gray font-black uppercase tracking-[0.2em] mt-1 flex items-center gap-2">
+                                    Atividade: <span className="text-white bg-white/5 px-2 py-0.5 rounded italic">{getTaskDetails(selectedRestriction.baseline_task_id)?.title || 'N/A'}</span>
+                                </p>
+                            </div>
                             <button
                                 onClick={() => {
                                     setSelectedRestriction(null);
                                     setActionType(null);
                                 }}
-                                className="text-gray-400 hover:text-white"
+                                className="p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-500 text-brand-med-gray transition-all group"
                             >
-                                <XIcon className="w-5 h-5" />
+                                <XIcon className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
                             </button>
                         </div>
 
-                        <p className="text-sm text-brand-med-gray mb-1">Atividade:</p>
-                        <p className="text-sm font-bold text-white mb-4 border-l-2 border-brand-accent pl-2">
-                            {getTaskDetails(selectedRestriction.baseline_task_id)?.title || 'N/A'}
-                        </p>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">
+                        {/* Body */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-6">
+                            {/* Data/Hora */}
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">
                                     {actionType === 'start' ? 'Data/Hora Real de Início' : 'Data/Hora Real de Término'}
                                 </label>
                                 <input
                                     type="datetime-local"
                                     value={actionDate}
                                     onChange={(e) => setActionDate(e.target.value)}
-                                    className="w-full bg-brand-dark border border-white/10 rounded-xl px-4 py-3 text-white focus:border-brand-accent focus:outline-none"
+                                    className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all font-bold"
                                 />
                             </div>
 
                             {actionType === 'resolve' && (
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">
                                         Notas de Resolução
                                     </label>
                                     <textarea
                                         value={resolutionNotes}
                                         onChange={(e) => setResolutionNotes(e.target.value)}
-                                        rows={3}
-                                        placeholder="Descreva o que foi feito..."
-                                        className="w-full bg-brand-dark border border-white/10 rounded-xl px-4 py-3 text-white placeholder-brand-med-gray focus:border-brand-accent focus:outline-none"
+                                        rows={4}
+                                        placeholder="Descreva o que foi feito para remover este impedimento..."
+                                        className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl p-4 text-white placeholder:text-gray-600 focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all font-bold resize-none"
                                     />
                                 </div>
                             )}
                         </div>
 
-                        <div className="flex gap-3 mt-6">
+                        {/* Footer */}
+                        <div className="p-6 bg-black/20 border-t border-white/5 flex gap-4 shrink-0">
                             <button
                                 onClick={() => {
                                     setSelectedRestriction(null);
                                     setActionType(null);
                                 }}
-                                className="flex-1 px-6 py-3 bg-white/5 text-white rounded-xl hover:bg-white/10 transition-all font-bold border border-white/10"
+                                className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl text-white font-black uppercase tracking-widest text-xs hover:bg-white/10 transition-all active:scale-95"
                             >
                                 Cancelar
                             </button>
                             <button
                                 onClick={handleConfirmAction}
-                                className={`flex-1 px-6 py-3 rounded-xl transition-all font-bold text-white shadow-lg ${actionType === 'start'
-                                    ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/20'
-                                    : 'bg-green-600 hover:bg-green-500 shadow-green-500/20'
-                                    }`}
+                                className={`flex-[2] py-4 ${actionType === 'start' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-green-600 hover:bg-green-500'} text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl transition-all hover:-translate-y-1 active:scale-95`}
                             >
                                 Confirmar {actionType === 'start' ? 'Início' : 'Conclusão'}
                             </button>

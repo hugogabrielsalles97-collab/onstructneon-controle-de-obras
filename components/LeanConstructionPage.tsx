@@ -15,12 +15,14 @@ interface LeanConstructionPageProps {
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
     onNavigateToLeanConstruction: () => void;
+    onNavigateToCost: () => void;
+    onNavigateToHome?: () => void;
     onUpgradeClick: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
 const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
-    onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onUpgradeClick, showToast
+    onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToCost, onNavigateToHome, onUpgradeClick, showToast
 }) => {
     const { currentUser: user, signOut, leanTasks, saveLeanTask, deleteLeanTask } = useData();
     const [selectedTask, setSelectedTask] = useState<LeanTask | null>(null);
@@ -371,7 +373,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
 
     return (
         <div className="flex flex-col h-screen bg-[#060a12] text-gray-100 overflow-hidden font-sans selection:bg-cyan-500 selection:text-white">
-            <Header user={user} onLogout={handleLogout} onNavigateToDashboard={onNavigateToDashboard} onNavigateToReports={onNavigateToReports} onNavigateToBaseline={onNavigateToBaseline} onNavigateToCurrentSchedule={onNavigateToCurrentSchedule} onNavigateToAnalysis={onNavigateToAnalysis} onNavigateToLean={onNavigateToLean} onNavigateToLeanConstruction={onNavigateToLeanConstruction} onUpgradeClick={onUpgradeClick} activeScreen="leanConstruction" />
+            <Header user={user} onLogout={handleLogout} onNavigateToHome={onNavigateToHome} onNavigateToDashboard={onNavigateToDashboard} onNavigateToReports={onNavigateToReports} onNavigateToBaseline={onNavigateToBaseline} onNavigateToCurrentSchedule={onNavigateToCurrentSchedule} onNavigateToAnalysis={onNavigateToAnalysis} onNavigateToLean={onNavigateToLean} onNavigateToLeanConstruction={onNavigateToLeanConstruction} onNavigateToCost={onNavigateToCost} onUpgradeClick={onUpgradeClick} activeScreen="leanConstruction" />
 
             <main className="flex-1 overflow-y-auto p-4 md:p-8 animate-fade-in relative text-sm">
                 <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-cyan-900/10 to-transparent pointer-events-none"></div>

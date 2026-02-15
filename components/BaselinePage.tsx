@@ -14,6 +14,9 @@ interface BaselinePageProps {
     onNavigateToCurrentSchedule: () => void;
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
+    onNavigateToLeanConstruction: () => void;
+    onNavigateToCost: () => void;
+    onNavigateToHome?: () => void;
     onUpgradeClick: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
@@ -49,6 +52,9 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
     onNavigateToCurrentSchedule,
     onNavigateToAnalysis,
     onNavigateToLean,
+    onNavigateToLeanConstruction,
+    onNavigateToCost,
+    onNavigateToHome,
     onUpgradeClick,
     showToast
 }) => {
@@ -426,6 +432,8 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
                 onNavigateToCurrentSchedule={onNavigateToCurrentSchedule}
                 onNavigateToAnalysis={onNavigateToAnalysis}
                 onNavigateToLean={onNavigateToLean}
+                onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToCost={onNavigateToCost}
                 onUpgradeClick={onUpgradeClick}
                 activeScreen="baseline"
             />

@@ -182,6 +182,7 @@ Por favor, acesse o aplicativo para mais detalhes.
       onNavigateToAnalysis: () => setScreen('management'),
       onNavigateToLean: () => setScreen('lean'),
       onNavigateToLeanConstruction: () => setScreen('leanConstruction'),
+      onNavigateToCost: () => setScreen('cost'),
       onUpgradeClick: () => setIsUpgradeModalOpen(true),
       onNavigateToHome: handleNavigateToHome,
     };
@@ -268,7 +269,7 @@ Por favor, acesse o aplicativo para mais detalhes.
         />
       )}
       {currentUser && (
-        <AIAssistant tasks={tasks} baselineTasks={baselineTasks} />
+        <AIAssistant tasks={tasks} baselineTasks={baselineTasks} activeScreen={screen} />
       )}
       {isUpgradeModalOpen && (
         <UpgradeModal

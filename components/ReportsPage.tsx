@@ -17,6 +17,9 @@ interface ReportsPageProps {
   onNavigateToCurrentSchedule: () => void;
   onNavigateToAnalysis: () => void;
   onNavigateToLean: () => void;
+  onNavigateToLeanConstruction: () => void;
+  onNavigateToCost: () => void;
+  onNavigateToHome?: () => void;
   onUpgradeClick: () => void;
   showToast: (message: string, type: 'success' | 'error') => void;
 }
@@ -35,6 +38,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
   onNavigateToCurrentSchedule,
   onNavigateToAnalysis,
   onNavigateToLean,
+  onNavigateToLeanConstruction,
+  onNavigateToCost,
+  onNavigateToHome,
   onUpgradeClick,
   showToast
 }) => {
@@ -114,6 +120,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
         onNavigateToCurrentSchedule={onNavigateToCurrentSchedule}
         onNavigateToAnalysis={onNavigateToAnalysis}
         onNavigateToLean={onNavigateToLean}
+        onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+        onNavigateToCost={onNavigateToCost}
         onUpgradeClick={onUpgradeClick}
         activeScreen="reports"
       />

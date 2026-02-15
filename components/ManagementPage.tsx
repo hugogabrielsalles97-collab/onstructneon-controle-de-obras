@@ -13,6 +13,9 @@ interface ManagementPageProps {
     onNavigateToCurrentSchedule: () => void;
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
+    onNavigateToLeanConstruction: () => void;
+    onNavigateToCost: () => void;
+    onNavigateToHome?: () => void;
     onUpgradeClick: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
@@ -24,10 +27,13 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
     onNavigateToCurrentSchedule,
     onNavigateToAnalysis,
     onNavigateToLean,
+    onNavigateToLeanConstruction,
+    onNavigateToCost,
+    onNavigateToHome,
     onUpgradeClick,
     showToast
 }) => {
-    const { currentUser: user, tasks, baselineTasks, signOut, cutOffDateStr } = useData();
+    const { currentUser: user, tasks, currentScheduleTasks, signOut, cutOffDateStr } = useData();
     const [selectedStatuses, setSelectedStatuses] = React.useState<string[]>(['Concluída', 'Em Andamento', 'Não Iniciada', 'Atrasada']);
     const [dateFilters, setDateFilters] = React.useState({ startDate: '', endDate: '' });
 
@@ -50,7 +56,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
         const today = new Date();
         const cutOffDate = new Date(cutOffDateStr + 'T00:00:00Z');
 
-        return baselineTasks
+        return currentScheduleTasks
             .filter(bt => {
                 if (!dateFilters.startDate && !dateFilters.endDate) return true;
                 const btDate = new Date(bt.dueDate);
@@ -151,7 +157,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
             .filter((item): item is NonNullable<typeof item> => item !== null)
             .filter(item => selectedStatuses.includes(item.currentStatus))
             .sort((a, b) => new Date(a.baseline.dueDate).getTime() - new Date(b.baseline.dueDate).getTime());
-    }, [tasks, baselineTasks, cutOffDateStr, selectedStatuses]);
+    }, [tasks, currentScheduleTasks, cutOffDateStr, selectedStatuses]);
 
     const globalStats = useMemo(() => {
         const total = analysisData.length;
@@ -180,6 +186,8 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 onNavigateToCurrentSchedule={onNavigateToCurrentSchedule}
                 onNavigateToAnalysis={() => { }}
                 onNavigateToLean={onNavigateToLean}
+                onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToCost={onNavigateToCost}
                 onUpgradeClick={onUpgradeClick}
                 activeScreen="management"
             />
