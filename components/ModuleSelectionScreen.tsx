@@ -95,8 +95,14 @@ const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({ onSelectP
 
                     {/* Card: Custo */}
                     <button
-                        onClick={onSelectCost}
-                        className="group relative h-[300px] bg-[#111827]/40 rounded-3xl border border-white/5 overflow-hidden transition-all duration-500 hover:border-green-500/50 hover:shadow-[0_0_50px_-10px_rgba(34,197,94,0.3)] hover:-translate-y-2 text-left"
+                        onClick={() => {
+                            if (user.role === 'Master') {
+                                onSelectCost();
+                            } else {
+                                showToast('Acesso restrito ao usuário Master.', 'error');
+                            }
+                        }}
+                        className={`group relative h-[300px] bg-[#111827]/40 rounded-3xl border border-white/5 overflow-hidden transition-all duration-500 hover:border-green-500/50 hover:shadow-[0_0_50px_-10px_rgba(34,197,94,0.3)] hover:-translate-y-2 text-left ${user.role !== 'Master' ? 'opacity-75' : ''}`}
                     >
                         <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                         <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:opacity-40 group-hover:scale-110 transition-transform duration-700">
@@ -109,12 +115,14 @@ const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({ onSelectP
                             </div>
                             <h2 className="text-2xl font-bold text-white mb-2 group-hover:text-green-500 transition-colors flex items-center gap-3">
                                 Custos
-                                <span className="text-[8px] bg-green-500/20 text-green-500 border border-green-500/30 px-1.5 py-0.5 rounded-full animate-pulse font-black tracking-widest uppercase">
-                                    Em Desenvolvimento
+                                <span className={`text-[8px] bg-green-500/20 text-green-500 border border-green-500/30 px-1.5 py-0.5 rounded-full animate-pulse font-black tracking-widest uppercase`}>
+                                    {user.role === 'Master' ? 'Em Desenvolvimento' : 'Acesso Restrito'}
                                 </span>
                             </h2>
-                            <p className="text-xs text-gray-400 font-medium leading-relaxed max-w-[80%] group-hover:text-gray-300 transition-colors">
-                                Controle de orçamento, medições, fluxo de caixa e viabilidade financeira.
+                            <p className="text-xs text-brand-med-gray font-medium leading-relaxed max-w-[80%] group-hover:text-gray-300 transition-colors">
+                                {user.role === 'Master'
+                                    ? 'Controle de orçamento, medições, fluxo de caixa e viabilidade financeira.'
+                                    : 'Apenas usuários MASTER podem acessar as informações financeiras.'}
                             </p>
                         </div>
                     </button>

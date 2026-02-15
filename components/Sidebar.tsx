@@ -19,6 +19,7 @@ interface SidebarProps {
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
     onNavigateToLeanConstruction: () => void;
+    onNavigateToCost?: () => void;
     onUpgradeClick: () => void;
 }
 
@@ -33,6 +34,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     onNavigateToAnalysis,
     onNavigateToLean,
     onNavigateToLeanConstruction,
+    onNavigateToCost,
     onUpgradeClick,
 }) => {
     const showFullMenu = user.role !== 'Executor';
@@ -129,6 +131,19 @@ const Sidebar: React.FC<SidebarProps> = ({
                                         onClick={onNavigateToLeanConstruction}
                                         isCostModule={isCostModule}
                                     />
+                                    {user.role === 'Master' && (
+                                        <NavButton
+                                            active={activeScreen === 'cost'}
+                                            icon={<span className="text-xl">💰</span>}
+                                            label="Painel de Custos"
+                                            onClick={() => {
+                                                if (onNavigateToCost) {
+                                                    onNavigateToCost();
+                                                }
+                                            }}
+                                            isCostModule={isCostModule}
+                                        />
+                                    )}
                                 </>
                             )}
                         </>

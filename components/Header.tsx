@@ -166,7 +166,7 @@ const Header: React.FC<HeaderProps> = ({
                 </button>
               ))}
 
-              {!isCostModule && onNavigateToCost && (
+              {!isCostModule && onNavigateToCost && user.role === 'Master' && (
                 <button
                   onClick={() => handleMenuClick(onNavigateToCost)}
                   className="w-full flex items-center justify-between px-4 py-3.5 mt-4 bg-green-600/10 border border-green-600/20 rounded-xl group transition-all"
