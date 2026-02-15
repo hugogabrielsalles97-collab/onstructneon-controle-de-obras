@@ -26,7 +26,7 @@ type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports'
 
 const AppContent: React.FC = () => {
   const {
-    session, currentUser, allUsers, tasks, baselineTasks, restrictions, isLoading,
+    session, currentUser, allUsers, tasks, baselineTasks, restrictions, costItems, measurements, cashFlow, isLoading,
     saveTask, signOut, saveRestriction, updateRestriction, deleteRestriction
   } = useData();
 
@@ -269,7 +269,14 @@ Por favor, acesse o aplicativo para mais detalhes.
         />
       )}
       {currentUser && (
-        <AIAssistant tasks={tasks} baselineTasks={baselineTasks} activeScreen={screen} />
+        <AIAssistant
+          tasks={tasks}
+          baselineTasks={baselineTasks}
+          activeScreen={screen}
+          costItems={costItems}
+          measurements={measurements}
+          cashFlow={cashFlow}
+        />
       )}
       {isUpgradeModalOpen && (
         <UpgradeModal

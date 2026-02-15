@@ -10,6 +10,9 @@ interface AIAssistantProps {
   tasks: Task[];
   baselineTasks: Task[];
   activeScreen?: string;
+  costItems?: any[];
+  measurements?: any[];
+  cashFlow?: any[];
 }
 
 interface Message {
@@ -17,7 +20,7 @@ interface Message {
   text: string;
 }
 
-const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks, activeScreen }) => {
+const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks, activeScreen, costItems = [], measurements = [], cashFlow = [] }) => {
   const isCostModule = activeScreen === 'cost';
   const { currentUser: user, isDevToolsOpen, setIsDevToolsOpen } = useData();
   const [isOpen, setIsOpen] = useState(false);
@@ -89,9 +92,30 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks, activeS
         due: t.dueDate
       }));
 
-      const prompt = `
-            Você é 'Hugo', um assistente de IA especialista em gestão de obras de construção civil.
-            Responda de forma concisa para economizar tokens.
+      const prompt = isCostModule
+        ? `
+            Você é 'Hugo', um assistente de IA especialista em GESTÃO FINANCEIRA E CUSTOS de obras.
+            Você está no Módulo de Custos da plataforma Lean Solution.
+            Responda de forma concisa.
+
+            **Contexto Financeiro:**
+            - Orçamento vs Realizado: ${JSON.stringify(costItems)}
+            - Medições Recentes: ${JSON.stringify(measurements)}
+            - Fluxo de Caixa: ${JSON.stringify(cashFlow)}
+            - Hoje: ${new Date().toLocaleDateString('pt-BR')}
+
+            **Suas capacidades neste módulo:**
+            - Analisar BUDGET vs ACTUAL (Onde estamos gastando mais?).
+            - Resumir medições e andamento financeiro.
+            - Sugerir ações para viabilidade econômica.
+            - Explicar conceitos de fluxo de caixa e gestão de insumos.
+
+            **Pergunta do usuário:**
+            "${userInput}"
+        `
+        : `
+            Você é 'Hugo', um assistente de IA especialista em GESTÃO DE OBRAS (Planejamento e Execução).
+            Responda de forma concisa.
             
             **Legenda dos dados:**
             t: Título, s: Status, p: Progresso, resp: Responsável, start: Início Previsto, due: Fim Previsto, realStart: Início Real, realEnd: Fim Real.
@@ -101,16 +125,8 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks, activeS
             - Planejamento (Baseline): ${JSON.stringify(baselineSummary)}
             - Hoje: ${new Date().toLocaleDateString('pt-BR')}
 
-            **Exemplos de suas capacidades:**
-            - **Resumir o projeto:** "Qual o status geral do projeto?", "Quais tarefas estão atrasadas?".
-            - **Analisar dados:** "Quem é o responsável com mais tarefas em andamento?", "Compare o previsto com o realizado para a tarefa X".
-            - **Fazer sugestões:** "Quais são os principais riscos para o cronograma agora?", "Sugira um plano de ação para a tarefa Y que está atrasada".
-            - **Ajudar com o App:** "Como eu cadastro uma nova tarefa?", "Onde vejo os dashboards?".
-
             **Pergunta do usuário:**
             "${userInput}"
-
-            Responda à pergunta do usuário com base no contexto fornecido.
         `;
 
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });

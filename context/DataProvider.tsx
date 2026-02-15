@@ -13,6 +13,9 @@ interface DataContextType {
     baselineTasks: Task[];
     currentScheduleTasks: Task[];
     leanTasks: LeanTask[];
+    costItems: any[];
+    measurements: any[];
+    cashFlow: any[];
     isLoading: boolean;
     refreshData: () => Promise<void>;
     saveTask: (task: Task) => Promise<{ success: boolean; error?: string }>;
@@ -76,6 +79,23 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { data: currentScheduleTasks = [], isLoading: loadingCurrentSchedule } = useCurrentScheduleTasks(isLoggedIn);
     const { data: restrictions = [], isLoading: loadingRestrictions } = useRestrictions(isLoggedIn);
     const { data: leanTasks = [], isLoading: loadingLeanTasks } = useLeanTasks(isLoggedIn);
+
+    // Dados Mockados para o Módulo de Custos (Temporário)
+    const [costItems] = useState([
+        { id: '1', category: 'Materiais', description: 'Concreto Fck 30', plannedAmount: 50000, actualAmount: 48000, status: 'Dentro do Orçamento' },
+        { id: '2', category: 'Mão de Obra', description: 'Equipe de Armação', plannedAmount: 30000, actualAmount: 35000, status: 'Crítico' },
+        { id: '3', category: 'Equipamentos', description: 'Locação de Grua', plannedAmount: 15000, actualAmount: 15000, status: 'Dentro do Orçamento' },
+    ]);
+
+    const [measurements] = useState([
+        { id: '1', service: 'Escavação Mecânica', date: '2026-02-10', quantity: 150, unit: 'm³', value: 12000, responsible: 'Eng. Ricardo' },
+        { id: '2', service: 'Concretagem Laje 1', date: '2026-02-12', quantity: 45, unit: 'm³', value: 28000, responsible: 'Eng. Ricardo' },
+    ]);
+
+    const [cashFlow] = useState([
+        { id: '1', date: '2026-02-01', type: 'Despesa', category: 'Insumos', description: 'Compra de Aço CA-50', value: 18500 },
+        { id: '2', date: '2026-02-05', type: 'Receita', category: 'Medição Cliente', description: '1ª Medição de Infra', value: 150000 },
+    ]);
 
     // isLoading logic:
     // 1. Auth is loading? -> True
@@ -312,7 +332,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     return (
         <DataContext.Provider value={{
-            session, currentUser: currentUser || null, allUsers, tasks, baselineTasks, currentScheduleTasks, restrictions, leanTasks, isLoading, refreshData,
+            session, currentUser: currentUser || null, allUsers, tasks, baselineTasks, currentScheduleTasks, restrictions, leanTasks, costItems, measurements, cashFlow, isLoading, refreshData,
             saveTask, deleteTask, importBaseline, importCurrentSchedule, saveRestriction, updateRestriction, deleteRestriction, saveLeanTask, deleteLeanTask,
             cutOffDateStr, setCutOffDateStr, signOut, upgradeRole, updateUser, deleteUser, isDevToolsOpen, setIsDevToolsOpen
         }}>

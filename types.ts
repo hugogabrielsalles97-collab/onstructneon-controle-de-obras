@@ -134,3 +134,32 @@ export interface LeanTask {
   subtasks: LeanSubTask[];
   aiSuggestions?: AISuggestion[];
 }
+
+// Módulo de Custos
+export interface CostItem {
+  id: string;
+  category: string;
+  description: string;
+  plannedAmount: number;
+  actualAmount: number;
+  status: 'Dentro do Orçamento' | 'Crítico' | 'Excedido';
+}
+
+export interface Measurement {
+  id: string;
+  service: string;
+  date: string;
+  quantity: number;
+  unit: string;
+  value: number;
+  responsible: string;
+}
+
+export interface CashFlowItem {
+  id: string;
+  date: string;
+  type: 'Receita' | 'Despesa';
+  category: string;
+  description: string;
+  value: number;
+}
