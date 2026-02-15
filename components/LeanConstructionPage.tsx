@@ -54,6 +54,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
         let productiveManHours = 0;
         let totalMachineHours = 0;
         let unproductiveManHours = 0;
+        let totalProduced = 0;
         const resourceSummary: Record<string, number> = {};
 
         task.subtasks.forEach(sub => {
@@ -76,12 +77,17 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
             if (!sub.isUnproductive) {
                 totalMachineHours += hours * (sub.machinery || 0);
             }
+
+            totalProduced += (sub.producedQuantity || 0);
         });
 
-        const rup = task.quantity > 0 ? (productiveManHours / task.quantity).toFixed(2) : '0.00';
-        const productivity = productiveManHours > 0 ? (task.quantity / productiveManHours).toFixed(2) : '0.00';
+        // RUP = Hh / Unidade Produzida
+        const rup = totalProduced > 0 ? (productiveManHours / totalProduced).toFixed(2) : '0.00';
 
-        return { productiveManHours, totalMachineHours, unproductiveManHours, rup, productivity, resourceSummary };
+        // Produtividade = Unidade Produzida / Hh
+        const productivity = productiveManHours > 0 ? (totalProduced / productiveManHours).toFixed(2) : '0.00';
+
+        return { productiveManHours, totalMachineHours, unproductiveManHours, rup, productivity, resourceSummary, totalProduced };
     };
 
     const handleGenerateAISuggestion = async () => {
@@ -99,9 +105,10 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                 **Dados da Atividade:**
                 - Serviço: ${selectedTask.service}
                 - Disciplina: ${selectedTask.discipline}
-                - Meta/Quantidade: ${selectedTask.quantity} ${selectedTask.unit}
-                - RUP Atual: ${metrics.rup} Hh/${selectedTask.unit}
-                - Produtividade Atual: ${metrics.productivity} ${selectedTask.unit}/Hh
+                - Meta Planejada: ${selectedTask.quantity} ${selectedTask.unit}
+                - Produção Realizada: ${metrics.totalProduced} ${selectedTask.unit}
+                - RUP Real: ${metrics.rup} Hh/${selectedTask.unit}
+                - Produtividade Real: ${metrics.productivity} ${selectedTask.unit}/Hh
                 - Horas Produtivas Totais: ${metrics.productiveManHours.toFixed(2)}h
                 - Horas Improdutivas/Apoio: ${metrics.unproductiveManHours.toFixed(2)}h
 
