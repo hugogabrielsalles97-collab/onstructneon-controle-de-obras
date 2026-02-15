@@ -131,19 +131,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                                         onClick={onNavigateToLeanConstruction}
                                         isCostModule={isCostModule}
                                     />
-                                    {user.role === 'Master' && (
-                                        <NavButton
-                                            active={activeScreen === 'cost'}
-                                            icon={<span className="text-xl">💰</span>}
-                                            label="Painel de Custos"
-                                            onClick={() => {
-                                                if (onNavigateToCost) {
-                                                    onNavigateToCost();
-                                                }
-                                            }}
-                                            isCostModule={isCostModule}
-                                        />
-                                    )}
                                 </>
                             )}
                         </>

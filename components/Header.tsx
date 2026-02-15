@@ -166,20 +166,6 @@ const Header: React.FC<HeaderProps> = ({
                 </button>
               ))}
 
-              {!isCostModule && onNavigateToCost && user.role === 'Master' && (
-                <button
-                  onClick={() => handleMenuClick(onNavigateToCost)}
-                  className="w-full flex items-center justify-between px-4 py-3.5 mt-4 bg-green-600/10 border border-green-600/20 rounded-xl group transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-green-600 flex items-center justify-center text-white">💰</div>
-                    <span className="text-xs font-bold text-white uppercase">Módulo de Custos</span>
-                  </div>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-green-500 group-hover:translate-x-1 transition-transform">
-                    <path d="M9 18l6-6-6-6" />
-                  </svg>
-                </button>
-              )}
             </nav>
 
             <div className="mt-auto pt-6 border-t border-white/5">
