@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabaseClient';
-import { Task, User, Restriction } from '../types';
+import { Task, User, Restriction, LeanTask } from '../types';
 
 // Helper function to fetch all rows (bypass Supabase 1000 limit)
 const fetchAllRows = async (tableName: string) => {
@@ -36,6 +36,21 @@ export const useTasks = (enabled: boolean = true) => {
         queryFn: () => fetchAllRows('tasks'),
         enabled,
         staleTime: 1000 * 60 * 5, // 5 minutes stale time
+    });
+};
+
+export const useLeanTasks = (enabled: boolean = true) => {
+    return useQuery<LeanTask[]>({
+        queryKey: ['leanTasks'],
+        queryFn: async () => {
+            const rows = await fetchAllRows('lean_tasks');
+            return rows.map(r => ({ ...r.task_data, id: r.id })); // Merge task_data JSON back into flat structure if needed, or keep as is.
+            // Actually, since I stored `task_data` as a JSONB column, I need to extract it.
+            // And I decided to keep `id` as the primary key in the table.
+            // The object structure in the frontend has `id` inside it.
+        },
+        enabled,
+        staleTime: 1000 * 60 * 5,
     });
 };
 

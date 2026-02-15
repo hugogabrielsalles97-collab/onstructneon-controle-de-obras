@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useData } from '../context/DataProvider';
 import Header from './Header';
-import LeanConstructionIcon from './icons/LeanConstructionIcon';
+import { LeanTask, LeanSubTask, Worker, MacroDiscipline, AISuggestion } from '../types';
 import PlusIcon from './icons/PlusIcon';
 import DeleteIcon from './icons/DeleteIcon';
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -19,63 +19,10 @@ interface LeanConstructionPageProps {
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
-type MacroDiscipline = 'Fabricação' | 'Obra de Arte Especial' | 'Drenagem' | 'Terraplenagem' | 'Contenções';
-type WorkerRole = 'Servente' | 'Pedreiro' | 'Carpinteiro' | 'Armador' | 'Encarregado' | 'Operador' | 'Motorista' | 'Outro';
-
-interface Worker {
-    role: string;
-    customRole?: string;
-    count: number;
-}
-
-interface LeanSubTask {
-    id: string;
-    description: string;
-    startTime: string;
-    endTime: string;
-    workers: Worker[];
-    machinery: number;
-    isUnproductive: boolean;
-}
-
-interface AISuggestion {
-    date: string;
-    text: string;
-}
-
-interface LeanTask {
-    id: string;
-    discipline: MacroDiscipline;
-    service: string;
-    location: string;
-    date: string;
-    quantity: number;
-    unit: string;
-    shiftStartTime: string;
-    shiftEndTime: string;
-    lunchStartTime: string;
-    lunchEndTime: string;
-    analysisInterval: number;
-    subtasks: LeanSubTask[];
-    aiSuggestions?: AISuggestion[];
-}
-
-const initialLeanData: LeanTask[] = [
-    {
-        id: '1', discipline: 'Obra de Arte Especial', service: 'Concretagem Pilar P1', location: 'Ponte Km 12', date: '2026-02-15',
-        quantity: 50, unit: 'm³', shiftStartTime: '07:00', shiftEndTime: '17:00', lunchStartTime: '12:00', lunchEndTime: '13:00', analysisInterval: 30,
-        subtasks: [
-            { id: 's0', description: 'DSS', startTime: '07:00', endTime: '07:15', workers: [{ role: 'Servente', count: 5 }, { role: 'Pedreiro', count: 2 }], machinery: 0, isUnproductive: true },
-            { id: 's1', description: 'Montagem de Formas', startTime: '07:15', endTime: '10:00', workers: [{ role: 'Carpinteiro', count: 4 }, { role: 'Servente', count: 2 }], machinery: 0, isUnproductive: false },
-        ]
-    }
-];
-
 const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
     onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onUpgradeClick, showToast
 }) => {
-    const { currentUser: user, signOut } = useData();
-    const [leanTasks, setLeanTasks] = useState<LeanTask[]>([]);
+    const { currentUser: user, signOut, leanTasks, saveLeanTask, deleteLeanTask } = useData();
     const [selectedTask, setSelectedTask] = useState<LeanTask | null>(null);
     const [isMainFormOpen, setIsMainFormOpen] = useState(false);
     const [isSubFormOpen, setIsSubFormOpen] = useState(false);
@@ -97,16 +44,6 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
     const [tempWorkerRole, setTempWorkerRole] = useState<string>('Servente');
     const [tempCustomWorkerRole, setTempCustomWorkerRole] = useState<string>('');
     const [tempWorkerCount, setTempWorkerCount] = useState<number>(1);
-
-    useEffect(() => {
-        const saved = localStorage.getItem('lean_infra_v7_roles');
-        if (saved) setLeanTasks(JSON.parse(saved));
-        else setLeanTasks(initialLeanData);
-    }, []);
-
-    useEffect(() => {
-        if (leanTasks.length > 0) localStorage.setItem('lean_infra_v7_roles', JSON.stringify(leanTasks));
-    }, [leanTasks]);
 
     const handleLogout = async () => {
         const { success, error } = await signOut();
@@ -192,7 +129,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                 aiSuggestions: [newSuggestion, ...(selectedTask.aiSuggestions || [])]
             };
 
-            setLeanTasks(leanTasks.map(t => t.id === selectedTask.id ? updatedTask : t));
+            await saveLeanTask(updatedTask);
             setSelectedTask(updatedTask);
             showToast("Análise do Hugo IA gerada com sucesso!", 'success');
 
@@ -204,7 +141,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
         }
     };
 
-    const handleAddMainTask = () => {
+    const handleAddMainTask = async () => {
         if (!newTask.discipline || !newTask.service || !newTask.location || !newTask.date) {
             showToast("Preencha todos os campos obrigatórios (*)", 'error');
             return;
@@ -219,10 +156,15 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
             analysisInterval: Number(newTask.analysisInterval) || 30,
             subtasks: []
         };
-        setLeanTasks([...leanTasks, task]);
-        setNewTask({ ...newTask, service: '', location: '', quantity: 0 });
-        setIsMainFormOpen(false);
-        showToast("Atividade criada.", 'success');
+
+        const { success, error } = await saveLeanTask(task);
+        if (success) {
+            setNewTask({ ...newTask, service: '', location: '', quantity: 0 });
+            setIsMainFormOpen(false);
+            showToast("Atividade criada.", 'success');
+        } else {
+            showToast(`Erro ao criar atividade: ${error}`, 'error');
+        }
     };
 
     const addWorkerToSubTask = () => {
@@ -256,7 +198,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
         setNewSubTask({ ...newSubTask, workers: newSubTask.workers.filter((_, i) => i !== idx) });
     };
 
-    const handleSaveSubTask = () => {
+    const handleSaveSubTask = async () => {
         if (!selectedTask) return;
         if (!newSubTask.description || !newSubTask.startTime || !newSubTask.endTime) {
             showToast("Preencha descrição e horários.", 'error');
@@ -272,20 +214,26 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
             isUnproductive: newSubTask.isUnproductive
         };
 
-        let updatedTasks;
+        let updatedTask: LeanTask;
         if (editingSubTaskId) {
-            updatedTasks = leanTasks.map(t => t.id === selectedTask.id ? {
-                ...t, subtasks: t.subtasks.map(s => s.id === editingSubTaskId ? { ...s, ...subData } : s)
-            } : t);
+            updatedTask = {
+                ...selectedTask,
+                subtasks: selectedTask.subtasks.map(s => s.id === editingSubTaskId ? { ...s, ...subData } : s)
+            };
         } else {
-            updatedTasks = leanTasks.map(t => t.id === selectedTask.id ? {
-                ...t, subtasks: [...t.subtasks, { id: Date.now().toString(), ...subData }]
-            } : t);
+            updatedTask = {
+                ...selectedTask,
+                subtasks: [...selectedTask.subtasks, { id: Date.now().toString(), ...subData }]
+            };
         }
 
-        setLeanTasks(updatedTasks);
-        setSelectedTask(updatedTasks.find(t => t.id === selectedTask.id) || null);
-        handleCancelSubTaskForm();
+        const { success, error } = await saveLeanTask(updatedTask);
+        if (success) {
+            setSelectedTask(updatedTask);
+            handleCancelSubTaskForm();
+        } else {
+            showToast(`Erro ao salvar etapa: ${error}`, 'error');
+        }
     };
 
     const handleEditSubTaskClick = (sub: LeanSubTask) => {
@@ -300,26 +248,41 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
         setNewSubTask({ description: '', startTime: '07:00', endTime: '17:00', machinery: 0, isUnproductive: false, workers: [] });
     };
 
-    const handleDeleteSubTask = (subId: string) => {
+    const handleDeleteSubTask = async (subId: string) => {
         if (!selectedTask) return;
-        const updatedTasks = leanTasks.map(t => t.id === selectedTask.id ? { ...t, subtasks: t.subtasks.filter(s => s.id !== subId) } : t);
-        setLeanTasks(updatedTasks);
-        setSelectedTask(updatedTasks.find(t => t.id === selectedTask.id) || null);
-        if (editingSubTaskId === subId) handleCancelSubTaskForm();
+        const updatedTask = { ...selectedTask, subtasks: selectedTask.subtasks.filter(s => s.id !== subId) };
+
+        const { success, error } = await saveLeanTask(updatedTask);
+        if (success) {
+            setSelectedTask(updatedTask);
+            if (editingSubTaskId === subId) handleCancelSubTaskForm();
+        } else {
+            showToast(`Erro ao excluir etapa: ${error}`, 'error');
+        }
     };
 
-    const handleDeleteMainTask = (id: string, e: React.MouseEvent) => {
+    const handleDeleteMainTask = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        const updated = leanTasks.filter(t => t.id !== id);
-        setLeanTasks(updated);
-        if (selectedTask?.id === id) setSelectedTask(null);
+        if (window.confirm("Tem certeza que deseja excluir esta atividade?")) {
+            const { success, error } = await deleteLeanTask(id);
+            if (success) {
+                if (selectedTask?.id === id) setSelectedTask(null);
+                showToast("Atividade excluída.", 'success');
+            } else {
+                showToast(`Erro ao excluir: ${error}`, 'error');
+            }
+        }
     };
 
-    const handleUpdateTaskSettings = (updates: Partial<LeanTask>) => {
+    const handleUpdateTaskSettings = async (updates: Partial<LeanTask>) => {
         if (!selectedTask) return;
         const updatedTask = { ...selectedTask, ...updates };
-        setLeanTasks(leanTasks.map(t => t.id === selectedTask.id ? updatedTask : t));
-        setSelectedTask(updatedTask);
+        const { success, error } = await saveLeanTask(updatedTask);
+        if (success) {
+            setSelectedTask(updatedTask);
+        } else {
+            showToast(`Erro ao atualizar: ${error}`, 'error');
+        }
     }
 
     const flowAnalysis = useMemo(() => {

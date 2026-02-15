@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient';
-import { User, Task, Restriction } from '../types';
+import { User, Task, Restriction, LeanTask } from '../types';
 import { useQueryClient } from '@tanstack/react-query';
-import { useTasks, useBaselineTasks, useCurrentScheduleTasks, useRestrictions, useAllUsers, useCurrentUser } from '../hooks/dataHooks';
+import { useTasks, useBaselineTasks, useCurrentScheduleTasks, useRestrictions, useAllUsers, useCurrentUser, useLeanTasks } from '../hooks/dataHooks';
 
 interface DataContextType {
     session: Session | null;
@@ -12,10 +12,13 @@ interface DataContextType {
     tasks: Task[];
     baselineTasks: Task[];
     currentScheduleTasks: Task[];
+    leanTasks: LeanTask[];
     isLoading: boolean;
     refreshData: () => Promise<void>;
     saveTask: (task: Task) => Promise<{ success: boolean; error?: string }>;
     deleteTask: (taskId: string) => Promise<{ success: boolean; error?: string }>;
+    saveLeanTask: (task: LeanTask) => Promise<{ success: boolean; error?: string }>;
+    deleteLeanTask: (taskId: string) => Promise<{ success: boolean; error?: string }>;
     importBaseline: (tasks: Task[]) => Promise<{ success: boolean; error?: string }>;
     importCurrentSchedule: (tasks: Task[]) => Promise<{ success: boolean; error?: string }>;
     restrictions: Restriction[];
@@ -72,12 +75,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { data: baselineTasks = [], isLoading: loadingBaseline } = useBaselineTasks(isLoggedIn);
     const { data: currentScheduleTasks = [], isLoading: loadingCurrentSchedule } = useCurrentScheduleTasks(isLoggedIn);
     const { data: restrictions = [], isLoading: loadingRestrictions } = useRestrictions(isLoggedIn);
+    const { data: leanTasks = [], isLoading: loadingLeanTasks } = useLeanTasks(isLoggedIn);
 
     // isLoading logic:
     // 1. Auth is loading? -> True
     // 2. User logged in? -> Wait for queries
     // 3. User logged out? -> False (show login)
-    const isLoading = isAuthLoading || (isLoggedIn && (loadingUser || loadingAllUsers || loadingTasks || loadingBaseline || loadingCurrentSchedule || loadingRestrictions));
+    const isLoading = isAuthLoading || (isLoggedIn && (loadingUser || loadingAllUsers || loadingTasks || loadingBaseline || loadingCurrentSchedule || loadingRestrictions || loadingLeanTasks));
 
     const refreshData = async () => {
         await queryClient.invalidateQueries();
@@ -102,6 +106,52 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
             // Invalidate query to refetch data
             queryClient.invalidateQueries({ queryKey: ['tasks'] });
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    };
+
+    const saveLeanTask = async (task: LeanTask) => {
+        if (!session) return { success: false, error: 'No session' };
+
+        try {
+            // Check if exists
+            const existing = leanTasks.find(t => t.id === task.id);
+
+            if (existing) {
+                const { error } = await supabase
+                    .from('lean_tasks')
+                    .update({
+                        task_data: task,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', task.id);
+                if (error) throw error;
+            } else {
+                const { error } = await supabase
+                    .from('lean_tasks')
+                    .insert([{
+                        id: task.id,
+                        user_id: session.user.id,
+                        task_data: task
+                    }]);
+                if (error) throw error;
+            }
+
+            queryClient.invalidateQueries({ queryKey: ['leanTasks'] });
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    };
+
+    const deleteLeanTask = async (taskId: string) => {
+        if (!session) return { success: false, error: 'No session' };
+        try {
+            const { error } = await supabase.from('lean_tasks').delete().eq('id', taskId);
+            if (error) throw error;
+            queryClient.invalidateQueries({ queryKey: ['leanTasks'] });
             return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };
@@ -262,8 +312,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     return (
         <DataContext.Provider value={{
-            session, currentUser: currentUser || null, allUsers, tasks, baselineTasks, currentScheduleTasks, restrictions, isLoading, refreshData,
-            saveTask, deleteTask, importBaseline, importCurrentSchedule, saveRestriction, updateRestriction, deleteRestriction,
+            session, currentUser: currentUser || null, allUsers, tasks, baselineTasks, currentScheduleTasks, restrictions, leanTasks, isLoading, refreshData,
+            saveTask, deleteTask, importBaseline, importCurrentSchedule, saveRestriction, updateRestriction, deleteRestriction, saveLeanTask, deleteLeanTask,
             cutOffDateStr, setCutOffDateStr, signOut, upgradeRole, updateUser, deleteUser, isDevToolsOpen, setIsDevToolsOpen
         }}>
             {children}

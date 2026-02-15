@@ -91,3 +91,44 @@ export interface Restriction {
   actual_completion_date?: string; // Data real de término
   user_id?: string; // Quem criou a restrição
 }
+
+// Lean Construction Interfaces
+export type MacroDiscipline = 'Fabricação' | 'Obra de Arte Especial' | 'Drenagem' | 'Terraplenagem' | 'Contenções';
+
+export interface Worker {
+  role: string;
+  customRole?: string;
+  count: number;
+}
+
+export interface LeanSubTask {
+  id: string;
+  description: string;
+  startTime: string;
+  endTime: string;
+  workers: Worker[];
+  machinery: number;
+  isUnproductive: boolean;
+}
+
+export interface AISuggestion {
+  date: string;
+  text: string;
+}
+
+export interface LeanTask {
+  id: string;
+  discipline: MacroDiscipline;
+  service: string;
+  location: string;
+  date: string;
+  quantity: number;
+  unit: string;
+  shiftStartTime: string;
+  shiftEndTime: string;
+  lunchStartTime: string;
+  lunchEndTime: string;
+  analysisInterval: number;
+  subtasks: LeanSubTask[];
+  aiSuggestions?: AISuggestion[];
+}
