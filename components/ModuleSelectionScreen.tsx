@@ -19,6 +19,27 @@ const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({ onSelectP
 
     if (!user) return null;
 
+    // Lógica para obter o nome de exibição (2 primeiros nomes)
+    const getDisplayName = () => {
+        // Tenta usar o nome completo, ou username, ou email
+        let name = user.fullName || user.username || user.email || 'Engenheiro';
+
+        // Se for um email, pega apenas a parte antes do @
+        if (name.includes('@')) {
+            name = name.split('@')[0];
+        }
+
+        // Separa por espaços e pega os 2 primeiros
+        const parts = name.split(' ').filter(part => part.trim().length > 0);
+        if (parts.length >= 2) {
+            return `${parts[0]} ${parts[1]}`;
+        } else if (parts.length === 1) {
+            return parts[0];
+        }
+
+        return name;
+    };
+
     return (
         <div className="min-h-screen bg-[#020202] text-white flex flex-col relative overflow-hidden font-sans selection:bg-brand-accent selection:text-white">
             {/* Background Effects */}
@@ -43,7 +64,7 @@ const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({ onSelectP
             <main className="flex-1 flex flex-col items-center justify-center relative z-10 px-4 pb-20">
                 <div className="mb-12 text-center animate-fade-in-up">
                     <h1 className="text-3xl md:text-5xl font-black text-white mb-2 tracking-tight">
-                        Olá, <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-accent to-orange-400">{user.username || 'Engenheiro'}</span>.
+                        Olá, <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-accent to-orange-400 capitalize">{getDisplayName()}</span>.
                     </h1>
                     <p className="text-gray-400 text-sm md:text-lg font-light tracking-wide">
                         Selecione o módulo de gestão para acessar.
@@ -95,7 +116,7 @@ const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({ onSelectP
                 </div>
 
                 <p className="mt-12 text-[10px] text-gray-600 font-mono tracking-widest uppercase opacity-50">
-                    Construct Neon v2.0 • Powered by Hugo AI
+                    Lean Solution V1.0 • Powered by Hugo AI
                 </p>
             </main>
         </div>
