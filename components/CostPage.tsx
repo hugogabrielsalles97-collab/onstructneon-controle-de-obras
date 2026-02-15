@@ -75,6 +75,18 @@ const CostPage: React.FC<CostPageProps> = ({
                         </div>
                         <p className="text-xs text-green-400 font-mono text-right">DEV PROGRESS: 15%</p>
                     </div>
+
+                    {onNavigateToHome && (
+                        <button
+                            onClick={onNavigateToHome}
+                            className="mt-8 flex items-center gap-2 bg-white/5 text-gray-400 px-6 py-3 rounded-xl hover:bg-white/10 hover:text-white transition-all border border-white/5 mx-auto group shadow-lg"
+                        >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:-translate-x-1 transition-transform">
+                                <path d="M19 12H5M12 19l-7-7 7-7" />
+                            </svg>
+                            <span className="font-bold text-sm uppercase tracking-widest">Escolher outro módulo</span>
+                        </button>
+                    )}
                 </div>
             </main>
         </div>

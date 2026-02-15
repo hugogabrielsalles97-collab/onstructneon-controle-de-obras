@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import LoginScreen from './components/LoginScreen';
 import RegisterScreen from './components/RegisterScreen';
@@ -182,6 +183,7 @@ Por favor, acesse o aplicativo para mais detalhes.
       onNavigateToLean: () => setScreen('lean'),
       onNavigateToLeanConstruction: () => setScreen('leanConstruction'),
       onUpgradeClick: () => setIsUpgradeModalOpen(true),
+      onNavigateToHome: handleNavigateToHome,
     };
 
     switch (screen) {
@@ -193,7 +195,7 @@ Por favor, acesse o aplicativo para mais detalhes.
             showToast={showToast}
           />
         );
-      case 'dashboard': return <Dashboard onOpenModal={handleOpenTaskModal} onOpenRdoModal={handleOpenRdoModal} {...navigationProps} onNavigateToHome={handleNavigateToHome} showToast={showToast} />;
+      case 'dashboard': return <Dashboard onOpenModal={handleOpenTaskModal} onOpenRdoModal={handleOpenRdoModal} {...navigationProps} showToast={showToast} />;
       case 'reports': return <ReportsPage {...navigationProps} showToast={showToast} />;
       case 'baseline': return <BaselinePage {...navigationProps} showToast={showToast} />;
       case 'currentSchedule': return <CurrentSchedulePage {...navigationProps} showToast={showToast} />;
@@ -203,7 +205,6 @@ Por favor, acesse o aplicativo para mais detalhes.
         <CostPage
           {...navigationProps}
           onNavigateToLeanConstruction={() => setScreen('leanConstruction')}
-          onNavigateToHome={handleNavigateToHome}
           showToast={showToast}
         />
       );

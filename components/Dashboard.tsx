@@ -202,6 +202,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
 
           <nav className="space-y-2">
             <h3 className="text-[10px] text-brand-med-gray font-black uppercase tracking-[2px] mb-4 ml-2">Menu Principal</h3>
+            {onNavigateToHome && (
+              <NavButton
+                icon={
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:-translate-x-1 transition-transform">
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                  </svg>
+                }
+                label="Módulos de Gestão"
+                onClick={onNavigateToHome}
+              />
+            )}
             <NavButton active icon={<ChartIcon className="w-5 h-5" />} label="Painel de Controle" onClick={() => { }} />
             {showFullMenu && (
               <>
