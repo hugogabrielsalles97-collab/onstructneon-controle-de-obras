@@ -527,48 +527,60 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                     </div>
 
                                     {/* AI Suggestion Section */}
-                                    <div className="bg-gradient-to-r from-purple-900/10 to-[#111827] rounded-2xl border border-purple-500/20 p-6 relative overflow-hidden">
-                                        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-                                            <svg className="w-32 h-32" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z" /></svg>
-                                        </div>
-                                        <div className="relative z-10">
-                                            <div className="flex justify-between items-start mb-6">
-                                                <div>
-                                                    <h3 className="text-xl font-bold text-white flex items-center gap-2 mb-1">
-                                                        <span className="bg-purple-500/20 p-1.5 rounded-lg"><span className="text-purple-400 text-lg">✦</span></span>
-                                                        Hugo IA
-                                                    </h3>
-                                                    <p className="text-xs text-gray-400">Análise inteligente de produtividade e engenharia.</p>
-                                                </div>
-                                                <button onClick={handleGenerateAISuggestion} disabled={isAnalyzing} className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl shadow-lg shadow-purple-900/20 transition-all font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transform active:scale-95">
-                                                    {isAnalyzing ? (
-                                                        <> <span className="animate-spin h-3 w-3 border-2 border-white rounded-full border-t-transparent"></span> Processando... </>
-                                                    ) : (
-                                                        <> <span>⚡</span> Gerar Nova Análise </>
-                                                    )}
-                                                </button>
-                                            </div>
-
-                                            <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
-                                                {selectedTask.aiSuggestions && selectedTask.aiSuggestions.length > 0 ? (
-                                                    selectedTask.aiSuggestions.map((sug, idx) => (
-                                                        <div key={idx} className="bg-[#0a0f18]/80 p-5 rounded-xl border border-purple-500/10 hover:border-purple-500/30 transition-colors shadow-sm">
-                                                            <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
-                                                                <span className="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded uppercase font-bold tracking-wider">Relatório Gerado</span>
-                                                                <span className="text-[10px] text-gray-500 font-mono">{sug.date}</span>
-                                                            </div>
-                                                            <div className="text-sm text-gray-300 whitespace-pre-line leading-relaxed font-light">
-                                                                <div dangerouslySetInnerHTML={{ __html: sug.text.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-bold">$1</strong>').replace(/^\s*-\s/gm, '• ') }} />
-                                                            </div>
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <div className="bg-[#0a0f18]/50 rounded-xl p-8 text-center border border-white/5 border-dashed">
-                                                        <p className="text-gray-500 text-sm mb-2">O histórico de análises está vazio.</p>
-                                                        <p className="text-xs text-gray-600">Peça para o Hugo IA analisar os dados de produtividade acima.</p>
+                                    <div className="bg-[#0a0f18]/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col relative w-full">
+                                        {/* Header */}
+                                        <div className="relative px-6 py-4 flex justify-between items-center border-b border-white/5 bg-gradient-to-r from-orange-500/10 via-transparent to-transparent">
+                                            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay pointer-events-none"></div>
+                                            <div className="flex items-center gap-4 relative z-10">
+                                                <div className="relative">
+                                                    <div className="absolute inset-0 bg-orange-500 rounded-full blur-md opacity-20 animate-pulse"></div>
+                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1f2937] to-[#111827] flex items-center justify-center border border-white/10 shadow-inner">
+                                                        <span className="text-orange-500 text-lg">✦</span>
                                                     </div>
-                                                )}
+                                                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-[#0a0f18] rounded-full"></div>
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-base font-bold text-white leading-tight tracking-wide">Hugo AI</h3>
+                                                    <p className="text-[10px] text-orange-500/80 font-mono tracking-wider uppercase flex items-center gap-1">
+                                                        <span className="w-1 h-1 bg-orange-500 rounded-full animate-blink"></span>
+                                                        Engenheiro Virtual
+                                                    </p>
+                                                </div>
                                             </div>
+                                            <button onClick={handleGenerateAISuggestion} disabled={isAnalyzing} className="px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl shadow-lg shadow-orange-900/20 transition-all font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transform active:scale-95 group">
+                                                {isAnalyzing ? (
+                                                    <> <span className="animate-spin h-3 w-3 border-2 border-white rounded-full border-t-transparent"></span> Analyzing... </>
+                                                ) : (
+                                                    <> <span>⚡</span> Nova Análise </>
+                                                )}
+                                            </button>
+                                        </div>
+
+                                        {/* Content */}
+                                        <div className="p-6 space-y-5 max-h-[400px] overflow-y-auto custom-scrollbar">
+                                            {selectedTask.aiSuggestions && selectedTask.aiSuggestions.length > 0 ? (
+                                                selectedTask.aiSuggestions.map((sug, idx) => (
+                                                    <div key={idx} className="flex flex-col gap-2 animate-fade-in group">
+                                                        <div className="flex items-center gap-2 mb-1 px-1">
+                                                            <div className="w-6 h-6 rounded-full bg-[#1f2937] flex items-center justify-center border border-white/5 shadow-sm">
+                                                                <span className="text-[10px] font-bold text-orange-500">H</span>
+                                                            </div>
+                                                            <span className="text-[10px] text-gray-500 font-mono">{sug.date}</span>
+                                                        </div>
+                                                        <div className="bg-[#1f2937]/80 border border-white/5 text-gray-200 rounded-2xl rounded-tl-sm p-5 text-sm shadow-sm backdrop-blur-sm group-hover:border-orange-500/20 transition-colors">
+                                                            <div className="leading-relaxed whitespace-pre-line" dangerouslySetInnerHTML={{ __html: sug.text.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-bold">$1</strong>').replace(/^\s*-\s/gm, '• ') }} />
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="py-12 flex flex-col items-center justify-center text-center opacity-40">
+                                                    <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
+                                                        <span className="text-2xl grayscale">🤖</span>
+                                                    </div>
+                                                    <p className="text-gray-400 text-sm font-medium">O histórico de análises está vazio.</p>
+                                                    <p className="text-xs text-gray-600 mt-1">Peça para o Hugo IA analisar os dados de produtividade acima.</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
