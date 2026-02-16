@@ -43,6 +43,7 @@ const PodcastPage: React.FC<PodcastPageProps> = ({
     signOut
 }) => {
     const { tasks, restrictions } = useData();
+    const canUsePodcast = user.role === 'Master' || user.role === 'Gerenciador';
     const [podcastItems, setPodcastItems] = useState<any[] | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
@@ -89,6 +90,10 @@ const PodcastPage: React.FC<PodcastPageProps> = ({
     };
 
     const generatePodcastItems = async () => {
+        if (!canUsePodcast) {
+            onUpgradeClick();
+            return;
+        }
         setIsGenerating(true);
         try {
             const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY);
@@ -213,120 +218,148 @@ const PodcastPage: React.FC<PodcastPageProps> = ({
                     activeScreen="podcast"
                 />
 
-                <div className="flex-1 overflow-y-auto p-8 animate-slide-up relative">
-                    {/* Background Elements */}
-                    <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-purple-600/5 rounded-full blur-[120px] pointer-events-none"></div>
-                    <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-blue-600/5 rounded-full blur-[120px] pointer-events-none"></div>
-
-                    <div className="max-w-4xl mx-auto text-center space-y-12 py-12 relative z-10">
-                        <div className="inline-block p-6 rounded-3xl bg-gradient-to-br from-purple-500/20 to-blue-500/10 border border-white/10 shadow-2xl mb-8 group hover:scale-105 transition-transform duration-500">
-                            <div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-[0_0_40px_rgba(168,85,247,0.4)]">
-                                <svg className="w-12 h-12 text-white animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                <div className="flex-1 overflow-y-auto p-8 animate-slide-up relative flex flex-col">
+                    {!canUsePodcast ? (
+                        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-fade-in relative z-10">
+                            <div className="w-32 h-32 bg-brand-accent/10 rounded-[2.5rem] flex items-center justify-center mb-8 border border-brand-accent/20 shadow-2xl relative group">
+                                <div className="absolute inset-0 bg-brand-accent rounded-[2.5rem] blur-2xl opacity-10 group-hover:opacity-20 transition-opacity"></div>
+                                <svg className="w-16 h-16 text-brand-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                 </svg>
                             </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            <h1 className="text-5xl font-black text-white tracking-tighter uppercase">Podcast da <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">obra</span></h1>
-                            <p className="text-xl text-brand-med-gray font-light max-w-2xl mx-auto">
-                                Acompanhe as principais novidades e atualizações de sua obra em forma de áudio.
+                            <h2 className="text-5xl font-black text-white tracking-tighter uppercase italic mb-6">Acesso <span className="text-brand-accent">Restrito</span></h2>
+                            <p className="text-brand-med-gray text-lg max-w-lg mx-auto mb-10 leading-relaxed font-light">
+                                O <strong className="text-white font-bold italic text-base">Podcast da Obra</strong> utiliza inteligência artificial avançada para narrar o status do seu projeto.
+                                <br /><br />
+                                Esta funcionalidade é exclusiva para os perfis <span className="text-brand-accent font-bold">Gerenciador</span> e <span className="text-brand-accent font-bold">Master</span>.
                             </p>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-16 text-left">
-                            {!podcastItems && !isGenerating ? (
-                                <>
-                                    <div className="bg-[#111827]/60 backdrop-blur-xl border border-white/10 p-6 rounded-2xl hover:border-purple-500/30 transition-all group cursor-pointer hover:-translate-y-1">
-                                        <div className="flex items-start gap-4">
-                                            <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center text-green-400 font-bold border border-green-500/20 text-[10px] text-center leading-tight uppercase font-black">ONTEM</div>
-                                            <div>
-                                                <h3 className="text-lg font-bold text-white group-hover:text-purple-400 transition-colors uppercase font-black tracking-tighter">Desempenho Anterior</h3>
-                                                <p className="text-sm text-gray-400 mt-1">Análise do que foi executado, metas batidas e restrições vencidas ontem.</p>
-                                                <div className="flex items-center gap-3 mt-4 text-xs font-mono text-gray-600">
-                                                    <span>5 min</span> • <span className="text-purple-400 font-bold italic">Aguardando Geração</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-[#111827]/60 backdrop-blur-xl border border-white/10 p-6 rounded-2xl hover:border-blue-500/30 transition-all group cursor-pointer hover:-translate-y-1">
-                                        <div className="flex items-start gap-4">
-                                            <div className="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 font-bold border border-blue-500/20 text-[10px] text-center leading-tight uppercase font-black">HOJE</div>
-                                            <div>
-                                                <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors uppercase font-black tracking-tighter">Prioridades do Dia</h3>
-                                                <p className="text-sm text-gray-400 mt-1">Metas críticas, responsáveis e alertas de restrições para hoje.</p>
-                                                <div className="flex items-center gap-3 mt-4 text-xs font-mono text-gray-600">
-                                                    <span>5 min</span> • <span className="text-blue-400 font-bold italic">Aguardando Geração</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </>
-                            ) : (
-                                podcastItems?.map((item, idx) => (
-                                    <div
-                                        key={item.id}
-                                        onClick={() => handlePlayAudio(item.description, item.id)}
-                                        className={`bg-[#111827]/60 backdrop-blur-xl border ${currentlyPlaying === item.id ? 'border-brand-accent shadow-[0_0_20px_rgba(var(--brand-accent-rgb),0.2)]' : 'border-white/10'} p-6 rounded-2xl hover:border-brand-accent/30 transition-all group cursor-pointer hover:-translate-y-1 animate-slide-up relative overflow-hidden`}
-                                        style={{ animationDelay: `${idx * 150}ms` }}
-                                    >
-                                        {currentlyPlaying === item.id && (
-                                            <div className="absolute top-0 left-0 w-full h-1 bg-brand-accent animate-pulse-slow"></div>
-                                        )}
-                                        <div className="flex items-start gap-4">
-                                            <div className={`w-12 h-12 rounded-lg bg-${item.badgeColor === 'green' ? 'green' : item.badgeColor === 'blue' ? 'blue' : item.badgeColor === 'red' ? 'red' : 'purple'}-500/10 flex items-center justify-center text-${item.badgeColor === 'green' ? 'green' : item.badgeColor === 'blue' ? 'blue' : item.badgeColor === 'red' ? 'red' : 'purple'}-400 font-bold border border-${item.badgeColor === 'green' ? 'green' : item.badgeColor === 'blue' ? 'blue' : item.badgeColor === 'red' ? 'red' : 'purple'}-500/20 text-[9px] text-center leading-none uppercase`}>
-                                                {item.badgeText}
-                                            </div>
-                                            <div>
-                                                <h3 className="text-lg font-bold text-white group-hover:text-brand-accent transition-colors uppercase tracking-tight font-black">{item.title}</h3>
-                                                <p className="text-sm text-gray-400 mt-1 leading-relaxed line-clamp-2">{item.description}</p>
-                                                <div className="flex items-center gap-3 mt-4 text-xs font-mono text-gray-600">
-                                                    <span>{item.duration || '1 min'}</span> • <span>{item.timeAgo || 'Agora'}</span> •
-                                                    <span className={`${currentlyPlaying === item.id ? 'text-brand-accent animate-pulse' : 'text-brand-accent'} font-bold flex items-center gap-2`}>
-                                                        {currentlyPlaying === item.id ? (
-                                                            <>
-                                                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" /></svg>
-                                                                Tocando...
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-                                                                Ouvir Agora
-                                                            </>
-                                                        )}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-
-                        <div className="flex justify-center mt-12 mb-20">
                             <button
-                                onClick={generatePodcastItems}
-                                disabled={isGenerating}
-                                className={`flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-brand-accent to-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-2xl shadow-brand-accent/20 transition-all transform hover:-translate-y-1 active:scale-95 group ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                onClick={onUpgradeClick}
+                                className="px-12 py-5 bg-gradient-to-r from-brand-accent to-orange-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-2xl shadow-brand-accent/20 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center gap-3"
                             >
-                                <SparkleIcon className={`w-5 h-5 ${isGenerating ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`} />
-                                {isGenerating ? 'Processando Briefing...' : 'Gerar Podcast do Projeto (5 min)'}
+                                <span className="text-lg">⚡</span> Finalizar Upgrade de Perfil
                             </button>
-                        </div>
 
-                        {!podcastItems && !isGenerating && (
-                            <div className="mt-12 bg-white/5 border border-white/10 rounded-2xl p-12 text-center group hover:bg-white/10 transition-all duration-500">
-                                <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6 text-brand-med-gray/30 group-hover:scale-110 transition-transform">
-                                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                                    </svg>
+                            {/* Background Elements for Bloqueio */}
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-accent/5 rounded-full blur-[120px] pointer-events-none -z-10"></div>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Background Elements */}
+                            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-purple-600/5 rounded-full blur-[120px] pointer-events-none"></div>
+                            <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-blue-600/5 rounded-full blur-[120px] pointer-events-none"></div>
+
+                            <div className="max-w-4xl mx-auto text-center space-y-12 py-12 relative z-10">
+                                <div className="inline-block p-6 rounded-3xl bg-gradient-to-br from-purple-500/20 to-blue-500/10 border border-white/10 shadow-2xl mb-8 group hover:scale-105 transition-transform duration-500">
+                                    <div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-[0_0_40px_rgba(168,85,247,0.4)]">
+                                        <svg className="w-12 h-12 text-white animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                                        </svg>
+                                    </div>
                                 </div>
-                                <h3 className="text-white font-bold text-lg mb-2">Engenharia Baseada em Dados</h3>
-                                <p className="text-gray-400 text-sm max-w-sm mx-auto">Relatório executivo focado em Ontem e Hoje. Processamos restrições, setores e impactos reais do seu canteiro.</p>
+
+                                <div className="space-y-4">
+                                    <h1 className="text-5xl font-black text-white tracking-tighter uppercase">Podcast da <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">obra</span></h1>
+                                    <p className="text-xl text-brand-med-gray font-light max-w-2xl mx-auto">
+                                        Acompanhe as principais novidades e atualizações de sua obra em forma de áudio.
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-16 text-left">
+                                    {!podcastItems && !isGenerating ? (
+                                        <>
+                                            <div className="bg-[#111827]/60 backdrop-blur-xl border border-white/10 p-6 rounded-2xl hover:border-purple-500/30 transition-all group cursor-pointer hover:-translate-y-1">
+                                                <div className="flex items-start gap-4">
+                                                    <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center text-green-400 font-bold border border-green-500/20 text-[10px] text-center leading-tight uppercase font-black">ONTEM</div>
+                                                    <div>
+                                                        <h3 className="text-lg font-bold text-white group-hover:text-purple-400 transition-colors uppercase font-black tracking-tighter">Desempenho Anterior</h3>
+                                                        <p className="text-sm text-gray-400 mt-1">Análise do que foi executado, metas batidas e restrições vencidas ontem.</p>
+                                                        <div className="flex items-center gap-3 mt-4 text-xs font-mono text-gray-600">
+                                                            <span>5 min</span> • <span className="text-purple-400 font-bold italic">Aguardando Geração</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-[#111827]/60 backdrop-blur-xl border border-white/10 p-6 rounded-2xl hover:border-blue-500/30 transition-all group cursor-pointer hover:-translate-y-1">
+                                                <div className="flex items-start gap-4">
+                                                    <div className="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 font-bold border border-blue-500/20 text-[10px] text-center leading-tight uppercase font-black">HOJE</div>
+                                                    <div>
+                                                        <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors uppercase font-black tracking-tighter">Prioridades do Dia</h3>
+                                                        <p className="text-sm text-gray-400 mt-1">Metas críticas, responsáveis e alertas de restrições para hoje.</p>
+                                                        <div className="flex items-center gap-3 mt-4 text-xs font-mono text-gray-600">
+                                                            <span>5 min</span> • <span className="text-blue-400 font-bold italic">Aguardando Geração</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        podcastItems?.map((item, idx) => (
+                                            <div
+                                                key={item.id}
+                                                onClick={() => handlePlayAudio(item.description, item.id)}
+                                                className={`bg-[#111827]/60 backdrop-blur-xl border ${currentlyPlaying === item.id ? 'border-brand-accent shadow-[0_0_20px_rgba(var(--brand-accent-rgb),0.2)]' : 'border-white/10'} p-6 rounded-2xl hover:border-brand-accent/30 transition-all group cursor-pointer hover:-translate-y-1 animate-slide-up relative overflow-hidden`}
+                                                style={{ animationDelay: `${idx * 150}ms` }}
+                                            >
+                                                {currentlyPlaying === item.id && (
+                                                    <div className="absolute top-0 left-0 w-full h-1 bg-brand-accent animate-pulse-slow"></div>
+                                                )}
+                                                <div className="flex items-start gap-4">
+                                                    <div className={`w-12 h-12 rounded-lg bg-${item.badgeColor === 'green' ? 'green' : item.badgeColor === 'blue' ? 'blue' : item.badgeColor === 'red' ? 'red' : 'purple'}-500/10 flex items-center justify-center text-${item.badgeColor === 'green' ? 'green' : item.badgeColor === 'blue' ? 'blue' : item.badgeColor === 'red' ? 'red' : 'purple'}-400 font-bold border border-${item.badgeColor === 'green' ? 'green' : item.badgeColor === 'blue' ? 'blue' : item.badgeColor === 'red' ? 'red' : 'purple'}-500/20 text-[9px] text-center leading-none uppercase`}>
+                                                        {item.badgeText}
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="text-lg font-bold text-white group-hover:text-brand-accent transition-colors uppercase tracking-tight font-black">{item.title}</h3>
+                                                        <p className="text-sm text-gray-400 mt-1 leading-relaxed line-clamp-2">{item.description}</p>
+                                                        <div className="flex items-center gap-3 mt-4 text-xs font-mono text-gray-600">
+                                                            <span>{item.duration || '1 min'}</span> • <span>{item.timeAgo || 'Agora'}</span> •
+                                                            <span className={`${currentlyPlaying === item.id ? 'text-brand-accent animate-pulse' : 'text-brand-accent'} font-bold flex items-center gap-2`}>
+                                                                {currentlyPlaying === item.id ? (
+                                                                    <>
+                                                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" /></svg>
+                                                                        Tocando...
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                                                                        Ouvir Agora
+                                                                    </>
+                                                                )}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+
+                                <div className="flex justify-center mt-12 mb-20">
+                                    <button
+                                        onClick={generatePodcastItems}
+                                        disabled={isGenerating}
+                                        className={`flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-brand-accent to-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-2xl shadow-brand-accent/20 transition-all transform hover:-translate-y-1 active:scale-95 group ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    >
+                                        <SparkleIcon className={`w-5 h-5 ${isGenerating ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`} />
+                                        {isGenerating ? 'Processando Briefing...' : 'Gerar Podcast do Projeto (5 min)'}
+                                    </button>
+                                </div>
+
+                                {!podcastItems && !isGenerating && (
+                                    <div className="mt-12 bg-white/5 border border-white/10 rounded-2xl p-12 text-center group hover:bg-white/10 transition-all duration-500">
+                                        <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6 text-brand-med-gray/30 group-hover:scale-110 transition-transform">
+                                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                            </svg>
+                                        </div>
+                                        <h3 className="text-white font-bold text-lg mb-2">Engenharia Baseada em Dados</h3>
+                                        <p className="text-gray-400 text-sm max-w-sm mx-auto">Relatório executivo focado em Ontem e Hoje. Processamos restrições, setores e impactos reais do seu canteiro.</p>
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
+                        </>
+                    )}
                 </div>
             </main>
         </div>
