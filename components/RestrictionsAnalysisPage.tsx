@@ -24,6 +24,8 @@ interface RestrictionsAnalysisPageProps {
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
     onNavigateToLeanConstruction: () => void;
+    onNavigateToWarRoom: () => void;
+    onNavigateToPodcast: () => void;
     onNavigateToCost: () => void;
     onNavigateToHome?: () => void;
     onUpdateRestriction: (id: string, updates: Partial<Restriction>) => Promise<void>;
@@ -43,6 +45,8 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
     onNavigateToAnalysis,
     onNavigateToLean,
     onNavigateToLeanConstruction,
+    onNavigateToWarRoom,
+    onNavigateToPodcast,
     onNavigateToCost,
     onNavigateToHome,
     onUpdateRestriction,
@@ -326,6 +330,8 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                 onNavigateToAnalysis={() => { }}
                 onNavigateToLean={onNavigateToLean}
                 onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToWarRoom={onNavigateToWarRoom}
+                onNavigateToPodcast={onNavigateToPodcast}
                 onUpgradeClick={onUpgradeClick}
             />
 
@@ -341,9 +347,11 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                     onNavigateToAnalysis={onNavigateToAnalysis}
                     onNavigateToLean={onNavigateToLean}
                     onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                    onNavigateToWarRoom={onNavigateToWarRoom}
+                    onNavigateToPodcast={onNavigateToPodcast}
                     onNavigateToCost={onNavigateToCost}
                     onUpgradeClick={onUpgradeClick}
-                    activeScreen="lean"
+                    activeScreen="analysis"
                 />
 
                 {analysis.impacted > 0 && (

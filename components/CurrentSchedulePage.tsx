@@ -16,6 +16,8 @@ interface CurrentSchedulePageProps {
     onNavigateToLean: () => void;
     onNavigateToCurrentSchedule: () => void;
     onNavigateToLeanConstruction: () => void;
+    onNavigateToWarRoom: () => void;
+    onNavigateToPodcast: () => void;
     onNavigateToCost: () => void;
     onNavigateToHome?: () => void;
     onUpgradeClick: () => void;
@@ -54,6 +56,8 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
     onNavigateToLean,
     onNavigateToCurrentSchedule,
     onNavigateToLeanConstruction,
+    onNavigateToWarRoom,
+    onNavigateToPodcast,
     onNavigateToCost,
     onNavigateToHome,
     onUpgradeClick,
@@ -435,6 +439,8 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
                 onNavigateToAnalysis={onNavigateToAnalysis}
                 onNavigateToLean={onNavigateToLean}
                 onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToWarRoom={onNavigateToWarRoom}
+                onNavigateToPodcast={onNavigateToPodcast}
                 onUpgradeClick={onUpgradeClick}
             />
 
@@ -450,6 +456,8 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
                     onNavigateToAnalysis={onNavigateToAnalysis}
                     onNavigateToLean={onNavigateToLean}
                     onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                    onNavigateToWarRoom={onNavigateToWarRoom}
+                    onNavigateToPodcast={onNavigateToPodcast}
                     onNavigateToCost={onNavigateToCost}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="currentSchedule"

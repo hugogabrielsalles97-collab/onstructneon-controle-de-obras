@@ -15,6 +15,8 @@ interface ManagementPageProps {
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
     onNavigateToLeanConstruction: () => void;
+    onNavigateToWarRoom: () => void;
+    onNavigateToPodcast: () => void;
     onNavigateToCost: () => void;
     onNavigateToHome?: () => void;
     onUpgradeClick: () => void;
@@ -29,6 +31,8 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
     onNavigateToAnalysis,
     onNavigateToLean,
     onNavigateToLeanConstruction,
+    onNavigateToWarRoom,
+    onNavigateToPodcast,
     onNavigateToCost,
     onNavigateToHome,
     onUpgradeClick,
@@ -189,6 +193,8 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 onNavigateToAnalysis={() => { }}
                 onNavigateToLean={onNavigateToLean}
                 onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToWarRoom={onNavigateToWarRoom}
+                onNavigateToPodcast={onNavigateToPodcast}
                 onUpgradeClick={onUpgradeClick}
             />
 
@@ -204,6 +210,8 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                     onNavigateToAnalysis={() => { }}
                     onNavigateToLean={onNavigateToLean}
                     onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                    onNavigateToWarRoom={onNavigateToWarRoom}
+                    onNavigateToPodcast={onNavigateToPodcast}
                     onNavigateToCost={onNavigateToCost}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="management"

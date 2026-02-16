@@ -16,6 +16,9 @@ interface CostPageProps {
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
     onNavigateToLeanConstruction: () => void;
+    onNavigateToWarRoom: () => void;
+    onNavigateToPodcast: () => void;
+    onNavigateToCost: () => void;
     onNavigateToHome?: () => void;
     onUpgradeClick: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
@@ -29,6 +32,8 @@ const CostPage: React.FC<CostPageProps> = ({
     onNavigateToAnalysis,
     onNavigateToLean,
     onNavigateToLeanConstruction,
+    onNavigateToWarRoom,
+    onNavigateToPodcast,
     onNavigateToHome,
     onUpgradeClick,
     showToast
@@ -97,6 +102,36 @@ const CostPage: React.FC<CostPageProps> = ({
                                 <span className="text-sm tracking-tight whitespace-nowrap">{item.label}</span>
                             </button>
                         ))}
+
+                        <div className="pt-4 border-t border-white/5 mt-4 space-y-2">
+                            <button
+                                onClick={onNavigateToPodcast}
+                                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 group text-brand-med-gray hover:bg-white/5 hover:text-white font-medium"
+                            >
+                                <div className="text-purple-400/70 transition-transform duration-300 group-hover:scale-110">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                                        <line x1="12" y1="19" x2="12" y2="23" />
+                                        <line x1="8" y1="23" x2="16" y2="23" />
+                                    </svg>
+                                </div>
+                                <span className="text-sm tracking-tight">Podcast da obra</span>
+                            </button>
+                            <button
+                                onClick={onNavigateToWarRoom}
+                                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 group text-brand-med-gray hover:bg-white/5 hover:text-white font-medium"
+                            >
+                                <div className="text-red-500/70 transition-transform duration-300 group-hover:scale-110">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                                        <line x1="8" y1="21" x2="16" y2="21" />
+                                        <line x1="12" y1="17" x2="12" y2="21" />
+                                    </svg>
+                                </div>
+                                <span className="text-sm tracking-tight">War Room (TV)</span>
+                            </button>
+                        </div>
                     </nav>
                 </div>
 
@@ -134,6 +169,8 @@ const CostPage: React.FC<CostPageProps> = ({
                     onNavigateToAnalysis={onNavigateToAnalysis}
                     onNavigateToLean={onNavigateToLean}
                     onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                    onNavigateToWarRoom={onNavigateToWarRoom}
+                    onNavigateToPodcast={onNavigateToPodcast}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="cost"
                 />

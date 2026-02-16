@@ -38,6 +38,7 @@ interface DashboardProps {
   onNavigateToLeanConstruction: () => void;
   onNavigateToWarRoom: () => void;
   onNavigateToCost: () => void;
+  onNavigateToPodcast: () => void;
   onUpgradeClick: () => void;
   showToast: (message: string, type: 'success' | 'error') => void;
 }
@@ -54,7 +55,7 @@ const initialFilters = {
   endDate: '',
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToHome, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToCost, onUpgradeClick, showToast }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToHome, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onUpgradeClick, showToast }) => {
   const { currentUser: user, tasks, baselineTasks, signOut, deleteTask } = useData();
   const [filters, setFilters] = useState(initialFilters);
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'dueDate', direction: 'asc' });
@@ -206,6 +207,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
         onNavigateToLean={onNavigateToLean}
         onNavigateToLeanConstruction={onNavigateToLeanConstruction}
         onNavigateToWarRoom={onNavigateToWarRoom}
+        onNavigateToPodcast={onNavigateToPodcast}
         onUpgradeClick={onUpgradeClick}
       />
 
@@ -223,6 +225,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
           onNavigateToLean={onNavigateToLean}
           onNavigateToLeanConstruction={onNavigateToLeanConstruction}
           onNavigateToWarRoom={onNavigateToWarRoom}
+          onNavigateToPodcast={onNavigateToPodcast}
           onNavigateToCost={onNavigateToCost}
           onUpgradeClick={onUpgradeClick}
           activeScreen="dashboard"

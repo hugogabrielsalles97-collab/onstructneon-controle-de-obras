@@ -20,6 +20,7 @@ interface LeanConstructionPageProps {
     onNavigateToLean: () => void;
     onNavigateToLeanConstruction: () => void;
     onNavigateToWarRoom: () => void;
+    onNavigateToPodcast: () => void;
     onNavigateToCost: () => void;
     onNavigateToHome?: () => void;
     onUpgradeClick: () => void;
@@ -27,7 +28,7 @@ interface LeanConstructionPageProps {
 }
 
 const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
-    onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToCost, onNavigateToHome, onUpgradeClick, showToast
+    onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToHome, onUpgradeClick, showToast
 }) => {
     const { currentUser: user, signOut, leanTasks, saveLeanTask, deleteLeanTask } = useData();
     const [selectedTask, setSelectedTask] = useState<LeanTask | null>(null);
@@ -405,6 +406,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                 onNavigateToLean={onNavigateToLean}
                 onNavigateToLeanConstruction={() => { }}
                 onNavigateToWarRoom={onNavigateToWarRoom}
+                onNavigateToPodcast={onNavigateToPodcast}
                 onUpgradeClick={onUpgradeClick}
             />
 
@@ -421,6 +423,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                     onNavigateToLean={onNavigateToLean}
                     onNavigateToLeanConstruction={() => { }}
                     onNavigateToWarRoom={onNavigateToWarRoom}
+                    onNavigateToPodcast={onNavigateToPodcast}
                     onNavigateToCost={onNavigateToCost}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="leanConstruction"

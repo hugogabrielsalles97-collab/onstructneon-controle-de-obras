@@ -17,6 +17,8 @@ interface LeanPageProps {
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
     onNavigateToLeanConstruction: () => void;
+    onNavigateToWarRoom: () => void;
+    onNavigateToPodcast: () => void;
     onNavigateToCost: () => void;
     onNavigateToHome?: () => void;
     onNavigateToRestrictions: () => void;
@@ -37,6 +39,8 @@ const LeanPage: React.FC<LeanPageProps> = ({
     onNavigateToAnalysis,
     onNavigateToLean,
     onNavigateToLeanConstruction,
+    onNavigateToWarRoom,
+    onNavigateToPodcast,
     onNavigateToCost,
     onNavigateToHome,
     onNavigateToRestrictions,
@@ -229,6 +233,8 @@ const LeanPage: React.FC<LeanPageProps> = ({
                 onNavigateToAnalysis={onNavigateToAnalysis}
                 onNavigateToLean={() => { }}
                 onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToWarRoom={onNavigateToWarRoom}
+                onNavigateToPodcast={onNavigateToPodcast}
                 onUpgradeClick={onUpgradeClick}
             />
 
@@ -244,6 +250,8 @@ const LeanPage: React.FC<LeanPageProps> = ({
                     onNavigateToAnalysis={onNavigateToAnalysis}
                     onNavigateToLean={() => { }}
                     onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                    onNavigateToWarRoom={onNavigateToWarRoom}
+                    onNavigateToPodcast={onNavigateToPodcast}
                     onNavigateToCost={onNavigateToCost}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="lean"

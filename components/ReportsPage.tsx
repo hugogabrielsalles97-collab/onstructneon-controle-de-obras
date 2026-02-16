@@ -19,6 +19,8 @@ interface ReportsPageProps {
   onNavigateToAnalysis: () => void;
   onNavigateToLean: () => void;
   onNavigateToLeanConstruction: () => void;
+  onNavigateToWarRoom: () => void;
+  onNavigateToPodcast: () => void;
   onNavigateToCost: () => void;
   onNavigateToHome?: () => void;
   onUpgradeClick: () => void;
@@ -40,6 +42,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
   onNavigateToAnalysis,
   onNavigateToLean,
   onNavigateToLeanConstruction,
+  onNavigateToWarRoom,
+  onNavigateToPodcast,
   onNavigateToCost,
   onNavigateToHome,
   onUpgradeClick,
@@ -123,6 +127,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
         onNavigateToAnalysis={onNavigateToAnalysis}
         onNavigateToLean={onNavigateToLean}
         onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+        onNavigateToWarRoom={onNavigateToWarRoom}
+        onNavigateToPodcast={onNavigateToPodcast}
         onUpgradeClick={onUpgradeClick}
       />
 
@@ -138,6 +144,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
           onNavigateToAnalysis={onNavigateToAnalysis}
           onNavigateToLean={onNavigateToLean}
           onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+          onNavigateToWarRoom={onNavigateToWarRoom}
+          onNavigateToPodcast={onNavigateToPodcast}
           onNavigateToCost={onNavigateToCost}
           onUpgradeClick={onUpgradeClick}
           activeScreen="reports"

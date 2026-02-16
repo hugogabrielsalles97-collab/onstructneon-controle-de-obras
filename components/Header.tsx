@@ -26,6 +26,7 @@ interface HeaderProps {
   onNavigateToLean?: () => void;
   onNavigateToLeanConstruction?: () => void;
   onNavigateToWarRoom?: () => void;
+  onNavigateToPodcast?: () => void;
   onNavigateToCost?: () => void;
   onUpgradeClick?: () => void;
   activeScreen?: string;
@@ -43,6 +44,7 @@ const Header: React.FC<HeaderProps> = ({
   onNavigateToLean,
   onNavigateToLeanConstruction,
   onNavigateToWarRoom,
+  onNavigateToPodcast,
   onNavigateToCost,
   onUpgradeClick,
   activeScreen = 'dashboard'
@@ -67,6 +69,16 @@ const Header: React.FC<HeaderProps> = ({
     { id: 'management', label: 'Painel Gerencial', icon: <ManagementIcon className="w-5 h-5" />, onClick: onNavigateToAnalysis, show: showFullMenu },
     { id: 'lean', label: 'Sistema LPS', icon: <LeanIcon className="w-5 h-5" />, onClick: onNavigateToLean, show: showFullMenu },
     { id: 'leanConstruction', label: 'Lean Construction', icon: <LeanConstructionIcon className="w-5 h-5 text-cyan-400" />, onClick: onNavigateToLeanConstruction, show: showFullMenu },
+    {
+      id: 'podcast', label: 'Podcast da obra', icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-purple-400">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+          <line x1="12" y1="19" x2="12" y2="23" />
+          <line x1="8" y1="23" x2="16" y2="23" />
+        </svg>
+      ), onClick: onNavigateToPodcast, show: showFullMenu
+    },
     { id: 'warRoom', label: 'War Room (TV)', icon: <TvIcon className="w-5 h-5 text-red-500" />, onClick: onNavigateToWarRoom, show: true },
   ];
 

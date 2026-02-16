@@ -19,11 +19,12 @@ import AIAssistant from './components/AIAssistant';
 import UpgradeModal from './components/UpgradeModal';
 import Toast from './components/Toast';
 import ConstructionIcon from './components/icons/ConstructionIcon';
+import PodcastPage from './components/PodcastPage';
 import { Task, Restriction } from './types';
 import { DataProvider, useData } from './context/DataProvider';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
-type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'warRoom' | 'restrictions' | 'cost';
+type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'warRoom' | 'restrictions' | 'cost' | 'podcast';
 
 const AppContent: React.FC = () => {
   const {
@@ -184,6 +185,7 @@ Por favor, acesse o aplicativo para mais detalhes.
       onNavigateToLean: () => setScreen('lean'),
       onNavigateToLeanConstruction: () => setScreen('leanConstruction'),
       onNavigateToWarRoom: () => setScreen('warRoom'),
+      onNavigateToPodcast: () => setScreen('podcast'),
       onNavigateToCost: () => setScreen('cost'),
       onUpgradeClick: () => setIsUpgradeModalOpen(true),
       onNavigateToHome: handleNavigateToHome,
@@ -205,6 +207,7 @@ Por favor, acesse o aplicativo para mais detalhes.
       case 'management': return <ManagementPage {...navigationProps} showToast={showToast} />;
       case 'leanConstruction': return <LeanConstructionPage {...navigationProps} showToast={showToast} />;
       case 'warRoom': return <WarRoomPage onNavigateToHome={() => setScreen('dashboard')} />;
+      case 'podcast': return <PodcastPage {...navigationProps} user={currentUser} showToast={showToast} signOut={signOut} />;
       case 'cost': return (
         <CostPage
           {...navigationProps}

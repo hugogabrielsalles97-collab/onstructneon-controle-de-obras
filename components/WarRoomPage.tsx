@@ -40,7 +40,7 @@ const WarRoomPage: React.FC<WarRoomPageProps> = ({ onNavigateToHome }) => {
     const [newWarning, setNewWarning] = useState('');
 
     // Slides (Weather removed)
-    const slides = ['PERFORMANCE', 'RESTRICTIONS', 'MEDIA'];
+    const slides = ['PERFORMANCE', 'RESTRICTIONS', 'HALL_OF_FAME', 'MEDIA'];
 
     // Fullscreen Toggle
     const toggleFullscreen = () => {
@@ -116,6 +116,76 @@ const WarRoomPage: React.FC<WarRoomPageProps> = ({ onNavigateToHome }) => {
             photoUrl: t.photos![0]
         })).slice(0, 15); // Increased limit slightly to accommodate more photos
     }, [tasks]);
+
+    // 3. Hall of Fame Data
+    const hallOfFame = useMemo(() => {
+        const taskCounts: Record<string, number> = {};
+        const restrictionCounts: Record<string, number> = {};
+
+        // Helper to normalize names (simple uppercase for grouping)
+        const normalize = (name: string) => name ? name.trim() : 'Desconhecido';
+
+        tasks.forEach(t => {
+            if (t.status === TaskStatus.Completed && t.assignee) {
+                const name = normalize(t.assignee);
+                taskCounts[name] = (taskCounts[name] || 0) + 1;
+            }
+        });
+
+        restrictions.forEach(r => {
+            if (r.status === 'Resolvida' && r.responsible) {
+                const name = normalize(r.responsible);
+                restrictionCounts[name] = (restrictionCounts[name] || 0) + 1;
+            }
+        });
+
+        const topTaskSolvers = Object.entries(taskCounts)
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 3)
+            .map(([name, count], index) => ({ name, count, rank: index + 1 }));
+
+        const topRestrictionSolvers = Object.entries(restrictionCounts)
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 3)
+            .map(([name, count], index) => ({ name, count, rank: index + 1 }));
+
+        return { topTaskSolvers, topRestrictionSolvers };
+    }, [tasks, restrictions]);
+
+    // 4. Recent News (Real-time Events)
+    const recentNews = useMemo(() => {
+        const events: string[] = [];
+        const now = new Date();
+        const timeWindow = 48 * 60 * 60 * 1000; // Last 48 hours for "news" effect
+
+        // Recent Completed Tasks
+        tasks.forEach(t => {
+            if (t.status === TaskStatus.Completed) {
+                const dateStr = t.actualEndDate || t.dueDate;
+                if (dateStr) {
+                    const date = new Date(dateStr);
+                    if (now.getTime() - date.getTime() < timeWindow && now.getTime() >= date.getTime()) {
+                        events.push(`🏆 Tarefa Concluída: ${t.title} por ${t.assignee}`);
+                    }
+                }
+            }
+        });
+
+        // Recent Resolved Restrictions
+        restrictions.forEach(r => {
+            if (r.status === 'Resolvida' && r.resolved_at) {
+                const date = new Date(r.resolved_at);
+                if (now.getTime() - date.getTime() < timeWindow && now.getTime() >= date.getTime()) {
+                    events.push(`🔓 Restrição Resolvida: ${r.description} (${r.responsible})`);
+                }
+            }
+        });
+
+        return events;
+    }, [tasks, restrictions]);
+
+    // Combine warnings and news
+    const tickerItems = useMemo(() => [...warnings, ...recentNews], [warnings, recentNews]);
 
     // Auto-rotate slides
     useEffect(() => {
@@ -230,6 +300,100 @@ const WarRoomPage: React.FC<WarRoomPageProps> = ({ onNavigateToHome }) => {
                                                         <span className="uppercase font-bold tracking-wider">{r.responsible}</span>
                                                     </div>
                                                     <div className="text-[10px] font-mono text-red-400 opacity-60 uppercase tracking-widest">ID: #{r.id.slice(-4)}</div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+
+            case 'HALL_OF_FAME':
+                return (
+                    <div className={`transition-all duration-500 ease-in-out transform ${isTransitioning ? 'opacity-0 -translate-x-12 scale-95 blur-sm' : 'opacity-100 translate-x-0 scale-100 blur-0'} h-full`}>
+                        <div key="hall-of-fame" className="grid grid-cols-2 gap-8 h-full px-12 relative">
+                            {/* Central Spotlight Effect */}
+                            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-to-r from-transparent via-white/5 to-transparent blur-[100px] rotate-45 pointer-events-none"></div>
+
+                            {/* Column 1: Task Masters */}
+                            <div className="flex flex-col h-full bg-[#111827]/40 border border-white/10 rounded-[2rem] p-8 backdrop-blur-md shadow-2xl relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-60 h-60 bg-yellow-500/10 rounded-full blur-[80px] -mr-10 -mt-10"></div>
+                                <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 uppercase tracking-widest mb-10 text-center drop-shadow-sm flex items-center justify-center gap-3">
+                                    <span className="text-4xl">👑</span> Mestres da Execução
+                                </h2>
+
+                                <div className="flex flex-col gap-6 items-center justify-center flex-1">
+                                    {hallOfFame.topTaskSolvers.length === 0 ? (
+                                        <p className="text-gray-500 uppercase tracking-widest">Sem dados ainda</p>
+                                    ) : (
+                                        hallOfFame.topTaskSolvers.map((user, idx) => (
+                                            <div key={idx} className={`relative w-full max-w-md ${idx === 0 ? 'scale-110 mb-6 z-10' : 'scale-100 opacity-90'}`}>
+                                                <div className={`p-6 rounded-2xl border backdrop-blur-xl flex items-center gap-6 shadow-[0_0_30px_rgba(0,0,0,0.5)] transition-all duration-500 hover:scale-[1.02] ${idx === 0
+                                                        ? 'bg-gradient-to-r from-yellow-500/20 to-black/60 border-yellow-500/50 shadow-[0_0_40px_rgba(234,179,8,0.2)]'
+                                                        : 'bg-white/5 border-white/10'
+                                                    }`}>
+                                                    <div className={`w-20 h-20 rounded-full flex items-center justify-center font-black text-3xl shadow-lg border-2 ${idx === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-black border-yellow-300' : 'bg-gray-700 text-gray-300 border-gray-600'
+                                                        }`}>
+                                                        {idx + 1}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <p className={`text-sm font-bold uppercase tracking-widest mb-1 ${idx === 0 ? 'text-yellow-400' : 'text-gray-400'}`}>
+                                                            {idx === 0 ? 'O Grande Campeão' : `Rank #${idx + 1}`}
+                                                        </p>
+                                                        <h3 className="text-2xl font-black text-white leading-none mb-1 truncate">{user.name}</h3>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="h-1.5 flex-1 bg-gray-700 rounded-full overflow-hidden">
+                                                                <div className={`h-full rounded-full ${idx === 0 ? 'bg-yellow-500' : 'bg-gray-500'}`} style={{ width: '100%' }}></div>
+                                                            </div>
+                                                            <span className="text-xl font-bold text-white">{user.count}</span>
+                                                            <span className="text-[10px] text-gray-400 uppercase">Tarefas</span>
+                                                        </div>
+                                                    </div>
+                                                    {idx === 0 && <div className="absolute -top-6 -right-4 text-6xl drop-shadow-lg filter rotate-12 animate-pulse">🏆</div>}
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Column 2: Restriction Breakers */}
+                            <div className="flex flex-col h-full bg-[#111827]/40 border border-white/10 rounded-[2rem] p-8 backdrop-blur-md shadow-2xl relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-60 h-60 bg-blue-500/10 rounded-full blur-[80px] -ml-10 -mt-10"></div>
+                                <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-blue-600 uppercase tracking-widest mb-10 text-center drop-shadow-sm flex items-center justify-center gap-3">
+                                    <span className="text-4xl">🛡️</span> Guardiões da Qualidade
+                                </h2>
+
+                                <div className="flex flex-col gap-6 items-center justify-center flex-1">
+                                    {hallOfFame.topRestrictionSolvers.length === 0 ? (
+                                        <p className="text-gray-500 uppercase tracking-widest">Sem dados ainda</p>
+                                    ) : (
+                                        hallOfFame.topRestrictionSolvers.map((user, idx) => (
+                                            <div key={idx} className={`relative w-full max-w-md ${idx === 0 ? 'scale-110 mb-6 z-10' : 'scale-100 opacity-90'}`}>
+                                                <div className={`p-6 rounded-2xl border backdrop-blur-xl flex items-center gap-6 shadow-[0_0_30px_rgba(0,0,0,0.5)] transition-all duration-500 hover:scale-[1.02] ${idx === 0
+                                                        ? 'bg-gradient-to-l from-blue-500/20 to-black/60 border-blue-500/50 shadow-[0_0_40px_rgba(59,130,246,0.2)]'
+                                                        : 'bg-white/5 border-white/10'
+                                                    }`}>
+                                                    <div className={`w-20 h-20 rounded-full flex items-center justify-center font-black text-3xl shadow-lg border-2 ${idx === 0 ? 'bg-gradient-to-br from-blue-400 to-blue-600 text-white border-blue-300' : 'bg-gray-700 text-gray-300 border-gray-600'
+                                                        }`}>
+                                                        {idx + 1}
+                                                    </div>
+                                                    <div className="flex-1 text-right">
+                                                        <p className={`text-sm font-bold uppercase tracking-widest mb-1 ${idx === 0 ? 'text-blue-400' : 'text-gray-400'}`}>
+                                                            {idx === 0 ? 'O Resolvedor Supremo' : `Rank #${idx + 1}`}
+                                                        </p>
+                                                        <h3 className="text-2xl font-black text-white leading-none mb-1 truncate">{user.name}</h3>
+                                                        <div className="flex items-center gap-2 justify-end">
+                                                            <span className="text-[10px] text-gray-400 uppercase">Restrições</span>
+                                                            <span className="text-xl font-bold text-white">{user.count}</span>
+                                                            <div className="h-1.5 w-24 bg-gray-700 rounded-full overflow-hidden">
+                                                                <div className={`h-full rounded-full ${idx === 0 ? 'bg-blue-500' : 'bg-gray-500'}`} style={{ width: '100%' }}></div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {idx === 0 && <div className="absolute -top-6 -left-4 text-6xl drop-shadow-lg filter -rotate-12 animate-pulse">💎</div>}
                                                 </div>
                                             </div>
                                         ))
@@ -425,10 +589,10 @@ const WarRoomPage: React.FC<WarRoomPageProps> = ({ onNavigateToHome }) => {
                 <div
                     className="animate-[marquee-ltr_60s_linear_infinite] flex gap-16 text-lg font-bold text-gray-300 uppercase tracking-widest pl-full items-center"
                 >
-                    {warnings.map((w, i) => (
+                    {tickerItems.map((w, i) => (
                         <span key={i} className="flex items-center gap-3">
                             {/* Replaced Dot with Megaphone Icon for all messages */}
-                            <MegaphoneIcon className="w-6 h-6 text-red-500 animate-pulse" />
+                            <MegaphoneIcon className={`w-6 h-6 animate-pulse ${w.includes('🏆') ? 'text-yellow-500' : (w.includes('🔓') ? 'text-green-500' : 'text-red-500')}`} />
                             {w}
                         </span>
                     ))}
