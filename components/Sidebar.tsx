@@ -5,8 +5,9 @@ import ConstructionIcon from './icons/ConstructionIcon';
 import ChartIcon from './icons/ChartIcon';
 import BaselineIcon from './icons/BaselineIcon';
 import ScheduleIcon from './icons/ScheduleIcon';
-import ManagementIcon from './icons/ManagementIcon';
 import LeanIcon from './icons/LeanIcon';
+import ManagementIcon from './icons/ManagementIcon';
+import TvIcon from './icons/TvIcon';
 
 interface SidebarProps {
     user: User;
@@ -17,8 +18,9 @@ interface SidebarProps {
     onNavigateToBaseline: () => void;
     onNavigateToCurrentSchedule: () => void;
     onNavigateToAnalysis: () => void;
-    onNavigateToLean: () => void;
-    onNavigateToLeanConstruction: () => void;
+    onNavigateToLean?: () => void;
+    onNavigateToLeanConstruction?: () => void;
+    onNavigateToWarRoom?: () => void;
     onNavigateToCost?: () => void;
     onUpgradeClick: () => void;
 }
@@ -34,6 +36,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     onNavigateToAnalysis,
     onNavigateToLean,
     onNavigateToLeanConstruction,
+    onNavigateToWarRoom,
     onNavigateToCost,
     onUpgradeClick,
 }) => {
@@ -132,6 +135,15 @@ const Sidebar: React.FC<SidebarProps> = ({
                                         isCostModule={isCostModule}
                                     />
                                 </>
+                            )}
+                            {onNavigateToWarRoom && (
+                                <NavButton
+                                    active={activeScreen === 'warRoom'}
+                                    icon={<TvIcon className="w-5 h-5 text-red-500" />}
+                                    label="War Room (TV)"
+                                    onClick={onNavigateToWarRoom}
+                                    isCostModule={isCostModule}
+                                />
                             )}
                         </>
                     ) : (

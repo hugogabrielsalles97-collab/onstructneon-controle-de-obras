@@ -9,6 +9,7 @@ import DeleteIcon from './icons/DeleteIcon';
 import XIcon from './icons/XIcon';
 import ConstructionIcon from './icons/ConstructionIcon';
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import ConfirmModal from './ConfirmModal';
 
 interface LeanConstructionPageProps {
     onNavigateToDashboard: () => void;
@@ -18,6 +19,7 @@ interface LeanConstructionPageProps {
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
     onNavigateToLeanConstruction: () => void;
+    onNavigateToWarRoom: () => void;
     onNavigateToCost: () => void;
     onNavigateToHome?: () => void;
     onUpgradeClick: () => void;
@@ -25,7 +27,7 @@ interface LeanConstructionPageProps {
 }
 
 const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
-    onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToCost, onNavigateToHome, onUpgradeClick, showToast
+    onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToCost, onNavigateToHome, onUpgradeClick, showToast
 }) => {
     const { currentUser: user, signOut, leanTasks, saveLeanTask, deleteLeanTask } = useData();
     const [selectedTask, setSelectedTask] = useState<LeanTask | null>(null);
@@ -33,6 +35,8 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
     const [isSubFormOpen, setIsSubFormOpen] = useState(false);
     const [editingSubTaskId, setEditingSubTaskId] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; id: string; type: 'task' | 'subtask' | null }>({ isOpen: false, id: '', type: null });
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Form Data
     const [newTask, setNewTask] = useState<Partial<LeanTask>>({
@@ -266,30 +270,43 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
         setNewSubTask({ description: '', startTime: '07:00', endTime: '17:00', machinery: 0, isUnproductive: false, workers: [], producedQuantity: 0, unit: 'un' });
     };
 
-    const handleDeleteSubTask = async (subId: string) => {
-        if (!selectedTask) return;
-        const updatedTask = { ...selectedTask, subtasks: selectedTask.subtasks.filter(s => s.id !== subId) };
-
-        const { success, error } = await saveLeanTask(updatedTask);
-        if (success) {
-            setSelectedTask(updatedTask);
-            if (editingSubTaskId === subId) handleCancelSubTaskForm();
-        } else {
-            showToast(`Erro ao excluir etapa: ${error}`, 'error');
-        }
+    const handleDeleteSubTask = (subId: string) => {
+        setDeleteConfirm({ isOpen: true, id: subId, type: 'subtask' });
     };
 
-    const handleDeleteMainTask = async (id: string, e: React.MouseEvent) => {
+    const handleDeleteMainTask = (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (window.confirm("Tem certeza que deseja excluir esta atividade?")) {
-            const { success, error } = await deleteLeanTask(id);
+        setDeleteConfirm({ isOpen: true, id, type: 'task' });
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deleteConfirm.type || !deleteConfirm.id) return;
+        setIsDeleting(true);
+
+        if (deleteConfirm.type === 'task') {
+            const { success, error } = await deleteLeanTask(deleteConfirm.id);
             if (success) {
-                if (selectedTask?.id === id) setSelectedTask(null);
+                if (selectedTask?.id === deleteConfirm.id) setSelectedTask(null);
                 showToast("Atividade excluída.", 'success');
             } else {
                 showToast(`Erro ao excluir: ${error}`, 'error');
             }
+        } else if (deleteConfirm.type === 'subtask') {
+            if (selectedTask) {
+                const updatedTask = { ...selectedTask, subtasks: selectedTask.subtasks.filter(s => s.id !== deleteConfirm.id) };
+                const { success, error } = await saveLeanTask(updatedTask);
+                if (success) {
+                    setSelectedTask(updatedTask);
+                    if (editingSubTaskId === deleteConfirm.id) handleCancelSubTaskForm();
+                    showToast("Etapa excluída.", 'success');
+                } else {
+                    showToast(`Erro ao excluir etapa: ${error}`, 'error');
+                }
+            }
         }
+
+        setIsDeleting(false);
+        setDeleteConfirm({ isOpen: false, id: '', type: null });
     };
 
     const handleUpdateTaskSettings = async (updates: Partial<LeanTask>) => {
@@ -387,6 +404,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                 onNavigateToAnalysis={onNavigateToAnalysis}
                 onNavigateToLean={onNavigateToLean}
                 onNavigateToLeanConstruction={() => { }}
+                onNavigateToWarRoom={onNavigateToWarRoom}
                 onUpgradeClick={onUpgradeClick}
             />
 
@@ -402,6 +420,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                     onNavigateToAnalysis={onNavigateToAnalysis}
                     onNavigateToLean={onNavigateToLean}
                     onNavigateToLeanConstruction={() => { }}
+                    onNavigateToWarRoom={onNavigateToWarRoom}
                     onNavigateToCost={onNavigateToCost}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="leanConstruction"
@@ -597,286 +616,303 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                         )}
                     </div>
                 </div>
-            </main>
+                <ConfirmModal
+                    isOpen={deleteConfirm.isOpen}
+                    onClose={() => setDeleteConfirm({ ...deleteConfirm, isOpen: false })}
+                    onConfirm={handleConfirmDelete}
+                    title={deleteConfirm.type === 'task' ? "Excluir Atividade" : "Excluir Etapa"}
+                    message={deleteConfirm.type === 'task'
+                        ? "Tem certeza que deseja excluir esta atividade e todas as suas etapas? Esta ação não pode ser desfeita."
+                        : "Tem certeza que deseja excluir esta etapa? O impacto no RUP será recalculado."}
+                    confirmText="Sim, Excluir"
+                    cancelText="Cancelar"
+                    type="danger"
+                    isLoading={isDeleting}
+                />
+            </main >
 
             {/* Modal: Nova Atividade (Main Task) */}
-            {isMainFormOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setIsMainFormOpen(false)}>
-                    <div className="bg-[#0a0f18]/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] w-full max-w-2xl shadow-[0_0_100px_-20px_rgba(34,211,238,0.3)] max-h-[92vh] flex flex-col overflow-hidden animate-slide-up" onClick={e => e.stopPropagation()}>
-                        {/* Header */}
-                        <div className="p-8 pb-4 flex justify-between items-center border-b border-white/5 bg-gradient-to-r from-cyan-500/5 to-transparent">
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-cyan-500 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/20 rotate-3 transition-transform hover:rotate-0">
-                                    <ConstructionIcon className="w-6 h-6 text-white" />
+            {
+                isMainFormOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setIsMainFormOpen(false)}>
+                        <div className="bg-[#0a0f18]/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] w-full max-w-2xl shadow-[0_0_100px_-20px_rgba(34,211,238,0.3)] max-h-[92vh] flex flex-col overflow-hidden animate-slide-up" onClick={e => e.stopPropagation()}>
+                            {/* Header */}
+                            <div className="p-8 pb-4 flex justify-between items-center border-b border-white/5 bg-gradient-to-r from-cyan-500/5 to-transparent">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-cyan-500 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/20 rotate-3 transition-transform hover:rotate-0">
+                                        <ConstructionIcon className="w-6 h-6 text-white" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic truncate">Nova <span className="text-cyan-400">Atividade</span></h2>
+                                        <p className="text-[10px] text-brand-med-gray font-black uppercase tracking-[2px] mt-0.5">Módulo Lean Analytics</p>
+                                    </div>
                                 </div>
-                                <div className="min-w-0">
-                                    <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic truncate">Nova <span className="text-cyan-400">Atividade</span></h2>
-                                    <p className="text-[10px] text-brand-med-gray font-black uppercase tracking-[2px] mt-0.5">Módulo Lean Analytics</p>
-                                </div>
+                                <button onClick={() => setIsMainFormOpen(false)} className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-brand-med-gray hover:text-white transition-all border border-white/10 shrink-0"><XIcon className="w-5 h-5" /></button>
                             </div>
-                            <button onClick={() => setIsMainFormOpen(false)} className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-brand-med-gray hover:text-white transition-all border border-white/10 shrink-0"><XIcon className="w-5 h-5" /></button>
-                        </div>
 
-                        {/* Content */}
-                        <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-8 custom-scrollbar">
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <div className="w-1.5 h-6 bg-cyan-500 rounded-full animate-pulse"></div>
-                                    <h3 className="text-sm font-black text-white uppercase tracking-widest">Configurações Gerais</h3>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Disciplina</label>
-                                        <select
-                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold appearance-none"
-                                            value={newTask.discipline}
-                                            onChange={e => setNewTask({ ...newTask, discipline: e.target.value as MacroDiscipline })}
-                                        >
-                                            <option>Terraplenagem</option>
-                                            <option>Drenagem</option>
-                                            <option>Obra de Arte Especial</option>
-                                            <option>Fabricação</option>
-                                            <option>Contenções</option>
-                                        </select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Local / Trecho</label>
-                                        <input
-                                            type="text"
-                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold placeholder:text-gray-600"
-                                            value={newTask.location}
-                                            onChange={e => setNewTask({ ...newTask, location: e.target.value })}
-                                            placeholder="Ex: Trecho A"
-                                        />
-                                    </div>
-                                    <div className="md:col-span-2 space-y-2">
-                                        <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Serviço / Atividade</label>
-                                        <input
-                                            type="text"
-                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold placeholder:text-gray-600"
-                                            value={newTask.service}
-                                            onChange={e => setNewTask({ ...newTask, service: e.target.value })}
-                                            placeholder="Ex: Concretagem de Laje"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Meta Quantitativa</label>
-                                        <input
-                                            type="number"
-                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
-                                            value={newTask.quantity}
-                                            onChange={e => setNewTask({ ...newTask, quantity: Number(e.target.value) })}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Unidade</label>
-                                        <input
-                                            type="text"
-                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold placeholder:text-gray-600"
-                                            value={newTask.unit}
-                                            onChange={e => setNewTask({ ...newTask, unit: e.target.value })}
-                                            placeholder="Ex: m3"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Footer */}
-                        <div className="p-8 border-t border-white/5 bg-black/20 flex gap-4">
-                            <button onClick={() => setIsMainFormOpen(false)} className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl text-white font-black uppercase tracking-widest text-xs hover:bg-white/10 transition-all active:scale-95">Cancelar</button>
-                            <button onClick={handleAddMainTask} className="flex-[2] py-4 bg-cyan-500 hover:bg-cyan-400 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-cyan-500/20 transition-all transform hover:-translate-y-1 active:scale-95">Salvar Atividade</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Modal: Nova Etapa (Sub Task) */}
-            {isSubFormOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={handleCancelSubTaskForm}>
-                    <div className="bg-[#0a0f18]/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] w-full max-w-3xl shadow-[0_0_100px_-20px_rgba(34,211,238,0.3)] max-h-[92vh] flex flex-col overflow-hidden animate-slide-up" onClick={e => e.stopPropagation()}>
-                        {/* Header */}
-                        <div className="p-8 pb-4 flex justify-between items-center border-b border-white/5 bg-gradient-to-r from-cyan-500/5 to-transparent">
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-cyan-500 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/20 rotate-3 transition-transform hover:rotate-0">
-                                    <PlusIcon className="w-6 h-6 text-white" />
-                                </div>
-                                <div className="min-w-0">
-                                    <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic truncate">{editingSubTaskId ? 'Editar' : 'Nova'} <span className="text-cyan-400">Etapa</span></h2>
-                                    <p className="text-[10px] text-brand-med-gray font-black uppercase tracking-[2px] mt-0.5 italic truncate">Atividade: {selectedTask?.service}</p>
-                                </div>
-                            </div>
-                            <button onClick={handleCancelSubTaskForm} className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-brand-med-gray hover:text-white transition-all border border-white/10 shrink-0"><XIcon className="w-5 h-5" /></button>
-                        </div>
-
-                        {/* Content */}
-                        <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-10 custom-scrollbar">
-                            <div className="space-y-6">
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-3">
+                            {/* Content */}
+                            <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-8 custom-scrollbar">
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-3 mb-2">
                                         <div className="w-1.5 h-6 bg-cyan-500 rounded-full animate-pulse"></div>
-                                        <h3 className="text-sm font-black text-white uppercase tracking-widest">Informações da Etapa</h3>
+                                        <h3 className="text-sm font-black text-white uppercase tracking-widest">Configurações Gerais</h3>
                                     </div>
-                                    <label className="flex items-center gap-3 px-4 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl cursor-pointer group transition-all hover:bg-yellow-500/20">
-                                        <input
-                                            type="checkbox"
-                                            checked={newSubTask.isUnproductive}
-                                            onChange={e => setNewSubTask({ ...newSubTask, isUnproductive: e.target.checked })}
-                                            className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-yellow-500 focus:ring-0 focus:ring-offset-0"
-                                        />
-                                        <span className="text-[10px] font-black text-yellow-500 uppercase tracking-widest">Improdutivo / Apoio</span>
-                                    </label>
-                                </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    <div className="md:col-span-2 space-y-2">
-                                        <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Descrição do Trabalho</label>
-                                        <input
-                                            type="text"
-                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold placeholder:text-gray-600"
-                                            value={newSubTask.description}
-                                            onChange={e => setNewSubTask({ ...newSubTask, description: e.target.value })}
-                                            placeholder="Ex: Montagem de fôrmas"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Volume Realizado</label>
-                                        <div className="flex gap-2">
-                                            <input
-                                                type="number"
-                                                className="flex-1 bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
-                                                value={newSubTask.producedQuantity}
-                                                onChange={e => setNewSubTask({ ...newSubTask, producedQuantity: Number(e.target.value) })}
-                                            />
-                                            <input
-                                                type="text"
-                                                className="w-20 bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 text-center text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
-                                                value={newSubTask.unit}
-                                                onChange={e => setNewSubTask({ ...newSubTask, unit: e.target.value })}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Início</label>
-                                        <input
-                                            type="time"
-                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
-                                            value={newSubTask.startTime}
-                                            onChange={e => setNewSubTask({ ...newSubTask, startTime: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Término</label>
-                                        <input
-                                            type="time"
-                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
-                                            value={newSubTask.endTime}
-                                            onChange={e => setNewSubTask({ ...newSubTask, endTime: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Horas Máquina</label>
-                                        <input
-                                            type="number"
-                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
-                                            value={newSubTask.machinery}
-                                            onChange={e => setNewSubTask({ ...newSubTask, machinery: Number(e.target.value) })}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Recursos Humanos */}
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <div className="w-1.5 h-6 bg-cyan-500 rounded-full pulse-neon"></div>
-                                    <h3 className="text-sm font-black text-white uppercase tracking-widest">Equipe Alocada</h3>
-                                </div>
-
-                                <div className="p-6 bg-white/5 rounded-3xl border border-white/10 space-y-6">
-                                    <div className="flex flex-col md:flex-row gap-4 items-end">
-                                        <div className="flex-1 space-y-2">
-                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Profissão / Função</label>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Disciplina</label>
                                             <select
-                                                className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold appearance-none"
-                                                value={tempWorkerRole}
-                                                onChange={e => setTempWorkerRole(e.target.value)}
+                                                className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold appearance-none"
+                                                value={newTask.discipline}
+                                                onChange={e => setNewTask({ ...newTask, discipline: e.target.value as MacroDiscipline })}
                                             >
-                                                <option>Servente</option>
-                                                <option>Pedreiro</option>
-                                                <option>Carpinteiro</option>
-                                                <option>Armador</option>
-                                                <option>Encarregado</option>
-                                                <option>Soldador</option>
-                                                <option>Operador</option>
-                                                <option>Motorista</option>
-                                                <option>Outro</option>
+                                                <option>Terraplenagem</option>
+                                                <option>Drenagem</option>
+                                                <option>Obra de Arte Especial</option>
+                                                <option>Fabricação</option>
+                                                <option>Contenções</option>
                                             </select>
                                         </div>
-                                        {tempWorkerRole === 'Outro' && (
-                                            <div className="flex-1 space-y-2">
-                                                <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Especificar</label>
-                                                <input
-                                                    type="text"
-                                                    className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold placeholder:text-gray-600"
-                                                    placeholder="Qual função?"
-                                                    value={tempCustomWorkerRole}
-                                                    onChange={e => setTempCustomWorkerRole(e.target.value)}
-                                                />
-                                            </div>
-                                        )}
-                                        <div className="w-full md:w-40 space-y-2">
-                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Quantidade</label>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Local / Trecho</label>
+                                            <input
+                                                type="text"
+                                                className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold placeholder:text-gray-600"
+                                                value={newTask.location}
+                                                onChange={e => setNewTask({ ...newTask, location: e.target.value })}
+                                                placeholder="Ex: Trecho A"
+                                            />
+                                        </div>
+                                        <div className="md:col-span-2 space-y-2">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Serviço / Atividade</label>
+                                            <input
+                                                type="text"
+                                                className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold placeholder:text-gray-600"
+                                                value={newTask.service}
+                                                onChange={e => setNewTask({ ...newTask, service: e.target.value })}
+                                                placeholder="Ex: Concretagem de Laje"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Meta Quantitativa</label>
+                                            <input
+                                                type="number"
+                                                className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
+                                                value={newTask.quantity}
+                                                onChange={e => setNewTask({ ...newTask, quantity: Number(e.target.value) })}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Unidade</label>
+                                            <input
+                                                type="text"
+                                                className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold placeholder:text-gray-600"
+                                                value={newTask.unit}
+                                                onChange={e => setNewTask({ ...newTask, unit: e.target.value })}
+                                                placeholder="Ex: m3"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="p-8 border-t border-white/5 bg-black/20 flex gap-4">
+                                <button onClick={() => setIsMainFormOpen(false)} className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl text-white font-black uppercase tracking-widest text-xs hover:bg-white/10 transition-all active:scale-95">Cancelar</button>
+                                <button onClick={handleAddMainTask} className="flex-[2] py-4 bg-cyan-500 hover:bg-cyan-400 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-cyan-500/20 transition-all transform hover:-translate-y-1 active:scale-95">Salvar Atividade</button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* Modal: Nova Etapa (Sub Task) */}
+            {
+                isSubFormOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={handleCancelSubTaskForm}>
+                        <div className="bg-[#0a0f18]/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] w-full max-w-3xl shadow-[0_0_100px_-20px_rgba(34,211,238,0.3)] max-h-[92vh] flex flex-col overflow-hidden animate-slide-up" onClick={e => e.stopPropagation()}>
+                            {/* Header */}
+                            <div className="p-8 pb-4 flex justify-between items-center border-b border-white/5 bg-gradient-to-r from-cyan-500/5 to-transparent">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-cyan-500 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/20 rotate-3 transition-transform hover:rotate-0">
+                                        <PlusIcon className="w-6 h-6 text-white" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic truncate">{editingSubTaskId ? 'Editar' : 'Nova'} <span className="text-cyan-400">Etapa</span></h2>
+                                        <p className="text-[10px] text-brand-med-gray font-black uppercase tracking-[2px] mt-0.5 italic truncate">Atividade: {selectedTask?.service}</p>
+                                    </div>
+                                </div>
+                                <button onClick={handleCancelSubTaskForm} className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-brand-med-gray hover:text-white transition-all border border-white/10 shrink-0"><XIcon className="w-5 h-5" /></button>
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-10 custom-scrollbar">
+                                <div className="space-y-6">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-1.5 h-6 bg-cyan-500 rounded-full animate-pulse"></div>
+                                            <h3 className="text-sm font-black text-white uppercase tracking-widest">Informações da Etapa</h3>
+                                        </div>
+                                        <label className="flex items-center gap-3 px-4 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl cursor-pointer group transition-all hover:bg-yellow-500/20">
+                                            <input
+                                                type="checkbox"
+                                                checked={newSubTask.isUnproductive}
+                                                onChange={e => setNewSubTask({ ...newSubTask, isUnproductive: e.target.checked })}
+                                                className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-yellow-500 focus:ring-0 focus:ring-offset-0"
+                                            />
+                                            <span className="text-[10px] font-black text-yellow-500 uppercase tracking-widest">Improdutivo / Apoio</span>
+                                        </label>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        <div className="md:col-span-2 space-y-2">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Descrição do Trabalho</label>
+                                            <input
+                                                type="text"
+                                                className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold placeholder:text-gray-600"
+                                                value={newSubTask.description}
+                                                onChange={e => setNewSubTask({ ...newSubTask, description: e.target.value })}
+                                                placeholder="Ex: Montagem de fôrmas"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Volume Realizado</label>
                                             <div className="flex gap-2">
                                                 <input
                                                     type="number"
-                                                    className="flex-1 bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white text-center focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
-                                                    min="1"
-                                                    value={tempWorkerCount}
-                                                    onChange={e => setTempWorkerCount(Number(e.target.value))}
+                                                    className="flex-1 bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
+                                                    value={newSubTask.producedQuantity}
+                                                    onChange={e => setNewSubTask({ ...newSubTask, producedQuantity: Number(e.target.value) })}
                                                 />
-                                                <button
-                                                    onClick={addWorkerToSubTask}
-                                                    className="p-3.5 bg-cyan-500 hover:bg-cyan-400 text-white rounded-2xl shadow-lg shadow-cyan-500/20 transition-all transform active:scale-90"
-                                                >
-                                                    <PlusIcon className="w-5 h-5" />
-                                                </button>
+                                                <input
+                                                    type="text"
+                                                    className="w-20 bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 text-center text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
+                                                    value={newSubTask.unit}
+                                                    onChange={e => setNewSubTask({ ...newSubTask, unit: e.target.value })}
+                                                />
                                             </div>
                                         </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Início</label>
+                                            <input
+                                                type="time"
+                                                className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
+                                                value={newSubTask.startTime}
+                                                onChange={e => setNewSubTask({ ...newSubTask, startTime: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Término</label>
+                                            <input
+                                                type="time"
+                                                className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
+                                                value={newSubTask.endTime}
+                                                onChange={e => setNewSubTask({ ...newSubTask, endTime: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Horas Máquina</label>
+                                            <input
+                                                type="number"
+                                                className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
+                                                value={newSubTask.machinery}
+                                                onChange={e => setNewSubTask({ ...newSubTask, machinery: Number(e.target.value) })}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Recursos Humanos */}
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="w-1.5 h-6 bg-cyan-500 rounded-full pulse-neon"></div>
+                                        <h3 className="text-sm font-black text-white uppercase tracking-widest">Equipe Alocada</h3>
                                     </div>
 
-                                    {/* Lista de Colaboradores */}
-                                    <div className="flex flex-wrap gap-2 pt-2">
-                                        {newSubTask.workers.map((w, idx) => (
-                                            <div key={idx} className="flex items-center gap-3 pl-4 pr-1 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-xl animate-fade-in group hover:bg-cyan-500/20 transition-all">
-                                                <div className="flex flex-col">
-                                                    <span className="text-[8px] text-cyan-500/60 font-black uppercase tracking-tighter">Colaborador</span>
-                                                    <span className="text-xs font-bold text-white uppercase">{w.count}x {w.role === 'Outro' ? w.customRole : w.role}</span>
+                                    <div className="p-6 bg-white/5 rounded-3xl border border-white/10 space-y-6">
+                                        <div className="flex flex-col md:flex-row gap-4 items-end">
+                                            <div className="flex-1 space-y-2">
+                                                <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Profissão / Função</label>
+                                                <select
+                                                    className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold appearance-none"
+                                                    value={tempWorkerRole}
+                                                    onChange={e => setTempWorkerRole(e.target.value)}
+                                                >
+                                                    <option>Servente</option>
+                                                    <option>Pedreiro</option>
+                                                    <option>Carpinteiro</option>
+                                                    <option>Armador</option>
+                                                    <option>Encarregado</option>
+                                                    <option>Soldador</option>
+                                                    <option>Operador</option>
+                                                    <option>Motorista</option>
+                                                    <option>Outro</option>
+                                                </select>
+                                            </div>
+                                            {tempWorkerRole === 'Outro' && (
+                                                <div className="flex-1 space-y-2">
+                                                    <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Especificar</label>
+                                                    <input
+                                                        type="text"
+                                                        className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold placeholder:text-gray-600"
+                                                        placeholder="Qual função?"
+                                                        value={tempCustomWorkerRole}
+                                                        onChange={e => setTempCustomWorkerRole(e.target.value)}
+                                                    />
                                                 </div>
-                                                <button onClick={() => removeWorkerFromSubTask(idx)} className="p-2 text-cyan-500/50 hover:text-red-400 transition-all"><XIcon className="w-4 h-4" /></button>
+                                            )}
+                                            <div className="w-full md:w-40 space-y-2">
+                                                <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Quantidade</label>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="number"
+                                                        className="flex-1 bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white text-center focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
+                                                        min="1"
+                                                        value={tempWorkerCount}
+                                                        onChange={e => setTempWorkerCount(Number(e.target.value))}
+                                                    />
+                                                    <button
+                                                        onClick={addWorkerToSubTask}
+                                                        className="p-3.5 bg-cyan-500 hover:bg-cyan-400 text-white rounded-2xl shadow-lg shadow-cyan-500/20 transition-all transform active:scale-90"
+                                                    >
+                                                        <PlusIcon className="w-5 h-5" />
+                                                    </button>
+                                                </div>
                                             </div>
-                                        ))}
-                                        {newSubTask.workers.length === 0 && (
-                                            <div className="w-full py-10 border-2 border-dashed border-white/5 rounded-[2rem] flex flex-col items-center justify-center text-brand-med-gray/30 transition-colors group-hover:border-white/10">
-                                                <ConstructionIcon className="w-8 h-8 mb-2 opacity-10" />
-                                                <p className="text-[10px] font-black uppercase tracking-[3px]">Nenhum colaborador alocado</p>
-                                            </div>
-                                        )}
+                                        </div>
+
+                                        {/* Lista de Colaboradores */}
+                                        <div className="flex flex-wrap gap-2 pt-2">
+                                            {newSubTask.workers.map((w, idx) => (
+                                                <div key={idx} className="flex items-center gap-3 pl-4 pr-1 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-xl animate-fade-in group hover:bg-cyan-500/20 transition-all">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[8px] text-cyan-500/60 font-black uppercase tracking-tighter">Colaborador</span>
+                                                        <span className="text-xs font-bold text-white uppercase">{w.count}x {w.role === 'Outro' ? w.customRole : w.role}</span>
+                                                    </div>
+                                                    <button onClick={() => removeWorkerFromSubTask(idx)} className="p-2 text-cyan-500/50 hover:text-red-400 transition-all"><XIcon className="w-4 h-4" /></button>
+                                                </div>
+                                            ))}
+                                            {newSubTask.workers.length === 0 && (
+                                                <div className="w-full py-10 border-2 border-dashed border-white/5 rounded-[2rem] flex flex-col items-center justify-center text-brand-med-gray/30 transition-colors group-hover:border-white/10">
+                                                    <ConstructionIcon className="w-8 h-8 mb-2 opacity-10" />
+                                                    <p className="text-[10px] font-black uppercase tracking-[3px]">Nenhum colaborador alocado</p>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Footer */}
-                        <div className="p-8 border-t border-white/5 bg-black/20 flex gap-4">
-                            <button onClick={handleCancelSubTaskForm} className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl text-white font-black uppercase tracking-widest text-xs hover:bg-white/10 transition-all active:scale-95">Cancelar</button>
-                            <button onClick={handleSaveSubTask} className="flex-[2] py-4 bg-cyan-500 hover:bg-cyan-400 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-cyan-500/20 transition-all transform hover:-translate-y-1 active:scale-95">Salvar Etapa do Fluxo</button>
+                            {/* Footer */}
+                            <div className="p-8 border-t border-white/5 bg-black/20 flex gap-4">
+                                <button onClick={handleCancelSubTaskForm} className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl text-white font-black uppercase tracking-widest text-xs hover:bg-white/10 transition-all active:scale-95">Cancelar</button>
+                                <button onClick={handleSaveSubTask} className="flex-[2] py-4 bg-cyan-500 hover:bg-cyan-400 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-cyan-500/20 transition-all transform hover:-translate-y-1 active:scale-95">Salvar Etapa do Fluxo</button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };
 

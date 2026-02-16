@@ -9,6 +9,7 @@ import ScheduleIcon from './icons/ScheduleIcon';
 import ManagementIcon from './icons/ManagementIcon';
 import LeanIcon from './icons/LeanIcon';
 import LeanConstructionIcon from './icons/LeanConstructionIcon';
+import TvIcon from './icons/TvIcon';
 import XIcon from './icons/XIcon';
 import UserManagementModal from './UserManagementModal';
 import Toast from './Toast';
@@ -24,6 +25,7 @@ interface HeaderProps {
   onNavigateToAnalysis?: () => void;
   onNavigateToLean?: () => void;
   onNavigateToLeanConstruction?: () => void;
+  onNavigateToWarRoom?: () => void;
   onNavigateToCost?: () => void;
   onUpgradeClick?: () => void;
   activeScreen?: string;
@@ -40,6 +42,7 @@ const Header: React.FC<HeaderProps> = ({
   onNavigateToAnalysis,
   onNavigateToLean,
   onNavigateToLeanConstruction,
+  onNavigateToWarRoom,
   onNavigateToCost,
   onUpgradeClick,
   activeScreen = 'dashboard'
@@ -64,6 +67,7 @@ const Header: React.FC<HeaderProps> = ({
     { id: 'management', label: 'Painel Gerencial', icon: <ManagementIcon className="w-5 h-5" />, onClick: onNavigateToAnalysis, show: showFullMenu },
     { id: 'lean', label: 'Sistema LPS', icon: <LeanIcon className="w-5 h-5" />, onClick: onNavigateToLean, show: showFullMenu },
     { id: 'leanConstruction', label: 'Lean Construction', icon: <LeanConstructionIcon className="w-5 h-5 text-cyan-400" />, onClick: onNavigateToLeanConstruction, show: showFullMenu },
+    { id: 'warRoom', label: 'War Room (TV)', icon: <TvIcon className="w-5 h-5 text-red-500" />, onClick: onNavigateToWarRoom, show: true },
   ];
 
   const handleMenuClick = (onClick?: () => void) => {

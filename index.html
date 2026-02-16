@@ -330,6 +330,10 @@
             'shimmer': 'shimmer 2.5s linear infinite',
             'indeterminate': 'indeterminate 2s infinite ease-in-out',
             'blink': 'blink 2s infinite',
+            'marquee-ltr': 'marquee-ltr 60s linear infinite',
+            'fade-in-up': 'fade-in-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            'float': 'float 6s ease-in-out infinite',
+            'gradient-xy': 'gradient-xy 15s ease infinite',
           },
           keyframes: {
             fadeIn: {
@@ -356,10 +360,32 @@
               '0%': { transform: 'translateX(-100%) scaleX(0.2)' },
               '50%': { transform: 'translateX(0%) scaleX(0.5)' },
               '100%': { transform: 'translateX(100%) scaleX(0.2)' }
+            },
+            'marquee-ltr': {
+              '0%': { transform: 'translateX(-100%)' },
+              '100%': { transform: 'translateX(100%)' }
+            },
+            'fade-in-up': {
+              '0%': { opacity: '0', transform: 'translateY(20px) scale(0.98)' },
+              '100%': { opacity: '1', transform: 'translateY(0) scale(1)' }
+            },
+            'float': {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-20px)' }
+            },
+            'gradient-xy': {
+              '0%, 100%': {
+                'background-size': '400% 400%',
+                'background-position': 'left center'
+              },
+              '50%': {
+                'background-size': '200% 200%',
+                'background-position': 'right center'
+              }
             }
           },
         },
-      },
+      }
     }
   </script>
   <link rel="stylesheet" href="/index.css">

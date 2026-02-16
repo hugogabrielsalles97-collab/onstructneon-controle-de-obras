@@ -10,6 +10,7 @@ import CurrentSchedulePage from './components/CurrentSchedulePage';
 import ManagementPage from './components/ManagementPage';
 import LeanPage from './components/LeanPage';
 import LeanConstructionPage from './components/LeanConstructionPage';
+import WarRoomPage from './components/WarRoomPage';
 import RestrictionsAnalysisPage from './components/RestrictionsAnalysisPage';
 import CostPage from './components/CostPage';
 import TaskModal from './components/TaskModal';
@@ -22,7 +23,7 @@ import { Task, Restriction } from './types';
 import { DataProvider, useData } from './context/DataProvider';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
-type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'restrictions' | 'cost';
+type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'warRoom' | 'restrictions' | 'cost';
 
 const AppContent: React.FC = () => {
   const {
@@ -182,6 +183,7 @@ Por favor, acesse o aplicativo para mais detalhes.
       onNavigateToAnalysis: () => setScreen('management'),
       onNavigateToLean: () => setScreen('lean'),
       onNavigateToLeanConstruction: () => setScreen('leanConstruction'),
+      onNavigateToWarRoom: () => setScreen('warRoom'),
       onNavigateToCost: () => setScreen('cost'),
       onUpgradeClick: () => setIsUpgradeModalOpen(true),
       onNavigateToHome: handleNavigateToHome,
@@ -202,6 +204,7 @@ Por favor, acesse o aplicativo para mais detalhes.
       case 'currentSchedule': return <CurrentSchedulePage {...navigationProps} showToast={showToast} />;
       case 'management': return <ManagementPage {...navigationProps} showToast={showToast} />;
       case 'leanConstruction': return <LeanConstructionPage {...navigationProps} showToast={showToast} />;
+      case 'warRoom': return <WarRoomPage onNavigateToHome={() => setScreen('dashboard')} />;
       case 'cost': return (
         <CostPage
           {...navigationProps}
@@ -268,7 +271,7 @@ Por favor, acesse o aplicativo para mais detalhes.
           tasks={tasks}
         />
       )}
-      {currentUser && (
+      {currentUser && !isLoading && screen !== 'warRoom' && (
         <AIAssistant
           tasks={tasks}
           baselineTasks={baselineTasks}

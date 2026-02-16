@@ -6,6 +6,7 @@ import XIcon from './icons/XIcon';
 import DeleteIcon from './icons/DeleteIcon';
 import EditIcon from './icons/EditIcon';
 import CheckIcon from './icons/CheckIcon';
+import ConfirmModal from './ConfirmModal';
 
 interface UserManagementModalProps {
     onClose: () => void;
@@ -17,6 +18,8 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ onClose, show
     const [editingUserId, setEditingUserId] = useState<string | null>(null);
     const [editForm, setEditForm] = useState<Partial<User>>({});
     const [searchTerm, setSearchTerm] = useState('');
+    const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; userId: string | null }>({ isOpen: false, userId: null });
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const handleEditClick = (user: User) => {
         setEditingUserId(user.id);
@@ -43,15 +46,21 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ onClose, show
         }
     };
 
-    const handleDeleteClick = async (userId: string) => {
-        if (window.confirm('Tem certeza que deseja remover este usuário? Esta ação não pode ser desfeita.')) {
-            const { success, error } = await deleteUser(userId);
-            if (success) {
-                showToast('Usuário removido.', 'success');
-            } else {
-                showToast(`Erro ao remover: ${error}`, 'error');
-            }
+    const handleDeleteClick = (userId: string) => {
+        setConfirmModal({ isOpen: true, userId });
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!confirmModal.userId) return;
+        setIsDeleting(true);
+        const { success, error } = await deleteUser(confirmModal.userId);
+        if (success) {
+            showToast('Usuário removido.', 'success');
+            setConfirmModal({ isOpen: false, userId: null });
+        } else {
+            showToast(`Erro ao remover: ${error}`, 'error');
         }
+        setIsDeleting(false);
     };
 
     const filteredUsers = allUsers.filter(u =>
@@ -139,8 +148,8 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ onClose, show
                                             </div>
                                             <div className="flex items-center gap-6">
                                                 <span className={`px-3 py-1 rounded-full text-xs font-bold border ${user.role === 'Master' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
-                                                        user.role === 'Gerenciador' ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' :
-                                                            'bg-gray-500/10 text-gray-400 border-gray-500/20'
+                                                    user.role === 'Gerenciador' ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' :
+                                                        'bg-gray-500/10 text-gray-400 border-gray-500/20'
                                                     }`}>
                                                     {user.role}
                                                 </span>
@@ -163,6 +172,18 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ onClose, show
                     <p className="text-[10px] text-gray-500">Total de usuários: {allUsers.length}</p>
                 </div>
             </div>
+
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                onConfirm={handleConfirmDelete}
+                title="Remover Usuário"
+                message="Tem certeza que deseja remover este usuário? Esta ação não pode ser desfeita."
+                confirmText="Sim, Remover"
+                cancelText="Cancelar"
+                type="danger"
+                isLoading={isDeleting}
+            />
         </div>
     );
 };

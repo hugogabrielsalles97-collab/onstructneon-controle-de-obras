@@ -9,6 +9,8 @@ import LightbulbIcon from './icons/LightbulbIcon';
 import SparkleIcon from './icons/SparkleIcon';
 import XIcon from './icons/XIcon';
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import ConfirmModal from './ConfirmModal';
+import RestrictionsRadarChart from './RestrictionsRadarChart';
 
 interface RestrictionsAnalysisPageProps {
     user: User;
@@ -60,6 +62,8 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
     const [actionType, setActionType] = useState<'start' | 'resolve' | null>(null);
     const [actionDate, setActionDate] = useState('');
     const [filterLookahead, setFilterLookahead] = useState<'all' | '4weeks' | '12weeks'>('all');
+    const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; id: string | null }>({ isOpen: false, id: null });
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Análise de restrições
     const analysis = useMemo(() => {
@@ -287,6 +291,18 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
         }
     };
 
+    const handleDeleteClick = (id: string) => {
+        setDeleteConfirm({ isOpen: true, id });
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deleteConfirm.id) return;
+        setIsDeleting(true);
+        await onDeleteRestriction(deleteConfirm.id);
+        setIsDeleting(false);
+        setDeleteConfirm({ isOpen: false, id: null });
+    };
+
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('pt-BR', {
             day: '2-digit',
@@ -424,18 +440,24 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                             </div>
                         )}
 
-                        {/* Distribuição por Tipo */}
+                        {/* Distribuição por Tipo e Radar de Impacto */}
                         {analysis.byType.length > 0 && (
-                            <div className="bg-[#111827] p-6 rounded-2xl border border-white/5">
-                                <h3 className="text-sm font-black text-white uppercase tracking-widest mb-4">Restrições Ativas por Tipo</h3>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                    {analysis.byType.map(item => (
-                                        <div key={item.type} className="bg-brand-dark/50 p-3 rounded-lg border border-white/5">
-                                            <p className="text-xs text-brand-med-gray mb-1">{item.type}</p>
-                                            <p className="text-2xl font-black text-white">{item.count}</p>
-                                        </div>
-                                    ))}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+                                {/* Cards de Distribuição */}
+                                <div className="bg-[#111827] p-6 rounded-2xl border border-white/5 flex flex-col">
+                                    <h3 className="text-sm font-black text-white uppercase tracking-widest mb-4">Restrições Ativas por Tipo</h3>
+                                    <div className="grid grid-cols-2 gap-3 flex-1 content-start">
+                                        {analysis.byType.map(item => (
+                                            <div key={item.type} className="bg-brand-dark/50 p-4 rounded-xl border border-white/5 hover:bg-brand-dark transition-colors group">
+                                                <p className="text-xs text-brand-med-gray mb-1 group-hover:text-white transition-colors uppercase font-bold tracking-wider">{item.type}</p>
+                                                <p className="text-3xl font-black text-white group-hover:text-brand-accent transition-colors">{item.count}</p>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
+
+                                {/* Radar Chart */}
+                                <RestrictionsRadarChart restrictions={restrictions} />
                             </div>
                         )}
 
@@ -732,7 +754,7 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                                                 )}
                                                 {(user.role === 'Master' || user.role === 'Planejador') && (
                                                     <button
-                                                        onClick={() => onDeleteRestriction(restriction.id)}
+                                                        onClick={() => handleDeleteClick(restriction.id)}
                                                         className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-all font-bold text-xs border border-red-500/30"
                                                     >
                                                         Excluir
@@ -747,6 +769,18 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                     </div>
                 </div>
             </main>
+
+            <ConfirmModal
+                isOpen={deleteConfirm.isOpen}
+                onClose={() => setDeleteConfirm({ ...deleteConfirm, isOpen: false })}
+                onConfirm={handleConfirmDelete}
+                title="Excluir Restrição"
+                message="Tem certeza que deseja excluir esta restrição? Esta ação não pode ser desfeita."
+                confirmText="Sim, Excluir"
+                cancelText="Cancelar"
+                type="danger"
+                isLoading={isDeleting}
+            />
 
             {/* Modal de Ação (Iniciar / Resolver) - Premium Glass Design */}
             {selectedRestriction && actionType && (

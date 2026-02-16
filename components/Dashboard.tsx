@@ -19,6 +19,7 @@ import Sidebar from './Sidebar';
 import FilterInput from './ui/FilterInput';
 import FilterSelect from './ui/FilterSelect';
 import AlertIcon from './icons/AlertIcon';
+import ConfirmModal from './ConfirmModal';
 
 type SortKey = keyof Task | 'none';
 type SortDirection = 'asc' | 'desc';
@@ -35,6 +36,7 @@ interface DashboardProps {
   onNavigateToAnalysis: () => void;
   onNavigateToLean: () => void;
   onNavigateToLeanConstruction: () => void;
+  onNavigateToWarRoom: () => void;
   onNavigateToCost: () => void;
   onUpgradeClick: () => void;
   showToast: (message: string, type: 'success' | 'error') => void;
@@ -52,7 +54,7 @@ const initialFilters = {
   endDate: '',
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToHome, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToCost, onUpgradeClick, showToast }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToHome, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToCost, onUpgradeClick, showToast }) => {
   const { currentUser: user, tasks, baselineTasks, signOut, deleteTask } = useData();
   const [filters, setFilters] = useState(initialFilters);
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'dueDate', direction: 'asc' });
@@ -68,12 +70,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
   };
 
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const confirmDelete = async () => {
     if (!taskToDelete) return;
+    setIsDeleting(true);
     const { success, error } = await deleteTask(taskToDelete);
     if (success) showToast('Tarefa deletada.', 'success');
     else if (error) showToast(`Erro ao deletar tarefa: ${error}`, 'error');
+    setIsDeleting(false);
     setTaskToDelete(null);
   };
 
@@ -200,6 +205,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
         onNavigateToAnalysis={onNavigateToAnalysis}
         onNavigateToLean={onNavigateToLean}
         onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+        onNavigateToWarRoom={onNavigateToWarRoom}
         onUpgradeClick={onUpgradeClick}
       />
 
@@ -216,6 +222,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
           onNavigateToAnalysis={onNavigateToAnalysis}
           onNavigateToLean={onNavigateToLean}
           onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+          onNavigateToWarRoom={onNavigateToWarRoom}
           onNavigateToCost={onNavigateToCost}
           onUpgradeClick={onUpgradeClick}
           activeScreen="dashboard"
@@ -310,39 +317,18 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
       </main>
 
       {/* Delete Confirmation Modal */}
-      {taskToDelete && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
-            onClick={() => setTaskToDelete(null)}
-          ></div>
-          <div className="relative bg-[#0a0f18] rounded-xl border border-red-500/20 shadow-2xl shadow-red-500/10 w-full max-w-sm p-6 overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="flex flex-col items-center text-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
-                <AlertIcon className="w-6 h-6 text-red-500" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-lg font-bold text-white">Excluir Tarefa?</h3>
-                <p className="text-sm text-gray-400">Essa ação não pode ser desfeita. A tarefa será removida permanentemente.</p>
-              </div>
-              <div className="flex items-center gap-3 w-full mt-2">
-                <button
-                  onClick={() => setTaskToDelete(null)}
-                  className="flex-1 px-4 py-2 rounded-lg border border-white/10 text-white hover:bg-white/5 transition-colors text-sm font-medium"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={confirmDelete}
-                  className="flex-1 px-4 py-2 rounded-lg bg-red-500/20 border border-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors text-sm font-bold flex items-center justify-center gap-2"
-                >
-                  <span>Excluir</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!taskToDelete}
+        onClose={() => setTaskToDelete(null)}
+        onConfirm={confirmDelete}
+        title="Excluir Tarefa?"
+        message="Essa ação não pode ser desfeita. A tarefa será removida permanentemente."
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        type="danger"
+        isLoading={isDeleting}
+      />
     </div>
   );
 };
