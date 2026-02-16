@@ -11,6 +11,7 @@ import XIcon from './icons/XIcon';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import ConfirmModal from './ConfirmModal';
 import RestrictionsRadarChart from './RestrictionsRadarChart';
+import AIRestrictedAccess from './AIRestrictedAccess';
 
 interface RestrictionsAnalysisPageProps {
     user: User;
@@ -230,7 +231,9 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
     const handleGenerateAI = async () => {
         const canUseAI = user.role === 'Master' || user.role === 'Gerenciador';
         if (!canUseAI) {
-            alert('Upgrade necessário para usar IA.');
+            setShowAIModal(true);
+            setAiInsight(null);
+            setIsGeneratingAI(false);
             return;
         }
         setIsGeneratingAI(true);
@@ -922,7 +925,16 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
 
                         {/* Conteúdo do Insight */}
                         <div className="flex-1 overflow-y-auto p-8 bg-[#0a0f18]/50 scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-brand-accent/50 scrollbar-track-transparent">
-                            {isGeneratingAI ? (
+                            {!(user.role === 'Master' || user.role === 'Gerenciador') ? (
+                                <AIRestrictedAccess
+                                    featureName="Consultoria Lean IA"
+                                    onUpgradeClick={() => {
+                                        setShowAIModal(false);
+                                        onUpgradeClick();
+                                    }}
+                                    description="A Consultoria Lean IA analisa todas as restrições ativas, cruzando prazos e responsabilidades para sugerir estratégias de resolução rápida. Disponível para Gerenciador e Master."
+                                />
+                            ) : isGeneratingAI ? (
                                 <div className="flex flex-col items-center justify-center h-80 space-y-8 animate-fade-in">
                                     <div className="relative">
                                         <div className="absolute inset-0 bg-brand-accent blur-3xl opacity-20 animate-pulse"></div>

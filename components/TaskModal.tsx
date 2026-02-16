@@ -9,6 +9,8 @@ import SafetyAnalysisIcon from './icons/SafetyAnalysisIcon';
 import ConstructionIcon from './icons/ConstructionIcon';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { disciplineOptions, taskTitleOptions, oaeLocations, frentes, apoios, vaos, unitOptions } from '../utils/constants';
+import AIRestrictedAccess from './AIRestrictedAccess';
+import ConfirmModal from './ConfirmModal';
 
 
 interface TaskModalProps {
@@ -20,6 +22,7 @@ interface TaskModalProps {
     baselineTasks: Task[];
     user: User;
     allUsers: User[];
+    onUpgradeClick: () => void;
 }
 
 type ResourceField = 'plannedManpower' | 'plannedMachinery' | 'actualManpower' | 'actualMachinery';
@@ -97,7 +100,7 @@ const ResourceSection: React.FC<{
     );
 };
 
-const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, tasks, baselineTasks, user, allUsers }) => {
+const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, tasks, baselineTasks, user, allUsers, onUpgradeClick }) => {
     const getInitialFormData = (): Omit<Task, 'id' | 'status'> => {
         const today = new Date().toISOString().split('T')[0];
         return {
@@ -135,6 +138,21 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
     const [actualWeather, setActualWeather] = useState<string | null>(null);
     const [isFetchingPlannedWeather, setIsFetchingPlannedWeather] = useState(false);
     const [isFetchingActualWeather, setIsFetchingActualWeather] = useState(false);
+    const [showAIRestricted, setShowAIRestricted] = useState(false);
+    const [aiFeatureName, setAiFeatureName] = useState('');
+    const [aiFeatureDesc, setAiFeatureDesc] = useState('');
+
+
+
+    const checkAIRestriction = (name: string, desc: string) => {
+        if (!canUseAI) {
+            setAiFeatureName(name);
+            setAiFeatureDesc(desc);
+            setShowAIRestricted(true);
+            return true;
+        }
+        return false;
+    };
     const [analyzingPhotoIndex, setAnalyzingPhotoIndex] = useState<number | null>(null);
     const [safetyAnalysisResult, setSafetyAnalysisResult] = useState<{ status: 'idle' | 'safe' | 'risk'; message: string }>({ status: 'idle', message: '' });
 
@@ -316,6 +334,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
     };
 
     const handleAIAssist = async () => {
+        if (checkAIRestriction("Gerador de Observações IA", "O Gerador Assistido por IA utiliza modelos de linguagem para analisar o progresso da tarefa e sugerir observações técnicas para o RDO.")) return;
         setIsAnalyzing(true);
         try {
             const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY);
@@ -369,6 +388,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             alert("Nenhuma linha de base disponível para comparação.");
             return;
         }
+        if (checkAIRestriction("Mapeamento de Linha de Base IA", "Esta funcionalidade utiliza IA para vincular automaticamente sua tarefa de execução a um item da macro-estrutura da Linha de Base.")) return;
 
         setIsMappingBaseline(true);
         try {
@@ -412,6 +432,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
     };
 
     const handleAnalyzeSafety = async (photoBase64: string, index: number) => {
+        if (checkAIRestriction("Análise de Segurança IA", "O Hugo analisa suas fotos de obra em busca de riscos de segurança, falta de EPIs ou desorganização do canteiro.")) return;
         setAnalyzingPhotoIndex(index);
         setSafetyAnalysisResult({ status: 'idle', message: '' });
         try {
@@ -461,6 +482,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
 
     const handleFetchPlannedWeather = async () => {
         if (!formData.startDate || !formData.dueDate) return;
+        if (checkAIRestriction("Predição Meteorológica IA", "Utiliza modelos de IA para cruzar dados climáticos e prever impactos na execução dos serviços planejados.")) return;
         setIsFetchingPlannedWeather(true);
         setPlannedWeather(null);
         const weather = await fetchWeather(formData.location, formData.startDate, formData.dueDate, true);
@@ -470,6 +492,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
 
     const handleFetchActualWeather = async () => {
         if (!formData.actualStartDate) return;
+        if (checkAIRestriction("Análise Meteorológica Realizada", "Analisa as condições climáticas históricas durante a execução para justificar eventuais atrasos ou improdutividades.")) return;
         setIsFetchingActualWeather(true);
         setActualWeather(null);
         const weather = await fetchWeather(formData.location, formData.actualStartDate, formData.actualEndDate || formData.actualStartDate, false);
@@ -942,6 +965,31 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                     </div>
                 </div>
             </div>
+
+            {/* Modal de Restrição de IA */}
+            {showAIRestricted && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
+                        onClick={() => setShowAIRestricted(false)}
+                    ></div>
+                    <div className="relative bg-[#0a0f18]/90 backdrop-blur-xl w-full max-w-lg rounded-2xl border border-white/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300">
+                        <div className="p-2 flex justify-end">
+                            <button onClick={() => setShowAIRestricted(false)} className="p-2 text-gray-500 hover:text-white transition-colors">
+                                <XIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <AIRestrictedAccess
+                            featureName={aiFeatureName}
+                            onUpgradeClick={() => {
+                                setShowAIRestricted(false);
+                                onUpgradeClick();
+                            }}
+                            description={aiFeatureDesc}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

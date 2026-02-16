@@ -5,6 +5,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import XIcon from './icons/XIcon';
 import SendIcon from './icons/SendIcon';
 import LightbulbIcon from './icons/LightbulbIcon';
+import AIRestrictedAccess from './AIRestrictedAccess';
 
 interface AIAssistantProps {
   tasks: Task[];
@@ -13,6 +14,7 @@ interface AIAssistantProps {
   costItems?: any[];
   measurements?: any[];
   cashFlow?: any[];
+  onUpgradeClick: () => void;
 }
 
 interface Message {
@@ -20,7 +22,7 @@ interface Message {
   text: string;
 }
 
-const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks, activeScreen, costItems = [], measurements = [], cashFlow = [] }) => {
+const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks, activeScreen, costItems = [], measurements = [], cashFlow = [], onUpgradeClick }) => {
   const isCostModule = activeScreen === 'cost';
   const { currentUser: user, isDevToolsOpen, setIsDevToolsOpen } = useData();
   const [isOpen, setIsOpen] = useState(false);
@@ -195,63 +197,76 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks, activeS
             </button>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 p-5 overflow-y-auto space-y-5 scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-brand-accent/50 scrollbar-track-transparent">
-            <div className="text-center my-2 opacity-50">
-              <span className="text-[10px] text-gray-400 font-mono uppercase tracking-widest">— Hoje —</span>
+          {/* Messages or Restricted Access */}
+          {!canUseAI ? (
+            <div className="flex-1 flex flex-col pt-10">
+              <AIRestrictedAccess
+                featureName="Hugo AI"
+                onUpgradeClick={onUpgradeClick}
+                description="O Assistente Hugo utiliza modelos avançados de IA para responder suas dúvidas sobre a obra. Disponível apenas para Gerenciador e Master."
+              />
             </div>
+          ) : (
+            <>
+              {/* Messages */}
+              <div className="flex-1 p-5 overflow-y-auto space-y-5 scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-brand-accent/50 scrollbar-track-transparent">
+                <div className="text-center my-2 opacity-50">
+                  <span className="text-[10px] text-gray-400 font-mono uppercase tracking-widest">— Hoje —</span>
+                </div>
 
-            {messages.map((msg, index) => (
-              <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}>
-                {msg.sender === 'ai' && (
-                  <div className="w-8 h-8 rounded-full bg-[#1f2937] flex items-center justify-center mr-3 flex-shrink-0 border border-white/5 shadow-sm self-end mb-1">
-                    <span className={`text-xs font-bold ${isCostModule ? 'text-green-500' : 'text-brand-accent'}`}>H</span>
+                {messages.map((msg, index) => (
+                  <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}>
+                    {msg.sender === 'ai' && (
+                      <div className="w-8 h-8 rounded-full bg-[#1f2937] flex items-center justify-center mr-3 flex-shrink-0 border border-white/5 shadow-sm self-end mb-1">
+                        <span className={`text-xs font-bold ${isCostModule ? 'text-green-500' : 'text-brand-accent'}`}>H</span>
+                      </div>
+                    )}
+                    <div className={`max-w-[85%] p-4 text-sm shadow-lg backdrop-blur-sm ${msg.sender === 'user'
+                      ? `bg-gradient-to-br ${isCostModule ? 'from-green-600 to-green-800' : 'from-brand-accent to-[#c2410c]'} text-white rounded-2xl rounded-tr-sm border ${isCostModule ? 'border-green-500/20' : 'border-orange-500/20'}`
+                      : 'bg-[#1f2937]/80 border border-white/5 text-gray-200 rounded-2xl rounded-tl-sm'
+                      }`}>
+                      <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                    </div>
+                  </div>
+                ))}
+
+                {isLoading && (
+                  <div className="flex justify-start animate-fade-in pl-11">
+                    <div className="bg-[#1f2937]/50 border border-white/5 rounded-2xl rounded-tl-sm px-4 py-3 flex gap-1.5 items-center w-fit">
+                      <div className={`w-1.5 h-1.5 ${isCostModule ? 'bg-green-500/60' : 'bg-brand-accent/60'} rounded-full animate-bounce`} style={{ animationDelay: '0ms' }}></div>
+                      <div className={`w-1.5 h-1.5 ${isCostModule ? 'bg-green-500/60' : 'bg-brand-accent/60'} rounded-full animate-bounce`} style={{ animationDelay: '150ms' }}></div>
+                      <div className={`w-1.5 h-1.5 ${isCostModule ? 'bg-green-500/60' : 'bg-brand-accent/60'} rounded-full animate-bounce`} style={{ animationDelay: '300ms' }}></div>
+                    </div>
                   </div>
                 )}
-                <div className={`max-w-[85%] p-4 text-sm shadow-lg backdrop-blur-sm ${msg.sender === 'user'
-                  ? `bg-gradient-to-br ${isCostModule ? 'from-green-600 to-green-800' : 'from-brand-accent to-[#c2410c]'} text-white rounded-2xl rounded-tr-sm border ${isCostModule ? 'border-green-500/20' : 'border-orange-500/20'}`
-                  : 'bg-[#1f2937]/80 border border-white/5 text-gray-200 rounded-2xl rounded-tl-sm'
-                  }`}>
-                  <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
-                </div>
+                <div ref={messagesEndRef} />
               </div>
-            ))}
 
-            {isLoading && (
-              <div className="flex justify-start animate-fade-in pl-11">
-                <div className="bg-[#1f2937]/50 border border-white/5 rounded-2xl rounded-tl-sm px-4 py-3 flex gap-1.5 items-center w-fit">
-                  <div className={`w-1.5 h-1.5 ${isCostModule ? 'bg-green-500/60' : 'bg-brand-accent/60'} rounded-full animate-bounce`} style={{ animationDelay: '0ms' }}></div>
-                  <div className={`w-1.5 h-1.5 ${isCostModule ? 'bg-green-500/60' : 'bg-brand-accent/60'} rounded-full animate-bounce`} style={{ animationDelay: '150ms' }}></div>
-                  <div className={`w-1.5 h-1.5 ${isCostModule ? 'bg-green-500/60' : 'bg-brand-accent/60'} rounded-full animate-bounce`} style={{ animationDelay: '300ms' }}></div>
-                </div>
+              {/* Input Area */}
+              <div className="p-4 bg-[#05080f]/80 backdrop-blur-md border-t border-white/5 relative z-20">
+                <form onSubmit={handleSend} className="relative flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={userInput}
+                    onChange={(e) => setUserInput(e.target.value)}
+                    placeholder="Pergunte sobre sua obra..."
+                    className={`w-full bg-[#111827] text-white text-sm rounded-xl pl-5 pr-12 py-4 border border-white/5 ${isCostModule ? 'focus:border-green-500/50 focus:ring-green-500/50' : 'focus:border-brand-accent/50 focus:ring-brand-accent/50'} focus:outline-none transition-all placeholder-gray-600 shadow-inner font-light`}
+                    disabled={isLoading}
+                  />
+                  <button
+                    type="submit"
+                    disabled={isLoading || !userInput.trim()}
+                    className={`absolute right-2 p-2.5 ${isCostModule ? 'bg-green-600 shadow-green-600/20 hover:bg-green-500' : 'bg-brand-accent shadow-brand-accent/20 hover:bg-orange-600'} rounded-lg text-white shadow-lg hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all duration-200 group`}
+                  >
+                    <SendIcon className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </button>
+                </form>
+                <p className="text-[10px] text-gray-600 text-center mt-3 font-mono">
+                  Hugo AI powered by Lean Solution
+                </p>
               </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Input Area */}
-          <div className="p-4 bg-[#05080f]/80 backdrop-blur-md border-t border-white/5 relative z-20">
-            <form onSubmit={handleSend} className="relative flex items-center gap-2">
-              <input
-                type="text"
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                placeholder="Pergunte sobre sua obra..."
-                className={`w-full bg-[#111827] text-white text-sm rounded-xl pl-5 pr-12 py-4 border border-white/5 ${isCostModule ? 'focus:border-green-500/50 focus:ring-green-500/50' : 'focus:border-brand-accent/50 focus:ring-brand-accent/50'} focus:outline-none transition-all placeholder-gray-600 shadow-inner font-light`}
-                disabled={isLoading}
-              />
-              <button
-                type="submit"
-                disabled={isLoading || !userInput.trim()}
-                className={`absolute right-2 p-2.5 ${isCostModule ? 'bg-green-600 shadow-green-600/20 hover:bg-green-500' : 'bg-brand-accent shadow-brand-accent/20 hover:bg-orange-600'} rounded-lg text-white shadow-lg hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all duration-200 group`}
-              >
-                <SendIcon className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-              </button>
-            </form>
-            <p className="text-[10px] text-gray-600 text-center mt-3 font-mono">
-              Hugo AI powered by Lean Solution
-            </p>
-          </div>
+            </>
+          )}
         </div>
       </div>
     </>

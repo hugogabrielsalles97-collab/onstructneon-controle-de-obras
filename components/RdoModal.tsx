@@ -4,14 +4,16 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { useData } from '../context/DataProvider';
 import XIcon from './icons/XIcon';
 import SparkleIcon from './icons/SparkleIcon';
+import AIRestrictedAccess from './AIRestrictedAccess';
 
 interface RdoModalProps {
     isOpen: boolean;
     onClose: () => void;
     tasks: Task[];
+    onUpgradeClick: () => void;
 }
 
-const RdoModal: React.FC<RdoModalProps> = ({ isOpen, onClose, tasks }) => {
+const RdoModal: React.FC<RdoModalProps> = ({ isOpen, onClose, tasks, onUpgradeClick }) => {
     const { currentUser: user } = useData();
     const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
     const [generatedReport, setGeneratedReport] = useState('');
@@ -24,7 +26,7 @@ const RdoModal: React.FC<RdoModalProps> = ({ isOpen, onClose, tasks }) => {
     const handleGenerate = async () => {
         const canUseAI = user?.role === 'Master' || user?.role === 'Gerenciador';
         if (!canUseAI) {
-            alert('Upgrade necessário para usar IA.');
+            setGeneratedReport(''); // Clear any previous report
             return;
         }
         setIsGenerating(true);
@@ -166,8 +168,8 @@ const RdoModal: React.FC<RdoModalProps> = ({ isOpen, onClose, tasks }) => {
                             onClick={handleGenerate}
                             disabled={isGenerating}
                             className={`w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 whitespace-nowrap overflow-hidden relative group ${isGenerating
-                                    ? 'bg-brand-accent/50 cursor-not-allowed'
-                                    : 'bg-brand-accent hover:bg-orange-600 hover:scale-[1.02] active:scale-[0.98] shadow-brand-accent/20'
+                                ? 'bg-brand-accent/50 cursor-not-allowed'
+                                : 'bg-brand-accent hover:bg-orange-600 hover:scale-[1.02] active:scale-[0.98] shadow-brand-accent/20'
                                 }`}
                         >
                             {isGenerating && (
@@ -211,23 +213,38 @@ const RdoModal: React.FC<RdoModalProps> = ({ isOpen, onClose, tasks }) => {
                             )}
                         </div>
 
-                        <div className="relative flex-1">
-                            {isGenerating && (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0f18]/80 backdrop-blur-[1px] rounded-xl z-20 border border-white/5">
-                                    <div className="relative mb-4">
-                                        <div className="absolute inset-0 bg-brand-accent blur-xl opacity-20 animate-pulse"></div>
-                                        <div className="w-12 h-12 border-2 border-brand-accent border-t-transparent rounded-full animate-spin"></div>
-                                    </div>
-                                    <p className="text-sm text-brand-med-gray font-mono animate-pulse">Analisando dados da obra...</p>
+                        <div className="relative flex-1 min-h-[320px] flex flex-col">
+                            {!(user?.role === 'Master' || user?.role === 'Gerenciador') ? (
+                                <div className="bg-[#05080f] rounded-xl flex items-center justify-center border border-white/5 p-4 flex-1">
+                                    <AIRestrictedAccess
+                                        featureName="Gerador de RDO IA"
+                                        onUpgradeClick={() => {
+                                            onClose();
+                                            onUpgradeClick();
+                                        }}
+                                        description="O Gerador de RDO utiliza inteligência artificial para consolidar todas as atividades do dia em um documento técnico e formal. Disponível para Gerenciador e Master."
+                                    />
                                 </div>
-                            )}
+                            ) : (
+                                <>
+                                    {isGenerating && (
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0f18]/80 backdrop-blur-[1px] rounded-xl z-20 border border-white/5">
+                                            <div className="relative mb-4">
+                                                <div className="absolute inset-0 bg-brand-accent blur-xl opacity-20 animate-pulse"></div>
+                                                <div className="w-12 h-12 border-2 border-brand-accent border-t-transparent rounded-full animate-spin"></div>
+                                            </div>
+                                            <p className="text-sm text-brand-med-gray font-mono animate-pulse">Analisando dados da obra...</p>
+                                        </div>
+                                    )}
 
-                            <textarea
-                                value={generatedReport}
-                                readOnly
-                                placeholder="O relatório detalhado gerado pela IA aparecerá aqui..."
-                                className="w-full h-full min-h-[320px] bg-[#05080f] text-gray-300 rounded-xl p-5 border border-white/5 focus:border-brand-accent/30 focus:outline-none resize-none font-mono text-xs sm:text-sm leading-relaxed shadow-inner scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-brand-accent/30"
-                            />
+                                    <textarea
+                                        value={generatedReport}
+                                        readOnly
+                                        placeholder="O relatório detalhado gerado pela IA aparecerá aqui..."
+                                        className="w-full h-full min-h-[320px] bg-[#05080f] text-gray-300 rounded-xl p-5 border border-white/5 focus:border-brand-accent/30 focus:outline-none resize-none font-mono text-xs sm:text-sm leading-relaxed shadow-inner scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-brand-accent/30"
+                                    />
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>

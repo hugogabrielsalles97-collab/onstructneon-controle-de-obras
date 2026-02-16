@@ -10,6 +10,7 @@ import XIcon from './icons/XIcon';
 import ConstructionIcon from './icons/ConstructionIcon';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import ConfirmModal from './ConfirmModal';
+import AIRestrictedAccess from './AIRestrictedAccess';
 
 interface LeanConstructionPageProps {
     onNavigateToDashboard: () => void;
@@ -102,6 +103,11 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
 
     const handleGenerateAISuggestion = async () => {
         if (!selectedTask) return;
+        const canUseAI = user.role === 'Master' || user.role === 'Gerenciador';
+        if (!canUseAI) {
+            onUpgradeClick();
+            return;
+        }
         setIsAnalyzing(true);
         try {
             const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY);
@@ -561,8 +567,14 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                             </div>
 
                                             {/* Content */}
-                                            <div className="p-6 space-y-5 max-h-[400px] overflow-y-auto custom-scrollbar">
-                                                {selectedTask.aiSuggestions && selectedTask.aiSuggestions.length > 0 ? (
+                                            <div className="p-6 space-y-5 max-h-[400px] overflow-y-auto custom-scrollbar flex flex-col">
+                                                {!(user.role === 'Master' || user.role === 'Gerenciador') ? (
+                                                    <AIRestrictedAccess
+                                                        featureName="Hugo AI"
+                                                        onUpgradeClick={onUpgradeClick}
+                                                        description="O Hugo AI analisa os dados de produção e o fluxo de subtarefas para sugerir melhorias no RUP. Disponível para Gerenciador e Master."
+                                                    />
+                                                ) : selectedTask.aiSuggestions && selectedTask.aiSuggestions.length > 0 ? (
                                                     selectedTask.aiSuggestions.map((sug, idx) => (
                                                         <div key={idx} className="flex flex-col gap-2 animate-fade-in group">
                                                             <div className="flex items-center gap-2 mb-1 px-1">

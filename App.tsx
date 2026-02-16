@@ -265,6 +265,7 @@ Por favor, acesse o aplicativo para mais detalhes.
           baselineTasks={baselineTasks}
           user={currentUser}
           allUsers={allUsers}
+          onUpgradeClick={() => setIsUpgradeModalOpen(true)}
         />
       )}
       {isRdoModalOpen && (
@@ -272,6 +273,7 @@ Por favor, acesse o aplicativo para mais detalhes.
           isOpen={isRdoModalOpen}
           onClose={handleCloseRdoModal}
           tasks={tasks}
+          onUpgradeClick={() => setIsUpgradeModalOpen(true)}
         />
       )}
       {currentUser && !isLoading && screen !== 'warRoom' && (
@@ -282,6 +284,7 @@ Por favor, acesse o aplicativo para mais detalhes.
           costItems={costItems}
           measurements={measurements}
           cashFlow={cashFlow}
+          onUpgradeClick={() => setIsUpgradeModalOpen(true)}
         />
       )}
       {isUpgradeModalOpen && (
