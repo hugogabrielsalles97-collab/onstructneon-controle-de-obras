@@ -638,7 +638,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
             {
                 isMainFormOpen && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setIsMainFormOpen(false)}>
-                        <div className="bg-[#0a0f18]/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] w-full max-w-2xl shadow-[0_0_100px_-20px_rgba(34,211,238,0.3)] max-h-[92vh] flex flex-col overflow-hidden animate-slide-up" onClick={e => e.stopPropagation()}>
+                        <div className="bg-[#0a0f18]/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] w-full max-w-4xl shadow-[0_0_100px_-20px_rgba(34,211,238,0.3)] max-h-[92vh] flex flex-col overflow-hidden animate-slide-up" onClick={e => e.stopPropagation()}>
                             {/* Header */}
                             <div className="p-8 pb-4 flex justify-between items-center border-b border-white/5 bg-gradient-to-r from-cyan-500/5 to-transparent">
                                 <div className="flex items-center gap-4">
@@ -654,7 +654,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                             </div>
 
                             {/* Content */}
-                            <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-8 custom-scrollbar">
+                            <div className="flex-1 overflow-y-auto overflow-x-hidden p-8 pt-6 space-y-8 custom-scrollbar">
                                 <div className="space-y-6">
                                     <div className="flex items-center gap-3 mb-2">
                                         <div className="w-1.5 h-6 bg-cyan-500 rounded-full animate-pulse"></div>
@@ -733,7 +733,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
             {
                 isSubFormOpen && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={handleCancelSubTaskForm}>
-                        <div className="bg-[#0a0f18]/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] w-full max-w-3xl shadow-[0_0_100px_-20px_rgba(34,211,238,0.3)] max-h-[92vh] flex flex-col overflow-hidden animate-slide-up" onClick={e => e.stopPropagation()}>
+                        <div className="bg-[#0a0f18]/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] w-full max-w-4xl shadow-[0_0_100px_-20px_rgba(34,211,238,0.3)] max-h-[92vh] flex flex-col overflow-hidden animate-slide-up" onClick={e => e.stopPropagation()}>
                             {/* Header */}
                             <div className="p-8 pb-4 flex justify-between items-center border-b border-white/5 bg-gradient-to-r from-cyan-500/5 to-transparent">
                                 <div className="flex items-center gap-4">
@@ -749,7 +749,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                             </div>
 
                             {/* Content */}
-                            <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-10 custom-scrollbar">
+                            <div className="flex-1 overflow-y-auto overflow-x-hidden p-8 pt-6 space-y-10 custom-scrollbar">
                                 <div className="space-y-6">
                                     <div className="flex items-center justify-between mb-2">
                                         <div className="flex items-center gap-3">
@@ -767,57 +767,57 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                         </label>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        <div className="md:col-span-2 space-y-2">
+                                    <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-5">
+                                        <div className="md:col-span-4 lg:col-span-8 space-y-2">
                                             <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Descrição do Trabalho</label>
                                             <input
                                                 type="text"
-                                                className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold placeholder:text-gray-600"
+                                                className="w-full bg-[#111827]/40 border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold placeholder:text-gray-600"
                                                 value={newSubTask.description}
                                                 onChange={e => setNewSubTask({ ...newSubTask, description: e.target.value })}
                                                 placeholder="Ex: Montagem de fôrmas"
                                             />
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Volume Realizado</label>
-                                            <div className="flex gap-2">
+                                        <div className="md:col-span-2 lg:col-span-4 space-y-2">
+                                            <label className="text-[9px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Volume Realizado</label>
+                                            <div className="flex gap-1.5">
                                                 <input
                                                     type="number"
-                                                    className="flex-1 bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
+                                                    className="flex-1 min-w-0 bg-[#111827]/40 border border-white/10 rounded-xl py-3 px-3 text-sm text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
                                                     value={newSubTask.producedQuantity}
                                                     onChange={e => setNewSubTask({ ...newSubTask, producedQuantity: Number(e.target.value) })}
                                                 />
                                                 <input
                                                     type="text"
-                                                    className="w-20 bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 text-center text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
+                                                    className="w-16 flex-shrink-0 bg-[#111827]/40 border border-white/10 rounded-xl py-3 text-center text-xs text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
                                                     value={newSubTask.unit}
                                                     onChange={e => setNewSubTask({ ...newSubTask, unit: e.target.value })}
                                                 />
                                             </div>
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Início</label>
+                                        <div className="md:col-span-2 lg:col-span-3 space-y-2">
+                                            <label className="text-[9px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Início</label>
                                             <input
                                                 type="time"
-                                                className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
+                                                className="w-full bg-[#111827]/40 border border-white/10 rounded-xl py-3 px-3 text-sm text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
                                                 value={newSubTask.startTime}
                                                 onChange={e => setNewSubTask({ ...newSubTask, startTime: e.target.value })}
                                             />
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Término</label>
+                                        <div className="md:col-span-2 lg:col-span-3 space-y-2">
+                                            <label className="text-[9px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Término</label>
                                             <input
                                                 type="time"
-                                                className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
+                                                className="w-full bg-[#111827]/40 border border-white/10 rounded-xl py-3 px-3 text-sm text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
                                                 value={newSubTask.endTime}
                                                 onChange={e => setNewSubTask({ ...newSubTask, endTime: e.target.value })}
                                             />
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Horas Máquina</label>
+                                        <div className="md:col-span-2 lg:col-span-3 space-y-2">
+                                            <label className="text-[9px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Horas Máquina</label>
                                             <input
                                                 type="number"
-                                                className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
+                                                className="w-full bg-[#111827]/40 border border-white/10 rounded-xl py-3 px-3 text-sm text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
                                                 value={newSubTask.machinery}
                                                 onChange={e => setNewSubTask({ ...newSubTask, machinery: Number(e.target.value) })}
                                             />
@@ -833,8 +833,8 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                     </div>
 
                                     <div className="p-6 bg-white/5 rounded-3xl border border-white/10 space-y-6">
-                                        <div className="flex flex-col md:flex-row gap-4 items-end">
-                                            <div className="flex-1 space-y-2">
+                                        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-4 items-end">
+                                            <div className="md:col-span-2 lg:col-span-3 space-y-2">
                                                 <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Profissão / Função</label>
                                                 <select
                                                     className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold appearance-none"
@@ -853,7 +853,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                 </select>
                                             </div>
                                             {tempWorkerRole === 'Outro' && (
-                                                <div className="flex-1 space-y-2">
+                                                <div className="md:col-span-2 lg:col-span-2 space-y-2">
                                                     <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Especificar</label>
                                                     <input
                                                         type="text"
@@ -864,7 +864,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                     />
                                                 </div>
                                             )}
-                                            <div className="w-full md:w-40 space-y-2">
+                                            <div className="md:col-span-1 lg:col-span-1 space-y-2">
                                                 <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Quantidade</label>
                                                 <div className="flex gap-2">
                                                     <input
