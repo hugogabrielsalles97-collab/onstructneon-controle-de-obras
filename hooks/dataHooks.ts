@@ -144,6 +144,27 @@ export const useOrgMembers = (enabled: boolean = true) => {
     });
 };
 
+export interface ProjectSettings {
+    baseline_cutoff_date: string;
+    current_schedule_cutoff_date: string;
+}
+
+export const useProjectSettings = (enabled: boolean = true) => {
+    return useQuery<ProjectSettings>({
+        queryKey: ['projectSettings'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('project_settings')
+                .select('baseline_cutoff_date, current_schedule_cutoff_date')
+                .single();
+            if (error) throw error;
+            return data as ProjectSettings;
+        },
+        enabled,
+        staleTime: 1000 * 60 * 5,
+    });
+};
+
 export const useOrgMutations = () => {
     const queryClient = useQueryClient();
 

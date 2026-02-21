@@ -3,7 +3,7 @@ import { Session } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient';
 import { User, Task, Restriction, LeanTask } from '../types';
 import { useQueryClient } from '@tanstack/react-query';
-import { useTasks, useBaselineTasks, useCurrentScheduleTasks, useRestrictions, useAllUsers, useCurrentUser, useLeanTasks, useCheckoutLogs } from '../hooks/dataHooks';
+import { useTasks, useBaselineTasks, useCurrentScheduleTasks, useRestrictions, useAllUsers, useCurrentUser, useLeanTasks, useCheckoutLogs, useProjectSettings } from '../hooks/dataHooks';
 
 interface DataContextType {
     session: Session | null;
@@ -85,6 +85,38 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { data: restrictions = [], isLoading: loadingRestrictions } = useRestrictions(isLoggedIn);
     const { data: leanTasks = [], isLoading: loadingLeanTasks } = useLeanTasks(isLoggedIn);
     const { data: checkoutLogs = [], isLoading: loadingCheckoutLogs } = useCheckoutLogs(isLoggedIn);
+    const { data: settings, isLoading: loadingSettings } = useProjectSettings(isLoggedIn);
+
+    // Sincronizar estados locais com o banco de dados quando carregado
+    useEffect(() => {
+        if (settings) {
+            setBaselineCutOffDateStr(settings.baseline_cutoff_date);
+            setCurrentScheduleCutOffDateStr(settings.current_schedule_cutoff_date);
+        }
+    }, [settings]);
+
+    const updateProjectSettings = async (updates: { baseline_cutoff_date?: string, current_schedule_cutoff_date?: string }) => {
+        try {
+            const { error } = await supabase
+                .from('project_settings')
+                .update({ ...updates, updated_at: new Date().toISOString(), updated_by: session?.user?.id })
+                .neq('id', '00000000-0000-0000-0000-000000000000'); // Garante que atualiza a linha existente
+            if (error) throw error;
+            queryClient.invalidateQueries({ queryKey: ['projectSettings'] });
+        } catch (error) {
+            console.error('Erro ao atualizar datas de corte:', error);
+        }
+    };
+
+    const handleSetBaselineCutOffDateStr = (date: string) => {
+        setBaselineCutOffDateStr(date);
+        updateProjectSettings({ baseline_cutoff_date: date });
+    };
+
+    const handleSetCurrentScheduleCutOffDateStr = (date: string) => {
+        setCurrentScheduleCutOffDateStr(date);
+        updateProjectSettings({ current_schedule_cutoff_date: date });
+    };
 
     // Dados Mockados para o Módulo de Custos (Temporário)
     const [costItems] = useState([
@@ -107,7 +139,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // 1. Auth is loading? -> True
     // 2. User logged in? -> Wait for queries
     // 3. User logged out? -> False (show login)
-    const isLoading = isAuthLoading || (isLoggedIn && (loadingUser || loadingAllUsers || loadingTasks || loadingBaseline || loadingCurrentSchedule || loadingRestrictions || loadingLeanTasks || loadingCheckoutLogs));
+    const isLoading = isAuthLoading || (isLoggedIn && (loadingUser || loadingAllUsers || loadingTasks || loadingBaseline || loadingCurrentSchedule || loadingRestrictions || loadingLeanTasks || loadingCheckoutLogs || loadingSettings));
 
     const refreshData = async () => {
         await queryClient.invalidateQueries();
@@ -400,7 +432,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         <DataContext.Provider value={{
             session, currentUser: currentUser || null, allUsers, tasks, baselineTasks, currentScheduleTasks, restrictions, leanTasks, costItems, measurements, cashFlow, checkoutLogs, isLoading, refreshData,
             saveTask, deleteTask, importBaseline, importCurrentSchedule, saveRestriction, updateRestriction, deleteRestriction, saveLeanTask, deleteLeanTask, deleteCheckoutLog,
-            baselineCutOffDateStr, setBaselineCutOffDateStr, currentScheduleCutOffDateStr, setCurrentScheduleCutOffDateStr, signOut, upgradeRole, updateUser, deleteUser, isDevToolsOpen, setIsDevToolsOpen
+            baselineCutOffDateStr,
+            setBaselineCutOffDateStr: handleSetBaselineCutOffDateStr,
+            currentScheduleCutOffDateStr,
+            setCurrentScheduleCutOffDateStr: handleSetCurrentScheduleCutOffDateStr,
+            signOut, upgradeRole, updateUser, deleteUser, isDevToolsOpen, setIsDevToolsOpen
         }}>
             {children}
         </DataContext.Provider>
