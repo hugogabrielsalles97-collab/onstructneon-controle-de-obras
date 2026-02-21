@@ -3,9 +3,11 @@ import { useData } from '../context/DataProvider';
 import Header from './Header';
 import { Task, TaskStatus } from '../types';
 import ManagementIcon from './icons/ManagementIcon';
+import ExcelIcon from './icons/ExcelIcon';
 import PpcChart from './PpcChart';
 import CumulativeProgressChart from './CumulativeProgressChart';
 import Sidebar from './Sidebar';
+import { exportTasksToExcel } from '../utils/excelExport';
 
 interface ManagementPageProps {
     onNavigateToDashboard: () => void;
@@ -280,6 +282,15 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                         ))}
                                     </div>
                                 </div>
+                                {analysisData.length > 0 && (
+                                    <button
+                                        onClick={() => exportTasksToExcel(analysisData.map(item => item.baseline), `Analise_Gestao_${new Date().toISOString().split('T')[0]}`)}
+                                        className="flex items-center gap-2 bg-green-600/20 text-green-400 px-4 py-2.5 rounded-xl hover:bg-green-600 hover:text-white transition-all duration-300 border border-green-600/30 text-sm font-bold shadow-xl shadow-green-900/10"
+                                    >
+                                        <ExcelIcon className="w-5 h-5" />
+                                        Exportar Análise (Excel)
+                                    </button>
+                                )}
 
                                 <button
                                     onClick={onNavigateToDashboard}

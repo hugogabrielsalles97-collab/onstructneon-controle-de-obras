@@ -3,7 +3,9 @@ import { User, Task, TaskStatus } from '../types';
 import { useData } from '../context/DataProvider';
 import Header from './Header';
 import BaselineIcon from './icons/BaselineIcon';
+import ExcelIcon from './icons/ExcelIcon';
 import Sidebar from './Sidebar';
+import { exportTasksToExcel } from '../utils/excelExport';
 
 // Esta variável global é declarada pelo script tag da biblioteca xlsx em index.html
 declare var XLSX: any;
@@ -385,6 +387,15 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
                     <BaselineIcon className="w-4 h-4" />
                     Substituir Linha Base
                 </button>
+                {baselineTasks.length > 0 && (
+                    <button
+                        onClick={() => exportTasksToExcel(baselineTasks, `Linha_de_Base_${new Date().toISOString().split('T')[0]}`)}
+                        className="flex items-center gap-2 bg-green-600/20 text-green-400 px-3 py-1.5 rounded-md hover:bg-green-600 hover:text-white transition-all duration-300 border border-green-600/30 text-sm font-bold"
+                    >
+                        <ExcelIcon className="w-4 h-4" />
+                        Exportar Excel
+                    </button>
+                )}
             </div>
 
             <div className="bg-brand-darkest/50 rounded-lg shadow-lg border border-brand-darkest overflow-hidden">
