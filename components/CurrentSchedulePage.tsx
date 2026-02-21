@@ -227,7 +227,12 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
                         corte: String(getValue('Corte') || ''),
                         quantity: Number(getValue('Quantidade') || 0),
                         unit: String(getValue('Unidade')),
-                        progress: Number(getValue('Progresso') || 0),
+                        progress: (() => {
+                            let val = Number(getValue('Progresso') || 0);
+                            // Se for decimal entre 0 e 1 (ex: 0.5 para 50%), converte para 100
+                            if (val > 0 && val <= 1) val = val * 100;
+                            return Math.round(val);
+                        })(),
                         plannedManpower: [],
                         plannedMachinery: [],
                     };
