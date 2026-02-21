@@ -1,6 +1,7 @@
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useData } from '../context/DataProvider';
+import { supabase } from '../supabaseClient';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import { Task, Resource } from '../types';
@@ -104,23 +105,31 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
 
     // Edit mode for positioning OAEs
     const [editMode, setEditMode] = useState(false);
+
+    // Default positions as fallbacks
+    const defaultOaePositions = useMemo(() => {
+        const d: Record<string, { x: number; y: number }> = {};
+        OAE_LIST.forEach(oae => { d[oae.id] = { x: oae.x, y: oae.y }; });
+        return d;
+    }, []);
+    const defaultCardPositions = useMemo(() => {
+        const d: Record<string, { x: number; y: number }> = {};
+        OAE_LIST.forEach(oae => { d[oae.id] = { x: oae.x + 3, y: oae.y - 2 }; });
+        return d;
+    }, []);
+
     const [oaePositions, setOaePositions] = useState<Record<string, { x: number; y: number }>>(() => {
+        // Use localStorage as immediate fallback while Supabase loads
         const saved = localStorage.getItem('oae_positions');
-        if (saved) {
-            try { return JSON.parse(saved); } catch { }
-        }
+        if (saved) { try { return JSON.parse(saved); } catch { } }
         const defaults: Record<string, { x: number; y: number }> = {};
         OAE_LIST.forEach(oae => { defaults[oae.id] = { x: oae.x, y: oae.y }; });
         return defaults;
     });
 
-    // Card positions (offset from OAE marker, in % of image)
     const [cardPositions, setCardPositions] = useState<Record<string, { x: number; y: number }>>(() => {
         const saved = localStorage.getItem('oae_card_positions');
-        if (saved) {
-            try { return JSON.parse(saved); } catch { }
-        }
-        // Default: card offset to the right of the marker
+        if (saved) { try { return JSON.parse(saved); } catch { } }
         const defaults: Record<string, { x: number; y: number }> = {};
         OAE_LIST.forEach(oae => { defaults[oae.id] = { x: oae.x + 3, y: oae.y - 2 }; });
         return defaults;
@@ -129,6 +138,68 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
     const [draggingOAE, setDraggingOAE] = useState<string | null>(null);
     const [draggingCard, setDraggingCard] = useState<string | null>(null);
     const imageRef = useRef<HTMLImageElement>(null);
+
+    // ─── Load positions from Supabase on mount ─────────────────
+    useEffect(() => {
+        const loadPositions = async () => {
+            const { data, error } = await supabase
+                .from('oae_positions')
+                .select('oae_id, marker_x, marker_y, card_x, card_y');
+
+            if (error || !data || data.length === 0) return;
+
+            const markers: Record<string, { x: number; y: number }> = {};
+            const cards: Record<string, { x: number; y: number }> = {};
+
+            data.forEach((row: any) => {
+                markers[row.oae_id] = { x: Number(row.marker_x), y: Number(row.marker_y) };
+                cards[row.oae_id] = { x: Number(row.card_x), y: Number(row.card_y) };
+            });
+
+            // Merge with defaults for any OAEs not yet saved in DB
+            const fullMarkers = { ...defaultOaePositions, ...markers };
+            const fullCards = { ...defaultCardPositions, ...cards };
+
+            setOaePositions(fullMarkers);
+            setCardPositions(fullCards);
+
+            // Sync localStorage
+            localStorage.setItem('oae_positions', JSON.stringify(fullMarkers));
+            localStorage.setItem('oae_card_positions', JSON.stringify(fullCards));
+        };
+        loadPositions();
+    }, [defaultOaePositions, defaultCardPositions]);
+
+    // ─── Save positions to Supabase ────────────────────────────
+    const savePositionsToSupabase = useCallback(async (
+        markerPositions: Record<string, { x: number; y: number }>,
+        cardPos: Record<string, { x: number; y: number }>,
+        changedOaeId?: string
+    ) => {
+        // Save to localStorage immediately
+        localStorage.setItem('oae_positions', JSON.stringify(markerPositions));
+        localStorage.setItem('oae_card_positions', JSON.stringify(cardPos));
+
+        // Build rows to upsert (only changed, or all if not specified)
+        const oaeIds = changedOaeId ? [changedOaeId] : OAE_LIST.map(o => o.id);
+        const rows = oaeIds.map(id => ({
+            oae_id: id,
+            marker_x: markerPositions[id]?.x ?? defaultOaePositions[id]?.x ?? 50,
+            marker_y: markerPositions[id]?.y ?? defaultOaePositions[id]?.y ?? 50,
+            card_x: cardPos[id]?.x ?? defaultCardPositions[id]?.x ?? 55,
+            card_y: cardPos[id]?.y ?? defaultCardPositions[id]?.y ?? 50,
+            updated_at: new Date().toISOString(),
+            updated_by: user?.id ?? null
+        }));
+
+        const { error } = await supabase
+            .from('oae_positions')
+            .upsert(rows, { onConflict: 'oae_id' });
+
+        if (error) {
+            console.error('Erro ao salvar posições no Supabase:', error);
+        }
+    }, [user, defaultOaePositions, defaultCardPositions]);
 
 
     const handleLogout = async () => {
@@ -265,12 +336,14 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
         isDraggingRef.current = false;
         setIsDragging(false);
         if (draggingOAE) {
+            const movedId = draggingOAE;
             setDraggingOAE(null);
-            localStorage.setItem('oae_positions', JSON.stringify(oaePositions));
+            savePositionsToSupabase(oaePositions, cardPositions, movedId);
         }
         if (draggingCard) {
+            const movedId = draggingCard;
             setDraggingCard(null);
-            localStorage.setItem('oae_card_positions', JSON.stringify(cardPositions));
+            savePositionsToSupabase(oaePositions, cardPositions, movedId);
         }
     };
 
