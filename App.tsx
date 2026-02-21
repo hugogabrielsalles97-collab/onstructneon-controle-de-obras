@@ -13,6 +13,7 @@ import LeanConstructionPage from './components/LeanConstructionPage';
 import WarRoomPage from './components/WarRoomPage';
 import RestrictionsAnalysisPage from './components/RestrictionsAnalysisPage';
 import CostPage from './components/CostPage';
+import CheckoutSummaryPage from './components/CheckoutSummaryPage';
 import TaskModal from './components/TaskModal';
 import RdoModal from './components/RdoModal';
 import AIAssistant from './components/AIAssistant';
@@ -20,11 +21,14 @@ import UpgradeModal from './components/UpgradeModal';
 import Toast from './components/Toast';
 import ConstructionIcon from './components/icons/ConstructionIcon';
 import PodcastPage from './components/PodcastPage';
+import OrgChartPage from './components/OrgChartPage';
+import TeamsPage from './components/TeamsPage';
+import VisualControlPage from './components/VisualControlPage';
 import { Task, Restriction } from './types';
 import { DataProvider, useData } from './context/DataProvider';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
-type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'warRoom' | 'restrictions' | 'cost' | 'podcast';
+type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'warRoom' | 'restrictions' | 'cost' | 'podcast' | 'checkoutSummary' | 'orgChart' | 'visualControl';
 
 const AppContent: React.FC = () => {
   const {
@@ -187,6 +191,10 @@ Por favor, acesse o aplicativo para mais detalhes.
       onNavigateToWarRoom: () => setScreen('warRoom'),
       onNavigateToPodcast: () => setScreen('podcast'),
       onNavigateToCost: () => setScreen('cost'),
+      onNavigateToCheckoutSummary: () => setScreen('checkoutSummary'),
+      onNavigateToOrgChart: () => setScreen('orgChart'),
+      onNavigateToTeams: () => setScreen('teams'),
+      onNavigateToVisualControl: () => setScreen('visualControl'),
       onUpgradeClick: () => setIsUpgradeModalOpen(true),
       onNavigateToHome: handleNavigateToHome,
     };
@@ -240,6 +248,30 @@ Por favor, acesse o aplicativo para mais detalhes.
           onNavigateToRestrictions={() => setScreen('restrictions')}
           onUpdateRestriction={updateRestriction}
           onDeleteRestriction={deleteRestriction}
+        />
+      );
+      case 'checkoutSummary': return (
+        <CheckoutSummaryPage
+          {...navigationProps}
+          showToast={showToast}
+        />
+      );
+      case 'orgChart': return (
+        <OrgChartPage
+          {...navigationProps}
+          showToast={showToast}
+        />
+      );
+      case 'teams': return (
+        <TeamsPage
+          {...navigationProps}
+          showToast={showToast}
+        />
+      );
+      case 'visualControl': return (
+        <VisualControlPage
+          {...navigationProps}
+          showToast={showToast}
         />
       );
       default: return (

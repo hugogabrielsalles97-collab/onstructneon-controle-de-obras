@@ -42,11 +42,12 @@ export interface Task {
 export interface User {
   id: string;
   username: string;
-  role: 'Master' | 'Planejador' | 'Gerenciador' | 'Executor';
-  fullName?: string;
+  role: 'Master' | 'Planejador' | 'Gerenciador' | 'Executor' | 'Visitante';
+  fullName: string;
   whatsapp?: string;
   email?: string;
   avatar_url?: string;
+  is_approved?: boolean;
 }
 
 // Sistema de Restrições (Lean Construction)
@@ -162,4 +163,24 @@ export interface CashFlowItem {
   category: string;
   description: string;
   value: number;
+}
+
+export interface CheckoutLog {
+  id: string;
+  task_id: string;
+  task_title: string;
+  user_id: string;
+  user_name: string;
+  created_at: string;
+  changes: any;
+}
+
+export interface OrgMember {
+  id: string;
+  name: string;
+  role: string;
+  quantity?: number;
+  parent_id: string | null;
+  user_id?: string | null;
+  created_at?: string;
 }

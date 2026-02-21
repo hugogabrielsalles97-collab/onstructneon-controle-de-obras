@@ -62,8 +62,6 @@ const RdoModal: React.FC<RdoModalProps> = ({ isOpen, onClose, tasks, onUpgradeCl
   - Local: ${task.location || 'N/A'} ${task.support ? `(${task.support})` : ''} ${task.corte ? `(${task.corte})` : ''}
   - Responsável: ${task.assignee}
   - Status do Dia: A tarefa estava '${task.status}' com ${task.progress}% de avanço geral.
-  - Mão de Obra Alocada no Dia: ${task.actualManpower?.map(r => `${r.quantity} ${r.role}`).join(', ') || 'N/A'}
-  - Equipamentos Utilizados no Dia: ${task.actualMachinery?.map(r => `${r.quantity} ${r.role}`).join(', ') || 'N/A'}
   - Observações Relevantes da Tarefa: ${task.observations || 'Nenhuma'}
         `).join('');
 
@@ -84,8 +82,6 @@ const RdoModal: React.FC<RdoModalProps> = ({ isOpen, onClose, tasks, onUpgradeCl
             3.  **ATIVIDADES EXECUTADAS:**
                 - Para cada tarefa listada nos dados, crie um item descrevendo o serviço realizado no dia. Seja direto e use terminologia técnica da construção civil. Exemplo: "Executada a concretagem dos blocos de fundação no local S01." ou "Prosseguiu-se com o serviço de terraplenagem na frente FT01A.".
 
-            4.  **MÃO DE OBRA E EQUIPAMENTOS:**
-                - Compile uma lista consolidada de toda a mão de obra e todos os equipamentos que estavam ativos no dia, com base nos dados de todas as tarefas. Some as quantidades se o mesmo recurso aparecer em mais de uma tarefa.
 
             5.  **OBSERVAÇÕES GERAIS:**
                 - Crie um parágrafo final com observações gerais, como "Os trabalhos seguiram conforme o planejamento, sem registro de acidentes ou intercorrências notáveis." ou mencione algum ponto de atenção se as observações das tarefas indicarem problemas ou atrasos.

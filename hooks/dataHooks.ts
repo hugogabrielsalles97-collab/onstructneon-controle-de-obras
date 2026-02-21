@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabaseClient';
-import { Task, User, Restriction, LeanTask } from '../types';
+import { Task, User, Restriction, LeanTask, CheckoutLog, OrgMember } from '../types';
 
 // Helper function to fetch all rows (bypass Supabase 1000 limit)
 const fetchAllRows = async (tableName: string) => {
@@ -44,10 +44,7 @@ export const useLeanTasks = (enabled: boolean = true) => {
         queryKey: ['leanTasks'],
         queryFn: async () => {
             const rows = await fetchAllRows('lean_tasks');
-            return rows.map(r => ({ ...r.task_data, id: r.id })); // Merge task_data JSON back into flat structure if needed, or keep as is.
-            // Actually, since I stored `task_data` as a JSONB column, I need to extract it.
-            // And I decided to keep `id` as the primary key in the table.
-            // The object structure in the frontend has `id` inside it.
+            return rows.map(r => ({ ...r.task_data, id: r.id }));
         },
         enabled,
         staleTime: 1000 * 60 * 5,
@@ -86,7 +83,7 @@ export const useAllUsers = (enabled: boolean = true) => {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('profiles')
-                .select(`id, username, role, fullName: full_name, whatsapp`);
+                .select(`id, username, role, fullName: full_name, whatsapp, is_approved`);
             if (error) throw error;
             return data as User[];
         },
@@ -101,7 +98,7 @@ export const useCurrentUser = (userId: string | undefined) => {
             if (!userId) return null;
             const { data, error } = await supabase
                 .from('profiles')
-                .select(`id, username, role, fullName: full_name, whatsapp`)
+                .select(`id, username, role, fullName: full_name, whatsapp, is_approved`)
                 .eq('id', userId)
                 .single();
 
@@ -122,4 +119,72 @@ export const useCurrentUser = (userId: string | undefined) => {
         },
         enabled: !!userId,
     });
+};
+
+export const useCheckoutLogs = (enabled: boolean = true) => {
+    return useQuery<CheckoutLog[]>({
+        queryKey: ['checkoutLogs'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('checkout_logs')
+                .select('*')
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            return data as CheckoutLog[];
+        },
+        enabled,
+    });
+};
+
+export const useOrgMembers = (enabled: boolean = true) => {
+    return useQuery<OrgMember[]>({
+        queryKey: ['orgMembers'],
+        queryFn: () => fetchAllRows('org_members'),
+        enabled,
+    });
+};
+
+export const useOrgMutations = () => {
+    const queryClient = useQueryClient();
+
+    const saveMember = useMutation({
+        mutationFn: async (member: Partial<OrgMember>) => {
+            if (member.id) {
+                const { data, error } = await supabase
+                    .from('org_members')
+                    .update(member)
+                    .eq('id', member.id)
+                    .select()
+                    .single();
+                if (error) throw error;
+                return data;
+            } else {
+                const { data, error } = await supabase
+                    .from('org_members')
+                    .insert(member)
+                    .select()
+                    .single();
+                if (error) throw error;
+                return data;
+            }
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['orgMembers'] });
+        },
+    });
+
+    const deleteMember = useMutation({
+        mutationFn: async (id: string) => {
+            const { error } = await supabase
+                .from('org_members')
+                .delete()
+                .eq('id', id);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['orgMembers'] });
+        },
+    });
+
+    return { saveMember, deleteMember };
 };

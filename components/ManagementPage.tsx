@@ -19,6 +19,10 @@ interface ManagementPageProps {
     onNavigateToPodcast: () => void;
     onNavigateToCost: () => void;
     onNavigateToHome?: () => void;
+    onNavigateToOrgChart?: () => void;
+    onNavigateToVisualControl?: () => void;
+    onNavigateToCheckoutSummary?: () => void;
+    onNavigateToTeams?: () => void;
     onUpgradeClick: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
@@ -36,6 +40,9 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
     onNavigateToCost,
     onNavigateToHome,
     onUpgradeClick,
+    onNavigateToOrgChart, onNavigateToVisualControl,
+    onNavigateToCheckoutSummary,
+    onNavigateToTeams,
     showToast
 }) => {
     const { currentUser: user, tasks, currentScheduleTasks, signOut, cutOffDateStr } = useData();
@@ -195,6 +202,9 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 onNavigateToLeanConstruction={onNavigateToLeanConstruction}
                 onNavigateToWarRoom={onNavigateToWarRoom}
                 onNavigateToPodcast={onNavigateToPodcast}
+                onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
+                onNavigateToOrgChart={onNavigateToOrgChart}
+                onNavigateToVisualControl={onNavigateToVisualControl}
                 onUpgradeClick={onUpgradeClick}
             />
 
@@ -213,6 +223,9 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                     onNavigateToWarRoom={onNavigateToWarRoom}
                     onNavigateToPodcast={onNavigateToPodcast}
                     onNavigateToCost={onNavigateToCost}
+                    onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
+                    onNavigateToOrgChart={onNavigateToOrgChart}
+                onNavigateToVisualControl={onNavigateToVisualControl}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="management"
                 />

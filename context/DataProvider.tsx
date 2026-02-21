@@ -3,7 +3,7 @@ import { Session } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient';
 import { User, Task, Restriction, LeanTask } from '../types';
 import { useQueryClient } from '@tanstack/react-query';
-import { useTasks, useBaselineTasks, useCurrentScheduleTasks, useRestrictions, useAllUsers, useCurrentUser, useLeanTasks } from '../hooks/dataHooks';
+import { useTasks, useBaselineTasks, useCurrentScheduleTasks, useRestrictions, useAllUsers, useCurrentUser, useLeanTasks, useCheckoutLogs } from '../hooks/dataHooks';
 
 interface DataContextType {
     session: Session | null;
@@ -16,6 +16,8 @@ interface DataContextType {
     costItems: any[];
     measurements: any[];
     cashFlow: any[];
+    checkoutLogs: any[];
+    deleteCheckoutLog: (logId: string) => Promise<{ success: boolean; error?: string }>;
     isLoading: boolean;
     refreshData: () => Promise<void>;
     saveTask: (task: Task) => Promise<{ success: boolean; error?: string }>;
@@ -79,6 +81,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { data: currentScheduleTasks = [], isLoading: loadingCurrentSchedule } = useCurrentScheduleTasks(isLoggedIn);
     const { data: restrictions = [], isLoading: loadingRestrictions } = useRestrictions(isLoggedIn);
     const { data: leanTasks = [], isLoading: loadingLeanTasks } = useLeanTasks(isLoggedIn);
+    const { data: checkoutLogs = [], isLoading: loadingCheckoutLogs } = useCheckoutLogs(isLoggedIn);
 
     // Dados Mockados para o Módulo de Custos (Temporário)
     const [costItems] = useState([
@@ -101,19 +104,64 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // 1. Auth is loading? -> True
     // 2. User logged in? -> Wait for queries
     // 3. User logged out? -> False (show login)
-    const isLoading = isAuthLoading || (isLoggedIn && (loadingUser || loadingAllUsers || loadingTasks || loadingBaseline || loadingCurrentSchedule || loadingRestrictions || loadingLeanTasks));
+    const isLoading = isAuthLoading || (isLoggedIn && (loadingUser || loadingAllUsers || loadingTasks || loadingBaseline || loadingCurrentSchedule || loadingRestrictions || loadingLeanTasks || loadingCheckoutLogs));
 
     const refreshData = async () => {
         await queryClient.invalidateQueries();
     };
 
     const saveTask = async (task: Task) => {
-        if (!session) return { success: false, error: 'No session' };
+        if (!session || !currentUser) return { success: false, error: 'No session' };
 
         const existingTask = tasks.find(t => t.id === task.id);
 
         try {
             if (existingTask) {
+                // Determine changes for checkout log
+                const changes: any = {};
+                let hasChanges = false;
+
+                // Compare relevant fields for logging
+                if (existingTask.status !== task.status) {
+                    changes.status = { from: existingTask.status, to: task.status };
+                    hasChanges = true;
+                }
+                if (existingTask.progress !== task.progress) {
+                    changes.progress = { from: existingTask.progress, to: task.progress };
+                    hasChanges = true;
+                }
+                if (existingTask.actualQuantity !== task.actualQuantity) {
+                    changes.actualQuantity = { from: existingTask.actualQuantity, to: task.actualQuantity };
+                    hasChanges = true;
+                }
+                if (existingTask.actualStartDate !== task.actualStartDate) {
+                    changes.actualStartDate = { from: existingTask.actualStartDate, to: task.actualStartDate };
+                    hasChanges = true;
+                }
+                if (existingTask.actualEndDate !== task.actualEndDate) {
+                    changes.actualEndDate = { from: existingTask.actualEndDate, to: task.actualEndDate };
+                    hasChanges = true;
+                }
+
+                if (hasChanges) {
+                    await supabase.from('checkout_logs').insert([{
+                        task_id: task.id,
+                        task_title: task.title,
+                        user_id: session.user.id,
+                        user_name: currentUser.fullName,
+                        changes: {
+                            ...changes,
+                            _metadata: {
+                                location: task.location,
+                                corte: task.corte,
+                                startDate: task.startDate,
+                                dueDate: task.dueDate,
+                                quantity: task.quantity
+                            }
+                        }
+                    }]);
+                }
+
                 // Update
                 const { id, ...taskUpdates } = task;
                 const { error } = await supabase.from('tasks').update({ ...taskUpdates, user_id: session.user.id }).eq('id', id);
@@ -126,6 +174,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
             // Invalidate query to refetch data
             queryClient.invalidateQueries({ queryKey: ['tasks'] });
+            queryClient.invalidateQueries({ queryKey: ['checkoutLogs'] });
             return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };
@@ -330,10 +379,24 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
+    const deleteCheckoutLog = async (logId: string): Promise<{ success: boolean; error?: string }> => {
+        try {
+            const { error } = await supabase
+                .from('checkout_logs')
+                .delete()
+                .eq('id', logId);
+            if (error) throw error;
+            queryClient.invalidateQueries({ queryKey: ['checkoutLogs'] });
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    };
+
     return (
         <DataContext.Provider value={{
-            session, currentUser: currentUser || null, allUsers, tasks, baselineTasks, currentScheduleTasks, restrictions, leanTasks, costItems, measurements, cashFlow, isLoading, refreshData,
-            saveTask, deleteTask, importBaseline, importCurrentSchedule, saveRestriction, updateRestriction, deleteRestriction, saveLeanTask, deleteLeanTask,
+            session, currentUser: currentUser || null, allUsers, tasks, baselineTasks, currentScheduleTasks, restrictions, leanTasks, costItems, measurements, cashFlow, checkoutLogs, isLoading, refreshData,
+            saveTask, deleteTask, importBaseline, importCurrentSchedule, saveRestriction, updateRestriction, deleteRestriction, saveLeanTask, deleteLeanTask, deleteCheckoutLog,
             cutOffDateStr, setCutOffDateStr, signOut, upgradeRole, updateUser, deleteUser, isDevToolsOpen, setIsDevToolsOpen
         }}>
             {children}

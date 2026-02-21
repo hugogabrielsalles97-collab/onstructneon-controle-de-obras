@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { User, Task, TaskStatus } from '../types';
 import { useData } from '../context/DataProvider';
 import Header from './Header';
@@ -20,6 +20,7 @@ import FilterInput from './ui/FilterInput';
 import FilterSelect from './ui/FilterSelect';
 import AlertIcon from './icons/AlertIcon';
 import ConfirmModal from './ConfirmModal';
+import { useOrgMembers } from '../hooks/dataHooks';
 
 type SortKey = keyof Task | 'none';
 type SortDirection = 'asc' | 'desc';
@@ -39,6 +40,10 @@ interface DashboardProps {
   onNavigateToWarRoom: () => void;
   onNavigateToCost: () => void;
   onNavigateToPodcast: () => void;
+  onNavigateToCheckoutSummary: () => void;
+  onNavigateToOrgChart?: () => void;
+  onNavigateToTeams?: () => void;
+  onNavigateToVisualControl?: () => void;
   onUpgradeClick: () => void;
   showToast: (message: string, type: 'success' | 'error') => void;
 }
@@ -53,10 +58,12 @@ const initialFilters = {
   support: '',
   startDate: '',
   endDate: '',
+  engineer: '',
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToHome, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onUpgradeClick, showToast }) => {
-  const { currentUser: user, tasks, baselineTasks, signOut, deleteTask } = useData();
+const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToHome, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToTeams, onNavigateToVisualControl, onUpgradeClick, showToast }) => {
+  const { currentUser: user, tasks, allUsers, baselineTasks, signOut, deleteTask } = useData();
+  const { data: orgMembers } = useOrgMembers();
   const [filters, setFilters] = useState(initialFilters);
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'dueDate', direction: 'asc' });
 
@@ -100,6 +107,30 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     setFilters(initialFilters);
   };
 
+  const getEngineerForAssignee = useCallback((assignee: string) => {
+    if (!orgMembers || !allUsers) return null;
+    const selectedUser = allUsers.find(u => u.fullName === assignee);
+    let currentMember = orgMembers.find(m =>
+      (selectedUser && m.user_id === selectedUser.id) ||
+      m.name === assignee
+    );
+
+    if (!currentMember) return null;
+
+    let parent = orgMembers.find(m => m.id === currentMember?.parent_id);
+    let topParent = null;
+
+    while (parent) {
+      if (parent.role.toLowerCase().includes('eng')) return parent.name;
+      if (!parent.parent_id) {
+        topParent = parent;
+        break;
+      }
+      parent = orgMembers.find(m => m.id === parent?.parent_id);
+    }
+    return topParent?.name || null;
+  }, [orgMembers, allUsers]);
+
   const uniqueOptions = useMemo(() => {
     const assignees = new Set<string>();
     const disciplines = new Set<string>();
@@ -107,9 +138,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     const locations = new Set<string>();
     const cortes = new Set<string>();
     const supports = new Set<string>();
+    const engineers = new Set<string>();
 
     tasks.forEach(task => {
-      if (task.assignee) assignees.add(task.assignee);
+      if (task.assignee) {
+        assignees.add(task.assignee);
+        const eng = getEngineerForAssignee(task.assignee);
+        if (eng) engineers.add(eng);
+      }
       if (task.discipline) disciplines.add(task.discipline);
       if (task.level) levels.add(task.level);
       if (task.location) locations.add(task.location);
@@ -124,8 +160,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
       location: Array.from(locations).sort(),
       corte: Array.from(cortes).sort(),
       support: Array.from(supports).sort(),
+      engineer: Array.from(engineers).sort(),
     };
-  }, [tasks]);
+  }, [tasks, getEngineerForAssignee]);
 
   const filteredAndSortedTasks = useMemo(() => {
     let filtered = tasks.filter(task => {
@@ -159,7 +196,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
       const matchesStartDate = !filterStartDate || taskStartDate >= filterStartDate;
       const matchesEndDate = !filterEndDate || taskDueDate <= filterEndDate;
 
-      return matchesStatus && matchesAssignee && matchesDiscipline && matchesLevel && matchesLocation && matchesCorte && matchesSupport && matchesStartDate && matchesEndDate;
+      const eng = getEngineerForAssignee(task.assignee);
+      const matchesEngineer = filters.engineer === '' || (eng && eng === filters.engineer);
+
+      return matchesStatus && matchesAssignee && matchesDiscipline && matchesLevel && matchesLocation && matchesCorte && matchesSupport && matchesStartDate && matchesEndDate && matchesEngineer;
     });
 
     if (sortConfig.key !== 'none') {
@@ -178,7 +218,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     }
 
     return filtered;
-  }, [tasks, filters, sortConfig]);
+  }, [tasks, filters, sortConfig, getEngineerForAssignee]);
 
   const handleSort = (key: SortKey) => {
     let direction: SortDirection = 'asc';
@@ -208,6 +248,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
         onNavigateToLeanConstruction={onNavigateToLeanConstruction}
         onNavigateToWarRoom={onNavigateToWarRoom}
         onNavigateToPodcast={onNavigateToPodcast}
+        onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
+        onNavigateToOrgChart={onNavigateToOrgChart}
+        onNavigateToVisualControl={onNavigateToVisualControl}
+        onNavigateToTeams={onNavigateToTeams}
         onUpgradeClick={onUpgradeClick}
       />
 
@@ -227,6 +271,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
           onNavigateToWarRoom={onNavigateToWarRoom}
           onNavigateToPodcast={onNavigateToPodcast}
           onNavigateToCost={onNavigateToCost}
+          onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
+          onNavigateToOrgChart={onNavigateToOrgChart}
+          onNavigateToVisualControl={onNavigateToVisualControl}
+          onNavigateToTeams={onNavigateToTeams}
           onUpgradeClick={onUpgradeClick}
           activeScreen="dashboard"
         />
@@ -237,7 +285,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
             {/* Action Bar - Top Row */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 non-printable">
               <div>
-                <h2 className="text-3xl font-black text-white tracking-tight">Painel de Controle</h2>
+                <h2 className="text-3xl font-black text-white tracking-tight">Programação Semanal</h2>
                 <p className="text-sm text-brand-med-gray">Gestão de tarefas e controle de produção diário.</p>
               </div>
 
@@ -287,14 +335,31 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2.5 overflow-x-auto custom-scrollbar pb-1">
-                <FilterInput name="startDate" label="Início" value={filters.startDate} onChange={handleFilterChange} type="date" />
-                <FilterInput name="endDate" label="Fim" value={filters.endDate} onChange={handleFilterChange} type="date" />
-                <FilterSelect name="assignee" label="Resp." value={filters.assignee} onChange={handleFilterChange} options={uniqueOptions.assignee} />
-                <FilterSelect name="discipline" label="Disc." value={filters.discipline} onChange={handleFilterChange} options={uniqueOptions.discipline} />
-                <FilterSelect name="level" label="Nível" value={filters.level} onChange={handleFilterChange} options={uniqueOptions.level} />
-                <FilterSelect name="location" label="Local" value={filters.location} onChange={handleFilterChange} options={uniqueOptions.location} />
-                <FilterSelect name="corte" label="Corte" value={filters.corte} onChange={handleFilterChange} options={uniqueOptions.corte} />
+              <div className="flex flex-wrap items-center gap-2 overflow-x-auto custom-scrollbar pb-1">
+                <div className="flex-1 min-w-[120px]">
+                  <FilterInput name="startDate" label="Início" value={filters.startDate} onChange={handleFilterChange} type="date" />
+                </div>
+                <div className="flex-1 min-w-[120px]">
+                  <FilterInput name="endDate" label="Fim" value={filters.endDate} onChange={handleFilterChange} type="date" />
+                </div>
+                <div className="flex-1 min-w-[140px]">
+                  <FilterSelect name="engineer" label="Engenheiro" value={filters.engineer} onChange={handleFilterChange} options={uniqueOptions.engineer} />
+                </div>
+                <div className="flex-1 min-w-[140px]">
+                  <FilterSelect name="assignee" label="Resp." value={filters.assignee} onChange={handleFilterChange} options={uniqueOptions.assignee} />
+                </div>
+                <div className="flex-1 min-w-[120px]">
+                  <FilterSelect name="discipline" label="Disc." value={filters.discipline} onChange={handleFilterChange} options={uniqueOptions.discipline} />
+                </div>
+                <div className="flex-1 min-w-[100px]">
+                  <FilterSelect name="level" label="Nível" value={filters.level} onChange={handleFilterChange} options={uniqueOptions.level} />
+                </div>
+                <div className="flex-1 min-w-[120px]">
+                  <FilterSelect name="location" label="Local" value={filters.location} onChange={handleFilterChange} options={uniqueOptions.location} />
+                </div>
+                <div className="flex-1 min-w-[100px]">
+                  <FilterSelect name="corte" label="Corte" value={filters.corte} onChange={handleFilterChange} options={uniqueOptions.corte} />
+                </div>
               </div>
             </div>
 
@@ -320,7 +385,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
       </main>
 
       {/* Delete Confirmation Modal */}
-      {/* Delete Confirmation Modal */}
       <ConfirmModal
         isOpen={!!taskToDelete}
         onClose={() => setTaskToDelete(null)}
@@ -335,21 +399,5 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     </div>
   );
 };
-
-// Componente auxiliar para navegação
-const NavButton: React.FC<{ icon: React.ReactNode, label: string, onClick: () => void, active?: boolean }> = ({ icon, label, onClick, active }) => (
-  <button
-    onClick={onClick}
-    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 group ${active
-      ? 'bg-brand-accent text-white shadow-lg shadow-brand-accent/20 font-bold'
-      : 'text-brand-med-gray hover:bg-white/5 hover:text-white font-medium'
-      }`}
-  >
-    <div className={`transition-transform duration-300 group-hover:scale-110 ${active ? 'text-white' : 'text-brand-accent/70'}`}>
-      {icon}
-    </div>
-    <span className="text-sm tracking-tight whitespace-nowrap">{label}</span>
-  </button>
-);
 
 export default Dashboard;

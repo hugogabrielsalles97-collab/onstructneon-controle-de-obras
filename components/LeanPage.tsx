@@ -21,6 +21,10 @@ interface LeanPageProps {
     onNavigateToPodcast: () => void;
     onNavigateToCost: () => void;
     onNavigateToHome?: () => void;
+    onNavigateToOrgChart?: () => void;
+    onNavigateToVisualControl?: () => void;
+    onNavigateToCheckoutSummary?: () => void;
+    onNavigateToTeams?: () => void;
     onNavigateToRestrictions: () => void;
     onSaveRestriction: (restriction: Omit<Restriction, 'id' | 'created_at' | 'user_id'>) => Promise<void>;
     onUpdateRestriction: (id: string, updates: Partial<Restriction>) => Promise<void>;
@@ -49,6 +53,9 @@ const LeanPage: React.FC<LeanPageProps> = ({
     onDeleteRestriction,
     restrictions,
     onUpgradeClick,
+    onNavigateToOrgChart, onNavigateToVisualControl,
+    onNavigateToCheckoutSummary,
+    onNavigateToTeams,
     showToast
 }) => {
     const { currentUser: user, tasks, baselineTasks, currentScheduleTasks, cutOffDateStr, signOut } = useData();
@@ -152,7 +159,7 @@ const LeanPage: React.FC<LeanPageProps> = ({
         };
     }, [currentScheduleTasks, tasks, restrictions, lookaheadWeeks, cutOffDateStr]);
 
-    // SEMANA ATUAL (EXECUÇÃO): tarefas do Painel de Controle
+    // SEMANA ATUAL (EXECUÇÃO): tarefas da Programação Semanal
     const dashboardTasks = useMemo(() => {
         return tasks
             .filter(t => {
@@ -235,6 +242,9 @@ const LeanPage: React.FC<LeanPageProps> = ({
                 onNavigateToLeanConstruction={onNavigateToLeanConstruction}
                 onNavigateToWarRoom={onNavigateToWarRoom}
                 onNavigateToPodcast={onNavigateToPodcast}
+                onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
+                onNavigateToOrgChart={onNavigateToOrgChart}
+                onNavigateToVisualControl={onNavigateToVisualControl}
                 onUpgradeClick={onUpgradeClick}
             />
 
@@ -253,6 +263,9 @@ const LeanPage: React.FC<LeanPageProps> = ({
                     onNavigateToWarRoom={onNavigateToWarRoom}
                     onNavigateToPodcast={onNavigateToPodcast}
                     onNavigateToCost={onNavigateToCost}
+                    onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
+                    onNavigateToOrgChart={onNavigateToOrgChart}
+                onNavigateToVisualControl={onNavigateToVisualControl}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="lean"
                 />

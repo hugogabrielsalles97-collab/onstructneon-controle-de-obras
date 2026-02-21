@@ -19,6 +19,10 @@ interface PodcastPageProps {
     onNavigateToCost: () => void;
     onNavigateToPodcast: () => void;
     onNavigateToHome?: () => void;
+    onNavigateToCheckoutSummary?: () => void;
+    onNavigateToOrgChart?: () => void;
+    onNavigateToVisualControl?: () => void;
+    onNavigateToTeams?: () => void;
     onUpgradeClick: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
     user: User;
@@ -38,6 +42,9 @@ const PodcastPage: React.FC<PodcastPageProps> = ({
     onNavigateToPodcast,
     onNavigateToHome,
     onUpgradeClick,
+    onNavigateToCheckoutSummary,
+    onNavigateToOrgChart, onNavigateToVisualControl,
+    onNavigateToTeams,
     showToast,
     user,
     signOut
@@ -196,6 +203,9 @@ const PodcastPage: React.FC<PodcastPageProps> = ({
                 onNavigateToWarRoom={onNavigateToWarRoom}
                 onNavigateToCost={onNavigateToCost}
                 onNavigateToPodcast={onNavigateToPodcast}
+                onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
+                onNavigateToOrgChart={onNavigateToOrgChart}
+                onNavigateToVisualControl={onNavigateToVisualControl}
                 onUpgradeClick={onUpgradeClick}
             />
 
@@ -213,6 +223,9 @@ const PodcastPage: React.FC<PodcastPageProps> = ({
                     onNavigateToLeanConstruction={onNavigateToLeanConstruction}
                     onNavigateToWarRoom={onNavigateToWarRoom}
                     onNavigateToCost={onNavigateToCost}
+                    onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
+                    onNavigateToOrgChart={onNavigateToOrgChart}
+                onNavigateToVisualControl={onNavigateToVisualControl}
                     onNavigateToPodcast={onNavigateToPodcast}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="podcast"

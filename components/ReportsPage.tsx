@@ -22,7 +22,10 @@ interface ReportsPageProps {
   onNavigateToWarRoom: () => void;
   onNavigateToPodcast: () => void;
   onNavigateToCost: () => void;
-  onNavigateToHome?: () => void;
+  onNavigateToCheckoutSummary: () => void;
+  onNavigateToOrgChart?: () => void;
+    onNavigateToVisualControl?: () => void;
+  onNavigateToTeams?: () => void;
   onUpgradeClick: () => void;
   showToast: (message: string, type: 'success' | 'error') => void;
 }
@@ -45,7 +48,10 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
   onNavigateToWarRoom,
   onNavigateToPodcast,
   onNavigateToCost,
+  onNavigateToCheckoutSummary,
   onNavigateToHome,
+  onNavigateToOrgChart, onNavigateToVisualControl,
+  onNavigateToTeams,
   onUpgradeClick,
   showToast
 }) => {
@@ -129,6 +135,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
         onNavigateToLeanConstruction={onNavigateToLeanConstruction}
         onNavigateToWarRoom={onNavigateToWarRoom}
         onNavigateToPodcast={onNavigateToPodcast}
+        onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
+        onNavigateToOrgChart={onNavigateToOrgChart}
+                onNavigateToVisualControl={onNavigateToVisualControl}
         onUpgradeClick={onUpgradeClick}
       />
 
@@ -147,6 +156,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
           onNavigateToWarRoom={onNavigateToWarRoom}
           onNavigateToPodcast={onNavigateToPodcast}
           onNavigateToCost={onNavigateToCost}
+          onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
+          onNavigateToOrgChart={onNavigateToOrgChart}
+                onNavigateToVisualControl={onNavigateToVisualControl}
           onUpgradeClick={onUpgradeClick}
           activeScreen="reports"
         />

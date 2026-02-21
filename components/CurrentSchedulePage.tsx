@@ -19,7 +19,11 @@ interface CurrentSchedulePageProps {
     onNavigateToWarRoom: () => void;
     onNavigateToPodcast: () => void;
     onNavigateToCost: () => void;
+    onNavigateToCheckoutSummary: () => void;
     onNavigateToHome?: () => void;
+    onNavigateToOrgChart?: () => void;
+    onNavigateToVisualControl?: () => void;
+    onNavigateToTeams?: () => void;
     onUpgradeClick: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
@@ -59,7 +63,10 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
     onNavigateToWarRoom,
     onNavigateToPodcast,
     onNavigateToCost,
+    onNavigateToCheckoutSummary,
     onNavigateToHome,
+    onNavigateToOrgChart, onNavigateToVisualControl,
+    onNavigateToTeams,
     onUpgradeClick,
     showToast
 }) => {
@@ -441,6 +448,9 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
                 onNavigateToLeanConstruction={onNavigateToLeanConstruction}
                 onNavigateToWarRoom={onNavigateToWarRoom}
                 onNavigateToPodcast={onNavigateToPodcast}
+                onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
+                onNavigateToOrgChart={onNavigateToOrgChart}
+                onNavigateToVisualControl={onNavigateToVisualControl}
                 onUpgradeClick={onUpgradeClick}
             />
 
@@ -459,6 +469,9 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
                     onNavigateToWarRoom={onNavigateToWarRoom}
                     onNavigateToPodcast={onNavigateToPodcast}
                     onNavigateToCost={onNavigateToCost}
+                    onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
+                    onNavigateToOrgChart={onNavigateToOrgChart}
+                onNavigateToVisualControl={onNavigateToVisualControl}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="currentSchedule"
                 />

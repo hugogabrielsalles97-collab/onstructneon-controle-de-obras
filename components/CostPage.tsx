@@ -20,6 +20,10 @@ interface CostPageProps {
     onNavigateToPodcast: () => void;
     onNavigateToCost: () => void;
     onNavigateToHome?: () => void;
+    onNavigateToOrgChart?: () => void;
+    onNavigateToVisualControl?: () => void;
+    onNavigateToCheckoutSummary?: () => void;
+    onNavigateToTeams?: () => void;
     onUpgradeClick: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
@@ -34,8 +38,12 @@ const CostPage: React.FC<CostPageProps> = ({
     onNavigateToLeanConstruction,
     onNavigateToWarRoom,
     onNavigateToPodcast,
+    onNavigateToCost,
     onNavigateToHome,
     onUpgradeClick,
+    onNavigateToOrgChart, onNavigateToVisualControl,
+    onNavigateToCheckoutSummary,
+    onNavigateToTeams,
     showToast
 }) => {
     const { currentUser: user, signOut } = useData();
@@ -73,19 +81,6 @@ const CostPage: React.FC<CostPageProps> = ({
 
                     <nav className="space-y-2">
                         <h3 className="text-[10px] text-brand-med-gray font-black uppercase tracking-[2px] mb-4 ml-2">Módulo Financeiro</h3>
-                        {onNavigateToHome && (
-                            <button
-                                onClick={onNavigateToHome}
-                                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 group text-brand-med-gray hover:bg-white/5 hover:text-white font-medium"
-                            >
-                                <div className="transition-transform duration-300 group-hover:-translate-x-1 text-green-500/70">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M19 12H5M12 19l-7-7 7-7" />
-                                    </svg>
-                                </div>
-                                <span className="text-sm tracking-tight whitespace-nowrap">Módulos de Gestão</span>
-                            </button>
-                        )}
 
                         {costMenuItems.map((item) => (
                             <button
@@ -169,8 +164,11 @@ const CostPage: React.FC<CostPageProps> = ({
                     onNavigateToAnalysis={onNavigateToAnalysis}
                     onNavigateToLean={onNavigateToLean}
                     onNavigateToLeanConstruction={onNavigateToLeanConstruction}
-                    onNavigateToWarRoom={onNavigateToWarRoom}
                     onNavigateToPodcast={onNavigateToPodcast}
+                    onNavigateToCost={onNavigateToCost}
+                    onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
+                    onNavigateToOrgChart={onNavigateToOrgChart}
+                onNavigateToVisualControl={onNavigateToVisualControl}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="cost"
                 />

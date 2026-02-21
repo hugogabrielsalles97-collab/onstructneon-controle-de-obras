@@ -1,12 +1,14 @@
 /// <reference types="vite/client" />
-import React, { useState, useEffect } from 'react';
-import { Task, TaskStatus, Resource, User } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Task, TaskStatus, Resource, User, OrgMember } from '../types';
+import { useOrgMembers } from '../hooks/dataHooks';
 import XIcon from './icons/XIcon';
 import PlusIcon from './icons/PlusIcon';
 import SparkleIcon from './icons/SparkleIcon';
 import WeatherIcon from './icons/WeatherIcon';
 import SafetyAnalysisIcon from './icons/SafetyAnalysisIcon';
 import ConstructionIcon from './icons/ConstructionIcon';
+import ManagementIcon from './icons/ManagementIcon';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { disciplineOptions, taskTitleOptions, oaeLocations, frentes, apoios, vaos, unitOptions } from '../utils/constants';
 import AIRestrictedAccess from './AIRestrictedAccess';
@@ -50,50 +52,22 @@ const ResourceSection: React.FC<{
     return (
         <div className="space-y-3">
             <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] block mb-1">{title}</label>
-            <div className="space-y-2 max-h-32 overflow-y-auto pr-2 custom-scrollbar">
-                {resources.map((res, index) => (
-                    <div key={index} className="flex items-center gap-2 animate-fade-in group">
-                        <input
-                            type="text"
-                            value={res.role}
-                            onChange={(e) => onUpdate(index, { ...res, role: e.target.value })}
-                            className="flex-grow bg-white/5 border border-white/5 rounded-xl py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-accent/50 text-sm disabled:opacity-50 transition-all font-medium"
-                            disabled={disabled}
-                        />
-                        <input
-                            type="number"
-                            value={res.quantity}
-                            onChange={(e) => onUpdate(index, { ...res, quantity: parseInt(e.target.value, 10) || 0 })}
-                            className="w-16 bg-white/5 border border-white/5 rounded-xl py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-accent/50 text-sm disabled:opacity-50 text-center font-bold"
-                            min="0"
-                            disabled={disabled}
-                        />
-                        <button type="button" onClick={() => onRemove(index)} className="p-2 text-red-500/50 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed" disabled={disabled} title="Remover Recurso">
-                            <XIcon className="w-4 h-4" />
-                        </button>
-                    </div>
-                ))}
-            </div>
-            {!disabled && (
-                <div className="flex items-center gap-2 p-2 bg-white/5 rounded-2xl border border-white/10 mt-2">
-                    <input
-                        type="text"
-                        placeholder={rolePlaceholder}
-                        value={newRole}
-                        onChange={(e) => setNewRole(e.target.value)}
-                        className="flex-grow bg-white/5 border-none rounded-xl py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-accent/50 text-sm placeholder:text-gray-600"
-                    />
-                    <input
-                        type="number"
-                        placeholder="Qtd"
-                        value={newQuantity}
-                        onChange={(e) => setNewQuantity(parseInt(e.target.value, 10) || 1)}
-                        className="w-16 bg-white/5 border-none rounded-xl py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-accent/50 text-sm text-center font-bold"
-                        min="1"
-                    />
-                    <button type="button" onClick={handleAddClick} className="bg-brand-accent text-white rounded-xl p-2.5 hover:bg-[#e35a10] transition-all shadow-lg shadow-brand-accent/20" title="Adicionar Recurso">
-                        <PlusIcon className="w-4 h-4" />
-                    </button>
+            {resources.length > 0 ? (
+                <div className="space-y-2 max-h-32 overflow-y-auto pr-2 custom-scrollbar">
+                    {resources.map((res, index) => (
+                        <div key={index} className="flex items-center gap-2 animate-fade-in group">
+                            <div className="flex-grow bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white text-sm font-medium">
+                                {res.role}
+                            </div>
+                            <div className="w-16 bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white text-sm text-center font-bold">
+                                {res.quantity}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="text-[10px] text-brand-med-gray italic bg-white/5 p-3 rounded-xl border border-white/5">
+                    Nenhum recurso alocado via organograma.
                 </div>
             )}
         </div>
@@ -141,6 +115,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
     const [showAIRestricted, setShowAIRestricted] = useState(false);
     const [aiFeatureName, setAiFeatureName] = useState('');
     const [aiFeatureDesc, setAiFeatureDesc] = useState('');
+    const { data: orgMembers } = useOrgMembers();
 
 
 
@@ -239,6 +214,69 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             setConflictingTasks([]);
         }
     }, [formData.title, formData.startDate, formData.dueDate, task, tasks]);
+
+    // Auto-populate resources based on Org Chart
+    useEffect(() => {
+        if (!formData.assignee || !orgMembers) return;
+
+        // Find the selected user object to get their ID if possible
+        const selectedUser = allUsers?.find(u => u.fullName === formData.assignee);
+
+        // Find member in org chart (match by user_id or name)
+        const member = orgMembers.find(m =>
+            (selectedUser && m.user_id === selectedUser.id) ||
+            m.name === formData.assignee
+        );
+
+        if (!member) return;
+
+        // Find immediate subordinates
+        const subordinates = orgMembers.filter(m => m.parent_id === member.id);
+
+        if (subordinates.length > 0) {
+            const resources: Resource[] = subordinates.map(sub => ({
+                role: sub.role,
+                quantity: sub.quantity || 1
+            }));
+
+            setFormData(prev => {
+                // Only update if it's different to avoid infinite loops or overwriting manual work 
+                // if the assignee hasn't actually changed (though useEffect already handles dep)
+                // We overwrite plannedManpower as requested
+                return { ...prev, plannedManpower: resources };
+            });
+        }
+    }, [formData.assignee, orgMembers, allUsers]);
+
+    const supervisor = useMemo(() => {
+        if (!formData.assignee || !orgMembers || !allUsers) return null;
+
+        const selectedUser = allUsers.find(u => u.fullName === formData.assignee);
+        let currentMember = orgMembers.find(m =>
+            (selectedUser && m.user_id === selectedUser.id) ||
+            m.name === formData.assignee
+        );
+
+        if (!currentMember) return null;
+
+        // Procura por um "Engenheiro" na hierarquia superior
+        let parent = orgMembers.find(m => m.id === currentMember?.parent_id);
+        let topParent: OrgMember | null = null;
+
+        while (parent) {
+            if (parent.role.toLowerCase().includes('eng')) {
+                return parent;
+            }
+            if (!parent.parent_id) {
+                topParent = parent;
+                break;
+            }
+            parent = orgMembers.find(m => m.id === parent?.parent_id);
+        }
+
+        // Se não achou papel de engenheiro, retorna o topo da cadeia (que geralmente é o eng)
+        return topParent;
+    }, [formData.assignee, orgMembers, allUsers]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
@@ -745,6 +783,21 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                             <option value="">Selecione um responsável...</option>
                                             {assignableUsers.map(u => <option key={u.username} value={u.fullName}>{u.fullName} • {u.role}</option>)}
                                         </select>
+
+                                        {supervisor && (
+                                            <div className="mt-3 p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl flex items-center gap-4 animate-fade-in shadow-lg">
+                                                <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20">
+                                                    <ManagementIcon className="w-5 h-5 text-white" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Supervisor / Engenheiro Responsável</p>
+                                                    <p className="text-sm font-bold text-white group-hover:text-indigo-300 transition-colors">
+                                                        {supervisor.name}
+                                                    </p>
+                                                    <p className="text-[10px] text-indigo-300/60 font-medium italic">{supervisor.role}</p>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4">
@@ -794,15 +847,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                             onRemove={(idx) => handleResourceChange('plannedManpower', 'remove', { index: idx })}
                                             onUpdate={(idx, res) => handleResourceChange('plannedManpower', 'update', { index: idx, resource: res })}
                                             rolePlaceholder="Ex: Carpinteiro"
-                                            disabled={isReadOnlyPlanning}
-                                        />
-                                        <ResourceSection
-                                            title="Frota de Apoio"
-                                            resources={formData.plannedMachinery}
-                                            onAdd={(res) => handleResourceChange('plannedMachinery', 'add', { resource: res })}
-                                            onRemove={(idx) => handleResourceChange('plannedMachinery', 'remove', { index: idx })}
-                                            onUpdate={(idx, res) => handleResourceChange('plannedMachinery', 'update', { index: idx, resource: res })}
-                                            rolePlaceholder="Ex: Caminhão Munck"
                                             disabled={isReadOnlyPlanning}
                                         />
                                     </div>
@@ -884,36 +928,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                         )}
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-white/5">
-                                        <div className="space-y-4">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <div className="w-1 h-4 bg-green-500 rounded-full"></div>
-                                                <label className="text-[10px] font-black text-white uppercase tracking-[2px]">Mão de Obra Realizada</label>
-                                            </div>
-                                            <ResourceSection
-                                                title="Mão de Obra Real"
-                                                resources={formData.actualManpower || []}
-                                                onAdd={(res) => handleResourceChange('actualManpower', 'add', { resource: res })}
-                                                onRemove={(idx) => handleResourceChange('actualManpower', 'remove', { index: idx })}
-                                                onUpdate={(idx, res) => handleResourceChange('actualManpower', 'update', { index: idx, resource: res })}
-                                                rolePlaceholder="Cargo/Função Real"
-                                            />
-                                        </div>
-                                        <div className="space-y-4">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <div className="w-1 h-4 bg-green-500 rounded-full"></div>
-                                                <label className="text-[10px] font-black text-white uppercase tracking-[2px]">Equipamentos Reais</label>
-                                            </div>
-                                            <ResourceSection
-                                                title="Equipamentos Reais"
-                                                resources={formData.actualMachinery || []}
-                                                onAdd={(res) => handleResourceChange('actualMachinery', 'add', { resource: res })}
-                                                onRemove={(idx) => handleResourceChange('actualMachinery', 'remove', { index: idx })}
-                                                onUpdate={(idx, res) => handleResourceChange('actualMachinery', 'update', { index: idx, resource: res })}
-                                                rolePlaceholder="Equipamento Real"
-                                            />
-                                        </div>
-                                    </div>
 
                                     <div className="space-y-4">
                                         <div className="flex justify-between items-center">

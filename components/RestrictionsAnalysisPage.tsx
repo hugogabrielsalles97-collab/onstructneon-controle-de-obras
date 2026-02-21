@@ -31,6 +31,10 @@ interface RestrictionsAnalysisPageProps {
     onNavigateToHome?: () => void;
     onUpdateRestriction: (id: string, updates: Partial<Restriction>) => Promise<void>;
     onDeleteRestriction: (id: string) => Promise<void>;
+    onNavigateToCheckoutSummary?: () => void;
+    onNavigateToOrgChart?: () => void;
+    onNavigateToVisualControl?: () => void;
+    onNavigateToTeams?: () => void;
     onUpgradeClick: () => void;
 }
 
@@ -52,6 +56,9 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
     onNavigateToHome,
     onUpdateRestriction,
     onDeleteRestriction,
+    onNavigateToCheckoutSummary,
+    onNavigateToOrgChart, onNavigateToVisualControl,
+    onNavigateToTeams,
     onUpgradeClick
 }) => {
     const [filterStatuses, setFilterStatuses] = useState<RestrictionStatus[]>(Object.values(RestrictionStatus));
@@ -335,6 +342,9 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                 onNavigateToLeanConstruction={onNavigateToLeanConstruction}
                 onNavigateToWarRoom={onNavigateToWarRoom}
                 onNavigateToPodcast={onNavigateToPodcast}
+                onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
+                onNavigateToOrgChart={onNavigateToOrgChart}
+                onNavigateToVisualControl={onNavigateToVisualControl}
                 onUpgradeClick={onUpgradeClick}
             />
 
@@ -353,6 +363,9 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                     onNavigateToWarRoom={onNavigateToWarRoom}
                     onNavigateToPodcast={onNavigateToPodcast}
                     onNavigateToCost={onNavigateToCost}
+                    onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
+                    onNavigateToOrgChart={onNavigateToOrgChart}
+                onNavigateToVisualControl={onNavigateToVisualControl}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="analysis"
                 />

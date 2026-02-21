@@ -197,10 +197,11 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEdi
                   <div className="flex justify-end gap-2">
                     <button
                       onClick={() => onEditTask(task)}
-                      className="p-2 bg-white/5 hover:bg-brand-accent/20 text-brand-med-gray hover:text-brand-accent rounded-lg transition-all duration-300 border border-white/5"
-                      title="Editar"
+                      className="flex items-center gap-2 px-3 py-2 bg-brand-accent/10 hover:bg-brand-accent text-brand-accent hover:text-white rounded-lg transition-all duration-300 border border-brand-accent/20 font-bold text-[10px] uppercase tracking-wider group"
+                      title="Checkout"
                     >
-                      <EditIcon className="w-4 h-4" />
+                      <EditIcon className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                      <span>Checkout</span>
                     </button>
                     {(userRole === 'Master' || userRole === 'Planejador') && (
                       <button

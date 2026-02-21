@@ -84,9 +84,11 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin, show
       return;
     }
 
+    const registerEmail = username.includes('@') ? username : `${username}@construcao.com`;
+
     // Supabase sign up
     const { data: { user }, error: signUpError } = await supabase.auth.signUp({
-      email: username,
+      email: registerEmail,
       password: password,
       options: {
         data: {
@@ -108,11 +110,11 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin, show
     }
 
     if (user) {
-      setSuccess('Usuário cadastrado com sucesso! Você já pode realizar o seu login.');
-      showToast('Cadastro realizado com sucesso!', 'success');
+      setSuccess('Solicitação de cadastro enviada com sucesso! Aguarde a aprovação de um usuário Master para realizar o login.');
+      showToast('Solicitação de cadastro enviada!', 'success');
       setTimeout(() => {
         onNavigateToLogin();
-      }, 2500);
+      }, 5000);
     }
     setLoading(false);
   };
@@ -251,11 +253,11 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin, show
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
                     </div>
                     <input
-                      type="email"
+                      type="text"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       className="w-full bg-[#111827] border border-white/10 text-white text-sm rounded-xl px-10 py-3 focus:outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/50 transition-all placeholder-gray-600"
-                      placeholder="E-mail (Login)"
+                      placeholder="Usuário (Login)"
                       required
                     />
                   </div>

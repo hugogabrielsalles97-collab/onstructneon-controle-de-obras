@@ -8,6 +8,8 @@ import ScheduleIcon from './icons/ScheduleIcon';
 import LeanIcon from './icons/LeanIcon';
 import ManagementIcon from './icons/ManagementIcon';
 import TvIcon from './icons/TvIcon';
+import HistoryIcon from './icons/HistoryIcon';
+import UserIcon from './icons/UserIcon';
 
 interface SidebarProps {
     user: User;
@@ -23,25 +25,14 @@ interface SidebarProps {
     onNavigateToWarRoom?: () => void;
     onNavigateToCost?: () => void;
     onNavigateToPodcast?: () => void;
+    onNavigateToCheckoutSummary: () => void;
+    onNavigateToOrgChart?: () => void;
+    onNavigateToTeams?: () => void;
+    onNavigateToVisualControl?: () => void;
     onUpgradeClick: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({
-    user,
-    activeScreen,
-    onNavigateToHome,
-    onNavigateToDashboard,
-    onNavigateToReports,
-    onNavigateToBaseline,
-    onNavigateToCurrentSchedule,
-    onNavigateToAnalysis,
-    onNavigateToLean,
-    onNavigateToLeanConstruction,
-    onNavigateToWarRoom,
-    onNavigateToCost,
-    onNavigateToPodcast,
-    onUpgradeClick,
-}) => {
+const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome, onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToTeams, onNavigateToVisualControl, onUpgradeClick }) => {
     const showFullMenu = user.role !== 'Executor';
     const isCostModule = activeScreen === 'cost';
     const accentColor = isCostModule ? 'green-600' : 'brand-accent';
@@ -70,44 +61,65 @@ const Sidebar: React.FC<SidebarProps> = ({
                         {isCostModule ? 'Módulo Financeiro' : 'Menu Principal'}
                     </h3>
 
-                    {onNavigateToHome && (
-                        <NavButton
-                            icon={
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:-translate-x-1 transition-transform">
-                                    <path d="M19 12H5M12 19l-7-7 7-7" />
-                                </svg>
-                            }
-                            label="Módulos de Gestão"
-                            onClick={onNavigateToHome}
-                            isCostModule={isCostModule}
-                        />
-                    )}
 
                     {!isCostModule ? (
                         <>
                             <NavButton
                                 active={activeScreen === 'dashboard'}
                                 icon={<ChartIcon className="w-5 h-5" />}
-                                label="Painel de Controle"
+                                label="Programação Semanal"
                                 onClick={onNavigateToDashboard}
                                 isCostModule={isCostModule}
                             />
                             {showFullMenu && (
+                                <NavButton
+                                    active={activeScreen === 'checkoutSummary'}
+                                    icon={<HistoryIcon className="w-5 h-5 text-brand-accent" />}
+                                    label="Resumo Checkout"
+                                    onClick={onNavigateToCheckoutSummary}
+                                    isCostModule={isCostModule}
+                                />
+                            )}
+                            {showFullMenu && (
                                 <>
                                     <NavButton
-                                        active={activeScreen === 'baseline'}
-                                        icon={<BaselineIcon className="w-5 h-5" />}
-                                        label="Linha Base"
-                                        onClick={onNavigateToBaseline}
+                                        active={activeScreen === 'leanConstruction'}
+                                        icon={<LeanIcon className="w-5 h-5 text-cyan-400" />}
+                                        label="Lean Construction"
+                                        onClick={onNavigateToLeanConstruction}
                                         isCostModule={isCostModule}
                                     />
                                     <NavButton
-                                        active={activeScreen === 'currentSchedule'}
-                                        icon={<ScheduleIcon className="w-5 h-5" />}
-                                        label="Cronograma Corrente"
-                                        onClick={onNavigateToCurrentSchedule}
+                                        active={activeScreen === 'lean' || activeScreen === 'restrictions'}
+                                        icon={<LeanIcon className="w-5 h-5" />}
+                                        label="Sistema LPS"
+                                        onClick={onNavigateToLean}
                                         isCostModule={isCostModule}
                                     />
+                                    {onNavigateToOrgChart && (
+                                        <NavButton
+                                            active={activeScreen === 'orgChart'}
+                                            icon={<ManagementIcon className="w-5 h-5 text-indigo-400" />}
+                                            label="Organograma"
+                                            onClick={onNavigateToOrgChart}
+                                            isCostModule={isCostModule}
+                                        />
+                                    )}
+                                    {onNavigateToVisualControl && (
+                                        <NavButton
+                                            active={activeScreen === 'visualControl'}
+                                            icon={
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-orange-400">
+                                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                                    <circle cx="8.5" cy="8.5" r="1.5" />
+                                                    <polyline points="21 15 16 10 5 21" />
+                                                </svg>
+                                            }
+                                            label="Controle Visual"
+                                            onClick={onNavigateToVisualControl}
+                                            isCostModule={isCostModule}
+                                        />
+                                    )}
                                     <NavButton
                                         active={activeScreen === 'reports'}
                                         icon={<ChartIcon className="w-5 h-5" />}
@@ -123,17 +135,17 @@ const Sidebar: React.FC<SidebarProps> = ({
                                         isCostModule={isCostModule}
                                     />
                                     <NavButton
-                                        active={activeScreen === 'lean' || activeScreen === 'restrictions'}
-                                        icon={<LeanIcon className="w-5 h-5" />}
-                                        label="Sistema LPS"
-                                        onClick={onNavigateToLean}
+                                        active={activeScreen === 'baseline'}
+                                        icon={<BaselineIcon className="w-5 h-5" />}
+                                        label="Linha Base"
+                                        onClick={onNavigateToBaseline}
                                         isCostModule={isCostModule}
                                     />
                                     <NavButton
-                                        active={activeScreen === 'leanConstruction'}
-                                        icon={<LeanIcon className="w-5 h-5 text-cyan-400" />}
-                                        label="Lean Construction"
-                                        onClick={onNavigateToLeanConstruction}
+                                        active={activeScreen === 'currentSchedule'}
+                                        icon={<ScheduleIcon className="w-5 h-5" />}
+                                        label="Cronograma Corrente"
+                                        onClick={onNavigateToCurrentSchedule}
                                         isCostModule={isCostModule}
                                     />
                                 </>

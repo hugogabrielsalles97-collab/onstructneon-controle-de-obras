@@ -21,6 +21,8 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ onClose, show
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; userId: string | null }>({ isOpen: false, userId: null });
     const [isDeleting, setIsDeleting] = useState(false);
 
+    const [activeTab, setActiveTab] = useState<'users' | 'requests'>('users');
+
     const handleEditClick = (user: User) => {
         setEditingUserId(user.id);
         setEditForm({ fullName: user.fullName, role: user.role, email: user.email });
@@ -46,6 +48,15 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ onClose, show
         }
     };
 
+    const handleApproveUser = async (user: User) => {
+        const { success, error } = await updateUser(user.id, { is_approved: true });
+        if (success) {
+            showToast(`Usuário ${user.fullName} aprovado com sucesso!`, 'success');
+        } else {
+            showToast(`Erro ao aprovar: ${error}`, 'error');
+        }
+    };
+
     const handleDeleteClick = (userId: string) => {
         setConfirmModal({ isOpen: true, userId });
     };
@@ -63,7 +74,10 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ onClose, show
         setIsDeleting(false);
     };
 
-    const filteredUsers = allUsers.filter(u =>
+    const approvedUsers = allUsers.filter(u => u.is_approved !== false);
+    const pendingUsers = allUsers.filter(u => u.is_approved === false);
+
+    const filteredUsers = (activeTab === 'users' ? approvedUsers : pendingUsers).filter(u =>
         u.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         u.role.toLowerCase().includes(searchTerm.toLowerCase())
@@ -89,6 +103,25 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ onClose, show
                     </button>
                 </div>
 
+                {/* Tabs */}
+                <div className="flex p-2 bg-[#111827] border-b border-white/5">
+                    <button
+                        onClick={() => setActiveTab('users')}
+                        className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${activeTab === 'users' ? 'bg-brand-accent text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                    >
+                        Usuários Ativos ({approvedUsers.length})
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('requests')}
+                        className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all relative ${activeTab === 'requests' ? 'bg-brand-accent text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                    >
+                        Solicitações ({pendingUsers.length})
+                        {pendingUsers.length > 0 && (
+                            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                        )}
+                    </button>
+                </div>
+
                 <div className="p-4 border-b border-white/5 bg-[#0a0f18]">
                     <input
                         type="text"
@@ -102,7 +135,9 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ onClose, show
                 <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-[#0a0f18]">
                     <div className="grid grid-cols-1 gap-4">
                         {filteredUsers.length === 0 ? (
-                            <div className="text-center py-12 text-gray-500">Nenhum usuário encontrado.</div>
+                            <div className="text-center py-12 text-gray-500">
+                                {activeTab === 'users' ? 'Nenhum usuário ativo encontrado.' : 'Nenhuma solicitação pendente.'}
+                            </div>
                         ) : (
                             filteredUsers.map(user => (
                                 <div key={user.id} className={`bg-[#111827] rounded-xl p-4 border ${editingUserId === user.id ? 'border-brand-accent/50 bg-brand-accent/5' : 'border-white/5 hover:border-white/10'} transition-all`}>
@@ -127,6 +162,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ onClose, show
                                                     <option value="Master">Master</option>
                                                     <option value="Gerenciador">Gerenciador</option>
                                                     <option value="Executor">Executor</option>
+                                                    <option value="Planejador">Planejador</option>
                                                     <option value="Visitante">Visitante</option>
                                                 </select>
                                             </div>
@@ -142,8 +178,12 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ onClose, show
                                                     {user.fullName.charAt(0)}
                                                 </div>
                                                 <div>
-                                                    <h3 className="text-white font-bold">{user.fullName} {currentUser?.id === user.id && <span className="text-[10px] bg-brand-accent text-white px-1.5 py-0.5 rounded ml-2">VOCÊ</span>}</h3>
-                                                    <p className="text-xs text-gray-500">{user.email}</p>
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="text-white font-bold">{user.fullName} {currentUser?.id === user.id && <span className="text-[10px] bg-brand-accent text-white px-1.5 py-0.5 rounded ml-2">VOCÊ</span>}</h3>
+                                                        {activeTab === 'requests' && <span className="text-[9px] bg-orange-500/20 text-orange-400 border border-orange-500/30 px-1.5 py-0.5 rounded font-bold uppercase">Pendente</span>}
+                                                    </div>
+                                                    <p className="text-xs text-gray-500">{user.username}</p>
+                                                    {user.whatsapp && <p className="text-[10px] text-brand-med-gray">Whats: {user.whatsapp}</p>}
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-6">
@@ -154,9 +194,30 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ onClose, show
                                                     {user.role}
                                                 </span>
                                                 <div className="flex gap-2">
-                                                    <button onClick={() => handleEditClick(user)} className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"><EditIcon className="w-4 h-4" /></button>
-                                                    {currentUser?.id !== user.id && (
-                                                        <button onClick={() => handleDeleteClick(user.id)} className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"><DeleteIcon className="w-4 h-4" /></button>
+                                                    {activeTab === 'requests' ? (
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleApproveUser(user)}
+                                                                className="flex items-center gap-1.5 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white px-3 py-1.5 rounded-lg border border-green-500/20 transition-all font-bold text-xs"
+                                                            >
+                                                                <CheckIcon className="w-4 h-4" />
+                                                                Aprovar
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteClick(user.id)}
+                                                                className="flex items-center gap-1.5 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white px-3 py-1.5 rounded-lg border border-red-500/20 transition-all font-bold text-xs"
+                                                            >
+                                                                <DeleteIcon className="w-4 h-4" />
+                                                                Recusar
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <button onClick={() => handleEditClick(user)} className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"><EditIcon className="w-4 h-4" /></button>
+                                                            {currentUser?.id !== user.id && (
+                                                                <button onClick={() => handleDeleteClick(user.id)} className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"><DeleteIcon className="w-4 h-4" /></button>
+                                                            )}
+                                                        </>
                                                     )}
                                                 </div>
                                             </div>
@@ -168,8 +229,11 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ onClose, show
                     </div>
                 </div>
 
-                <div className="p-4 bg-[#111827] border-t border-white/5 text-right rounded-b-2xl">
-                    <p className="text-[10px] text-gray-500">Total de usuários: {allUsers.length}</p>
+                <div className="p-4 bg-[#111827] border-t border-white/5 flex justify-between items-center rounded-b-2xl">
+                    <p className="text-[10px] text-gray-500">Total listados: {filteredUsers.length}</p>
+                    {activeTab === 'requests' && pendingUsers.length > 0 && (
+                        <p className="text-[10px] text-brand-accent font-bold animate-pulse">Solicitações aguardando ação!</p>
+                    )}
                 </div>
             </div>
 

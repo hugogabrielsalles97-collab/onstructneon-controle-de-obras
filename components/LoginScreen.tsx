@@ -26,8 +26,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister, onVisit
       return;
     }
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: username,
+    const loginEmail = username.includes('@') ? username : `${username}@construcao.com`;
+
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      email: loginEmail,
       password: password,
     });
 
@@ -37,8 +39,23 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister, onVisit
       } else {
         setError(signInError.message === 'Invalid login credentials' ? 'Usuário ou senha inválidos.' : signInError.message);
       }
-    } else {
-      showToast('Login bem-sucedido!', 'success');
+    } else if (signInData.user) {
+      // Check if user is approved
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('is_approved')
+        .eq('id', signInData.user.id)
+        .single();
+
+      if (profileError) {
+        setError('Erro ao verificar perfil. Tente novamente.');
+        await supabase.auth.signOut();
+      } else if (profile && !profile.is_approved) {
+        setError('Sua conta ainda não foi aprovada por um usuário Master. Por favor, aguarde a aprovação.');
+        await supabase.auth.signOut();
+      } else {
+        showToast('Login bem-sucedido!', 'success');
+      }
     }
     setLoading(false);
   };
@@ -88,7 +105,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister, onVisit
                   autoComplete="username"
                   required
                   className="w-full bg-[#0a0f18]/60 border border-white/5 text-white text-sm rounded-xl px-12 py-3.5 focus:outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/50 placeholder-gray-600 transition-all shadow-inner"
-                  placeholder="Seu usuário ou e-mail"
+                  placeholder="Seu usuário"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                 />

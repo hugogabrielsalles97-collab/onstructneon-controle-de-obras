@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useData } from '../context/DataProvider';
 import Header from './Header';
 import Sidebar from './Sidebar';
@@ -24,14 +24,18 @@ interface LeanConstructionPageProps {
     onNavigateToPodcast: () => void;
     onNavigateToCost: () => void;
     onNavigateToHome?: () => void;
+    onNavigateToOrgChart?: () => void;
+    onNavigateToVisualControl?: () => void;
+    onNavigateToCheckoutSummary?: () => void;
+    onNavigateToTeams?: () => void;
     onUpgradeClick: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
 const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
-    onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToHome, onUpgradeClick, showToast
+    onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToHome, onNavigateToOrgChart, onNavigateToVisualControl, onNavigateToCheckoutSummary, onNavigateToTeams, onUpgradeClick, showToast
 }) => {
-    const { currentUser: user, signOut, leanTasks, saveLeanTask, deleteLeanTask } = useData();
+    const { currentUser: user, signOut, leanTasks, saveLeanTask, deleteLeanTask, checkoutLogs, tasks } = useData();
     const [selectedTask, setSelectedTask] = useState<LeanTask | null>(null);
     const [isMainFormOpen, setIsMainFormOpen] = useState(false);
     const [isSubFormOpen, setIsSubFormOpen] = useState(false);
@@ -39,6 +43,27 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; id: string; type: 'task' | 'subtask' | null }>({ isOpen: false, id: '', type: null });
     const [isDeleting, setIsDeleting] = useState(false);
+    const [viewMode, setViewMode] = useState<'flow' | 'analytics'>('analytics');
+    const [analyticsStartDate, setAnalyticsStartDate] = useState<string>('');
+    const [analyticsEndDate, setAnalyticsEndDate] = useState<string>('');
+    const [analyticsAssigneeFilter, setAnalyticsAssigneeFilter] = useState<string>('');
+    const [isAssigneeDropdownOpen, setIsAssigneeDropdownOpen] = useState(false);
+    const assigneeDropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (assigneeDropdownRef.current && !assigneeDropdownRef.current.contains(event.target as Node)) {
+                setIsAssigneeDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const availableAssignees = useMemo(() => {
+        const set = new Set(tasks.map(t => t.assignee).filter(Boolean));
+        return Array.from(set).sort();
+    }, [tasks]);
 
     // Form Data
     const [newTask, setNewTask] = useState<Partial<LeanTask>>({
@@ -394,6 +419,101 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
         }));
     }, [selectedTask]);
 
+    const checkoutAnalytics = useMemo(() => {
+        const taskStats: Record<string, {
+            taskTitle: string,
+            assignee: string,
+            unit: string,
+            discipline: string,
+            location: string,
+            daily: Record<string, { produced: number, manHours: number, taskIds: Set<string> }>,
+        }> = {};
+
+        const sortedLogs = [...checkoutLogs].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+        sortedLogs.forEach(log => {
+            const task = tasks.find(t => t.id === log.task_id);
+            if (!task) return;
+
+            const date = log.created_at.split('T')[0];
+
+            // Period (Start/End) filtering
+            if (analyticsStartDate && date < analyticsStartDate) return;
+            if (analyticsEndDate && date > analyticsEndDate) return;
+
+            if (analyticsAssigneeFilter && task.assignee !== analyticsAssigneeFilter) return;
+
+            const groupKey = log.task_title;
+
+            const changes = log.changes;
+            if (changes.actualQuantity) {
+                const delta = (changes.actualQuantity.to || 0) - (changes.actualQuantity.from || 0);
+
+                if (!taskStats[groupKey]) {
+                    taskStats[groupKey] = {
+                        taskTitle: log.task_title,
+                        assignee: analyticsAssigneeFilter || 'Equipe',
+                        unit: task.unit,
+                        discipline: task.discipline,
+                        location: task.location,
+                        daily: {}
+                    };
+                }
+
+                if (!taskStats[groupKey].daily[date]) {
+                    taskStats[groupKey].daily[date] = { produced: 0, manHours: 0, taskIds: new Set() };
+                }
+
+                taskStats[groupKey].daily[date].produced += delta;
+
+                // Track task manpower correctly for grouped activities
+                if (!taskStats[groupKey].daily[date].taskIds.has(log.task_id)) {
+                    const workersCount = task.actualManpower?.reduce((acc, w) => acc + w.quantity, 0) ||
+                        task.plannedManpower?.reduce((acc, w) => acc + w.quantity, 0) || 1;
+                    const hoursPerDay = 9;
+                    taskStats[groupKey].daily[date].manHours += (workersCount * hoursPerDay);
+                    taskStats[groupKey].daily[date].taskIds.add(log.task_id);
+                }
+            }
+        });
+
+        return Object.values(taskStats).map(stat => {
+            const days = Object.entries(stat.daily).map(([date, data]) => ({
+                date,
+                produced: data.produced,
+                manHours: data.manHours,
+                productivity: data.manHours > 0 ? (data.produced / data.manHours).toFixed(3) : '0.000',
+                rup: data.produced > 0 ? (data.manHours / data.produced).toFixed(3) : '0.000'
+            })).sort((a, b) => a.date.localeCompare(b.date));
+
+            let totalP = 0;
+            let totalHh = 0;
+            const history = days.map(d => {
+                totalP += d.produced;
+                totalHh += d.manHours;
+                return {
+                    ...d,
+                    cumProductivity: totalHh > 0 ? (totalP / totalHh).toFixed(3) : '0.000',
+                    cumRup: totalP > 0 ? (totalHh / totalP).toFixed(3) : '0.000'
+                };
+            });
+
+            return {
+                ...stat,
+                totalProduced: totalP,
+                totalManHours: totalHh,
+                history,
+                lastRup: history.length > 0 ? history[history.length - 1].cumRup : '0.000',
+                lastProd: history.length > 0 ? history[history.length - 1].cumProductivity : '0.000'
+            };
+        });
+    }, [checkoutLogs, tasks, analyticsStartDate, analyticsEndDate, analyticsAssigneeFilter]);
+
+    function fmtDateBR(isoDate: string) {
+        const [y, m, d] = isoDate.split('-');
+        return `${d}/${m}/${y}`;
+    }
+
     function fmtTime(m: number) { return `${Math.floor(m / 60).toString().padStart(2, '0')}:${(m % 60).toString().padStart(2, '0')}`; }
 
     if (!user) return null;
@@ -413,6 +533,9 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                 onNavigateToLeanConstruction={() => { }}
                 onNavigateToWarRoom={onNavigateToWarRoom}
                 onNavigateToPodcast={onNavigateToPodcast}
+                onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
+                onNavigateToOrgChart={onNavigateToOrgChart}
+                onNavigateToVisualControl={onNavigateToVisualControl}
                 onUpgradeClick={onUpgradeClick}
             />
 
@@ -431,6 +554,9 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                     onNavigateToWarRoom={onNavigateToWarRoom}
                     onNavigateToPodcast={onNavigateToPodcast}
                     onNavigateToCost={onNavigateToCost}
+                    onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
+                    onNavigateToOrgChart={onNavigateToOrgChart}
+                onNavigateToVisualControl={onNavigateToVisualControl}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="leanConstruction"
                 />
@@ -450,32 +576,202 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
 
                         {!selectedTask ? (
                             <div className="space-y-6">
-                                <div className="flex justify-between items-end border-b border-white/5 pb-4">
-                                    <p className="text-gray-400 text-sm">Gerencie suas atividades.</p>
-                                    {user.role !== 'Gerenciador' && (
-                                        <button onClick={() => setIsMainFormOpen(!isMainFormOpen)} className="bg-cyan-500 hover:bg-cyan-600 text-white px-5 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2"><PlusIcon className="w-4 h-4" /> {isMainFormOpen ? 'Fechar' : 'Nova Atividade'}</button>
+                                <div className="flex flex-col md:flex-row justify-between items-center gap-4 border-b border-white/5 pb-6">
+                                    <div className="flex p-1 bg-white/5 rounded-2xl border border-white/10 self-start">
+                                        <button
+                                            onClick={() => setViewMode('analytics')}
+                                            className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${viewMode === 'analytics' ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' : 'text-gray-500 hover:text-white'}`}
+                                        >
+                                            Análise de Produtividade
+                                        </button>
+                                        <button
+                                            onClick={() => setViewMode('flow')}
+                                            className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${viewMode === 'flow' ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' : 'text-gray-500 hover:text-white'}`}
+                                        >
+                                            Mapeamento de Fluxo
+                                        </button>
+                                    </div>
+
+                                    {viewMode === 'analytics' && (
+                                        <div className="flex flex-wrap items-center gap-3">
+                                            {/* Date Range Filter */}
+                                            <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 gap-3">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[9px] font-black text-gray-500 uppercase">Início:</span>
+                                                    <input
+                                                        type="date"
+                                                        value={analyticsStartDate}
+                                                        onChange={(e) => setAnalyticsStartDate(e.target.value)}
+                                                        className="bg-transparent text-[10px] text-white font-bold focus:outline-none [color-scheme:dark]"
+                                                    />
+                                                </div>
+                                                <div className="w-px h-3 bg-white/10"></div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[9px] font-black text-gray-500 uppercase">Fim:</span>
+                                                    <input
+                                                        type="date"
+                                                        value={analyticsEndDate}
+                                                        onChange={(e) => setAnalyticsEndDate(e.target.value)}
+                                                        className="bg-transparent text-[10px] text-white font-bold focus:outline-none [color-scheme:dark]"
+                                                    />
+                                                </div>
+                                                {(analyticsStartDate || analyticsEndDate) && (
+                                                    <button onClick={() => { setAnalyticsStartDate(''); setAnalyticsEndDate(''); }} className="text-gray-500 hover:text-white ml-1">×</button>
+                                                )}
+                                            </div>
+
+                                            {/* Responsible Filter - Professional Custom Dropdown */}
+                                            <div className="relative" ref={assigneeDropdownRef}>
+                                                <div
+                                                    onClick={() => setIsAssigneeDropdownOpen(!isAssigneeDropdownOpen)}
+                                                    className={`flex items-center bg-white/5 border border-white/10 rounded-xl px-4 py-2 gap-3 min-w-[240px] max-w-[400px] cursor-pointer hover:bg-white/[0.08] transition-all group/select ${isAssigneeDropdownOpen ? 'border-cyan-500/40 bg-white/[0.08] ring-4 ring-cyan-500/10' : ''}`}
+                                                >
+                                                    <span className="text-[9px] font-black text-gray-500 uppercase whitespace-nowrap">Responsável:</span>
+                                                    <div className="flex-1 truncate">
+                                                        <span className="text-[11px] text-white font-black truncate block">
+                                                            {analyticsAssigneeFilter || 'Todos os Responsáveis'}
+                                                        </span>
+                                                    </div>
+                                                    <div className={`transition-transform duration-300 ${isAssigneeDropdownOpen ? 'rotate-180 text-cyan-400' : 'text-gray-500 group-hover/select:text-cyan-400'}`}>
+                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
+                                                        </svg>
+                                                    </div>
+                                                </div>
+
+                                                {isAssigneeDropdownOpen && (
+                                                    <div className="absolute top-full left-0 right-0 mt-2 bg-[#0d1525]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden z-[100] animate-in fade-in zoom-in-95 duration-200 origin-top">
+                                                        <div className="p-2 max-h-[300px] overflow-y-auto custom-scrollbar">
+                                                            <button
+                                                                onClick={() => {
+                                                                    setAnalyticsAssigneeFilter('');
+                                                                    setIsAssigneeDropdownOpen(false);
+                                                                }}
+                                                                className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all mb-1 ${!analyticsAssigneeFilter ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
+                                                            >
+                                                                Todos os Responsáveis
+                                                            </button>
+                                                            <div className="h-px bg-white/5 my-1 mx-2"></div>
+                                                            {availableAssignees.map(a => (
+                                                                <button
+                                                                    key={a}
+                                                                    onClick={() => {
+                                                                        setAnalyticsAssigneeFilter(a);
+                                                                        setIsAssigneeDropdownOpen(false);
+                                                                    }}
+                                                                    className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all mb-0.5 ${analyticsAssigneeFilter === a ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
+                                                                >
+                                                                    {a}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {viewMode === 'flow' && user.role !== 'Gerenciador' && (
+                                        <button onClick={() => setIsMainFormOpen(!isMainFormOpen)} className="bg-cyan-500 hover:bg-cyan-600 text-white px-5 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg shadow-cyan-500/10"><PlusIcon className="w-4 h-4" /> {isMainFormOpen ? 'Fechar' : 'Nova Atividade'}</button>
                                     )}
                                 </div>
 
-                                {leanTasks.map(task => {
-                                    const metrics = calculateTaskMetrics(task);
-                                    return (
-                                        <div key={task.id} onClick={() => setSelectedTask(task)} className="bg-[#111827]/50 border border-white/5 p-5 rounded-2xl hover:border-cyan-500/30 cursor-pointer flex justify-between items-center transition-all group relative pr-12">
-                                            {user.role !== 'Gerenciador' && (
-                                                <button onClick={(e) => handleDeleteMainTask(task.id, e)} className="absolute top-1/2 -translate-y-1/2 right-4 p-2 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-[#060a12] rounded-full shadow-lg border border-white/10"><DeleteIcon className="w-5 h-5" /></button>
-                                            )}
-                                            <div>
-                                                <h3 className="font-bold text-white text-lg group-hover:text-cyan-400">{task.service}</h3>
-                                                <p className="text-gray-500 text-xs">{task.discipline} • {task.location}</p>
+                                {viewMode === 'flow' ? (
+                                    <div className="space-y-4">
+                                        {leanTasks.length === 0 ? (
+                                            <div className="py-20 text-center opacity-20 flex flex-col items-center">
+                                                <ConstructionIcon className="w-12 h-12 mb-4" />
+                                                <p className="text-sm font-bold uppercase tracking-widest">Nenhuma atividade de fluxo mapeada.</p>
                                             </div>
-                                            <div className="flex gap-6 text-center">
-                                                <div><span className="block font-bold text-cyan-400 text-xl">{metrics.rup} <span className="text-[10px] text-gray-500 font-normal">Hh/{task.unit}</span></span><span className="text-[9px] uppercase text-gray-500">RUP</span></div>
-                                                <div><span className="block font-bold text-green-400 text-xl">{metrics.productivity} <span className="text-[10px] text-gray-500 font-normal">{task.unit}/Hh</span></span><span className="text-[9px] uppercase text-gray-500">Produt.</span></div>
-                                                <div><span className="block font-bold text-white text-xl">{task.subtasks.length}</span><span className="text-[9px] uppercase text-gray-500">Etapas</span></div>
+                                        ) : leanTasks.map(task => {
+                                            const metrics = calculateTaskMetrics(task);
+                                            return (
+                                                <div key={task.id} onClick={() => setSelectedTask(task)} className="bg-[#111827]/50 border border-white/5 p-5 rounded-2xl hover:border-cyan-500/30 cursor-pointer flex justify-between items-center transition-all group relative pr-12">
+                                                    {user.role !== 'Gerenciador' && (
+                                                        <button onClick={(e) => handleDeleteMainTask(task.id, e)} className="absolute top-1/2 -translate-y-1/2 right-4 p-2 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-[#060a12] rounded-full shadow-lg border border-white/10"><DeleteIcon className="w-5 h-5" /></button>
+                                                    )}
+                                                    <div>
+                                                        <h3 className="font-bold text-white text-lg group-hover:text-cyan-400">{task.service}</h3>
+                                                        <p className="text-gray-500 text-xs">{task.discipline} • {task.location}</p>
+                                                    </div>
+                                                    <div className="flex gap-6 text-center">
+                                                        <div><span className="block font-bold text-cyan-400 text-xl">{metrics.rup} <span className="text-[10px] text-gray-500 font-normal">Hh/{task.unit}</span></span><span className="text-[9px] uppercase text-gray-500">RUP</span></div>
+                                                        <div><span className="block font-bold text-green-400 text-xl">{metrics.productivity} <span className="text-[10px] text-gray-500 font-normal">{task.unit}/Hh</span></span><span className="text-[9px] uppercase text-gray-500">Produt.</span></div>
+                                                        <div><span className="block font-bold text-white text-xl">{task.subtasks.length}</span><span className="text-[9px] uppercase text-gray-500">Etapas</span></div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-6">
+                                        {checkoutAnalytics.length === 0 ? (
+                                            <div className="py-20 text-center opacity-20 flex flex-col items-center">
+                                                <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                                                    <span className="text-3xl">📊</span>
+                                                </div>
+                                                <p className="text-sm font-bold uppercase tracking-widest text-white">Sem dados de produção via Checkouts.</p>
+                                                <p className="text-xs text-gray-500 mt-2">Realize checkouts na tela de programação para ver a análise aqui.</p>
                                             </div>
-                                        </div>
-                                    );
-                                })}
+                                        ) : checkoutAnalytics.map(stat => (
+                                            <div key={stat.taskTitle} className="bg-[#111827]/60 border border-white/5 rounded-3xl overflow-hidden shadow-2xl relative group">
+                                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent"></div>
+
+                                                <div className="p-6">
+                                                    <div className="flex flex-col lg:flex-row justify-between gap-6 mb-8 mt-2">
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-3 mb-2">
+                                                                <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[9px] font-black text-brand-med-gray uppercase">{stat.discipline}</span>
+                                                                <span className="px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/20 text-[9px] font-black text-cyan-400 uppercase">{stat.location}</span>
+                                                            </div>
+                                                            <h3 className="text-2xl font-black text-white group-hover:text-cyan-400 transition-colors leading-tight mb-1">{stat.taskTitle}</h3>
+                                                            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                                                                Responsável: <span className="text-gray-300 font-black">{stat.assignee}</span>
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="flex gap-4">
+                                                            <div className="bg-cyan-500/5 border border-cyan-500/10 p-4 rounded-2xl min-w-[120px] text-center">
+                                                                <p className="text-[10px] font-black text-cyan-400 uppercase mb-1">RUP Acumulada</p>
+                                                                <p className="text-2xl font-black text-white">{stat.lastRup} <span className="text-[10px] text-gray-600 font-normal">Hh/{stat.unit}</span></p>
+                                                            </div>
+                                                            <div className="bg-green-500/5 border border-green-500/10 p-4 rounded-2xl min-w-[120px] text-center">
+                                                                <p className="text-[10px] font-black text-green-400 uppercase mb-1">Prod. Acumulada</p>
+                                                                <p className="text-2xl font-black text-white">{stat.lastProd} <span className="text-[10px] text-gray-600 font-normal">{stat.unit}/Hh</span></p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="overflow-x-auto">
+                                                        <table className="w-full text-left border-collapse">
+                                                            <thead>
+                                                                <tr className="border-b border-white/5">
+                                                                    <th className="py-4 px-2 text-[10px] font-black text-gray-500 uppercase tracking-widest">Data</th>
+                                                                    <th className="py-4 px-2 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Produção</th>
+                                                                    <th className="py-4 px-2 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Mão de Obra</th>
+                                                                    <th className="py-4 px-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest text-center">Produt. Dia</th>
+                                                                    <th className="py-4 px-2 text-[10px] font-black text-cyan-400 uppercase tracking-widest text-center">RUP Dia</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody className="divide-y divide-white/[0.02]">
+                                                                {stat.history.map((day, idx) => (
+                                                                    <tr key={idx} className="hover:bg-white/[0.02] transition-colors group/row">
+                                                                        <td className="py-4 px-2 text-xs font-black text-gray-400 font-mono">{fmtDateBR(day.date)}</td>
+                                                                        <td className="py-4 px-2 text-sm font-black text-white text-center">{day.produced} <span className="text-[10px] text-gray-600 font-normal">{stat.unit}</span></td>
+                                                                        <td className="py-4 px-2 text-sm font-bold text-gray-300 text-center">{day.manHours.toFixed(1)} <span className="text-[10px] opacity-40 font-black">Hh</span></td>
+                                                                        <td className="py-4 px-2 text-sm font-black text-indigo-400 text-center">{day.productivity}</td>
+                                                                        <td className="py-4 px-2 text-sm font-black text-cyan-400 text-center">{day.rup}</td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className="animate-slide-up">
