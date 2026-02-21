@@ -58,7 +58,7 @@ const LeanPage: React.FC<LeanPageProps> = ({
     onNavigateToTeams,
     showToast
 }) => {
-    const { currentUser: user, tasks, baselineTasks, currentScheduleTasks, cutOffDateStr, signOut } = useData();
+    const { currentUser: user, tasks, baselineTasks, currentScheduleTasks, currentScheduleCutOffDateStr, signOut } = useData();
     const [restrictionModal, setRestrictionModal] = useState<{
         taskId: string;
         taskTitle: string;
@@ -83,7 +83,7 @@ const LeanPage: React.FC<LeanPageProps> = ({
 
     // Cálculos de Período (Lookahead de N semanas a partir da data de corte)
     const lookaheadData = useMemo(() => {
-        const cutOffDate = new Date(cutOffDateStr);
+        const cutOffDate = new Date(currentScheduleCutOffDateStr);
         cutOffDate.setHours(0, 0, 0, 0);
 
         // Limite do lookahead: N semanas a partir da data de corte
@@ -157,7 +157,7 @@ const LeanPage: React.FC<LeanPageProps> = ({
             disciplines,
             locations
         };
-    }, [currentScheduleTasks, tasks, restrictions, lookaheadWeeks, cutOffDateStr]);
+    }, [currentScheduleTasks, tasks, restrictions, lookaheadWeeks, currentScheduleCutOffDateStr]);
 
     // SEMANA ATUAL (EXECUÇÃO): tarefas da Programação Semanal
     const dashboardTasks = useMemo(() => {
@@ -179,7 +179,6 @@ const LeanPage: React.FC<LeanPageProps> = ({
             return true;
         });
     }, [lookaheadData.nextWeekTasks, filterDiscipline, filterLocation]);
-
 
     const formatDate = (date: string) => {
         return new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
@@ -265,16 +264,17 @@ const LeanPage: React.FC<LeanPageProps> = ({
                     onNavigateToCost={onNavigateToCost}
                     onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
                     onNavigateToOrgChart={onNavigateToOrgChart}
-                onNavigateToVisualControl={onNavigateToVisualControl}
+                    onNavigateToVisualControl={onNavigateToVisualControl}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="lean"
                 />
-
-                {lookaheadData.impactedRestrictionsCount > 0 && (
-                    <div className="bg-red-500 text-white px-4 py-2 flex items-center justify-center gap-3 animate-pulse font-black text-sm uppercase tracking-widest z-20">
-                        <span>⚠️ {lookaheadData.impactedRestrictionsCount} RESTRIÇÕES COM PRAZO IMPACTANDO O INÍCIO DAS ATIVIDADES</span>
-                    </div>
-                )}
+                {
+                    lookaheadData.impactedRestrictionsCount > 0 && (
+                        <div className="bg-red-500 text-white px-4 py-2 flex items-center justify-center gap-3 animate-pulse font-black text-sm uppercase tracking-widest z-20">
+                            <span>⚠️ {lookaheadData.impactedRestrictionsCount} RESTRIÇÕES COM PRAZO IMPACTANDO O INÍCIO DAS ATIVIDADES</span>
+                        </div>
+                    )
+                }
 
                 <div className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-8 animate-slide-up animate-stagger-2">
                     <div className="max-w-screen-2xl mx-auto space-y-8">
@@ -569,207 +569,211 @@ const LeanPage: React.FC<LeanPageProps> = ({
                         </div>
 
                     </div>
-                </div>
-            </main>
+                </div >
+            </main >
 
             {/* Modal de Gerenciamento de Restrições da Tarefa - PREMIUM DESIGN */}
-            {viewingTaskRestrictions && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-hidden">
-                    {/* Backdrop com desfoque profundo */}
-                    <div
-                        className="absolute inset-0 bg-[#060a12]/80 backdrop-blur-2xl animate-fade-in"
-                        onClick={() => setViewingTaskRestrictions(null)}
-                    ></div>
+            {
+                viewingTaskRestrictions && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-hidden">
+                        {/* Backdrop com desfoque profundo */}
+                        <div
+                            className="absolute inset-0 bg-[#060a12]/80 backdrop-blur-2xl animate-fade-in"
+                            onClick={() => setViewingTaskRestrictions(null)}
+                        ></div>
 
-                    {/* Modal Container Glassmorphism */}
-                    <div className="relative w-full max-w-2xl bg-[#0a0f18]/90 backdrop-blur-xl rounded-[2.5rem] border border-white/10 shadow-[0_0_50px_rgba(227,90,16,0.15)] overflow-hidden flex flex-col animate-slide-up max-h-[90vh]">
+                        {/* Modal Container Glassmorphism */}
+                        <div className="relative w-full max-w-2xl bg-[#0a0f18]/90 backdrop-blur-xl rounded-[2.5rem] border border-white/10 shadow-[0_0_50px_rgba(227,90,16,0.15)] overflow-hidden flex flex-col animate-slide-up max-h-[90vh]">
 
-                        {/* Brand Accent Glow */}
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-gradient-to-r from-transparent via-brand-accent to-transparent opacity-50"></div>
+                            {/* Brand Accent Glow */}
+                            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-gradient-to-r from-transparent via-brand-accent to-transparent opacity-50"></div>
 
-                        {/* Header */}
-                        <div className="px-8 py-6 flex justify-between items-start border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent shrink-0">
-                            <div className="space-y-1">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-brand-accent/20 flex items-center justify-center border border-brand-accent/30 shadow-lg shadow-brand-accent/10">
-                                        <LeanIcon className="w-6 h-6 text-brand-accent" />
+                            {/* Header */}
+                            <div className="px-8 py-6 flex justify-between items-start border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent shrink-0">
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-brand-accent/20 flex items-center justify-center border border-brand-accent/30 shadow-lg shadow-brand-accent/10">
+                                            <LeanIcon className="w-6 h-6 text-brand-accent" />
+                                        </div>
+                                        <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase">
+                                            Restrições da <span className="text-brand-accent">Atividade</span>
+                                        </h2>
                                     </div>
-                                    <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase">
-                                        Restrições da <span className="text-brand-accent">Atividade</span>
-                                    </h2>
+                                    <p className="text-[10px] text-brand-med-gray font-black uppercase tracking-[0.2em] mt-2 flex items-center gap-2">
+                                        Tarefa: <span className="text-white bg-white/5 px-2 py-0.5 rounded italic">{viewingTaskRestrictions.taskTitle}</span>
+                                    </p>
                                 </div>
-                                <p className="text-[10px] text-brand-med-gray font-black uppercase tracking-[0.2em] mt-2 flex items-center gap-2">
-                                    Tarefa: <span className="text-white bg-white/5 px-2 py-0.5 rounded italic">{viewingTaskRestrictions.taskTitle}</span>
-                                </p>
+                                <button
+                                    onClick={() => setViewingTaskRestrictions(null)}
+                                    className="p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-500 text-brand-med-gray transition-all group"
+                                >
+                                    <ClearIcon className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+                                </button>
                             </div>
-                            <button
-                                onClick={() => setViewingTaskRestrictions(null)}
-                                className="p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-500 text-brand-med-gray transition-all group"
-                            >
-                                <ClearIcon className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
-                            </button>
-                        </div>
 
-                        {/* Content Area */}
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-5">
-                            {restrictions
-                                .filter(r => String(r.baseline_task_id) === String(viewingTaskRestrictions.taskId))
-                                .sort((a, b) => {
-                                    if (a.status === 'Resolvida' && b.status !== 'Resolvida') return 1;
-                                    if (a.status !== 'Resolvida' && b.status === 'Resolvida') return -1;
-                                    return 0;
-                                })
-                                .map(restriction => (
-                                    <div
-                                        key={restriction.id}
-                                        className={`p-6 rounded-3xl border transition-all duration-300 group ${restriction.status === 'Resolvida'
-                                            ? 'bg-green-500/5 border-green-500/10 opacity-60'
-                                            : 'bg-white/5 border-white/5 hover:border-white/20 shadow-xl'
-                                            }`}
-                                    >
-                                        <div className="flex justify-between items-start gap-6">
-                                            <div className="flex-1 space-y-4">
-                                                <div className="flex flex-wrap items-center gap-3">
-                                                    <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-lg tracking-widest ${restriction.priority === 'Crítica' ? 'bg-red-500 text-white shadow-lg shadow-red-500/30' :
-                                                        restriction.priority === 'Alta' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' :
-                                                            restriction.priority === 'Média' ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30' :
-                                                                'bg-green-500/20 text-green-500 border border-green-500/30'
-                                                        }`}>
-                                                        {restriction.priority}
-                                                    </span>
-                                                    <span className="text-[11px] text-brand-accent font-black uppercase tracking-[0.1em]">{restriction.type}</span>
-                                                    {restriction.status === 'Resolvida' && (
-                                                        <span className="flex items-center gap-1.5 text-[9px] font-black text-green-400 uppercase bg-green-400/10 px-2 py-1 rounded-lg">
-                                                            <div className="w-1 h-1 bg-green-400 rounded-full"></div>
-                                                            Resolvida
+                            {/* Content Area */}
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-5">
+                                {restrictions
+                                    .filter(r => String(r.baseline_task_id) === String(viewingTaskRestrictions.taskId))
+                                    .sort((a, b) => {
+                                        if (a.status === 'Resolvida' && b.status !== 'Resolvida') return 1;
+                                        if (a.status !== 'Resolvida' && b.status === 'Resolvida') return -1;
+                                        return 0;
+                                    })
+                                    .map(restriction => (
+                                        <div
+                                            key={restriction.id}
+                                            className={`p-6 rounded-3xl border transition-all duration-300 group ${restriction.status === 'Resolvida'
+                                                ? 'bg-green-500/5 border-green-500/10 opacity-60'
+                                                : 'bg-white/5 border-white/5 hover:border-white/20 shadow-xl'
+                                                }`}
+                                        >
+                                            <div className="flex justify-between items-start gap-6">
+                                                <div className="flex-1 space-y-4">
+                                                    <div className="flex flex-wrap items-center gap-3">
+                                                        <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-lg tracking-widest ${restriction.priority === 'Crítica' ? 'bg-red-500 text-white shadow-lg shadow-red-500/30' :
+                                                            restriction.priority === 'Alta' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' :
+                                                                restriction.priority === 'Média' ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30' :
+                                                                    'bg-green-500/20 text-green-500 border border-green-500/30'
+                                                            }`}>
+                                                            {restriction.priority}
                                                         </span>
-                                                    )}
-                                                </div>
+                                                        <span className="text-[11px] text-brand-accent font-black uppercase tracking-[0.1em]">{restriction.type}</span>
+                                                        {restriction.status === 'Resolvida' && (
+                                                            <span className="flex items-center gap-1.5 text-[9px] font-black text-green-400 uppercase bg-green-400/10 px-2 py-1 rounded-lg">
+                                                                <div className="w-1 h-1 bg-green-400 rounded-full"></div>
+                                                                Resolvida
+                                                            </span>
+                                                        )}
+                                                    </div>
 
-                                                <p className={`text-base leading-relaxed font-medium ${restriction.status === 'Resolvida' ? 'text-gray-500 line-through italic' : 'text-gray-200'}`}>
-                                                    {restriction.description}
-                                                </p>
+                                                    <p className={`text-base leading-relaxed font-medium ${restriction.status === 'Resolvida' ? 'text-gray-500 line-through italic' : 'text-gray-200'}`}>
+                                                        {restriction.description}
+                                                    </p>
 
-                                                <div className="grid grid-cols-2 gap-6 pt-2">
-                                                    <div>
-                                                        <p className="text-[9px] text-brand-med-gray font-black uppercase tracking-[0.2em] mb-1.5">Responsável</p>
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center text-[10px] text-brand-accent font-black">
-                                                                {restriction.responsible.charAt(0)}
+                                                    <div className="grid grid-cols-2 gap-6 pt-2">
+                                                        <div>
+                                                            <p className="text-[9px] text-brand-med-gray font-black uppercase tracking-[0.2em] mb-1.5">Responsável</p>
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center text-[10px] text-brand-accent font-black">
+                                                                    {restriction.responsible.charAt(0)}
+                                                                </div>
+                                                                <p className="text-xs text-gray-300 font-bold">
+                                                                    {restriction.responsible}
+                                                                    {restriction.department && <span className="text-brand-med-gray/60 font-medium italic block text-[10px] mt-0.5">{restriction.department}</span>}
+                                                                </p>
                                                             </div>
-                                                            <p className="text-xs text-gray-300 font-bold">
-                                                                {restriction.responsible}
-                                                                {restriction.department && <span className="text-brand-med-gray/60 font-medium italic block text-[10px] mt-0.5">{restriction.department}</span>}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[9px] text-brand-med-gray font-black uppercase tracking-[0.2em] mb-1.5">Data Limite</p>
+                                                            <p className={`text-xs font-black italic ${restriction.due_date && new Date(restriction.due_date) < new Date() && restriction.status !== 'Resolvida' ? 'text-red-400 animate-pulse' : 'text-white'}`}>
+                                                                {restriction.due_date ? formatDate(restriction.due_date) : '-'}
                                                             </p>
                                                         </div>
                                                     </div>
-                                                    <div>
-                                                        <p className="text-[9px] text-brand-med-gray font-black uppercase tracking-[0.2em] mb-1.5">Data Limite</p>
-                                                        <p className={`text-xs font-black italic ${restriction.due_date && new Date(restriction.due_date) < new Date() && restriction.status !== 'Resolvida' ? 'text-red-400 animate-pulse' : 'text-white'}`}>
-                                                            {restriction.due_date ? formatDate(restriction.due_date) : '-'}
-                                                        </p>
-                                                    </div>
                                                 </div>
-                                            </div>
 
-                                            <div className="flex flex-col gap-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button
-                                                    onClick={() => setRestrictionModal({
-                                                        taskId: viewingTaskRestrictions.taskId,
-                                                        taskTitle: viewingTaskRestrictions.taskTitle,
-                                                        taskStartDate: viewingTaskRestrictions.taskStartDate,
-                                                        restriction
-                                                    })}
-                                                    className="p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-brand-accent hover:text-white transition-all shadow-lg"
-                                                    title="Editar"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                                    </svg>
-                                                </button>
-                                                {restriction.status !== 'Resolvida' && (
+                                                <div className="flex flex-col gap-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <button
-                                                        onClick={async () => {
-                                                            await onUpdateRestriction(restriction.id, { status: 'Resolvida' });
-                                                            showToast('Restrição resolvida!', 'success');
-                                                        }}
-                                                        className="p-3 bg-green-500/10 border border-green-500/20 text-green-400 rounded-2xl hover:bg-green-500 hover:text-white transition-all shadow-lg shadow-green-500/20"
-                                                        title="Resolver"
+                                                        onClick={() => setRestrictionModal({
+                                                            taskId: viewingTaskRestrictions.taskId,
+                                                            taskTitle: viewingTaskRestrictions.taskTitle,
+                                                            taskStartDate: viewingTaskRestrictions.taskStartDate,
+                                                            restriction
+                                                        })}
+                                                        className="p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-brand-accent hover:text-white transition-all shadow-lg"
+                                                        title="Editar"
                                                     >
                                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                                         </svg>
                                                     </button>
-                                                )}
+                                                    {restriction.status !== 'Resolvida' && (
+                                                        <button
+                                                            onClick={async () => {
+                                                                await onUpdateRestriction(restriction.id, { status: 'Resolvida' });
+                                                                showToast('Restrição resolvida!', 'success');
+                                                            }}
+                                                            className="p-3 bg-green-500/10 border border-green-500/20 text-green-400 rounded-2xl hover:bg-green-500 hover:text-white transition-all shadow-lg shadow-green-500/20"
+                                                            title="Resolver"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                                            </svg>
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))}
 
-                            {restrictions.filter(r => String(r.baseline_task_id) === String(viewingTaskRestrictions.taskId)).length === 0 && (
-                                <div className="text-center py-24 bg-white/5 rounded-[2.5rem] border-2 border-dashed border-white/5 flex flex-col items-center justify-center space-y-4">
-                                    <div className="w-20 h-20 bg-brand-accent/10 rounded-full flex items-center justify-center text-brand-accent animate-pulse">
-                                        <AlertIcon className="w-10 h-10 opacity-40" />
+                                {restrictions.filter(r => String(r.baseline_task_id) === String(viewingTaskRestrictions.taskId)).length === 0 && (
+                                    <div className="text-center py-24 bg-white/5 rounded-[2.5rem] border-2 border-dashed border-white/5 flex flex-col items-center justify-center space-y-4">
+                                        <div className="w-20 h-20 bg-brand-accent/10 rounded-full flex items-center justify-center text-brand-accent animate-pulse">
+                                            <AlertIcon className="w-10 h-10 opacity-40" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-white text-lg font-black italic uppercase tracking-tighter">Campo Limpo</p>
+                                            <p className="text-xs text-brand-med-gray font-bold tracking-wide">Esta atividade está livre para execução.</p>
+                                        </div>
                                     </div>
-                                    <div className="space-y-1">
-                                        <p className="text-white text-lg font-black italic uppercase tracking-tighter">Campo Limpo</p>
-                                        <p className="text-xs text-brand-med-gray font-bold tracking-wide">Esta atividade está livre para execução.</p>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                                )}
+                            </div>
 
-                        {/* Footer */}
-                        <div className="p-6 bg-black/20 border-t border-white/5 shrink-0">
-                            <button
-                                onClick={() => setRestrictionModal({
-                                    taskId: viewingTaskRestrictions.taskId,
-                                    taskTitle: viewingTaskRestrictions.taskTitle,
-                                    taskStartDate: viewingTaskRestrictions.taskStartDate
-                                })}
-                                className="w-full py-5 bg-brand-accent text-white rounded-3xl font-black uppercase tracking-[0.2em] shadow-[0_10px_30px_rgba(227,90,16,0.3)] hover:bg-[#e35a10] hover:-translate-y-1 transition-all active:scale-95 flex items-center justify-center gap-4 group"
-                            >
-                                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center group-hover:rotate-180 transition-transform duration-500 shadow-inner">
-                                    <span className="text-xl">+</span>
-                                </div>
-                                Cadastrar Nova Restrição
-                            </button>
+                            {/* Footer */}
+                            <div className="p-6 bg-black/20 border-t border-white/5 shrink-0">
+                                <button
+                                    onClick={() => setRestrictionModal({
+                                        taskId: viewingTaskRestrictions.taskId,
+                                        taskTitle: viewingTaskRestrictions.taskTitle,
+                                        taskStartDate: viewingTaskRestrictions.taskStartDate
+                                    })}
+                                    className="w-full py-5 bg-brand-accent text-white rounded-3xl font-black uppercase tracking-[0.2em] shadow-[0_10px_30px_rgba(227,90,16,0.3)] hover:bg-[#e35a10] hover:-translate-y-1 transition-all active:scale-95 flex items-center justify-center gap-4 group"
+                                >
+                                    <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center group-hover:rotate-180 transition-transform duration-500 shadow-inner">
+                                        <span className="text-xl">+</span>
+                                    </div>
+                                    Cadastrar Nova Restrição
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Modal de Restrições */}
-            {restrictionModal && (
-                <RestrictionModal
-                    baselineTaskId={restrictionModal.taskId}
-                    baselineTaskTitle={restrictionModal.taskTitle}
-                    baselineTaskStartDate={restrictionModal.taskStartDate}
-                    restriction={restrictionModal.restriction}
-                    onClose={() => setRestrictionModal(null)}
-                    onSave={async (restriction) => {
-                        const result = await onSaveRestriction(restriction);
-                        if (result.success) {
-                            showToast('Restrição adicionada com sucesso!', 'success');
-                            return { success: true };
-                        } else {
-                            showToast(`Erro ao adicionar restrição: ${result.error}`, 'error');
-                            return { success: false, error: result.error };
-                        }
-                    }}
-                    onUpdate={async (id, updates) => {
-                        const result = await onUpdateRestriction(id, updates);
-                        if (result.success) {
-                            showToast('Restrição atualizada com sucesso!', 'success');
-                            return { success: true };
-                        } else {
-                            showToast(`Erro ao atualizar restrição: ${result.error}`, 'error');
-                            return { success: false, error: result.error };
-                        }
-                    }}
-                />
-            )}
-        </div>
+            {
+                restrictionModal && (
+                    <RestrictionModal
+                        baselineTaskId={restrictionModal.taskId}
+                        baselineTaskTitle={restrictionModal.taskTitle}
+                        baselineTaskStartDate={restrictionModal.taskStartDate}
+                        restriction={restrictionModal.restriction}
+                        onClose={() => setRestrictionModal(null)}
+                        onSave={async (restriction) => {
+                            const result = await onSaveRestriction(restriction);
+                            if (result.success) {
+                                showToast('Restrição adicionada com sucesso!', 'success');
+                                return { success: true };
+                            } else {
+                                showToast(`Erro ao adicionar restrição: ${result.error}`, 'error');
+                                return { success: false, error: result.error };
+                            }
+                        }}
+                        onUpdate={async (id, updates) => {
+                            const result = await onUpdateRestriction(id, updates);
+                            if (result.success) {
+                                showToast('Restrição atualizada com sucesso!', 'success');
+                                return { success: true };
+                            } else {
+                                showToast(`Erro ao atualizar restrição: ${result.error}`, 'error');
+                                return { success: false, error: result.error };
+                            }
+                        }}
+                    />
+                )
+            }
+        </div >
     );
 };
 

@@ -70,7 +70,7 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
     onNavigateToTeams,
     showToast
 }) => {
-    const { currentUser: user, baselineTasks, importBaseline, signOut, cutOffDateStr, setCutOffDateStr } = useData();
+    const { currentUser: user, baselineTasks, importBaseline, signOut, baselineCutOffDateStr, setBaselineCutOffDateStr } = useData();
     const [isImporting, setIsImporting] = useState(baselineTasks.length === 0);
     const [file, setFile] = useState<File | null>(null);
     const [fileHeaders, setFileHeaders] = useState<string[]>([]);
@@ -471,7 +471,7 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
                     onNavigateToCost={onNavigateToCost}
                     onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
                     onNavigateToOrgChart={onNavigateToOrgChart}
-                onNavigateToVisualControl={onNavigateToVisualControl}
+                    onNavigateToVisualControl={onNavigateToVisualControl}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="baseline"
                 />
@@ -485,8 +485,8 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
                                     <label className="text-[10px] text-brand-med-gray uppercase font-bold">Data de Corte:</label>
                                     <input
                                         type="date"
-                                        value={cutOffDateStr}
-                                        onChange={(e) => setCutOffDateStr(e.target.value)}
+                                        value={baselineCutOffDateStr}
+                                        onChange={(e) => setBaselineCutOffDateStr(e.target.value)}
                                         className="bg-brand-darkest text-white text-xs border-none rounded p-1 focus:ring-1 focus:ring-brand-accent/50"
                                     />
                                 </div>

@@ -45,7 +45,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
     onNavigateToTeams,
     showToast
 }) => {
-    const { currentUser: user, tasks, currentScheduleTasks, signOut, cutOffDateStr } = useData();
+    const { currentUser: user, tasks, currentScheduleTasks, signOut, currentScheduleCutOffDateStr } = useData();
     const [selectedStatuses, setSelectedStatuses] = React.useState<string[]>(['Concluída', 'Em Andamento', 'Não Iniciada', 'Atrasada']);
     const [dateFilters, setDateFilters] = React.useState({ startDate: '', endDate: '' });
 
@@ -66,7 +66,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
 
     const analysisData = useMemo(() => {
         const today = new Date();
-        const cutOffDate = new Date(cutOffDateStr + 'T00:00:00Z');
+        const cutOffDate = new Date(currentScheduleCutOffDateStr + 'T00:00:00Z');
 
         return currentScheduleTasks
             .filter(bt => {
@@ -169,7 +169,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
             .filter((item): item is NonNullable<typeof item> => item !== null)
             .filter(item => selectedStatuses.includes(item.currentStatus))
             .sort((a, b) => new Date(a.baseline.dueDate).getTime() - new Date(b.baseline.dueDate).getTime());
-    }, [tasks, currentScheduleTasks, cutOffDateStr, selectedStatuses]);
+    }, [tasks, currentScheduleTasks, currentScheduleCutOffDateStr, selectedStatuses]);
 
     const globalStats = useMemo(() => {
         const total = analysisData.length;
@@ -225,7 +225,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                     onNavigateToCost={onNavigateToCost}
                     onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
                     onNavigateToOrgChart={onNavigateToOrgChart}
-                onNavigateToVisualControl={onNavigateToVisualControl}
+                    onNavigateToVisualControl={onNavigateToVisualControl}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="management"
                 />

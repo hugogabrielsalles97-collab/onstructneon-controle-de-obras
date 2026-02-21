@@ -70,7 +70,7 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
     onUpgradeClick,
     showToast
 }) => {
-    const { currentUser: user, currentScheduleTasks, importCurrentSchedule, signOut, cutOffDateStr, setCutOffDateStr } = useData();
+    const { currentUser: user, currentScheduleTasks, importCurrentSchedule, signOut, currentScheduleCutOffDateStr, setCurrentScheduleCutOffDateStr } = useData();
     const [isImporting, setIsImporting] = useState(currentScheduleTasks.length === 0);
     const [file, setFile] = useState<File | null>(null);
     const [fileHeaders, setFileHeaders] = useState<string[]>([]);
@@ -471,7 +471,7 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
                     onNavigateToCost={onNavigateToCost}
                     onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
                     onNavigateToOrgChart={onNavigateToOrgChart}
-                onNavigateToVisualControl={onNavigateToVisualControl}
+                    onNavigateToVisualControl={onNavigateToVisualControl}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="currentSchedule"
                 />
@@ -485,8 +485,8 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
                                     <label className="text-[10px] text-brand-med-gray uppercase font-bold">Data de Corte:</label>
                                     <input
                                         type="date"
-                                        value={cutOffDateStr}
-                                        onChange={(e) => setCutOffDateStr(e.target.value)}
+                                        value={currentScheduleCutOffDateStr}
+                                        onChange={(e) => setCurrentScheduleCutOffDateStr(e.target.value)}
                                         className="bg-brand-darkest text-white text-xs border-none rounded p-1 focus:ring-1 focus:ring-brand-accent/50"
                                     />
                                 </div>

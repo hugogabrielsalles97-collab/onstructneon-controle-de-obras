@@ -30,8 +30,10 @@ interface DataContextType {
     saveRestriction: (restriction: Omit<Restriction, 'id' | 'created_at' | 'user_id'>) => Promise<{ success: boolean; error?: string }>;
     updateRestriction: (id: string, updates: Partial<Restriction>) => Promise<{ success: boolean; error?: string }>;
     deleteRestriction: (id: string) => Promise<{ success: boolean; error?: string }>;
-    cutOffDateStr: string;
-    setCutOffDateStr: (date: string) => void;
+    baselineCutOffDateStr: string;
+    setBaselineCutOffDateStr: (date: string) => void;
+    currentScheduleCutOffDateStr: string;
+    setCurrentScheduleCutOffDateStr: (date: string) => void;
     signOut: () => Promise<{ success: boolean; error?: string }>;
     upgradeRole: (newRole: User['role']) => Promise<{ success: boolean; error?: string }>;
     updateUser: (userId: string, updates: Partial<User>) => Promise<{ success: boolean; error?: string }>;
@@ -44,7 +46,8 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [session, setSession] = useState<Session | null>(null);
-    const [cutOffDateStr, setCutOffDateStr] = useState('2026-01-10');
+    const [baselineCutOffDateStr, setBaselineCutOffDateStr] = useState('2026-01-10');
+    const [currentScheduleCutOffDateStr, setCurrentScheduleCutOffDateStr] = useState('2026-01-10');
     const [isAuthLoading, setIsAuthLoading] = useState(true);
     const queryClient = useQueryClient();
 
@@ -397,7 +400,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         <DataContext.Provider value={{
             session, currentUser: currentUser || null, allUsers, tasks, baselineTasks, currentScheduleTasks, restrictions, leanTasks, costItems, measurements, cashFlow, checkoutLogs, isLoading, refreshData,
             saveTask, deleteTask, importBaseline, importCurrentSchedule, saveRestriction, updateRestriction, deleteRestriction, saveLeanTask, deleteLeanTask, deleteCheckoutLog,
-            cutOffDateStr, setCutOffDateStr, signOut, upgradeRole, updateUser, deleteUser, isDevToolsOpen, setIsDevToolsOpen
+            baselineCutOffDateStr, setBaselineCutOffDateStr, currentScheduleCutOffDateStr, setCurrentScheduleCutOffDateStr, signOut, upgradeRole, updateUser, deleteUser, isDevToolsOpen, setIsDevToolsOpen
         }}>
             {children}
         </DataContext.Provider>
