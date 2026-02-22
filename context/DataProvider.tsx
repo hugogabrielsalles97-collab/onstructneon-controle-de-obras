@@ -264,10 +264,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const deleteTask = async (taskId: string) => {
         try {
+            // Primeiro, excluir os logs de checkout associados a esta tarefa
+            await supabase.from('checkout_logs').delete().eq('task_id', taskId);
+
             const { error } = await supabase.from('tasks').delete().eq('id', taskId);
             if (error) throw error;
+
             // Invalidate query to refetch data
             queryClient.invalidateQueries({ queryKey: ['tasks'] });
+            queryClient.invalidateQueries({ queryKey: ['checkoutLogs'] });
             return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };
