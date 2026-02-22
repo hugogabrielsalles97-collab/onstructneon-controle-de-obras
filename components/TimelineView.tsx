@@ -30,9 +30,7 @@ const getDisplayStatus = (task: Task): DisplayStatus => {
     const dueDate = new Date(task.dueDate + 'T00:00:00');
     const isOverdue = dueDate < today && task.status !== TaskStatus.Completed;
 
-    if (isOverdue) {
-        return 'Atrasado';
-    }
+    if (isOverdue) return 'Atrasado';
     return task.status;
 };
 
@@ -42,9 +40,6 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, baselineTasks, onEdi
     const { dateRange, projectStart, projectEnd, today } = useMemo(() => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-
-        // Ajuste: Definir o range baseado APENAS nas tarefas criadas (tasks), ignorando a baseline para o zoom inicial
-        // Se não houver tasks, usa a baseline como fallback
         const tasksForRange = tasks.length > 0 ? tasks : baselineTasks;
 
         if (tasksForRange.length === 0) {
@@ -57,15 +52,12 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, baselineTasks, onEdi
         tasksForRange.forEach(t => {
             allDates.push(new Date(t.startDate).getTime());
             allDates.push(new Date(t.dueDate).getTime());
-            if (t.actualStartDate) allDates.push(new Date(t.actualStartDate).getTime());
-            if (t.actualEndDate) allDates.push(new Date(t.actualEndDate).getTime());
         });
 
-        const projectStart = new Date(allDates.length > 0 ? Math.min(...allDates) : new Date().getTime());
-        const projectEnd = new Date(allDates.length > 0 ? Math.max(...allDates) : new Date().getTime());
-
-        projectStart.setDate(projectStart.getDate() - 2); // Add some padding
-        projectEnd.setDate(projectEnd.getDate() + 2); // Add some padding
+        const projectStart = new Date(Math.min(...allDates));
+        const projectEnd = new Date(Math.max(...allDates));
+        projectStart.setDate(projectStart.getDate() - 2);
+        projectEnd.setDate(projectEnd.getDate() + 2);
 
         const range = [];
         let currentDate = new Date(projectStart);
@@ -78,135 +70,139 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, baselineTasks, onEdi
 
     const totalDays = getDaysDifference(projectStart, projectEnd) + 1;
     const todayOffset = getDaysDifference(projectStart, today);
-    const isTodayVisible = todayOffset >= 0 && todayOffset < totalDays;
 
-    const sortedVisibleTasks = useMemo(() => {
-        return [...tasks].sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+    // Grouping Logic
+    const groupedData = useMemo(() => {
+        const hierarchy: Record<string, Record<string, Task[]>> = {};
+        tasks.forEach(task => {
+            const loc = task.location || 'Sem Localização';
+            const sup = task.support || 'Geral';
+            if (!hierarchy[loc]) hierarchy[loc] = {};
+            if (!hierarchy[loc][sup]) hierarchy[loc][sup] = [];
+            hierarchy[loc][sup].push(task);
+        });
+
+        return Object.keys(hierarchy).sort().map(loc => ({
+            location: loc,
+            supports: Object.keys(hierarchy[loc]).sort().map(sup => ({
+                support: sup,
+                tasks: hierarchy[loc][sup].sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+            }))
+        }));
     }, [tasks]);
 
     return (
-        <div className="bg-transparent p-4 overflow-x-auto relative custom-scrollbar">
-            <div style={{ minWidth: `${totalDays * 40}px` }}>
-                <div className="grid" style={{ gridTemplateColumns: `repeat(${totalDays}, minmax(40px, 1fr))` }}>
-                    {dateRange.map((date, i) => (
-                        <div key={i} className={`text-center border-r border-brand-darkest/50 py-2 ${date.getDay() === 0 || date.getDay() === 6 ? 'bg-brand-darkest/30' : ''}`}>
-                            <p className="text-xs text-brand-med-gray">{date.toLocaleDateString('pt-BR', { weekday: 'short' })}</p>
-                            <p className="text-sm font-bold text-gray-200">{date.getDate()}</p>
+        <div className="flex flex-col border border-white/5 rounded-xl bg-[#0d1425] relative overflow-hidden h-[700px]">
+            {/* O Gantt agora tem sua própria rolagem vertical e horizontal controlada internamente */}
+            <div className="flex overflow-auto custom-scrollbar relative flex-1 h-full">
+
+                {/* Sidebar labels column - Fixa na Esquerda */}
+                <div className="w-64 flex-shrink-0 bg-[#0d1425] border-r border-white/10 relative z-50 sticky left-0 shadow-2xl">
+                    <div className="h-14 border-b border-white/10 flex items-center px-4 sticky top-0 bg-[#0d1425] z-[60] shadow-sm">
+                        <span className="text-[10px] font-black text-brand-med-gray uppercase tracking-widest">Local / Apoio / Atividade</span>
+                    </div>
+                    {groupedData.map((locGroup, i) => (
+                        <div key={locGroup.location}>
+                            {/* Location Header - Fixo no Topo ao rolar a lista daquela OAE */}
+                            <div className="h-10 bg-brand-accent/15 flex items-center px-4 border-b border-white/5 sticky top-14 bg-[#0d1425] z-[55] shadow-sm">
+                                <span className="text-xs font-black text-brand-accent truncate tracking-wide">📍 {locGroup.location}</span>
+                            </div>
+                            {locGroup.supports.map(supGroup => (
+                                <div key={supGroup.support}>
+                                    {/* Support Header - Fixo no Topo abaixo da OAE */}
+                                    <div className="h-8 bg-white/5 flex items-center px-6 border-b border-white/5 sticky top-[96px] bg-[#1a2235] z-[50] shadow-sm">
+                                        <span className="text-[10px] font-extrabold text-blue-300/70 truncate">↳ Apoio: {supGroup.support}</span>
+                                    </div>
+                                    {supGroup.tasks.map(task => (
+                                        <div key={task.id} className="h-12 flex items-center px-8 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer group" onClick={() => onEditTask(task)}>
+                                            <span className="text-[10px] font-medium text-gray-300 truncate group-hover:text-white transition-colors">• {task.title}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
                         </div>
                     ))}
                 </div>
-                <div className="mt-2 relative">
-                    {isTodayVisible && (
-                        <div
-                            className="absolute top-0 h-full border-r-2 border-dashed border-brand-accent/70 z-10 pointer-events-none"
-                            style={{ left: `${(todayOffset / totalDays) * 100}%` }}
-                        >
-                            <div className="absolute -top-7 -translate-x-1/2 bg-brand-accent text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg">
-                                HOJE
+
+                {/* Timeline Area - Rolagem Horizontal de datas e barras */}
+                <div className="flex-1 relative bg-brand-darkest/20" style={{ minWidth: `${totalDays * 50}px` }}>
+                    {/* Sticky Date Header - Fixado no topo do scroll interno com z-index máximo */}
+                    <div className="h-14 grid border-b border-white/10 bg-[#0d1425] sticky top-0 z-[60] shadow-md" style={{ gridTemplateColumns: `repeat(${totalDays}, 50px)` }}>
+                        {dateRange.map((date, i) => (
+                            <div key={i} className={`text-center border-r border-white/5 py-2 flex flex-col justify-center ${date.getDay() === 0 || date.getDay() === 6 ? 'bg-white/5 shadow-inner' : ''}`}>
+                                <p className="text-[9px] font-black text-brand-med-gray uppercase leading-none mb-1">{date.toLocaleDateString('pt-BR', { weekday: 'short' })}</p>
+                                <p className="text-xs font-black text-white leading-none">{date.getDate()}</p>
                             </div>
-                        </div>
-                    )}
-                    {sortedVisibleTasks.map((task, index) => {
-                        // Use actual dates for rendering if available
-                        const effectiveStartDateStr = task.actualStartDate || task.startDate;
-                        // If actualEndDate is missing but actualStartDate exists, use actualStartDate + duration or just actualStartDate
-                        // For now, if actualEndDate is missing, we might use dueDate, but that might be misleading if the task is late.
-                        // Let's rely on standard logic: if actualEndDate exists, use it. If not, use dueDate.
-                        const effectiveEndDateStr = task.actualEndDate || task.dueDate;
+                        ))}
+                    </div>
 
-                        const taskStart = new Date(effectiveStartDateStr);
-                        const taskEnd = new Date(effectiveEndDateStr);
-
-                        const startOffset = getDaysDifference(projectStart, taskStart);
-                        const duration = getDaysDifference(taskStart, taskEnd) + 1;
-                        const displayStatus = getDisplayStatus(task);
-                        const baselineTask = baselineTasks.find(bt => bt.id === task.id);
-
-                        // Visual Limit Logic: Clamp progress bar to "Today"
-                        let visualProgress = task.progress;
-                        // Only clamp if the task overlaps with today or is in the future relative to today
-                        if (taskStart <= today) {
-                            if (taskEnd >= today) {
-                                // Calculate days passed until start of today (exclusive of today)
-                                const daysToToday = getDaysDifference(taskStart, today);
-                                const maxPossibleProgress = (daysToToday / duration) * 100;
-                                visualProgress = Math.max(0, Math.min(task.progress, maxPossibleProgress));
-                            }
-                            // If taskEnd < today, allow full progress (100% or whatever it is)
-                        } else {
-                            // Task starts in future
-                            visualProgress = 0;
-                        }
-
-                        if (startOffset < 0 || duration <= 0) return null;
-
-                        return (
-                            <div key={task.id} style={{ position: 'relative', height: '48px' }}>
-                                {baselineTask && (() => {
-                                    const baselineStart = new Date(baselineTask.startDate);
-                                    const baselineEnd = new Date(baselineTask.dueDate);
-                                    const baselineStartOffset = getDaysDifference(projectStart, baselineStart);
-                                    const baselineDuration = getDaysDifference(baselineStart, baselineEnd) + 1;
-
-                                    if (baselineStartOffset < 0 || baselineDuration <= 0) return null;
-
-                                    return (
-                                        <div
-                                            className="absolute h-3 bg-cyan-400/40 rounded group"
-                                            style={{
-                                                top: '28px',
-                                                left: `${(baselineStartOffset / totalDays) * 100}%`,
-                                                width: `${(baselineDuration / totalDays) * 100}%`,
-                                                zIndex: 15,
-                                            }}
-                                        >
-                                            <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 w-max max-w-xs bg-brand-darkest text-white text-xs rounded py-1 px-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl">
-                                                <p className="font-bold text-cyan-400">Linha Base: {baselineTask.title}</p>
-                                                <p>{formatDate(baselineTask.startDate)} - {formatDate(baselineTask.dueDate)}</p>
-                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-b-8 border-b-brand-darkest"></div>
-                                            </div>
-                                        </div>
-                                    );
-                                })()}
-                                <div
-                                    className="h-10 flex items-center group cursor-pointer absolute"
-                                    style={{
-                                        top: 0,
-                                        left: `${(startOffset / totalDays) * 100}%`,
-                                        width: `${(duration / totalDays) * 100}%`,
-                                        zIndex: 20,
-                                    }}
-                                    onClick={() => onEditTask(task)}
-                                >
-                                    <div className={`relative w-full h-full rounded-md bg-brand-dark/50 border ${task.actualStartDate ? 'border-brand-accent' : 'border-brand-med-gray/40'} flex items-center transition-all group-hover:brightness-125 shadow-md`}>
-                                        {task.progress > 0 && (
-                                            <div
-                                                className={`absolute top-0 left-0 h-full ${statusColors[displayStatus]} rounded-md`}
-                                                style={{ width: `${visualProgress}%` }}
-                                            ></div>
-                                        )}
-                                        <p className="relative z-10 text-sm font-semibold text-white truncate text-shadow px-3">
-                                            {task.title}
-                                        </p>
-                                    </div>
-                                    <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-max max-w-xs bg-brand-darkest text-white text-xs rounded py-1 px-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl z-50">
-                                        <p className="font-bold">{task.title}</p>
-                                        <p>{task.assignee}</p>
-                                        <p>Progresso: {task.progress}%</p>
-                                        <div className="mt-1 pt-1 border-t border-white/20">
-                                            <p className="text-[10px] opacity-75">Prev: {formatDate(task.startDate)} - {formatDate(task.dueDate)}</p>
-                                            {task.actualStartDate && (
-                                                <p className="text-[10px] text-brand-accent font-bold">Real: {formatDate(task.actualStartDate)} {task.actualEndDate ? `- ${formatDate(task.actualEndDate)}` : ''}</p>
-                                            )}
-                                        </div>
-                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-b-8 border-b-brand-darkest"></div>
-                                    </div>
-                                </div>
+                    {/* Hierarchy-aligned rows */}
+                    <div className="relative">
+                        {/* Today Line */}
+                        {todayOffset >= 0 && todayOffset < totalDays && (
+                            <div className="absolute top-0 bottom-0 border-r-2 border-dashed border-brand-accent/50 z-10 pointer-events-none" style={{ left: `${todayOffset * 50 + 25}px` }}>
+                                <div className="sticky top-16 -translate-x-1/2 bg-brand-accent text-white text-[8px] font-black px-1.5 py-0.5 rounded shadow-neon z-10">HOJE</div>
                             </div>
-                        );
-                    })}
+                        )}
+
+                        {groupedData.map(locGroup => (
+                            <div key={`timeline-${locGroup.location}`}>
+                                {/* Row for Location Header spacer - Sticky background */}
+                                <div className="h-10 border-b border-white/5 bg-brand-accent/10 sticky top-14 z-20"></div>
+                                {locGroup.supports.map(supGroup => (
+                                    <div key={`timeline-${supGroup.support}`}>
+                                        {/* Row for Support Header spacer - Sticky background */}
+                                        <div className="h-8 border-b border-white/5 bg-white/5 sticky top-[96px] z-10"></div>
+                                        {supGroup.tasks.map(task => {
+                                            const taskStart = new Date(task.actualStartDate || task.startDate);
+                                            const taskEnd = new Date(task.actualEndDate || task.dueDate);
+                                            const startOffset = getDaysDifference(projectStart, taskStart);
+                                            const duration = getDaysDifference(taskStart, taskEnd) + 1;
+                                            const displayStatus = getDisplayStatus(task);
+                                            const baselineTask = baselineTasks.find(bt => bt.id === task.id);
+
+                                            return (
+                                                <div key={`task-row-${task.id}`} className="h-12 border-b border-white/5 relative group hover:bg-white/[0.02]">
+                                                    {/* Baseline bar (shadow) */}
+                                                    {baselineTask && (() => {
+                                                        const bStart = new Date(baselineTask.startDate);
+                                                        const bEnd = new Date(baselineTask.dueDate);
+                                                        const bOffset = getDaysDifference(projectStart, bStart);
+                                                        const bDur = getDaysDifference(bStart, bEnd) + 1;
+                                                        return (
+                                                            <div className="absolute h-1 bg-cyan-400/20 rounded-full bottom-2"
+                                                                style={{ left: `${bOffset * 50 + 5}px`, width: `${bDur * 50 - 10}px` }} />
+                                                        );
+                                                    })()}
+
+                                                    {/* Task Bar */}
+                                                    <div className={`absolute top-2.5 h-6 rounded-md border flex items-center shadow-lg transition-all group-hover:brightness-125 cursor-pointer overflow-hidden ${task.actualStartDate ? 'border-brand-accent/40 shadow-brand-accent/10' : 'border-white/10'}`}
+                                                        style={{ left: `${startOffset * 50 + 4}px`, width: `${duration * 50 - 8}px`, backgroundColor: 'rgba(255,255,255,0.03)' }}
+                                                        onClick={() => onEditTask(task)}>
+                                                        {task.progress > 0 && (
+                                                            <div className={`absolute left-0 top-0 bottom-0 ${statusColors[displayStatus]} opacity-70`}
+                                                                style={{ width: `${task.progress}%` }} />
+                                                        )}
+                                                    </div>
+
+                                                    {/* Tooltip on Hover */}
+                                                    <div className="absolute top-0 bottom-0 left-0 right-0 z-30 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
+                                                        <div className="absolute top-[-50px] left-[50%] -translate-x-1/2 bg-[#060a12] border border-white/10 text-white text-[10px] px-3 py-2 rounded-lg shadow-2xl min-w-[180px] z-[70]">
+                                                            <p className="font-black text-brand-accent mb-1 border-b border-white/5 pb-1">{task.title}</p>
+                                                            <p className="opacity-70">🗓️ {formatDate(task.startDate)} a {formatDate(task.dueDate)}</p>
+                                                            <p className="font-bold flex justify-between">Progresso: <span className="text-brand-accent">{task.progress}%</span></p>
+                                                            <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-[#060a12] border-r border-b border-white/10 rotate-45"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
+                    </div>
                 </div>
-                <div style={{ height: `${tasks.length * 48}px` }} />
             </div>
         </div>
     );

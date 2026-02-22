@@ -24,7 +24,7 @@ interface ReportsPageProps {
   onNavigateToCost: () => void;
   onNavigateToCheckoutSummary: () => void;
   onNavigateToOrgChart?: () => void;
-    onNavigateToVisualControl?: () => void;
+  onNavigateToVisualControl?: () => void;
   onNavigateToTeams?: () => void;
   onUpgradeClick: () => void;
   showToast: (message: string, type: 'success' | 'error') => void;
@@ -137,7 +137,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
         onNavigateToPodcast={onNavigateToPodcast}
         onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
         onNavigateToOrgChart={onNavigateToOrgChart}
-                onNavigateToVisualControl={onNavigateToVisualControl}
+        onNavigateToVisualControl={onNavigateToVisualControl}
         onUpgradeClick={onUpgradeClick}
       />
 
@@ -158,7 +158,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
           onNavigateToCost={onNavigateToCost}
           onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
           onNavigateToOrgChart={onNavigateToOrgChart}
-                onNavigateToVisualControl={onNavigateToVisualControl}
+          onNavigateToVisualControl={onNavigateToVisualControl}
           onUpgradeClick={onUpgradeClick}
           activeScreen="reports"
         />
@@ -237,7 +237,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
                     </span>
                   )}
                 </div>
-                <div className="p-4 overflow-x-auto">
+                <div className="p-0">
                   <TimelineView tasks={filteredTasks} baselineTasks={filteredBaselineTasks} onEditTask={() => { }} />
                 </div>
               </section>
