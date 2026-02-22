@@ -48,6 +48,8 @@ const OAE_LIST: OAEConfig[] = [
     { id: 'OAE D22', label: 'D22', engineer: 'Rafael Requiao', x: 40, y: 65 },
     { id: 'OAE D23', label: 'D23', engineer: 'Rafael Requiao', x: 45, y: 65 },
     { id: 'OAE D24', label: 'D24', engineer: 'Rafael Requiao', x: 50, y: 65 },
+    { id: 'Quadratum', label: 'Quadratum', engineer: 'Bruno Bastos', x: 75, y: 45 },
+    { id: 'Pátio de vigas', label: 'Pátio de vigas', engineer: 'Matheus Ramos', x: 75, y: 55 },
 ];
 
 // Color per engineer
@@ -441,7 +443,7 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
                         ${oae.id}
                     </td>
                     <td style="padding:6px 10px; border-bottom:1px solid #e5e7eb; font-size:11px; color:#555;">${oae.engineer}</td>
-                    <td style="padding:6px 10px; border-bottom:1px solid #e5e7eb; font-size:11px;">${tasksList}</td>
+                    <td style="padding:6px 10px; border-bottom:1px solid #e5e7eb; font-size:11px;">${data.tasks.map(t => `${t.support ? `[${t.support}] ` : ''}${t.title}`).join('; ')}</td>
                     <td style="padding:6px 10px; border-bottom:1px solid #e5e7eb; font-size:11px; white-space:nowrap;">${workersList || '—'}</td>
                     <td style="padding:6px 10px; border-bottom:1px solid #e5e7eb; font-size:11px; font-weight:800; text-align:center; color:${colors.dot};">${data.totalWorkers}</td>
                     <td style="padding:6px 10px; border-bottom:1px solid #e5e7eb; font-size:10px; color:#888;">${assigneesList || '—'}</td>
@@ -937,7 +939,12 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
                                                                         fontSize: '8px', color: 'rgba(220,220,220,0.85)', padding: '2px 0',
                                                                         borderBottom: i < Math.min(data.tasks.length, 3) - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
                                                                     }}>
-                                                                        <div style={{ fontWeight: 700 }}>• {task.title}</div>
+                                                                        <div style={{ fontWeight: 700 }}>
+                                                                            {task.support && (
+                                                                                <span style={{ color: 'rgba(255,165,0,0.9)', marginRight: '4px' }}>[{task.support}]</span>
+                                                                            )}
+                                                                            • {task.title}
+                                                                        </div>
                                                                     </div>
                                                                 ))}
                                                                 {data.tasks.length > 3 && (
