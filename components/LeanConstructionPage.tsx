@@ -32,6 +32,16 @@ interface LeanConstructionPageProps {
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
+const formatBR = (value: number | string | undefined, decimals: number = 2) => {
+    if (value === undefined || value === null || value === '') return '0' + (decimals > 0 ? ',' + '0'.repeat(decimals) : '');
+    const num = typeof value === 'string' ? parseFloat(value.replace(',', '.')) : value;
+    if (isNaN(num)) return '0' + (decimals > 0 ? ',' + '0'.repeat(decimals) : '');
+    return new Intl.NumberFormat('pt-BR', {
+        minimumFractionDigits: num % 1 === 0 ? 0 : decimals,
+        maximumFractionDigits: decimals
+    }).format(num);
+};
+
 const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
     onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToHome, onNavigateToOrgChart, onNavigateToVisualControl, onNavigateToCheckoutSummary, onNavigateToTeams, onUpgradeClick, showToast
 }) => {
@@ -148,8 +158,8 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                 - Disciplina: ${selectedTask.discipline}
                 - Meta Planejada: ${selectedTask.quantity} ${selectedTask.unit}
                 - Produção Realizada: ${metrics.totalProduced} ${selectedTask.unit}
-                - RUP Real: ${metrics.rup} Hh/${selectedTask.unit}
-                - Produtividade Real: ${metrics.productivity} ${selectedTask.unit}/Hh
+                - RUP Real: ${formatBR(metrics.rup, 2)} Hh/${selectedTask.unit}
+                - Produtividade Real: ${formatBR(metrics.productivity, 2)} ${selectedTask.unit}/Hh
                 - Horas Produtivas Totais: ${metrics.productiveManHours.toFixed(2)}h
                 - Horas Improdutivas/Apoio: ${metrics.unproductiveManHours.toFixed(2)}h
 
@@ -488,13 +498,27 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
 
             let totalP = 0;
             let totalHh = 0;
+            let prodSum = 0;
+            let rupSum = 0;
+            let count = 0;
+
             const history = days.map(d => {
                 totalP += d.produced;
                 totalHh += d.manHours;
+                
+                const dProd = Number(d.productivity);
+                const dRup = Number(d.rup);
+                
+                if (dProd > 0 || dRup > 0) {
+                    prodSum += dProd;
+                    rupSum += dRup;
+                    count++;
+                }
+
                 return {
                     ...d,
-                    cumProductivity: totalHh > 0 ? (totalP / totalHh).toFixed(3) : '0.000',
-                    cumRup: totalP > 0 ? (totalHh / totalP).toFixed(3) : '0.000'
+                    cumProductivity: count > 0 ? (prodSum / count).toFixed(3) : '0.000',
+                    cumRup: count > 0 ? (rupSum / count).toFixed(3) : '0.000'
                 };
             });
 
@@ -695,8 +719,8 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                         <p className="text-gray-500 text-xs">{task.discipline} • {task.location}</p>
                                                     </div>
                                                     <div className="flex gap-6 text-center">
-                                                        <div><span className="block font-bold text-cyan-400 text-xl">{metrics.rup} <span className="text-[10px] text-gray-500 font-normal">Hh/{task.unit}</span></span><span className="text-[9px] uppercase text-gray-500">RUP</span></div>
-                                                        <div><span className="block font-bold text-green-400 text-xl">{metrics.productivity} <span className="text-[10px] text-gray-500 font-normal">{task.unit}/Hh</span></span><span className="text-[9px] uppercase text-gray-500">Produt.</span></div>
+                                                        <div><span className="block font-bold text-cyan-400 text-xl">{formatBR(metrics.rup, 2)} <span className="text-[10px] text-gray-500 font-normal">Hh/{task.unit}</span></span><span className="text-[9px] uppercase text-gray-500">RUP</span></div>
+                                                        <div><span className="block font-bold text-green-400 text-xl">{formatBR(metrics.productivity, 2)} <span className="text-[10px] text-gray-500 font-normal">{task.unit}/Hh</span></span><span className="text-[9px] uppercase text-gray-500">Produt.</span></div>
                                                         <div><span className="block font-bold text-white text-xl">{task.subtasks.length}</span><span className="text-[9px] uppercase text-gray-500">Etapas</span></div>
                                                     </div>
                                                 </div>
@@ -722,7 +746,6 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                         <div className="flex-1">
                                                             <div className="flex items-center gap-3 mb-2">
                                                                 <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[9px] font-black text-brand-med-gray uppercase">{stat.discipline}</span>
-                                                                <span className="px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/20 text-[9px] font-black text-cyan-400 uppercase">{stat.location}</span>
                                                             </div>
                                                             <h3 className="text-2xl font-black text-white group-hover:text-cyan-400 transition-colors leading-tight mb-1">{stat.taskTitle}</h3>
                                                             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
@@ -734,11 +757,11 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                         <div className="flex gap-4">
                                                             <div className="bg-cyan-500/5 border border-cyan-500/10 p-4 rounded-2xl min-w-[120px] text-center">
                                                                 <p className="text-[10px] font-black text-cyan-400 uppercase mb-1">RUP Acumulada</p>
-                                                                <p className="text-2xl font-black text-white">{stat.lastRup} <span className="text-[10px] text-gray-600 font-normal">Hh/{stat.unit}</span></p>
+                                                                <p className="text-2xl font-black text-white">{formatBR(stat.lastRup, 3)} <span className="text-[10px] text-gray-600 font-normal">Hh/{stat.unit}</span></p>
                                                             </div>
                                                             <div className="bg-green-500/5 border border-green-500/10 p-4 rounded-2xl min-w-[120px] text-center">
                                                                 <p className="text-[10px] font-black text-green-400 uppercase mb-1">Prod. Acumulada</p>
-                                                                <p className="text-2xl font-black text-white">{stat.lastProd} <span className="text-[10px] text-gray-600 font-normal">{stat.unit}/Hh</span></p>
+                                                                <p className="text-2xl font-black text-white">{formatBR(stat.lastProd, 3)} <span className="text-[10px] text-gray-600 font-normal">{stat.unit}/Hh</span></p>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -758,10 +781,10 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                                 {stat.history.map((day, idx) => (
                                                                     <tr key={idx} className="hover:bg-white/[0.02] transition-colors group/row">
                                                                         <td className="py-4 px-2 text-xs font-black text-gray-400 font-mono">{fmtDateBR(day.date)}</td>
-                                                                        <td className="py-4 px-2 text-sm font-black text-white text-center">{day.produced} <span className="text-[10px] text-gray-600 font-normal">{stat.unit}</span></td>
-                                                                        <td className="py-4 px-2 text-sm font-bold text-gray-300 text-center">{day.manHours.toFixed(1)} <span className="text-[10px] opacity-40 font-black">Hh</span></td>
-                                                                        <td className="py-4 px-2 text-sm font-black text-indigo-400 text-center">{day.productivity}</td>
-                                                                        <td className="py-4 px-2 text-sm font-black text-cyan-400 text-center">{day.rup}</td>
+                                                                        <td className="py-4 px-2 text-sm font-black text-white text-center">{formatBR(day.produced, 3)} <span className="text-[10px] text-gray-600 font-normal">{stat.unit}</span></td>
+                                                                        <td className="py-4 px-2 text-sm font-bold text-gray-300 text-center">{formatBR(day.manHours, 1)} <span className="text-[10px] opacity-40 font-black">Hh</span></td>
+                                                                        <td className="py-4 px-2 text-sm font-black text-indigo-400 text-center">{formatBR(day.productivity, 3)}</td>
+                                                                        <td className="py-4 px-2 text-sm font-black text-cyan-400 text-center">{formatBR(day.rup, 3)}</td>
                                                                     </tr>
                                                                 ))}
                                                             </tbody>
@@ -788,11 +811,11 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                     <div className="ml-auto flex gap-4">
                                         <div className="bg-[#111827] px-4 py-2 rounded-lg border border-cyan-500/20 text-center">
                                             <span className="text-[10px] text-gray-500 uppercase block font-bold">RUP</span>
-                                            <span className="text-xl font-bold text-cyan-400">{calculateTaskMetrics(selectedTask).rup} <span className="text-xs text-gray-600">Hh/{selectedTask.unit}</span></span>
+                                            <span className="text-xl font-bold text-cyan-400">{formatBR(calculateTaskMetrics(selectedTask).rup, 2)} <span className="text-xs text-gray-600">Hh/{selectedTask.unit}</span></span>
                                         </div>
                                         <div className="bg-[#111827] px-4 py-2 rounded-lg border border-green-500/20 text-center">
                                             <span className="text-[10px] text-gray-500 uppercase block font-bold">Produtividade</span>
-                                            <span className="text-xl font-bold text-green-400">{calculateTaskMetrics(selectedTask).productivity} <span className="text-xs text-gray-600">{selectedTask.unit}/Hh</span></span>
+                                            <span className="text-xl font-bold text-green-400">{formatBR(calculateTaskMetrics(selectedTask).productivity, 2)} <span className="text-xs text-gray-600">{selectedTask.unit}/Hh</span></span>
                                         </div>
                                     </div>
                                 </div>
@@ -818,7 +841,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                             <div className="text-xs text-gray-500 flex flex-wrap gap-2 mt-1">
                                                                 {sub.workers.map((w, i) => <span key={i} className="bg-white/5 px-1.5 rounded">{w.count} {w.role === 'Outro' ? w.customRole : w.role}</span>)}
                                                                 {sub.machinery > 0 && <span className="text-cyan-400">{sub.machinery} Máq.</span>}
-                                                                {sub.producedQuantity && sub.producedQuantity > 0 && <span className="text-green-400 font-bold border border-green-500/30 px-1.5 rounded">{sub.producedQuantity} {sub.unit}</span>}
+                                                                {sub.producedQuantity && sub.producedQuantity > 0 && <span className="text-green-400 font-bold border border-green-500/30 px-1.5 rounded">{formatBR(sub.producedQuantity, 2)} {sub.unit}</span>}
                                                             </div>
                                                         </div>
                                                         {user.role !== 'Gerenciador' && (
@@ -914,7 +937,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                     {Object.entries(calculateTaskMetrics(selectedTask).resourceSummary).map(([role, hours]) => (
                                                         <div key={role} className="flex justify-between bg-white/5 p-2 rounded border border-white/5">
                                                             <span className="text-gray-300">{role}</span>
-                                                            <span className="font-mono text-cyan-400 font-bold">{(hours).toFixed(1)}h</span>
+                                                            <span className="font-mono text-cyan-400 font-bold">{formatBR(hours, 1)}h</span>
                                                         </div>
                                                     ))}
                                                     {Object.keys(calculateTaskMetrics(selectedTask).resourceSummary).length === 0 && <span className="text-gray-600 col-span-2 text-center text-[10px]">Sem dados.</span>}

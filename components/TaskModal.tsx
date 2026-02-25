@@ -10,7 +10,7 @@ import SafetyAnalysisIcon from './icons/SafetyAnalysisIcon';
 import ConstructionIcon from './icons/ConstructionIcon';
 import ManagementIcon from './icons/ManagementIcon';
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { disciplineOptions, taskTitleOptions, oaeLocations, frentes, apoios, vaos, unitOptions } from '../utils/constants';
+import { disciplineOptions, taskTitleOptions, oaeLocations, frentes, apoios, vaos, sideOptions, unitOptions } from '../utils/constants';
 import AIRestrictedAccess from './AIRestrictedAccess';
 import ConfirmModal from './ConfirmModal';
 
@@ -89,6 +89,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             actualEndDate: '',
             location: '',
             support: '',
+            side: '',
             corte: '',
             quantity: 0,
             unit: '',
@@ -161,6 +162,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                     actualEndDate: task.actualEndDate || '',
                     location: task.location || '',
                     support: task.support || '',
+                    side: task.side || '',
                     corte: task.corte || '',
                     quantity: task.quantity || 0,
                     unit: task.unit || '',
@@ -704,33 +706,53 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                     </select>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">
-                                        {isOAE ? (isOAESuperestrutura ? 'Vão' : 'Apoio') : 'Sub-Trecho (Corte)'}
-                                    </label>
-                                    {isOAE ? (
-                                        <select
-                                            name="support"
-                                            value={formData.support}
-                                            onChange={handleChange}
-                                            required
-                                            disabled={isReadOnlyPlanning}
-                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all appearance-none font-bold"
-                                        >
-                                            <option value="">{isOAESuperestrutura ? 'Selecione o Vão' : 'Selecione o Apoio'}</option>
-                                            {(isOAESuperestrutura ? vaos : apoios).map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                        </select>
-                                    ) : (
-                                        <input
-                                            type="text"
-                                            name="corte"
-                                            value={formData.corte}
-                                            onChange={handleChange}
-                                            placeholder="Ex: Estaca 100+10"
-                                            disabled={isReadOnlyPlanning}
-                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all font-bold"
-                                        />
-                                    )}
+                                <div className="space-y-4">
+                                    <div className={`grid grid-cols-1 ${(formData.level === 'Fundação' || formData.level === 'Mesoestrutura') ? 'md:grid-cols-2' : ''} gap-6 transition-all duration-300`}>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">
+                                                {isOAE ? (isOAESuperestrutura ? 'Vão' : 'Apoio') : 'Sub-Trecho (Corte)'}
+                                            </label>
+                                            {isOAE ? (
+                                                <select
+                                                    name="support"
+                                                    value={formData.support}
+                                                    onChange={handleChange}
+                                                    required
+                                                    disabled={isReadOnlyPlanning}
+                                                    className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all appearance-none font-bold"
+                                                >
+                                                    <option value="">{isOAESuperestrutura ? 'Selecione o Vão' : 'Selecione o Apoio'}</option>
+                                                    {(isOAESuperestrutura ? vaos : apoios).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                </select>
+                                            ) : (
+                                                <input
+                                                    type="text"
+                                                    name="corte"
+                                                    value={formData.corte}
+                                                    onChange={handleChange}
+                                                    placeholder="Ex: Estaca 100+10"
+                                                    disabled={isReadOnlyPlanning}
+                                                    className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all font-bold"
+                                                />
+                                            )}
+                                        </div>
+
+                                        {(formData.level === 'Fundação' || formData.level === 'Mesoestrutura') && (
+                                            <div className="space-y-2 animate-fade-in">
+                                                <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Lado</label>
+                                                <select
+                                                    name="side"
+                                                    value={formData.side}
+                                                    onChange={handleChange}
+                                                    disabled={isReadOnlyPlanning}
+                                                    className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all appearance-none font-bold"
+                                                >
+                                                    <option value="">Selecione o Lado</option>
+                                                    {sideOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                </select>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div className="col-span-1 md:col-span-2 p-6 bg-brand-accent/5 rounded-3xl border border-brand-accent/10 space-y-4">

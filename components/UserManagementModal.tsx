@@ -25,7 +25,12 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ onClose, show
 
     const handleEditClick = (user: User) => {
         setEditingUserId(user.id);
-        setEditForm({ fullName: user.fullName, role: user.role, email: user.email });
+        setEditForm({
+            fullName: user.fullName,
+            role: user.role,
+            email: user.email,
+            whatsapp: user.whatsapp
+        });
     };
 
     const handleCancelEdit = () => {
@@ -152,10 +157,10 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ onClose, show
                                                     onChange={e => setEditForm({ ...editForm, fullName: e.target.value })}
                                                 />
                                             </div>
-                                            <div className="w-full md:w-1/3">
+                                            <div className="w-full md:w-1/4">
                                                 <label className="text-[10px] uppercase font-bold text-brand-med-gray mb-1 block">Cargo</label>
                                                 <select
-                                                    className="w-full bg-[#0a0f18] border border-white/10 rounded-lg p-2 text-white text-sm"
+                                                    className="w-full bg-[#0a0f18] border border-white/10 rounded-lg p-2 text-white text-sm font-bold"
                                                     value={editForm.role || ''}
                                                     onChange={e => setEditForm({ ...editForm, role: e.target.value as User['role'] })}
                                                 >
@@ -165,6 +170,16 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ onClose, show
                                                     <option value="Planejador">Planejador</option>
                                                     <option value="Visitante">Visitante</option>
                                                 </select>
+                                            </div>
+                                            <div className="w-full md:w-1/4">
+                                                <label className="text-[10px] uppercase font-bold text-brand-med-gray mb-1 block">WhatsApp</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full bg-[#0a0f18] border border-white/10 rounded-lg p-2 text-white text-sm font-bold"
+                                                    value={editForm.whatsapp || ''}
+                                                    placeholder="(00) 00000-0000"
+                                                    onChange={e => setEditForm({ ...editForm, whatsapp: e.target.value })}
+                                                />
                                             </div>
                                             <div className="flex gap-2">
                                                 <button onClick={() => handleSaveEdit(user.id)} className="bg-green-500 hover:bg-green-600 text-white p-2 rounded-lg" title="Salvar"><CheckIcon className="w-5 h-5" /></button>

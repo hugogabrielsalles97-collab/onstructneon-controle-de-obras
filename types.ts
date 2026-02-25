@@ -24,6 +24,7 @@ export interface Task {
   actualEndDate?: string; // Fim (Real)
   location: string; // Local ou Frente
   support: string; // Apoio
+  side?: string; // Lado (Esquerdo, Direito, Ambos)
   corte?: string; // Campo adicional para corte
   quantity: number; // Quantidades
   unit: string; // Quantidades (unidade)

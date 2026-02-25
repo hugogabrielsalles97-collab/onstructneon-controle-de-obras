@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { formatNumberBR } from '../utils/formatters';
 import { useData } from '../context/DataProvider';
 import Sidebar from './Sidebar';
 import Header from './Header';
@@ -148,8 +149,8 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
         const start = new Date(metadata.startDate);
         const end = new Date(metadata.dueDate);
         const duration = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-        if (duration <= 0) return metadata.quantity.toFixed(2);
-        return (metadata.quantity / duration).toFixed(2);
+        if (duration <= 0) return formatNumberBR(metadata.quantity, 2);
+        return formatNumberBR(metadata.quantity / duration, 2);
     };
 
     return (
@@ -548,14 +549,14 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                                                                                 <div>
                                                                                     <p className="text-[8px] font-black text-amber-500/70 uppercase">Meta (Dia)</p>
                                                                                     <p className="text-sm text-white font-black">
-                                                                                        {calculateDailyQuantity(metadata) || '0.00'}
+                                                                                        {calculateDailyQuantity(metadata) || "0,00"}
                                                                                         <span className="text-[10px] ml-1 opacity-50">{metadata?.unit || 'un'}</span>
                                                                                     </p>
                                                                                 </div>
                                                                                 <div>
                                                                                     <p className="text-[8px] font-black text-amber-500/70 uppercase">Total Previsto</p>
                                                                                     <p className="text-sm text-white font-black">
-                                                                                        {metadata?.quantity || '0.00'}
+                                                                                        {formatNumberBR(metadata?.quantity || 0, 2)}
                                                                                         <span className="text-[10px] ml-1 opacity-50">{metadata?.unit || 'un'}</span>
                                                                                     </p>
                                                                                 </div>
@@ -583,7 +584,7 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                                                                                                     {field !== 'progress' && <span className="text-[10px] ml-1 opacity-70">{metadata?.unit || 'un'}</span>}
                                                                                                 </span>
                                                                                                 <span className="text-[9px] text-white/30 font-bold">
-                                                                                                    ({field === 'progress' ? `${values.to}%` : `${values.to}${metadata?.unit || 'un'}`})
+                                                                                                    (`${field === "progress" ? formatNumberBR(values.to, 1) + "%" : formatNumberBR(values.to, 2) + (metadata?.unit || "un")}`)
                                                                                                 </span>
                                                                                             </div>
                                                                                         </div>

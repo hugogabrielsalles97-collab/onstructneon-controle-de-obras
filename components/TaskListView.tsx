@@ -126,6 +126,11 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEdi
                             {task.level}
                           </span>
                         )}
+                        {task.side && (
+                          <span className="text-[9px] font-black text-blue-400/80 uppercase bg-blue-400/5 px-2 py-0.5 rounded-md border border-blue-400/20 font-mono">
+                            {task.side}
+                          </span>
+                        )}
                       </div>
                     )}
                     {task.description && <div className="text-xs text-brand-med-gray italic line-clamp-1 max-w-xs">{task.description}</div>}

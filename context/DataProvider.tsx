@@ -388,9 +388,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const updateUser = async (userId: string, updates: Partial<User>) => {
         if (!session || currentUser?.role !== 'Master') return { success: false, error: 'Permissão negada' };
         try {
+            // Mapeia fullName para full_name para compatibilidade com o banco
+            const dbUpdates: any = {};
+            if (updates.fullName !== undefined) dbUpdates.full_name = updates.fullName;
+            if (updates.role !== undefined) dbUpdates.role = updates.role;
+            if (updates.whatsapp !== undefined) dbUpdates.whatsapp = updates.whatsapp;
+            if (updates.is_approved !== undefined) dbUpdates.is_approved = updates.is_approved;
+
             const { error } = await supabase
                 .from('profiles')
-                .update(updates)
+                .update(dbUpdates)
                 .eq('id', userId);
 
             if (error) throw error;

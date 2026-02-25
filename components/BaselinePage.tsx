@@ -6,6 +6,7 @@ import BaselineIcon from './icons/BaselineIcon';
 import ExcelIcon from './icons/ExcelIcon';
 import Sidebar from './Sidebar';
 import { exportTasksToExcel } from '../utils/excelExport';
+import { formatNumberBR } from '../utils/formatters';
 
 // Esta variável global é declarada pelo script tag da biblioteca xlsx em index.html
 declare var XLSX: any;
@@ -417,6 +418,7 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
                             <th className="px-2 py-2 text-left font-medium text-brand-med-gray uppercase tracking-wider w-16">Fim</th>
                             <th className="px-2 py-2 text-left font-medium text-brand-med-gray uppercase tracking-wider">Local</th>
                             <th className="px-2 py-2 text-left font-medium text-brand-med-gray uppercase tracking-wider">Apoio</th>
+                            <th className="px-2 py-2 text-left font-medium text-brand-med-gray uppercase tracking-wider">Lado</th>
                             <th className="px-2 py-2 text-left font-medium text-brand-med-gray uppercase tracking-wider">Corte</th>
                             <th className="px-2 py-2 text-left font-medium text-brand-med-gray uppercase tracking-wider">Qtd.</th>
                             <th className="px-2 py-2 text-left font-medium text-brand-med-gray uppercase tracking-wider">Unid.</th>
@@ -435,8 +437,9 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
                                 <td className="px-2 py-1.5 align-middle text-gray-300 whitespace-nowrap">{formatDate(task.dueDate)}</td>
                                 <td className="px-2 py-1.5 align-middle text-gray-400 break-words max-w-[80px]">{task.location}</td>
                                 <td className="px-2 py-1.5 align-middle text-gray-400 break-words max-w-[60px]">{task.support || '-'}</td>
+                                <td className="px-2 py-1.5 align-middle text-gray-400 break-words max-w-[60px]">{task.side || '-'}</td>
                                 <td className="px-2 py-1.5 align-middle text-gray-400 break-words max-w-[60px]">{task.corte || '-'}</td>
-                                <td className="px-2 py-1.5 align-middle text-gray-300 text-right font-mono">{task.quantity}</td>
+                                <td className="px-2 py-1.5 align-middle text-gray-300 text-right font-mono">{formatNumberBR(task.quantity, 2)}</td>
                                 <td className="px-2 py-1.5 align-middle text-gray-400 text-center">{task.unit}</td>
                                 <td className="px-2 py-1.5 align-middle text-center">
                                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${task.progress >= 100 ? 'bg-green-500/20 text-green-400' : task.progress > 0 ? 'bg-brand-accent/20 text-brand-accent' : 'bg-gray-500/20 text-gray-400'}`}>
