@@ -20,15 +20,15 @@ export interface Task {
   level: string; // Nível/Pavimento (ex: Térreo, 1º Andar)
   startDate: string; // Datas
   dueDate: string; // Datas
-  actualStartDate?: string; // Início (Real)
-  actualEndDate?: string; // Fim (Real)
+  actualStartDate?: string | null; // Início (Real)
+  actualEndDate?: string | null; // Fim (Real)
   location: string; // Local ou Frente
   support: string; // Apoio
-  side?: string; // Lado (Esquerdo, Direito, Ambos)
-  corte?: string; // Campo adicional para corte
+  side?: string | null; // Lado (Esquerdo, Direito, Ambos)
+  corte?: string | null; // Campo adicional para corte
   quantity: number; // Quantidades
   unit: string; // Quantidades (unidade)
-  actualQuantity?: number; // Quantidade Real
+  actualQuantity?: number | null; // Quantidade Real
   progress: number; // Percentual de avanço (0-100)
   plannedManpower: Resource[];
   plannedMachinery: Resource[];

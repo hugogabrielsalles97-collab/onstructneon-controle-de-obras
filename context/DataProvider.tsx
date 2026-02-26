@@ -201,6 +201,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 const { id, ...taskUpdates } = task;
                 const { error } = await supabase.from('tasks').update({ ...taskUpdates, user_id: session.user.id }).eq('id', id);
                 if (error) throw error;
+
+                queryClient.invalidateQueries({ queryKey: ['tasks'] });
+                queryClient.invalidateQueries({ queryKey: ['checkoutLogs'] });
+                return { success: true, data: task };
             } else {
                 // Insert
                 const { id, ...taskData } = task;

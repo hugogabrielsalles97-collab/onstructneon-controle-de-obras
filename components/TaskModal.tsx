@@ -561,8 +561,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             id: task?.id || new Date().toISOString(),
             ...finalFormData,
             status: finalStatus,
-            actualStartDate: formData.actualStartDate || undefined,
-            actualEndDate: formData.actualEndDate || undefined,
+            actualStartDate: formData.actualStartDate || null,
+            actualEndDate: formData.actualEndDate || null,
         };
         onSave(taskToSave);
     };
