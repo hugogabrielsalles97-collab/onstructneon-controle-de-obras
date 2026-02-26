@@ -14,6 +14,7 @@ import XIcon from './icons/XIcon';
 import HistoryIcon from './icons/HistoryIcon';
 import BriefcaseIcon from './icons/BriefcaseIcon';
 import UserManagementModal from './UserManagementModal';
+import ChangePasswordModal from './ChangePasswordModal';
 import Toast from './Toast';
 import { useData } from '../context/DataProvider';
 
@@ -61,6 +62,7 @@ const Header: React.FC<HeaderProps> = ({
   const { allUsers } = useData();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const showFullMenu = user.role !== 'Executor';
 
@@ -151,6 +153,12 @@ const Header: React.FC<HeaderProps> = ({
                 >
                   Upgrade
                 </button>
+                <button
+                  onClick={() => setIsChangePasswordOpen(true)}
+                  className={`text-[9px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 px-1.5 py-0.5 rounded hover:bg-cyan-500 hover:text-white transition-all uppercase font-bold`}
+                >
+                  Senha
+                </button>
                 {user.role === 'Master' && (
                   <button
                     onClick={() => setIsUserManagementOpen(true)}
@@ -213,6 +221,7 @@ const Header: React.FC<HeaderProps> = ({
       )}
 
       {isUserManagementOpen && <UserManagementModal onClose={() => setIsUserManagementOpen(false)} showToast={showToast} />}
+      {isChangePasswordOpen && <ChangePasswordModal onClose={() => setIsChangePasswordOpen(false)} showToast={showToast} />}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </>
   );
