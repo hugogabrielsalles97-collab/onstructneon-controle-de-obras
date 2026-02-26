@@ -22,13 +22,14 @@ import Toast from './components/Toast';
 import ConstructionIcon from './components/icons/ConstructionIcon';
 import PodcastPage from './components/PodcastPage';
 import OrgChartPage from './components/OrgChartPage';
+import OrgSummaryPage from './components/OrgSummaryPage';
 import TeamsPage from './components/TeamsPage';
 import VisualControlPage from './components/VisualControlPage';
 import { Task, Restriction } from './types';
 import { DataProvider, useData } from './context/DataProvider';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
-type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'warRoom' | 'restrictions' | 'cost' | 'podcast' | 'checkoutSummary' | 'orgChart' | 'visualControl';
+type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'warRoom' | 'restrictions' | 'cost' | 'podcast' | 'checkoutSummary' | 'orgChart' | 'orgSummary' | 'visualControl';
 
 const AppContent: React.FC = () => {
   const {
@@ -226,6 +227,7 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no Lean Solut
       onNavigateToCost: () => setScreen('cost'),
       onNavigateToCheckoutSummary: () => setScreen('checkoutSummary'),
       onNavigateToOrgChart: () => setScreen('orgChart'),
+      onNavigateToOrgSummary: () => setScreen('orgSummary'),
       onNavigateToTeams: () => setScreen('teams'),
       onNavigateToVisualControl: () => setScreen('visualControl'),
       onUpgradeClick: () => setIsUpgradeModalOpen(true),
@@ -291,6 +293,12 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no Lean Solut
       );
       case 'orgChart': return (
         <OrgChartPage
+          {...navigationProps}
+          showToast={showToast}
+        />
+      );
+      case 'orgSummary': return (
+        <OrgSummaryPage
           {...navigationProps}
           showToast={showToast}
         />

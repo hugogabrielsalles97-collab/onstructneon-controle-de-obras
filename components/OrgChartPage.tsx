@@ -24,6 +24,7 @@ interface OrgChartPageProps {
     onNavigateToPodcast: () => void;
     onNavigateToCheckoutSummary: () => void;
     onNavigateToOrgChart?: () => void;
+    onNavigateToOrgSummary?: () => void;
     onNavigateToVisualControl?: () => void;
     onUpgradeClick: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
@@ -388,21 +389,6 @@ const OrgChartPage: React.FC<OrgChartPageProps> = (props) => {
                             </div>
                         </div>
 
-                        {/* Summary Section */}
-                        {members.length > 0 && (
-                            <div className="flex gap-8 mb-16 animate-slide-up max-w-screen-2xl mx-auto">
-                                <SummaryCard
-                                    title="Abaixo de Engenheiro"
-                                    data={summaries.eng}
-                                    icon={<ManagementIcon className="w-7 h-7" />}
-                                />
-                                <SummaryCard
-                                    title="Abaixo de Mestre"
-                                    data={summaries.mestre}
-                                    icon={<ManagementIcon className="w-7 h-7 opacity-70" />}
-                                />
-                            </div>
-                        )}
 
                         <div className="flex justify-start items-start p-20 min-w-max">
                             <div

@@ -10,6 +10,7 @@ import ManagementIcon from './icons/ManagementIcon';
 import TvIcon from './icons/TvIcon';
 import HistoryIcon from './icons/HistoryIcon';
 import UserIcon from './icons/UserIcon';
+import BriefcaseIcon from './icons/BriefcaseIcon';
 
 interface SidebarProps {
     user: User;
@@ -27,12 +28,13 @@ interface SidebarProps {
     onNavigateToPodcast?: () => void;
     onNavigateToCheckoutSummary: () => void;
     onNavigateToOrgChart?: () => void;
+    onNavigateToOrgSummary?: () => void;
     onNavigateToTeams?: () => void;
     onNavigateToVisualControl?: () => void;
     onUpgradeClick: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome, onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToTeams, onNavigateToVisualControl, onUpgradeClick }) => {
+const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome, onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onUpgradeClick }) => {
     const showFullMenu = user.role !== 'Executor';
     const isCostModule = activeScreen === 'cost';
     const accentColor = isCostModule ? 'green-600' : 'brand-accent';
@@ -97,13 +99,24 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                                         isCostModule={isCostModule}
                                     />
                                     {onNavigateToOrgChart && (
-                                        <NavButton
-                                            active={activeScreen === 'orgChart'}
-                                            icon={<ManagementIcon className="w-5 h-5 text-indigo-400" />}
-                                            label="Organograma"
-                                            onClick={onNavigateToOrgChart}
-                                            isCostModule={isCostModule}
-                                        />
+                                        <div className="space-y-1">
+                                            <NavButton
+                                                active={activeScreen === 'orgChart'}
+                                                icon={<ManagementIcon className="w-5 h-5 text-indigo-400" />}
+                                                label="Organograma"
+                                                onClick={onNavigateToOrgChart}
+                                                isCostModule={isCostModule}
+                                            />
+                                            {onNavigateToOrgSummary && (
+                                                <NavButton
+                                                    active={activeScreen === 'orgSummary'}
+                                                    icon={<BriefcaseIcon className="w-5 h-5 text-cyan-400" />}
+                                                    label="Resumo Organograma"
+                                                    onClick={onNavigateToOrgSummary}
+                                                    isCostModule={isCostModule}
+                                                />
+                                            )}
+                                        </div>
                                     )}
                                     {onNavigateToVisualControl && (
                                         <NavButton

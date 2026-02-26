@@ -12,6 +12,7 @@ import LeanConstructionIcon from './icons/LeanConstructionIcon';
 import TvIcon from './icons/TvIcon';
 import XIcon from './icons/XIcon';
 import HistoryIcon from './icons/HistoryIcon';
+import BriefcaseIcon from './icons/BriefcaseIcon';
 import UserManagementModal from './UserManagementModal';
 import Toast from './Toast';
 import { useData } from '../context/DataProvider';
@@ -32,8 +33,8 @@ interface HeaderProps {
   onNavigateToCost?: () => void;
   onNavigateToCheckoutSummary?: () => void;
   onNavigateToOrgChart?: () => void;
+  onNavigateToOrgSummary?: () => void;
   onUpgradeClick?: () => void;
-  activeScreen?: string;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -52,6 +53,7 @@ const Header: React.FC<HeaderProps> = ({
   onNavigateToCost,
   onNavigateToCheckoutSummary,
   onNavigateToOrgChart,
+  onNavigateToOrgSummary,
   onUpgradeClick,
   activeScreen = 'dashboard'
 }) => {
@@ -74,6 +76,7 @@ const Header: React.FC<HeaderProps> = ({
     { id: 'leanConstruction', label: 'Lean Construction', icon: <LeanConstructionIcon className="w-5 h-5 text-cyan-400" />, onClick: onNavigateToLeanConstruction, show: showFullMenu },
     { id: 'lean', label: 'Sistema LPS', icon: <LeanIcon className="w-5 h-5" />, onClick: onNavigateToLean, show: showFullMenu },
     { id: 'orgChart', label: 'Organograma', icon: <ManagementIcon className="w-5 h-5 text-indigo-400" />, onClick: onNavigateToOrgChart, show: showFullMenu },
+    { id: 'orgSummary', label: 'Resumo Organograma', icon: <BriefcaseIcon className="w-5 h-5 text-cyan-400" />, onClick: onNavigateToOrgSummary, show: showFullMenu },
     { id: 'reports', label: 'Dashboards', icon: <ChartIcon className="w-5 h-5" />, onClick: onNavigateToReports, show: showFullMenu },
     { id: 'management', label: 'Painel Gerencial', icon: <ManagementIcon className="w-5 h-5" />, onClick: onNavigateToAnalysis, show: showFullMenu },
     { id: 'baseline', label: 'Linha Base', icon: <BaselineIcon className="w-5 h-5" />, onClick: onNavigateToBaseline, show: showFullMenu },
