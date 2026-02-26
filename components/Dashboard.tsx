@@ -363,6 +363,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
                 <div className="flex-1 min-w-[100px]">
                   <FilterSelect name="corte" label="Corte" value={filters.corte} onChange={handleFilterChange} options={uniqueOptions.corte} />
                 </div>
+                <div className="flex-1 min-w-[100px]">
+                  <FilterSelect name="support" label="Apoio" value={filters.support} onChange={handleFilterChange} options={uniqueOptions.support} />
+                </div>
               </div>
             </div>
 

@@ -106,6 +106,9 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
     // Selected OAE for detail popup
     const [selectedOAE, setSelectedOAE] = useState<string | null>(null);
 
+    // Shift filter state
+    const [shiftFilter, setShiftFilter] = useState<'Diurno' | 'Noturno' | null>(null);
+
     // Edit mode for positioning OAEs
     const [editMode, setEditMode] = useState(false);
 
@@ -281,10 +284,11 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
                 entry.tasks.push(task);
                 if (task.assignee) entry.assignees.add(task.assignee);
 
-                // Accumulate manpower
+                // Accumulate manpower (normalize role to uppercase)
                 (task.plannedManpower || []).forEach((mp: Resource) => {
                     if (mp.role && mp.quantity) {
-                        entry.workersByRole[mp.role] = (entry.workersByRole[mp.role] || 0) + mp.quantity;
+                        const normalizedRole = mp.role.trim().toUpperCase();
+                        entry.workersByRole[normalizedRole] = (entry.workersByRole[normalizedRole] || 0) + mp.quantity;
                         entry.totalWorkers += mp.quantity;
                     }
                 });
@@ -571,6 +575,47 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
         return (Object.values(oaeTaskData) as OAETaskEntry[]).reduce((sum, d) => sum + d.totalWorkers, 0);
     }, [oaeTaskData]);
 
+    const shiftSummary = useMemo(() => {
+        let diurno = 0;
+        let noturno = 0;
+        let semTurno = 0;
+        (Object.values(oaeTaskData) as OAETaskEntry[]).forEach(d => {
+            d.tasks.forEach(task => {
+                if (task.shift === 'Diurno') diurno++;
+                else if (task.shift === 'Noturno') noturno++;
+                else semTurno++;
+            });
+        });
+        return { diurno, noturno, semTurno };
+    }, [oaeTaskData]);
+
+    // Filtered OAE data based on shift selection
+    const filteredOaeTaskData = useMemo(() => {
+        if (!shiftFilter) return oaeTaskData;
+
+        const result: Record<string, OAETaskEntry> = {};
+        Object.entries(oaeTaskData).forEach(([oaeId, entry]) => {
+            const filteredTasks = (entry as OAETaskEntry).tasks.filter(t => t.shift === shiftFilter);
+            const workersByRole: Record<string, number> = {};
+            let totalWorkers = 0;
+            const assignees = new Set<string>();
+
+            filteredTasks.forEach(task => {
+                if (task.assignee) assignees.add(task.assignee);
+                (task.plannedManpower || []).forEach((mp: Resource) => {
+                    if (mp.role && mp.quantity) {
+                        const normalizedRole = mp.role.trim().toUpperCase();
+                        workersByRole[normalizedRole] = (workersByRole[normalizedRole] || 0) + mp.quantity;
+                        totalWorkers += mp.quantity;
+                    }
+                });
+            });
+
+            result[oaeId] = { tasks: filteredTasks, totalWorkers, workersByRole, assignees };
+        });
+        return result;
+    }, [oaeTaskData, shiftFilter]);
+
     if (!user) return null;
 
     return (
@@ -648,6 +693,30 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
                                     <span className="bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg">
                                         {totalWorkersOnDate} Trabalhadores
                                     </span>
+                                    <button
+                                        onClick={() => setShiftFilter(shiftFilter === 'Diurno' ? null : 'Diurno')}
+                                        className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-all duration-200 cursor-pointer border ${shiftFilter === 'Diurno'
+                                            ? 'bg-amber-500/25 border-amber-400/60 text-amber-200 shadow-lg shadow-amber-500/20 ring-1 ring-amber-400/40'
+                                            : 'bg-amber-500/10 border-amber-400/20 text-amber-300 hover:bg-amber-500/20 hover:border-amber-400/40'
+                                            }`}
+                                    >
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                                        </svg>
+                                        {shiftSummary.diurno} Diurno
+                                    </button>
+                                    <button
+                                        onClick={() => setShiftFilter(shiftFilter === 'Noturno' ? null : 'Noturno')}
+                                        className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-all duration-200 cursor-pointer border ${shiftFilter === 'Noturno'
+                                            ? 'bg-indigo-500/25 border-indigo-400/60 text-indigo-200 shadow-lg shadow-indigo-500/20 ring-1 ring-indigo-400/40'
+                                            : 'bg-indigo-500/10 border-indigo-400/20 text-indigo-300 hover:bg-indigo-500/20 hover:border-indigo-400/40'
+                                            }`}
+                                    >
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                                        </svg>
+                                        {shiftSummary.noturno} Noturno
+                                    </button>
                                 </div>
 
                                 {/* Edit mode toggle */}
@@ -764,7 +833,7 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
                                         {OAE_LIST.map(oae => {
                                             const pos = getOAEPosition(oae.id);
                                             const cardPos = getCardPosition(oae.id);
-                                            const data = oaeTaskData[oae.id];
+                                            const data = filteredOaeTaskData[oae.id];
                                             const hasActivity = data && data.tasks.length > 0;
                                             const colors = ENGINEER_COLORS[oae.engineer] || ENGINEER_COLORS['Bruno Bastos'];
                                             const isSelected = selectedOAE === oae.id;
@@ -937,24 +1006,24 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
 
                                                             {/* Activities (compact) */}
                                                             <div style={{ marginBottom: '6px' }}>
-                                                                {data.tasks.slice(0, 3).map((task, i) => (
+                                                                {data.tasks.map((task, i) => (
                                                                     <div key={task.id || i} style={{
                                                                         fontSize: '8px', color: 'rgba(220,220,220,0.85)', padding: '2px 0',
-                                                                        borderBottom: i < Math.min(data.tasks.length, 3) - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                                                                        borderBottom: i < data.tasks.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
                                                                     }}>
-                                                                        <div style={{ fontWeight: 700 }}>
+                                                                        <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}>
                                                                             {task.support && (
-                                                                                <span style={{ color: 'rgba(255,165,0,0.9)', marginRight: '4px' }}>[{task.support}]</span>
+                                                                                <span style={{ color: 'rgba(255,165,0,0.9)' }}>[{task.support}]</span>
                                                                             )}
-                                                                            • {task.title}
+                                                                            {task.shift && (
+                                                                                <span style={{ fontSize: '7px', opacity: 0.7 }}>
+                                                                                    {task.shift === 'Diurno' ? '☀️' : '🌙'}
+                                                                                </span>
+                                                                            )}
+                                                                            <span>• {task.title}</span>
                                                                         </div>
                                                                     </div>
                                                                 ))}
-                                                                {data.tasks.length > 3 && (
-                                                                    <div style={{ fontSize: '7px', color: 'rgba(150,150,150,0.5)', fontStyle: 'italic', marginTop: '2px' }}>
-                                                                        +{data.tasks.length - 3} mais...
-                                                                    </div>
-                                                                )}
                                                             </div>
 
                                                             {/* Workers by role */}

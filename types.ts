@@ -26,6 +26,7 @@ export interface Task {
   support: string; // Apoio
   side?: string | null; // Lado (Esquerdo, Direito, Ambos)
   corte?: string | null; // Campo adicional para corte
+  shift?: 'Diurno' | 'Noturno' | null; // Turno de execução
   quantity: number; // Quantidades
   unit: string; // Quantidades (unidade)
   actualQuantity?: number | null; // Quantidade Real

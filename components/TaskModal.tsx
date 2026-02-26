@@ -91,6 +91,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             support: '',
             side: '',
             corte: '',
+            shift: null,
             quantity: 0,
             unit: '',
             actualQuantity: 0,
@@ -164,6 +165,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                     support: task.support || '',
                     side: task.side || '',
                     corte: task.corte || '',
+                    shift: task.shift || null,
                     quantity: task.quantity || 0,
                     unit: task.unit || '',
                     actualQuantity: task.actualQuantity || 0,
@@ -752,6 +754,49 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                                 </select>
                                             </div>
                                         )}
+                                    </div>
+                                </div>
+
+                                {/* Turno de Execução */}
+                                <div className="col-span-1 md:col-span-2 space-y-2">
+                                    <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Turno de Execução</label>
+                                    <div className="flex gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData(prev => ({ ...prev, shift: prev.shift === 'Diurno' ? null : 'Diurno' }))}
+                                            disabled={isReadOnlyPlanning}
+                                            className={`flex-1 flex items-center justify-center gap-3 py-3.5 px-4 rounded-2xl border-2 transition-all duration-300 font-black text-sm uppercase tracking-wider group ${formData.shift === 'Diurno'
+                                                    ? 'bg-amber-500/15 border-amber-400/50 text-amber-300 shadow-lg shadow-amber-500/10'
+                                                    : 'bg-white/5 border-white/10 text-brand-med-gray hover:border-amber-400/30 hover:text-amber-300/70'
+                                                } disabled:opacity-50`}
+                                        >
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform group-hover:scale-110 ${formData.shift === 'Diurno' ? 'text-amber-400' : ''}`}>
+                                                <circle cx="12" cy="12" r="5" />
+                                                <line x1="12" y1="1" x2="12" y2="3" />
+                                                <line x1="12" y1="21" x2="12" y2="23" />
+                                                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                                                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                                                <line x1="1" y1="12" x2="3" y2="12" />
+                                                <line x1="21" y1="12" x2="23" y2="12" />
+                                                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                                                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                                            </svg>
+                                            Diurno
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData(prev => ({ ...prev, shift: prev.shift === 'Noturno' ? null : 'Noturno' }))}
+                                            disabled={isReadOnlyPlanning}
+                                            className={`flex-1 flex items-center justify-center gap-3 py-3.5 px-4 rounded-2xl border-2 transition-all duration-300 font-black text-sm uppercase tracking-wider group ${formData.shift === 'Noturno'
+                                                    ? 'bg-indigo-500/15 border-indigo-400/50 text-indigo-300 shadow-lg shadow-indigo-500/10'
+                                                    : 'bg-white/5 border-white/10 text-brand-med-gray hover:border-indigo-400/30 hover:text-indigo-300/70'
+                                                } disabled:opacity-50`}
+                                        >
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform group-hover:scale-110 ${formData.shift === 'Noturno' ? 'text-indigo-400' : ''}`}>
+                                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                                            </svg>
+                                            Noturno
+                                        </button>
                                     </div>
                                 </div>
 
