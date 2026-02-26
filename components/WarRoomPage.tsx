@@ -127,8 +127,17 @@ const WarRoomPage: React.FC<WarRoomPageProps> = ({ onNavigateToHome }) => {
 
         tasks.forEach(t => {
             if (t.status === TaskStatus.Completed && t.assignee) {
-                const name = normalize(t.assignee);
-                taskCounts[name] = (taskCounts[name] || 0) + 1;
+                // Only count tasks completed within the planned deadline
+                const endDate = t.actualEndDate || t.dueDate;
+                const dueDate = t.dueDate;
+                if (endDate && dueDate) {
+                    const completed = new Date(endDate + 'T23:59:59');
+                    const deadline = new Date(dueDate + 'T23:59:59');
+                    if (completed <= deadline) {
+                        const name = normalize(t.assignee);
+                        taskCounts[name] = (taskCounts[name] || 0) + 1;
+                    }
+                }
             }
         });
 
@@ -321,7 +330,7 @@ const WarRoomPage: React.FC<WarRoomPageProps> = ({ onNavigateToHome }) => {
                             <div className="flex flex-col h-full bg-[#111827]/40 border border-white/10 rounded-[2rem] p-8 backdrop-blur-md shadow-2xl relative overflow-hidden">
                                 <div className="absolute top-0 right-0 w-60 h-60 bg-yellow-500/10 rounded-full blur-[80px] -mr-10 -mt-10"></div>
                                 <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 uppercase tracking-widest mb-10 text-center drop-shadow-sm flex items-center justify-center gap-3">
-                                    <span className="text-4xl">👑</span> Mestres da Execução
+                                    <span className="text-4xl">🏆</span> Campeões da Execução
                                 </h2>
 
                                 <div className="flex flex-col gap-6 items-center justify-center flex-1">
@@ -331,8 +340,8 @@ const WarRoomPage: React.FC<WarRoomPageProps> = ({ onNavigateToHome }) => {
                                         hallOfFame.topTaskSolvers.map((user, idx) => (
                                             <div key={idx} className={`relative w-full max-w-md ${idx === 0 ? 'scale-110 mb-6 z-10' : 'scale-100 opacity-90'}`}>
                                                 <div className={`p-6 rounded-2xl border backdrop-blur-xl flex items-center gap-6 shadow-[0_0_30px_rgba(0,0,0,0.5)] transition-all duration-500 hover:scale-[1.02] ${idx === 0
-                                                        ? 'bg-gradient-to-r from-yellow-500/20 to-black/60 border-yellow-500/50 shadow-[0_0_40px_rgba(234,179,8,0.2)]'
-                                                        : 'bg-white/5 border-white/10'
+                                                    ? 'bg-gradient-to-r from-yellow-500/20 to-black/60 border-yellow-500/50 shadow-[0_0_40px_rgba(234,179,8,0.2)]'
+                                                    : 'bg-white/5 border-white/10'
                                                     }`}>
                                                     <div className={`w-20 h-20 rounded-full flex items-center justify-center font-black text-3xl shadow-lg border-2 ${idx === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-black border-yellow-300' : 'bg-gray-700 text-gray-300 border-gray-600'
                                                         }`}>
@@ -348,7 +357,7 @@ const WarRoomPage: React.FC<WarRoomPageProps> = ({ onNavigateToHome }) => {
                                                                 <div className={`h-full rounded-full ${idx === 0 ? 'bg-yellow-500' : 'bg-gray-500'}`} style={{ width: '100%' }}></div>
                                                             </div>
                                                             <span className="text-xl font-bold text-white">{user.count}</span>
-                                                            <span className="text-[10px] text-gray-400 uppercase">Tarefas</span>
+                                                            <span className="text-[10px] text-gray-400 uppercase">No Prazo</span>
                                                         </div>
                                                     </div>
                                                     {idx === 0 && <div className="absolute -top-6 -right-4 text-6xl drop-shadow-lg filter rotate-12 animate-pulse">🏆</div>}
@@ -373,8 +382,8 @@ const WarRoomPage: React.FC<WarRoomPageProps> = ({ onNavigateToHome }) => {
                                         hallOfFame.topRestrictionSolvers.map((user, idx) => (
                                             <div key={idx} className={`relative w-full max-w-md ${idx === 0 ? 'scale-110 mb-6 z-10' : 'scale-100 opacity-90'}`}>
                                                 <div className={`p-6 rounded-2xl border backdrop-blur-xl flex items-center gap-6 shadow-[0_0_30px_rgba(0,0,0,0.5)] transition-all duration-500 hover:scale-[1.02] ${idx === 0
-                                                        ? 'bg-gradient-to-l from-blue-500/20 to-black/60 border-blue-500/50 shadow-[0_0_40px_rgba(59,130,246,0.2)]'
-                                                        : 'bg-white/5 border-white/10'
+                                                    ? 'bg-gradient-to-l from-blue-500/20 to-black/60 border-blue-500/50 shadow-[0_0_40px_rgba(59,130,246,0.2)]'
+                                                    : 'bg-white/5 border-white/10'
                                                     }`}>
                                                     <div className={`w-20 h-20 rounded-full flex items-center justify-center font-black text-3xl shadow-lg border-2 ${idx === 0 ? 'bg-gradient-to-br from-blue-400 to-blue-600 text-white border-blue-300' : 'bg-gray-700 text-gray-300 border-gray-600'
                                                         }`}>
