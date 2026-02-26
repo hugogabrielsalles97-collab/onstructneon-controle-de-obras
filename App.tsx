@@ -58,6 +58,36 @@ const AppContent: React.FC = () => {
     setToast({ message, type });
   };
 
+  // Efeito para lidar com deep links (ex: redirecionamento do WhatsApp)
+  useEffect(() => {
+    if (!isLoading && currentUser && tasks.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const taskId = params.get('taskId');
+      const action = params.get('action');
+
+      if (taskId && action === 'checkout') {
+        const task = tasks.find(t => t.id === taskId);
+        if (task) {
+          // Garante que estamos na tela do dashboard para mostrar o modal
+          setScreen('dashboard');
+          handleOpenTaskModal(task);
+
+          // Rolar para a seção de checkout após o modal carregar
+          setTimeout(() => {
+            const element = document.getElementById('checkout-section');
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }, 800);
+
+          // Limpa os parâmetros da URL para não reabrir ao atualizar
+          const newUrl = window.location.origin + window.location.pathname;
+          window.history.replaceState({}, document.title, newUrl);
+        }
+      }
+    }
+  }, [isLoading, currentUser, tasks]);
+
   const handleOpenTaskModal = (task: Task | null) => {
     setEditingTask(task);
     setIsTaskModalOpen(true);
@@ -82,6 +112,9 @@ const AppContent: React.FC = () => {
 
     const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
 
+    const appUrl = window.location.origin + window.location.pathname;
+    const checkoutLink = `${appUrl}?taskId=${task.id}&action=checkout`;
+
     const message = `
 *Nova Tarefa Atribuída* 🏗️
 
@@ -98,22 +131,22 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no Lean Solut
 
 *Quantidade:* ${task.quantity} ${task.unit}
 
-Por favor, acesse o aplicativo para mais detalhes.
+👉 *Atualize o avanço aqui:* ${checkoutLink}
     `.trim();
 
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/55${phoneNumber}?text=${encodedMessage}`;
+    const finalEncodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/55${phoneNumber}?text=${finalEncodedMessage}`;
 
     window.open(whatsappUrl, '_blank');
     showToast('Notificação do WhatsApp pronta para envio!', 'success');
   };
 
   const handleSaveTaskWrapper = async (task: Task) => {
-    const { success, error } = await saveTask(task);
+    const { success, error, data } = await (saveTask(task) as any);
 
     if (success) {
       showToast(editingTask ? 'Tarefa atualizada!' : 'Tarefa criada com sucesso!', 'success');
-      if (!editingTask) sendWhatsAppNotification(task);
+      if (!editingTask && data) sendWhatsAppNotification(data);
     } else {
       showToast(`Erro ao salvar tarefa: ${error}`, 'error');
     }

@@ -204,13 +204,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             } else {
                 // Insert
                 const { id, ...taskData } = task;
-                const { error } = await supabase.from('tasks').insert([{ ...taskData, user_id: session.user.id }]);
+                const { data, error } = await supabase
+                    .from('tasks')
+                    .insert([{ ...taskData, user_id: session.user.id }])
+                    .select();
+
                 if (error) throw error;
+
+                // Invalidate query to refetch data
+                queryClient.invalidateQueries({ queryKey: ['tasks'] });
+                queryClient.invalidateQueries({ queryKey: ['checkoutLogs'] });
+
+                return {
+                    success: true,
+                    data: data && data[0] ? data[0] : undefined
+                };
             }
-            // Invalidate query to refetch data
-            queryClient.invalidateQueries({ queryKey: ['tasks'] });
-            queryClient.invalidateQueries({ queryKey: ['checkoutLogs'] });
-            return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };
         }

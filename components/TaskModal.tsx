@@ -878,7 +878,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
 
                         {/* 3. CONTROLE DE EXECUÇÃO */}
                         {(task || formData.actualStartDate) && (
-                            <section className="space-y-6 animate-slide-up">
+                            <section id="checkout-section" className="space-y-6 animate-slide-up">
                                 <div className="flex items-center gap-3 mb-2">
                                     <div className="w-1.5 h-6 bg-green-500 rounded-full shadow-[0_0_15px_rgba(34,197,94,0.5)]"></div>
                                     <h3 className="text-sm font-black text-white uppercase tracking-widest">Avanço Físico e Diário de Obras</h3>
