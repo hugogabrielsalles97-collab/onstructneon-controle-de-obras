@@ -25,6 +25,7 @@ interface LeanPageProps {
     onNavigateToVisualControl?: () => void;
     onNavigateToCheckoutSummary?: () => void;
     onNavigateToTeams?: () => void;
+    onNavigateToOrgSummary?: () => void;
     onNavigateToRestrictions: () => void;
     onSaveRestriction: (restriction: Omit<Restriction, 'id' | 'created_at' | 'user_id'>) => Promise<void>;
     onUpdateRestriction: (id: string, updates: Partial<Restriction>) => Promise<void>;
@@ -56,6 +57,7 @@ const LeanPage: React.FC<LeanPageProps> = ({
     onNavigateToOrgChart, onNavigateToVisualControl,
     onNavigateToCheckoutSummary,
     onNavigateToTeams,
+    onNavigateToOrgSummary,
     showToast
 }) => {
     const { currentUser: user, tasks, baselineTasks, currentScheduleTasks, currentScheduleCutOffDateStr, signOut } = useData();
@@ -243,6 +245,7 @@ const LeanPage: React.FC<LeanPageProps> = ({
                 onNavigateToPodcast={onNavigateToPodcast}
                 onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
                 onNavigateToOrgChart={onNavigateToOrgChart}
+                onNavigateToOrgSummary={onNavigateToOrgSummary}
                 onNavigateToVisualControl={onNavigateToVisualControl}
                 onUpgradeClick={onUpgradeClick}
             />
@@ -264,6 +267,7 @@ const LeanPage: React.FC<LeanPageProps> = ({
                     onNavigateToCost={onNavigateToCost}
                     onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
                     onNavigateToOrgChart={onNavigateToOrgChart}
+                    onNavigateToOrgSummary={onNavigateToOrgSummary}
                     onNavigateToVisualControl={onNavigateToVisualControl}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="lean"

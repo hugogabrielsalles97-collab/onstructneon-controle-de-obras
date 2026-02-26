@@ -23,6 +23,7 @@ interface CurrentSchedulePageProps {
     onNavigateToPodcast: () => void;
     onNavigateToCost: () => void;
     onNavigateToCheckoutSummary: () => void;
+    onNavigateToOrgSummary?: () => void;
     onNavigateToHome?: () => void;
     onNavigateToOrgChart?: () => void;
     onNavigateToVisualControl?: () => void;
@@ -69,7 +70,9 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
     onNavigateToCost,
     onNavigateToCheckoutSummary,
     onNavigateToHome,
-    onNavigateToOrgChart, onNavigateToVisualControl,
+    onNavigateToOrgChart,
+    onNavigateToOrgSummary,
+    onNavigateToVisualControl,
     onNavigateToTeams,
     onUpgradeClick,
     showToast
@@ -476,6 +479,7 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
                 onNavigateToPodcast={onNavigateToPodcast}
                 onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
                 onNavigateToOrgChart={onNavigateToOrgChart}
+                onNavigateToOrgSummary={onNavigateToOrgSummary}
                 onNavigateToVisualControl={onNavigateToVisualControl}
                 onUpgradeClick={onUpgradeClick}
             />
@@ -497,6 +501,7 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
                     onNavigateToCost={onNavigateToCost}
                     onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
                     onNavigateToOrgChart={onNavigateToOrgChart}
+                    onNavigateToOrgSummary={onNavigateToOrgSummary}
                     onNavigateToVisualControl={onNavigateToVisualControl}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="currentSchedule"

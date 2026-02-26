@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useData } from '../context/DataProvider';
 import Header from './Header';
@@ -25,7 +25,6 @@ interface LeanConstructionPageProps {
     onNavigateToCost: () => void;
     onNavigateToHome?: () => void;
     onNavigateToOrgChart?: () => void;
-    onNavigateToOrgSummary?: () => void;
     onNavigateToVisualControl?: () => void;
     onNavigateToCheckoutSummary?: () => void;
     onNavigateToTeams?: () => void;
@@ -44,7 +43,7 @@ const formatBR = (value: number | string | undefined, decimals: number = 2) => {
 };
 
 const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
-    onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToHome, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToVisualControl, onNavigateToCheckoutSummary, onNavigateToTeams, onUpgradeClick, showToast
+    onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToHome, onNavigateToOrgChart, onNavigateToVisualControl, onNavigateToCheckoutSummary, onNavigateToTeams, onUpgradeClick, showToast
 }) => {
     const { currentUser: user, signOut, leanTasks, saveLeanTask, deleteLeanTask, checkoutLogs, tasks } = useData();
     const [selectedTask, setSelectedTask] = useState<LeanTask | null>(null);
@@ -151,28 +150,28 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
 
             const metrics = calculateTaskMetrics(selectedTask);
             const prompt = `
-                Atue como 'Hugo', um Engenheiro Sênior especialista em Produtividade e Lean Construction.
-                Analise os dados desta atividade de obra e forneça um feedback executivo e direto.
+                Atue como 'Hugo', um Engenheiro SÃªnior especialista em Produtividade e Lean Construction.
+                Analise os dados desta atividade de obra e forneÃ§a um feedback executivo e direto.
 
                 **Dados da Atividade:**
-                - Serviço: ${selectedTask.service}
+                - ServiÃ§o: ${selectedTask.service}
                 - Disciplina: ${selectedTask.discipline}
                 - Meta Planejada: ${selectedTask.quantity} ${selectedTask.unit}
-                - Produção Realizada: ${metrics.totalProduced} ${selectedTask.unit}
+                - ProduÃ§Ã£o Realizada: ${metrics.totalProduced} ${selectedTask.unit}
                 - RUP Real: ${formatBR(metrics.rup, 2)} Hh/${selectedTask.unit}
                 - Produtividade Real: ${formatBR(metrics.productivity, 2)} ${selectedTask.unit}/Hh
                 - Horas Produtivas Totais: ${metrics.productiveManHours.toFixed(2)}h
                 - Horas Improdutivas/Apoio: ${metrics.unproductiveManHours.toFixed(2)}h
 
                 **Fluxo de Subtarefas:**
-                ${selectedTask.subtasks.map(s => `- ${s.startTime} às ${s.endTime}: ${s.description} (${s.workers.map(w => w.count + ' ' + (w.role === 'Outro' ? w.customRole : w.role)).join(', ')}) ${s.isUnproductive ? '[IMPRODUTIVO/APOIO]' : ''}`).join('\n')}
+                ${selectedTask.subtasks.map(s => `- ${s.startTime} Ã s ${s.endTime}: ${s.description} (${s.workers.map(w => w.count + ' ' + (w.role === 'Outro' ? w.customRole : w.role)).join(', ')}) ${s.isUnproductive ? '[IMPRODUTIVO/APOIO]' : ''}`).join('\n')}
 
-                **Sua Análise deve conter:**
-                1. **Diagnóstico Rápido:** Uma frase sobre a eficiência atual.
-                2. **Pontos de Atenção:** Identifique desbalanceamento de equipe ou gargalos nos horários.
-                3. **Ação Recomendada:** O que o engenheiro deve fazer amanhã para melhorar o RUP?
+                **Sua AnÃ¡lise deve conter:**
+                1. **DiagnÃ³stico RÃ¡pido:** Uma frase sobre a eficiÃªncia atual.
+                2. **Pontos de AtenÃ§Ã£o:** Identifique desbalanceamento de equipe ou gargalos nos horÃ¡rios.
+                3. **AÃ§Ã£o Recomendada:** O que o engenheiro deve fazer amanhÃ£ para melhorar o RUP?
 
-                Use formatação Markdown com negrito para destaque. Mantenha um tom profissional, técnico mas encorajador.
+                Use formataÃ§Ã£o Markdown com negrito para destaque. Mantenha um tom profissional, tÃ©cnico mas encorajador.
             `;
 
             const result = await model.generateContent(prompt);
@@ -190,11 +189,11 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
 
             await saveLeanTask(updatedTask);
             setSelectedTask(updatedTask);
-            showToast("Análise do Hugo IA gerada com sucesso!", 'success');
+            showToast("AnÃ¡lise do Hugo IA gerada com sucesso!", 'success');
 
         } catch (error) {
             console.error("Erro AI:", error);
-            showToast("Erro ao gerar análise. Verifique sua chave API.", 'error');
+            showToast("Erro ao gerar anÃ¡lise. Verifique sua chave API.", 'error');
         } finally {
             setIsAnalyzing(false);
         }
@@ -202,7 +201,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
 
     const handleAddMainTask = async () => {
         if (!newTask.discipline || !newTask.service || !newTask.location || !newTask.date) {
-            showToast("Preencha todos os campos obrigatórios (*)", 'error');
+            showToast("Preencha todos os campos obrigatÃ³rios (*)", 'error');
             return;
         }
         const task: LeanTask = {
@@ -229,7 +228,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
     const addWorkerToSubTask = () => {
         if (tempWorkerCount <= 0) return;
         if (tempWorkerRole === 'Outro' && !tempCustomWorkerRole) {
-            showToast("Digite o nome da função para 'Outro'.", 'error');
+            showToast("Digite o nome da funÃ§Ã£o para 'Outro'.", 'error');
             return;
         }
 
@@ -260,7 +259,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
     const handleSaveSubTask = async () => {
         if (!selectedTask) return;
         if (!newSubTask.description || !newSubTask.startTime || !newSubTask.endTime) {
-            showToast("Preencha descrição e horários.", 'error');
+            showToast("Preencha descriÃ§Ã£o e horÃ¡rios.", 'error');
             return;
         }
 
@@ -330,7 +329,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
             const { success, error } = await deleteLeanTask(deleteConfirm.id);
             if (success) {
                 if (selectedTask?.id === deleteConfirm.id) setSelectedTask(null);
-                showToast("Atividade excluída.", 'success');
+                showToast("Atividade excluÃ­da.", 'success');
             } else {
                 showToast(`Erro ao excluir: ${error}`, 'error');
             }
@@ -341,7 +340,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                 if (success) {
                     setSelectedTask(updatedTask);
                     if (editingSubTaskId === deleteConfirm.id) handleCancelSubTaskForm();
-                    showToast("Etapa excluída.", 'success');
+                    showToast("Etapa excluÃ­da.", 'success');
                 } else {
                     showToast(`Erro ao excluir etapa: ${error}`, 'error');
                 }
@@ -384,14 +383,14 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
             let type: 'bad' | 'good' | 'neutral' | 'warn' = 'neutral';
 
             if (mid >= lunchStart && mid < lunchEnd) {
-                status = 'Almoço';
+                status = 'AlmoÃ§o';
                 msg = 'Intervalo programado';
                 type = 'neutral';
             } else {
                 const active = subs.filter(s => toMins(s.startTime) < (t + interval) && toMins(s.endTime) > t);
                 if (active.length === 0) {
                     status = 'Ocioso';
-                    msg = 'Parada não planejada';
+                    msg = 'Parada nÃ£o planejada';
                     type = 'bad';
                 } else {
                     if (active.every(s => s.isUnproductive)) {
@@ -506,10 +505,10 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
             const history = days.map(d => {
                 totalP += d.produced;
                 totalHh += d.manHours;
-
+                
                 const dProd = Number(d.productivity);
                 const dRup = Number(d.rup);
-
+                
                 if (dProd > 0 || dRup > 0) {
                     prodSum += dProd;
                     rupSum += dRup;
@@ -560,7 +559,6 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                 onNavigateToPodcast={onNavigateToPodcast}
                 onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
                 onNavigateToOrgChart={onNavigateToOrgChart}
-                onNavigateToOrgSummary={onNavigateToOrgSummary}
                 onNavigateToVisualControl={onNavigateToVisualControl}
                 onUpgradeClick={onUpgradeClick}
             />
@@ -582,8 +580,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                     onNavigateToCost={onNavigateToCost}
                     onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
                     onNavigateToOrgChart={onNavigateToOrgChart}
-                    onNavigateToOrgSummary={onNavigateToOrgSummary}
-                    onNavigateToVisualControl={onNavigateToVisualControl}
+                onNavigateToVisualControl={onNavigateToVisualControl}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="leanConstruction"
                 />
@@ -609,7 +606,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                             onClick={() => setViewMode('analytics')}
                                             className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${viewMode === 'analytics' ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' : 'text-gray-500 hover:text-white'}`}
                                         >
-                                            Análise de Produtividade
+                                            AnÃ¡lise de Produtividade
                                         </button>
                                         <button
                                             onClick={() => setViewMode('flow')}
@@ -624,7 +621,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                             {/* Date Range Filter */}
                                             <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 gap-3">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-[9px] font-black text-gray-500 uppercase">Início:</span>
+                                                    <span className="text-[9px] font-black text-gray-500 uppercase">InÃ­cio:</span>
                                                     <input
                                                         type="date"
                                                         value={analyticsStartDate}
@@ -643,7 +640,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                     />
                                                 </div>
                                                 {(analyticsStartDate || analyticsEndDate) && (
-                                                    <button onClick={() => { setAnalyticsStartDate(''); setAnalyticsEndDate(''); }} className="text-gray-500 hover:text-white ml-1">×</button>
+                                                    <button onClick={() => { setAnalyticsStartDate(''); setAnalyticsEndDate(''); }} className="text-gray-500 hover:text-white ml-1">Ã—</button>
                                                 )}
                                             </div>
 
@@ -653,10 +650,10 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                     onClick={() => setIsAssigneeDropdownOpen(!isAssigneeDropdownOpen)}
                                                     className={`flex items-center bg-white/5 border border-white/10 rounded-xl px-4 py-2 gap-3 min-w-[240px] max-w-[400px] cursor-pointer hover:bg-white/[0.08] transition-all group/select ${isAssigneeDropdownOpen ? 'border-cyan-500/40 bg-white/[0.08] ring-4 ring-cyan-500/10' : ''}`}
                                                 >
-                                                    <span className="text-[9px] font-black text-gray-500 uppercase whitespace-nowrap">Responsável:</span>
+                                                    <span className="text-[9px] font-black text-gray-500 uppercase whitespace-nowrap">ResponsÃ¡vel:</span>
                                                     <div className="flex-1 truncate">
                                                         <span className="text-[11px] text-white font-black truncate block">
-                                                            {analyticsAssigneeFilter || 'Todos os Responsáveis'}
+                                                            {analyticsAssigneeFilter || 'Todos os ResponsÃ¡veis'}
                                                         </span>
                                                     </div>
                                                     <div className={`transition-transform duration-300 ${isAssigneeDropdownOpen ? 'rotate-180 text-cyan-400' : 'text-gray-500 group-hover/select:text-cyan-400'}`}>
@@ -676,7 +673,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                                 }}
                                                                 className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all mb-1 ${!analyticsAssigneeFilter ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
                                                             >
-                                                                Todos os Responsáveis
+                                                                Todos os ResponsÃ¡veis
                                                             </button>
                                                             <div className="h-px bg-white/5 my-1 mx-2"></div>
                                                             {availableAssignees.map(a => (
@@ -719,7 +716,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                     )}
                                                     <div>
                                                         <h3 className="font-bold text-white text-lg group-hover:text-cyan-400">{task.service}</h3>
-                                                        <p className="text-gray-500 text-xs">{task.discipline} • {task.location}</p>
+                                                        <p className="text-gray-500 text-xs">{task.discipline} â€¢ {task.location}</p>
                                                     </div>
                                                     <div className="flex gap-6 text-center">
                                                         <div><span className="block font-bold text-cyan-400 text-xl">{formatBR(metrics.rup, 2)} <span className="text-[10px] text-gray-500 font-normal">Hh/{task.unit}</span></span><span className="text-[9px] uppercase text-gray-500">RUP</span></div>
@@ -735,10 +732,10 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                         {checkoutAnalytics.length === 0 ? (
                                             <div className="py-20 text-center opacity-20 flex flex-col items-center">
                                                 <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                                                    <span className="text-3xl">📊</span>
+                                                    <span className="text-3xl">ðŸ“Š</span>
                                                 </div>
-                                                <p className="text-sm font-bold uppercase tracking-widest text-white">Sem dados de produção via Checkouts.</p>
-                                                <p className="text-xs text-gray-500 mt-2">Realize checkouts na tela de programação para ver a análise aqui.</p>
+                                                <p className="text-sm font-bold uppercase tracking-widest text-white">Sem dados de produÃ§Ã£o via Checkouts.</p>
+                                                <p className="text-xs text-gray-500 mt-2">Realize checkouts na tela de programaÃ§Ã£o para ver a anÃ¡lise aqui.</p>
                                             </div>
                                         ) : checkoutAnalytics.map(stat => (
                                             <div key={stat.taskTitle} className="bg-[#111827]/60 border border-white/5 rounded-3xl overflow-hidden shadow-2xl relative group">
@@ -753,7 +750,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                             <h3 className="text-2xl font-black text-white group-hover:text-cyan-400 transition-colors leading-tight mb-1">{stat.taskTitle}</h3>
                                                             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
                                                                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                                                                Responsável: <span className="text-gray-300 font-black">{stat.assignee}</span>
+                                                                ResponsÃ¡vel: <span className="text-gray-300 font-black">{stat.assignee}</span>
                                                             </p>
                                                         </div>
 
@@ -774,8 +771,8 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                             <thead>
                                                                 <tr className="border-b border-white/5">
                                                                     <th className="py-4 px-2 text-[10px] font-black text-gray-500 uppercase tracking-widest">Data</th>
-                                                                    <th className="py-4 px-2 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Produção</th>
-                                                                    <th className="py-4 px-2 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Mão de Obra</th>
+                                                                    <th className="py-4 px-2 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">ProduÃ§Ã£o</th>
+                                                                    <th className="py-4 px-2 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">MÃ£o de Obra</th>
                                                                     <th className="py-4 px-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest text-center">Produt. Dia</th>
                                                                     <th className="py-4 px-2 text-[10px] font-black text-cyan-400 uppercase tracking-widest text-center">RUP Dia</th>
                                                                 </tr>
@@ -808,7 +805,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                         <h2 className="text-2xl font-bold text-white">{selectedTask.service}</h2>
                                         <div className="flex flex-wrap gap-4 mt-2">
                                             <div className="bg-white/5 px-3 py-1 rounded text-xs text-gray-300">Turno: <input type="time" disabled={user.role === 'Gerenciador'} className="bg-transparent w-16 text-center outline-none text-cyan-400 disabled:opacity-50" value={selectedTask.shiftStartTime} onChange={e => handleUpdateTaskSettings({ shiftStartTime: e.target.value })} /> - <input type="time" disabled={user.role === 'Gerenciador'} className="bg-transparent w-16 text-center outline-none text-cyan-400 disabled:opacity-50" value={selectedTask.shiftEndTime} onChange={e => handleUpdateTaskSettings({ shiftEndTime: e.target.value })} /></div>
-                                            <div className="bg-white/5 px-3 py-1 rounded text-xs text-gray-300">Almoço: <input type="time" disabled={user.role === 'Gerenciador'} className="bg-transparent w-16 text-center outline-none text-yellow-400 disabled:opacity-50" value={selectedTask.lunchStartTime} onChange={e => handleUpdateTaskSettings({ lunchStartTime: e.target.value })} /> - <input type="time" disabled={user.role === 'Gerenciador'} className="bg-transparent w-16 text-center outline-none text-yellow-400 disabled:opacity-50" value={selectedTask.lunchEndTime} onChange={e => handleUpdateTaskSettings({ lunchEndTime: e.target.value })} /></div>
+                                            <div className="bg-white/5 px-3 py-1 rounded text-xs text-gray-300">AlmoÃ§o: <input type="time" disabled={user.role === 'Gerenciador'} className="bg-transparent w-16 text-center outline-none text-yellow-400 disabled:opacity-50" value={selectedTask.lunchStartTime} onChange={e => handleUpdateTaskSettings({ lunchStartTime: e.target.value })} /> - <input type="time" disabled={user.role === 'Gerenciador'} className="bg-transparent w-16 text-center outline-none text-yellow-400 disabled:opacity-50" value={selectedTask.lunchEndTime} onChange={e => handleUpdateTaskSettings({ lunchEndTime: e.target.value })} /></div>
                                         </div>
                                     </div>
                                     <div className="ml-auto flex gap-4">
@@ -843,7 +840,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                             </div>
                                                             <div className="text-xs text-gray-500 flex flex-wrap gap-2 mt-1">
                                                                 {sub.workers.map((w, i) => <span key={i} className="bg-white/5 px-1.5 rounded">{w.count} {w.role === 'Outro' ? w.customRole : w.role}</span>)}
-                                                                {sub.machinery > 0 && <span className="text-cyan-400">{sub.machinery} Máq.</span>}
+                                                                {sub.machinery > 0 && <span className="text-cyan-400">{sub.machinery} MÃ¡q.</span>}
                                                                 {sub.producedQuantity && sub.producedQuantity > 0 && <span className="text-green-400 font-bold border border-green-500/30 px-1.5 rounded">{formatBR(sub.producedQuantity, 2)} {sub.unit}</span>}
                                                             </div>
                                                         </div>
@@ -867,7 +864,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                     <div className="relative">
                                                         <div className="absolute inset-0 bg-orange-500 rounded-full blur-md opacity-20 animate-pulse"></div>
                                                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1f2937] to-[#111827] flex items-center justify-center border border-white/10 shadow-inner">
-                                                            <span className="text-orange-500 text-lg">✦</span>
+                                                            <span className="text-orange-500 text-lg">âœ¦</span>
                                                         </div>
                                                         <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-[#0a0f18] rounded-full"></div>
                                                     </div>
@@ -883,7 +880,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                     {isAnalyzing ? (
                                                         <> <span className="animate-spin h-3 w-3 border-2 border-white rounded-full border-t-transparent"></span> Analyzing... </>
                                                     ) : (
-                                                        <> <span>⚡</span> Nova Análise </>
+                                                        <> <span>âš¡</span> Nova AnÃ¡lise </>
                                                     )}
                                                 </button>
                                             </div>
@@ -894,7 +891,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                     <AIRestrictedAccess
                                                         featureName="Hugo AI"
                                                         onUpgradeClick={onUpgradeClick}
-                                                        description="O Hugo AI analisa os dados de produção e o fluxo de subtarefas para sugerir melhorias no RUP. Disponível para Gerenciador e Master."
+                                                        description="O Hugo AI analisa os dados de produÃ§Ã£o e o fluxo de subtarefas para sugerir melhorias no RUP. DisponÃ­vel para Gerenciador e Master."
                                                     />
                                                 ) : selectedTask.aiSuggestions && selectedTask.aiSuggestions.length > 0 ? (
                                                     selectedTask.aiSuggestions.map((sug, idx) => (
@@ -906,17 +903,17 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                                 <span className="text-[10px] text-gray-500 font-mono">{sug.date}</span>
                                                             </div>
                                                             <div className="bg-[#1f2937]/80 border border-white/5 text-gray-200 rounded-2xl rounded-tl-sm p-5 text-sm shadow-sm backdrop-blur-sm group-hover:border-orange-500/20 transition-colors">
-                                                                <div className="leading-relaxed whitespace-pre-line" dangerouslySetInnerHTML={{ __html: sug.text.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-bold">$1</strong>').replace(/^\s*-\s/gm, '• ') }} />
+                                                                <div className="leading-relaxed whitespace-pre-line" dangerouslySetInnerHTML={{ __html: sug.text.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-bold">$1</strong>').replace(/^\s*-\s/gm, 'â€¢ ') }} />
                                                             </div>
                                                         </div>
                                                     ))
                                                 ) : (
                                                     <div className="py-12 flex flex-col items-center justify-center text-center opacity-40">
                                                         <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
-                                                            <span className="text-2xl grayscale">🤖</span>
+                                                            <span className="text-2xl grayscale">ðŸ¤–</span>
                                                         </div>
-                                                        <p className="text-gray-400 text-sm font-medium">O histórico de análises está vazio.</p>
-                                                        <p className="text-xs text-gray-600 mt-1">Peça para o Hugo IA analisar os dados de produtividade acima.</p>
+                                                        <p className="text-gray-400 text-sm font-medium">O histÃ³rico de anÃ¡lises estÃ¡ vazio.</p>
+                                                        <p className="text-xs text-gray-600 mt-1">PeÃ§a para o Hugo IA analisar os dados de produtividade acima.</p>
                                                     </div>
                                                 )}
                                             </div>
@@ -925,7 +922,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
 
                                     <div className="space-y-6">
                                         <div className="bg-[#111827] rounded-2xl p-6 border border-white/10 shadow-xl flex flex-col">
-                                            <h3 className="text-lg font-bold text-white mb-4 border-b border-white/5 pb-4"><span className="text-red-400 mr-2">🚨</span> Monitor</h3>
+                                            <h3 className="text-lg font-bold text-white mb-4 border-b border-white/5 pb-4"><span className="text-red-400 mr-2">ðŸš¨</span> Monitor</h3>
                                             <div className="flex-1 overflow-y-auto max-h-[300px] space-y-2 pr-2 custom-scrollbar">
                                                 {flowAnalysis.map((item, i) => (
                                                     <div key={i} className={`p-2 rounded border text-xs ${item.type === 'bad' ? 'bg-red-500/10 border-red-500/20 text-red-300' : item.type === 'neutral' ? 'bg-blue-500/5 border-blue-500/10 text-blue-300' : item.type === 'warn' ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-200' : 'bg-gray-800'}`}>
@@ -959,8 +956,8 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                     onConfirm={handleConfirmDelete}
                     title={deleteConfirm.type === 'task' ? "Excluir Atividade" : "Excluir Etapa"}
                     message={deleteConfirm.type === 'task'
-                        ? "Tem certeza que deseja excluir esta atividade e todas as suas etapas? Esta ação não pode ser desfeita."
-                        : "Tem certeza que deseja excluir esta etapa? O impacto no RUP será recalculado."}
+                        ? "Tem certeza que deseja excluir esta atividade e todas as suas etapas? Esta aÃ§Ã£o nÃ£o pode ser desfeita."
+                        : "Tem certeza que deseja excluir esta etapa? O impacto no RUP serÃ¡ recalculado."}
                     confirmText="Sim, Excluir"
                     cancelText="Cancelar"
                     type="danger"
@@ -981,7 +978,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                     </div>
                                     <div className="min-w-0">
                                         <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic truncate">Nova <span className="text-cyan-400">Atividade</span></h2>
-                                        <p className="text-[10px] text-brand-med-gray font-black uppercase tracking-[2px] mt-0.5">Módulo Lean Analytics</p>
+                                        <p className="text-[10px] text-brand-med-gray font-black uppercase tracking-[2px] mt-0.5">MÃ³dulo Lean Analytics</p>
                                     </div>
                                 </div>
                                 <button onClick={() => setIsMainFormOpen(false)} className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-brand-med-gray hover:text-white transition-all border border-white/10 shrink-0"><XIcon className="w-5 h-5" /></button>
@@ -992,7 +989,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                 <div className="space-y-6">
                                     <div className="flex items-center gap-3 mb-2">
                                         <div className="w-1.5 h-6 bg-cyan-500 rounded-full animate-pulse"></div>
-                                        <h3 className="text-sm font-black text-white uppercase tracking-widest">Configurações Gerais</h3>
+                                        <h3 className="text-sm font-black text-white uppercase tracking-widest">ConfiguraÃ§Ãµes Gerais</h3>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1006,8 +1003,8 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                 <option>Terraplenagem</option>
                                                 <option>Drenagem</option>
                                                 <option>Obra de Arte Especial</option>
-                                                <option>Fabricação</option>
-                                                <option>Contenções</option>
+                                                <option>FabricaÃ§Ã£o</option>
+                                                <option>ContenÃ§Ãµes</option>
                                             </select>
                                         </div>
                                         <div className="space-y-2">
@@ -1021,7 +1018,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                             />
                                         </div>
                                         <div className="md:col-span-2 space-y-2">
-                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Serviço / Atividade</label>
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">ServiÃ§o / Atividade</label>
                                             <input
                                                 type="text"
                                                 className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold placeholder:text-gray-600"
@@ -1088,7 +1085,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                     <div className="flex items-center justify-between mb-2">
                                         <div className="flex items-center gap-3">
                                             <div className="w-1.5 h-6 bg-cyan-500 rounded-full animate-pulse"></div>
-                                            <h3 className="text-sm font-black text-white uppercase tracking-widest">Informações da Etapa</h3>
+                                            <h3 className="text-sm font-black text-white uppercase tracking-widest">InformaÃ§Ãµes da Etapa</h3>
                                         </div>
                                         <label className="flex items-center gap-3 px-4 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl cursor-pointer group transition-all hover:bg-yellow-500/20">
                                             <input
@@ -1103,13 +1100,13 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
 
                                     <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-5">
                                         <div className="md:col-span-4 lg:col-span-8 space-y-2">
-                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Descrição do Trabalho</label>
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">DescriÃ§Ã£o do Trabalho</label>
                                             <input
                                                 type="text"
                                                 className="w-full bg-[#111827]/40 border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold placeholder:text-gray-600"
                                                 value={newSubTask.description}
                                                 onChange={e => setNewSubTask({ ...newSubTask, description: e.target.value })}
-                                                placeholder="Ex: Montagem de fôrmas"
+                                                placeholder="Ex: Montagem de fÃ´rmas"
                                             />
                                         </div>
                                         <div className="md:col-span-2 lg:col-span-4 space-y-2">
@@ -1130,7 +1127,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                             </div>
                                         </div>
                                         <div className="md:col-span-2 lg:col-span-3 space-y-2">
-                                            <label className="text-[9px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Início</label>
+                                            <label className="text-[9px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">InÃ­cio</label>
                                             <input
                                                 type="time"
                                                 className="w-full bg-[#111827]/40 border border-white/10 rounded-xl py-3 px-3 text-sm text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
@@ -1139,7 +1136,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                             />
                                         </div>
                                         <div className="md:col-span-2 lg:col-span-3 space-y-2">
-                                            <label className="text-[9px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Término</label>
+                                            <label className="text-[9px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">TÃ©rmino</label>
                                             <input
                                                 type="time"
                                                 className="w-full bg-[#111827]/40 border border-white/10 rounded-xl py-3 px-3 text-sm text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
@@ -1148,7 +1145,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                             />
                                         </div>
                                         <div className="md:col-span-2 lg:col-span-3 space-y-2">
-                                            <label className="text-[9px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Horas Máquina</label>
+                                            <label className="text-[9px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Horas MÃ¡quina</label>
                                             <input
                                                 type="number"
                                                 className="w-full bg-[#111827]/40 border border-white/10 rounded-xl py-3 px-3 text-sm text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold"
@@ -1169,7 +1166,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                     <div className="p-6 bg-white/5 rounded-3xl border border-white/10 space-y-6">
                                         <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-4 items-end">
                                             <div className="md:col-span-2 lg:col-span-3 space-y-2">
-                                                <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Profissão / Função</label>
+                                                <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">ProfissÃ£o / FunÃ§Ã£o</label>
                                                 <select
                                                     className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold appearance-none"
                                                     value={tempWorkerRole}
@@ -1192,7 +1189,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                     <input
                                                         type="text"
                                                         className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3.5 px-4 text-white focus:ring-2 focus:ring-cyan-500/50 transition-all font-bold placeholder:text-gray-600"
-                                                        placeholder="Qual função?"
+                                                        placeholder="Qual funÃ§Ã£o?"
                                                         value={tempCustomWorkerRole}
                                                         onChange={e => setTempCustomWorkerRole(e.target.value)}
                                                     />

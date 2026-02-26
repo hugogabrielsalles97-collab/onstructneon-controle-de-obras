@@ -74,6 +74,7 @@ interface VisualControlPageProps {
     onNavigateToPodcast: () => void;
     onNavigateToCheckoutSummary: () => void;
     onNavigateToOrgChart?: () => void;
+    onNavigateToOrgSummary?: () => void;
     onNavigateToVisualControl?: () => void;
     onUpgradeClick: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
@@ -589,6 +590,7 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
                 onNavigateToPodcast={props.onNavigateToPodcast}
                 onNavigateToCheckoutSummary={props.onNavigateToCheckoutSummary}
                 onNavigateToOrgChart={props.onNavigateToOrgChart}
+                onNavigateToOrgSummary={props.onNavigateToOrgSummary}
                 onNavigateToVisualControl={props.onNavigateToVisualControl}
                 onUpgradeClick={props.onUpgradeClick}
             />
@@ -610,6 +612,7 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
                     onNavigateToCost={props.onNavigateToCost}
                     onNavigateToCheckoutSummary={props.onNavigateToCheckoutSummary}
                     onNavigateToOrgChart={props.onNavigateToOrgChart}
+                    onNavigateToOrgSummary={props.onNavigateToOrgSummary}
                     onUpgradeClick={props.onUpgradeClick}
                     activeScreen="visualControl"
                 />

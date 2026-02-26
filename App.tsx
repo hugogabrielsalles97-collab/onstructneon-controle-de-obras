@@ -240,6 +240,7 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no Lean Solut
           <ModuleSelectionScreen
             onSelectPlanning={() => setScreen('dashboard')}
             onSelectCost={() => setScreen('cost')}
+            onSelectOrg={() => setScreen('orgSummary')}
             showToast={showToast}
           />
         );

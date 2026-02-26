@@ -112,34 +112,7 @@ const OrgChartPage: React.FC<OrgChartPageProps> = (props) => {
         return roots;
     }, [members]);
 
-    const summaries = useMemo(() => {
-        const calculateForPattern = (pattern: string) => {
-            const targets = members.filter(m => m.role.toLowerCase().includes(pattern.toLowerCase()));
-            const counts: Record<string, number> = {};
-            const processedIds = new Set<string>();
 
-            targets.forEach(target => {
-                const addDescendants = (parentId: string) => {
-                    const children = members.filter(m => m.parent_id === parentId);
-                    children.forEach(child => {
-                        if (!processedIds.has(child.id)) {
-                            processedIds.add(child.id);
-                            const count = child.quantity || 1;
-                            counts[child.role] = (counts[child.role] || 0) + count;
-                            addDescendants(child.id);
-                        }
-                    });
-                };
-                addDescendants(target.id);
-            });
-            return counts;
-        };
-
-        return {
-            eng: calculateForPattern('Engenheiro'),
-            mestre: calculateForPattern('Mestre')
-        };
-    }, [members]);
 
     const handleAddClick = (parentId: string | null = null) => {
         setEditingMember({ name: '', role: '', parent_id: parentId });
@@ -265,46 +238,7 @@ const OrgChartPage: React.FC<OrgChartPageProps> = (props) => {
         );
     };
 
-    const SummaryCard = ({ title, data, icon }: { title: string, data: Record<string, number>, icon: React.ReactNode }) => {
-        const items = Object.entries(data).sort((a, b) => b[1] - a[1]);
-        const total = items.reduce((acc, curr) => acc + curr[1], 0);
 
-        if (total === 0) return null;
-
-        return (
-            <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-7 backdrop-blur-2xl shadow-2xl min-w-[320px] group hover:border-cyan-500/30 transition-all duration-700">
-                <div className="flex items-center gap-5 mb-6">
-                    <div className="w-14 h-14 bg-cyan-500/10 rounded-[1.25rem] flex items-center justify-center text-cyan-400 border border-cyan-500/20 group-hover:bg-cyan-500/20 group-hover:scale-110 transition-all duration-500">
-                        {icon}
-                    </div>
-                    <div className="flex-1">
-                        <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-[2px] mb-1">Resumo de Equipe</h3>
-                        <p className="text-xl font-black text-white tracking-tight leading-none uppercase">{title}</p>
-                    </div>
-                    <div className="bg-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.4)] px-4 py-1.5 rounded-full">
-                        <span className="text-[10px] font-black text-white uppercase tracking-wider">{total} Total</span>
-                    </div>
-                </div>
-
-                <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
-                    {items.map(([role, count]) => (
-                        <div key={role} className="flex justify-between items-center group/item p-3 rounded-xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5">
-                            <div className="flex flex-col">
-                                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wide group-hover/item:text-cyan-300 transition-colors">{role}</span>
-                                <div className="w-8 h-0.5 bg-cyan-500/20 rounded-full mt-1 overflow-hidden">
-                                    <div className="h-full bg-cyan-500 w-full animate-pulse-slow"></div>
-                                </div>
-                            </div>
-                            <div className="flex flex-col items-end">
-                                <span className="text-sm font-black text-white">{count}</span>
-                                <span className="text-[8px] font-bold text-gray-600 uppercase">Integrantes</span>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
-    };
 
     if (!user) return null;
 
@@ -325,6 +259,7 @@ const OrgChartPage: React.FC<OrgChartPageProps> = (props) => {
                 onNavigateToPodcast={props.onNavigateToPodcast}
                 onNavigateToCheckoutSummary={props.onNavigateToCheckoutSummary}
                 onNavigateToOrgChart={() => { }}
+                onNavigateToOrgSummary={props.onNavigateToOrgSummary}
                 onNavigateToVisualControl={props.onNavigateToVisualControl}
                 onUpgradeClick={props.onUpgradeClick}
             />
@@ -388,6 +323,8 @@ const OrgChartPage: React.FC<OrgChartPageProps> = (props) => {
                                 )}
                             </div>
                         </div>
+
+
 
 
                         <div className="flex justify-start items-start p-20 min-w-max">

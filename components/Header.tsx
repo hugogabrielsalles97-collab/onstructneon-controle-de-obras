@@ -35,6 +35,7 @@ interface HeaderProps {
   onNavigateToOrgChart?: () => void;
   onNavigateToOrgSummary?: () => void;
   onUpgradeClick?: () => void;
+  activeScreen?: string;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -70,17 +71,19 @@ const Header: React.FC<HeaderProps> = ({
     setTimeout(() => setToast(null), 3000);
   };
 
+  const isOrgModule = activeScreen === 'orgSummary' || activeScreen === 'orgChart';
+
   const menuItems = [
-    { id: 'dashboard', label: 'Programação Semanal', icon: <ChartIcon className="w-5 h-5" />, onClick: onNavigateToDashboard, show: true },
-    { id: 'checkoutSummary', label: 'Resumo Checkout', icon: <HistoryIcon className="w-5 h-5 text-brand-accent" />, onClick: onNavigateToCheckoutSummary, show: true },
-    { id: 'leanConstruction', label: 'Lean Construction', icon: <LeanConstructionIcon className="w-5 h-5 text-cyan-400" />, onClick: onNavigateToLeanConstruction, show: showFullMenu },
-    { id: 'lean', label: 'Sistema LPS', icon: <LeanIcon className="w-5 h-5" />, onClick: onNavigateToLean, show: showFullMenu },
-    { id: 'orgChart', label: 'Organograma', icon: <ManagementIcon className="w-5 h-5 text-indigo-400" />, onClick: onNavigateToOrgChart, show: showFullMenu },
-    { id: 'orgSummary', label: 'Resumo Organograma', icon: <BriefcaseIcon className="w-5 h-5 text-cyan-400" />, onClick: onNavigateToOrgSummary, show: showFullMenu },
-    { id: 'reports', label: 'Dashboards', icon: <ChartIcon className="w-5 h-5" />, onClick: onNavigateToReports, show: showFullMenu },
-    { id: 'management', label: 'Painel Gerencial', icon: <ManagementIcon className="w-5 h-5" />, onClick: onNavigateToAnalysis, show: showFullMenu },
-    { id: 'baseline', label: 'Linha Base', icon: <BaselineIcon className="w-5 h-5" />, onClick: onNavigateToBaseline, show: showFullMenu },
-    { id: 'currentSchedule', label: 'Cronograma Corrente', icon: <ScheduleIcon className="w-5 h-5" />, onClick: onNavigateToCurrentSchedule, show: showFullMenu },
+    { id: 'dashboard', label: 'Programação Semanal', icon: <ChartIcon className="w-5 h-5" />, onClick: onNavigateToDashboard, show: !isOrgModule },
+    { id: 'checkoutSummary', label: 'Resumo Checkout', icon: <HistoryIcon className="w-5 h-5 text-brand-accent" />, onClick: onNavigateToCheckoutSummary, show: !isOrgModule },
+    { id: 'leanConstruction', label: 'Lean Construction', icon: <LeanConstructionIcon className="w-5 h-5 text-cyan-400" />, onClick: onNavigateToLeanConstruction, show: showFullMenu && !isOrgModule },
+    { id: 'lean', label: 'Sistema LPS', icon: <LeanIcon className="w-5 h-5" />, onClick: onNavigateToLean, show: showFullMenu && !isOrgModule },
+    { id: 'orgSummary', label: 'Resumo Organograma', icon: <BriefcaseIcon className="w-5 h-5 text-cyan-400" />, onClick: onNavigateToOrgSummary, show: isOrgModule },
+    { id: 'orgChart', label: 'Árvore Organograma', icon: <ManagementIcon className="w-5 h-5 text-indigo-400" />, onClick: onNavigateToOrgChart, show: showFullMenu && isOrgModule },
+    { id: 'reports', label: 'Dashboards', icon: <ChartIcon className="w-5 h-5" />, onClick: onNavigateToReports, show: showFullMenu && !isOrgModule },
+    { id: 'management', label: 'Painel Gerencial', icon: <ManagementIcon className="w-5 h-5" />, onClick: onNavigateToAnalysis, show: showFullMenu && !isOrgModule },
+    { id: 'baseline', label: 'Linha Base', icon: <BaselineIcon className="w-5 h-5" />, onClick: onNavigateToBaseline, show: showFullMenu && !isOrgModule },
+    { id: 'currentSchedule', label: 'Cronograma Corrente', icon: <ScheduleIcon className="w-5 h-5" />, onClick: onNavigateToCurrentSchedule, show: showFullMenu && !isOrgModule },
     {
       id: 'podcast', label: 'Podcast da obra', icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-purple-400">
@@ -89,9 +92,9 @@ const Header: React.FC<HeaderProps> = ({
           <line x1="12" y1="19" x2="12" y2="23" />
           <line x1="8" y1="23" x2="16" y2="23" />
         </svg>
-      ), onClick: onNavigateToPodcast, show: showFullMenu
+      ), onClick: onNavigateToPodcast, show: showFullMenu && !isOrgModule
     },
-    { id: 'warRoom', label: 'War Room (TV)', icon: <TvIcon className="w-5 h-5 text-red-500" />, onClick: onNavigateToWarRoom, show: true },
+    { id: 'warRoom', label: 'War Room (TV)', icon: <TvIcon className="w-5 h-5 text-red-500" />, onClick: onNavigateToWarRoom, show: !isOrgModule },
   ];
 
   const handleMenuClick = (onClick?: () => void) => {

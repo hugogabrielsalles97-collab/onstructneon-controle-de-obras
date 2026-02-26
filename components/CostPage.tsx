@@ -21,6 +21,7 @@ interface CostPageProps {
     onNavigateToCost: () => void;
     onNavigateToHome?: () => void;
     onNavigateToOrgChart?: () => void;
+    onNavigateToOrgSummary?: () => void;
     onNavigateToVisualControl?: () => void;
     onNavigateToCheckoutSummary?: () => void;
     onNavigateToTeams?: () => void;
@@ -41,7 +42,9 @@ const CostPage: React.FC<CostPageProps> = ({
     onNavigateToCost,
     onNavigateToHome,
     onUpgradeClick,
-    onNavigateToOrgChart, onNavigateToVisualControl,
+    onNavigateToOrgChart,
+    onNavigateToOrgSummary,
+    onNavigateToVisualControl,
     onNavigateToCheckoutSummary,
     onNavigateToTeams,
     showToast
@@ -114,6 +117,21 @@ const CostPage: React.FC<CostPageProps> = ({
                                 <span className="text-sm tracking-tight">Podcast da obra</span>
                             </button>
                             <button
+                                onClick={onNavigateToOrgSummary}
+                                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 group text-brand-med-gray hover:bg-white/5 hover:text-white font-medium"
+                            >
+                                <div className="text-green-400/70 transition-transform duration-300 group-hover:scale-110">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                                        <circle cx="9" cy="7" r="4" />
+                                        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                    </svg>
+                                </div>
+                                <span className="text-sm tracking-tight">Resumo Organograma</span>
+                            </button>
+
+                            <button
                                 onClick={onNavigateToWarRoom}
                                 className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 group text-brand-med-gray hover:bg-white/5 hover:text-white font-medium"
                             >
@@ -168,7 +186,8 @@ const CostPage: React.FC<CostPageProps> = ({
                     onNavigateToCost={onNavigateToCost}
                     onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
                     onNavigateToOrgChart={onNavigateToOrgChart}
-                onNavigateToVisualControl={onNavigateToVisualControl}
+                    onNavigateToOrgSummary={onNavigateToOrgSummary}
+                    onNavigateToVisualControl={onNavigateToVisualControl}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="cost"
                 />
@@ -296,9 +315,9 @@ const CostPage: React.FC<CostPageProps> = ({
                         </div>
 
                     </div>
-                </div>
-            </main>
-        </div>
+                </div >
+            </main >
+        </div >
     );
 };
 

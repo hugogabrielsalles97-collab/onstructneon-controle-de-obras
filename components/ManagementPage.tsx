@@ -24,6 +24,7 @@ interface ManagementPageProps {
     onNavigateToOrgChart?: () => void;
     onNavigateToVisualControl?: () => void;
     onNavigateToCheckoutSummary?: () => void;
+    onNavigateToOrgSummary?: () => void;
     onNavigateToTeams?: () => void;
     onUpgradeClick: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
@@ -42,7 +43,9 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
     onNavigateToCost,
     onNavigateToHome,
     onUpgradeClick,
-    onNavigateToOrgChart, onNavigateToVisualControl,
+    onNavigateToOrgChart,
+    onNavigateToOrgSummary,
+    onNavigateToVisualControl,
     onNavigateToCheckoutSummary,
     onNavigateToTeams,
     showToast
@@ -206,6 +209,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 onNavigateToPodcast={onNavigateToPodcast}
                 onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
                 onNavigateToOrgChart={onNavigateToOrgChart}
+                onNavigateToOrgSummary={onNavigateToOrgSummary}
                 onNavigateToVisualControl={onNavigateToVisualControl}
                 onUpgradeClick={onUpgradeClick}
             />
@@ -227,6 +231,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                     onNavigateToCost={onNavigateToCost}
                     onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
                     onNavigateToOrgChart={onNavigateToOrgChart}
+                    onNavigateToOrgSummary={onNavigateToOrgSummary}
                     onNavigateToVisualControl={onNavigateToVisualControl}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="management"

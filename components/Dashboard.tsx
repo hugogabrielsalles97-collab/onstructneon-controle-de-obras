@@ -42,6 +42,7 @@ interface DashboardProps {
   onNavigateToPodcast: () => void;
   onNavigateToCheckoutSummary: () => void;
   onNavigateToOrgChart?: () => void;
+  onNavigateToOrgSummary?: () => void;
   onNavigateToTeams?: () => void;
   onNavigateToVisualControl?: () => void;
   onUpgradeClick: () => void;
@@ -61,7 +62,7 @@ const initialFilters = {
   engineer: '',
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToHome, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToTeams, onNavigateToVisualControl, onUpgradeClick, showToast }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToHome, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onUpgradeClick, showToast }) => {
   const { currentUser: user, tasks, allUsers, baselineTasks, signOut, deleteTask } = useData();
   const { data: orgMembers } = useOrgMembers();
   const [filters, setFilters] = useState(initialFilters);
@@ -250,6 +251,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
         onNavigateToPodcast={onNavigateToPodcast}
         onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
         onNavigateToOrgChart={onNavigateToOrgChart}
+        onNavigateToOrgSummary={onNavigateToOrgSummary}
         onNavigateToVisualControl={onNavigateToVisualControl}
         onNavigateToTeams={onNavigateToTeams}
         onUpgradeClick={onUpgradeClick}
@@ -273,6 +275,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
           onNavigateToCost={onNavigateToCost}
           onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
           onNavigateToOrgChart={onNavigateToOrgChart}
+          onNavigateToOrgSummary={onNavigateToOrgSummary}
           onNavigateToVisualControl={onNavigateToVisualControl}
           onNavigateToTeams={onNavigateToTeams}
           onUpgradeClick={onUpgradeClick}

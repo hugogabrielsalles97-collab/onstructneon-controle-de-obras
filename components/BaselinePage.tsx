@@ -26,6 +26,7 @@ interface BaselinePageProps {
     onNavigateToOrgChart?: () => void;
     onNavigateToVisualControl?: () => void;
     onNavigateToCheckoutSummary?: () => void;
+    onNavigateToOrgSummary?: () => void;
     onNavigateToTeams?: () => void;
     onUpgradeClick: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
@@ -69,7 +70,9 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
     onNavigateToCost,
     onNavigateToHome,
     onUpgradeClick,
-    onNavigateToOrgChart, onNavigateToVisualControl,
+    onNavigateToOrgChart,
+    onNavigateToOrgSummary,
+    onNavigateToVisualControl,
     onNavigateToCheckoutSummary,
     onNavigateToTeams,
     showToast
@@ -476,6 +479,7 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
                 onNavigateToPodcast={onNavigateToPodcast}
                 onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
                 onNavigateToOrgChart={onNavigateToOrgChart}
+                onNavigateToOrgSummary={onNavigateToOrgSummary}
                 onNavigateToVisualControl={onNavigateToVisualControl}
                 onUpgradeClick={onUpgradeClick}
             />
@@ -497,6 +501,7 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
                     onNavigateToCost={onNavigateToCost}
                     onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
                     onNavigateToOrgChart={onNavigateToOrgChart}
+                    onNavigateToOrgSummary={onNavigateToOrgSummary}
                     onNavigateToVisualControl={onNavigateToVisualControl}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="baseline"

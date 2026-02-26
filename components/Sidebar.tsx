@@ -37,11 +37,12 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome, onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onUpgradeClick }) => {
     const showFullMenu = user.role !== 'Executor';
     const isCostModule = activeScreen === 'cost';
-    const accentColor = isCostModule ? 'green-600' : 'brand-accent';
-    const accentText = isCostModule ? 'text-green-500' : 'text-brand-accent';
-    const accentBg = isCostModule ? 'bg-green-600' : 'bg-brand-accent';
-    const accentBorder = isCostModule ? 'border-green-600/30' : 'border-brand-accent/30';
-    const accentShadow = isCostModule ? 'shadow-green-600/20' : 'shadow-brand-accent/20';
+    const isOrgModule = activeScreen === 'orgSummary' || activeScreen === 'orgChart';
+    const accentColor = isCostModule ? 'green-600' : isOrgModule ? 'blue-600' : 'brand-accent';
+    const accentText = isCostModule ? 'text-green-500' : isOrgModule ? 'text-blue-400' : 'text-brand-accent';
+    const accentBg = isCostModule ? 'bg-green-600' : isOrgModule ? 'bg-blue-600' : 'bg-brand-accent';
+    const accentBorder = isCostModule ? 'border-green-600/30' : isOrgModule ? 'border-blue-600/30' : 'border-brand-accent/30';
+    const accentShadow = isCostModule ? 'shadow-green-600/20' : isOrgModule ? 'shadow-blue-600/20' : 'shadow-brand-accent/20';
 
     return (
         <aside className="hidden lg:flex flex-col w-72 bg-[#0a0f18] border-r border-white/5 non-printable transition-all duration-300">
@@ -60,11 +61,11 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
 
                 <nav className="space-y-2">
                     <h3 className="text-[10px] text-brand-med-gray font-black uppercase tracking-[2px] mb-4 ml-2">
-                        {isCostModule ? 'Módulo Financeiro' : 'Menu Principal'}
+                        {isCostModule ? 'Módulo Financeiro' : isOrgModule ? 'Módulo Organograma' : 'Menu Principal'}
                     </h3>
 
 
-                    {!isCostModule ? (
+                    {!isCostModule && !isOrgModule && (
                         <>
                             <NavButton
                                 active={activeScreen === 'dashboard'}
@@ -98,26 +99,6 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                                         onClick={onNavigateToLean}
                                         isCostModule={isCostModule}
                                     />
-                                    {onNavigateToOrgChart && (
-                                        <div className="space-y-1">
-                                            <NavButton
-                                                active={activeScreen === 'orgChart'}
-                                                icon={<ManagementIcon className="w-5 h-5 text-indigo-400" />}
-                                                label="Organograma"
-                                                onClick={onNavigateToOrgChart}
-                                                isCostModule={isCostModule}
-                                            />
-                                            {onNavigateToOrgSummary && (
-                                                <NavButton
-                                                    active={activeScreen === 'orgSummary'}
-                                                    icon={<BriefcaseIcon className="w-5 h-5 text-cyan-400" />}
-                                                    label="Resumo Organograma"
-                                                    onClick={onNavigateToOrgSummary}
-                                                    isCostModule={isCostModule}
-                                                />
-                                            )}
-                                        </div>
-                                    )}
                                     {onNavigateToVisualControl && (
                                         <NavButton
                                             active={activeScreen === 'visualControl'}
@@ -161,23 +142,23 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                                         onClick={onNavigateToCurrentSchedule}
                                         isCostModule={isCostModule}
                                     />
+                                    {onNavigateToPodcast && (
+                                        <NavButton
+                                            active={activeScreen === 'podcast'}
+                                            icon={
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-purple-400">
+                                                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                                                    <line x1="12" y1="19" x2="12" y2="23" />
+                                                    <line x1="8" y1="23" x2="16" y2="23" />
+                                                </svg>
+                                            }
+                                            label="Podcast da obra"
+                                            onClick={onNavigateToPodcast}
+                                            isCostModule={isCostModule}
+                                        />
+                                    )}
                                 </>
-                            )}
-                            {onNavigateToPodcast && (
-                                <NavButton
-                                    active={activeScreen === 'podcast'}
-                                    icon={
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-purple-400">
-                                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                                            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                                            <line x1="12" y1="19" x2="12" y2="23" />
-                                            <line x1="8" y1="23" x2="16" y2="23" />
-                                        </svg>
-                                    }
-                                    label="Podcast da obra"
-                                    onClick={onNavigateToPodcast}
-                                    isCostModule={isCostModule}
-                                />
                             )}
                             {onNavigateToWarRoom && (
                                 <NavButton
@@ -189,7 +170,31 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                                 />
                             )}
                         </>
-                    ) : (
+                    )}
+
+                    {isOrgModule && (
+                        <>
+                            {onNavigateToOrgSummary && (
+                                <NavButton
+                                    active={activeScreen === 'orgSummary'}
+                                    icon={<BriefcaseIcon className="w-5 h-5 text-blue-400" />}
+                                    label="Resumo Organograma"
+                                    onClick={onNavigateToOrgSummary}
+                                    isCostModule={isCostModule}
+                                />
+                            )}
+                            {onNavigateToOrgChart && (
+                                <NavButton
+                                    active={activeScreen === 'orgChart'}
+                                    icon={<ManagementIcon className="w-5 h-5 text-indigo-400" />}
+                                    label="Árvore Organograma"
+                                    onClick={onNavigateToOrgChart}
+                                    isCostModule={isCostModule}
+                                />
+                            )}
+                        </>
+                    )}
+                    {isCostModule && (
                         <>
                             {/* Cost module items could be added here if needed, but for now we focus on Planning consistency */}
                             <p className="text-xs text-brand-med-gray px-4 py-2">Módulo de Custos Ativo</p>

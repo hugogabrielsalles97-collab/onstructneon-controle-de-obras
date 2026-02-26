@@ -6,10 +6,11 @@ import ConstructionIcon from './icons/ConstructionIcon';
 interface ModuleSelectionScreenProps {
     onSelectPlanning: () => void;
     onSelectCost: () => void;
+    onSelectOrg: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
-const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({ onSelectPlanning, onSelectCost, showToast }) => {
+const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({ onSelectPlanning, onSelectCost, onSelectOrg, showToast }) => {
     const { currentUser: user, signOut } = useData();
 
     const handleLogout = async () => {
@@ -71,7 +72,7 @@ const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({ onSelectP
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl px-4 animate-fade-in-up delay-100">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl px-4 animate-fade-in-up delay-100">
                     {/* Card: Planejamento */}
                     <button
                         onClick={onSelectPlanning}
@@ -89,6 +90,32 @@ const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({ onSelectP
                             <h2 className="text-2xl font-bold text-white mb-2 group-hover:text-brand-accent transition-colors">Planejamento</h2>
                             <p className="text-xs text-gray-400 font-medium leading-relaxed max-w-[80%] group-hover:text-gray-300 transition-colors">
                                 Gestão de cronogramas, Last Planner System, RDOs e controle de produção.
+                            </p>
+                        </div>
+                    </button>
+
+                    {/* Card: Organograma */}
+                    <button
+                        onClick={onSelectOrg}
+                        className="group relative h-[300px] bg-[#111827]/40 rounded-3xl border border-white/5 overflow-hidden transition-all duration-500 hover:border-blue-500/50 hover:shadow-[0_0_50px_-10px_rgba(59,130,246,0.3)] hover:-translate-y-2 text-left"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                        <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:opacity-40 group-hover:scale-110 transition-transform duration-700">
+                            <svg className="w-32 h-32 text-blue-500 transform rotate-45" fill="currentColor" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" /></svg>
+                        </div>
+
+                        <div className="absolute bottom-0 left-0 w-full p-8 z-10">
+                            <div className="w-12 h-12 bg-blue-500/20 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-sm border border-blue-500/20 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+                                <svg className="w-6 h-6 text-blue-500 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                            </div>
+                            <h2 className="text-2xl font-bold text-white mb-2 group-hover:text-blue-500 transition-colors flex items-center gap-3">
+                                Organograma
+                                <span className={`text-[8px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded-full font-black tracking-widest uppercase`}>
+                                    Equipe
+                                </span>
+                            </h2>
+                            <p className="text-xs text-brand-med-gray font-medium leading-relaxed max-w-[80%] group-hover:text-gray-300 transition-colors">
+                                Resumo de colaboradores por função, hierarquia e estrutura da obra.
                             </p>
                         </div>
                     </button>

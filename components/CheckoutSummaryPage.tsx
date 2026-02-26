@@ -23,6 +23,7 @@ interface CheckoutSummaryPageProps {
     onNavigateToPodcast: () => void;
     onNavigateToCost: () => void;
     onNavigateToOrgChart?: () => void;
+    onNavigateToOrgSummary?: () => void;
     onNavigateToVisualControl?: () => void;
     onNavigateToTeams?: () => void;
     onUpgradeClick: () => void;
@@ -42,7 +43,9 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
     onNavigateToPodcast,
     onNavigateToCost,
     onNavigateToCheckoutSummary,
-    onNavigateToOrgChart, onNavigateToVisualControl,
+    onNavigateToOrgChart,
+    onNavigateToOrgSummary,
+    onNavigateToVisualControl,
     onNavigateToTeams,
     onUpgradeClick,
     showToast
@@ -171,6 +174,7 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                 onNavigateToCost={onNavigateToCost}
                 onNavigateToCheckoutSummary={() => { }}
                 onNavigateToOrgChart={onNavigateToOrgChart}
+                onNavigateToOrgSummary={onNavigateToOrgSummary}
                 onNavigateToVisualControl={onNavigateToVisualControl}
                 onUpgradeClick={onUpgradeClick}
             />
@@ -192,6 +196,7 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                     onNavigateToCost={onNavigateToCost}
                     onNavigateToCheckoutSummary={() => { }}
                     onNavigateToOrgChart={onNavigateToOrgChart}
+                    onNavigateToOrgSummary={onNavigateToOrgSummary}
                     onNavigateToVisualControl={onNavigateToVisualControl}
                     onUpgradeClick={onUpgradeClick}
                     activeScreen="checkoutSummary"
