@@ -1,5 +1,6 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { formatNumberBR } from '../utils/formatters';
 import { useData } from '../context/DataProvider';
 import Sidebar from './Sidebar';
@@ -10,6 +11,8 @@ import CalendarIcon from './icons/CalendarIcon';
 import ClockIcon from './icons/ClockIcon';
 import CircleIcon from './icons/CircleIcon';
 import WhatsAppIcon from './icons/WhatsAppIcon';
+import EyeIcon from './icons/EyeIcon';
+import XIcon from './icons/XIcon';
 
 interface CheckoutSummaryPageProps {
     onNavigateToHome?: () => void;
@@ -100,7 +103,18 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
     const [deletingLogId, setDeletingLogId] = React.useState<string | null>(null);
     const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null);
     const [viewMode, setViewMode] = React.useState<'checkouts' | 'pendencias'>('checkouts');
-    const [pendenciaDate, setPendenciaDate] = React.useState('');
+    const [pendenciaDate, setPendenciaDate] = useState('');
+    const [selectedPhotos, setSelectedPhotos] = useState<string[] | null>(null);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setSelectedPhotos(null);
+        };
+        if (selectedPhotos) {
+            window.addEventListener('keydown', handleKeyDown);
+        }
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selectedPhotos]);
 
     // ==== OTIMIZAÇÃO: Map de tarefas por ID para lookup O(1) em vez de O(n) ====
     const taskMap = useMemo(() => {
@@ -654,6 +668,17 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                                                                         <p className="text-[11px] font-black text-white pr-1 whitespace-nowrap">{log.user_name}</p>
                                                                     </div>
 
+                                                                    {/* Photos button */}
+                                                                    {taskFromState?.photos && taskFromState.photos.length > 0 && (
+                                                                        <button
+                                                                            onClick={() => setSelectedPhotos(taskFromState.photos || null)}
+                                                                            className="p-1.5 bg-blue-500/10 hover:bg-blue-500 text-blue-400 hover:text-white rounded-lg transition-all duration-300 border border-blue-500/20 group/photo"
+                                                                            title="Ver Fotos da Tarefa"
+                                                                        >
+                                                                            <EyeIcon className="w-4 h-4 group-hover/photo:scale-110 transition-transform" />
+                                                                        </button>
+                                                                    )}
+
                                                                     {/* Delete button */}
                                                                     {currentUser && (currentUser.role === 'Master' || currentUser.role === 'Gerenciador') && (
                                                                         <div className="relative">
@@ -840,6 +865,74 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                     </div>
                 </div>
             </main>
+
+            {/* Photo Gallery Modal via Portal */}
+            {selectedPhotos && selectedPhotos.length > 0 && createPortal(
+                <div
+                    className="fixed inset-0 z-[9999] flex items-center justify-center p-4 md:p-12 bg-black/90 backdrop-blur-md"
+                    onClick={() => setSelectedPhotos(null)}
+                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+                >
+                    <div className="relative max-w-6xl w-full max-h-[90vh] flex flex-col bg-[#0a0f18] rounded-[2.5rem] border border-white/10 shadow-[0_0_100px_rgba(0,0,0,1)] overflow-hidden" onClick={e => e.stopPropagation()}>
+                        {/* Header Area */}
+                        <div className="flex justify-between items-center p-6 md:p-8 border-b border-white/5 shrink-0">
+                            <div className="flex flex-col">
+                                <h3 className="text-white font-black uppercase tracking-widest text-xl md:text-2xl italic">Galeria de Evidências</h3>
+                                <p className="text-brand-accent font-black text-[10px] uppercase tracking-[4px] mt-1">
+                                    {selectedPhotos.length} registro(s) fotográfico(s) • Clique p/ Ampliar
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setSelectedPhotos(null)}
+                                className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-white/5 flex items-center justify-center text-white hover:bg-red-500 transition-all border border-white/10 group"
+                                title="Fechar (Esc)"
+                            >
+                                <XIcon className="w-5 h-5 md:w-6 md:h-6 group-hover:scale-110" />
+                            </button>
+                        </div>
+
+                        {/* Content Area */}
+                        <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar flex items-center justify-center">
+                            {selectedPhotos.length === 1 ? (
+                                /* Single Image - Hero View */
+                                <div className="w-full h-full max-h-[75vh] flex items-center justify-center">
+                                    <div className="relative group w-full h-full flex items-center justify-center">
+                                        <img
+                                            src={selectedPhotos[0]}
+                                            className="max-w-full max-h-full object-contain rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/10 cursor-zoom-in"
+                                            alt="Evidência única"
+                                            onClick={() => window.open(selectedPhotos[0], '_blank')}
+                                        />
+                                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                            <span className="text-white font-bold text-[10px] uppercase tracking-widest">Clique p/ Abrir Original</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                /* Multiple Images - Grid View */
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-8 w-full max-w-5xl">
+                                    {selectedPhotos.map((photo, i) => (
+                                        <div key={i} className="group relative h-[45vh] md:h-[50vh] rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl bg-black/20 flex items-center justify-center p-2">
+                                            <img
+                                                src={photo}
+                                                className="w-full h-full object-contain transition-all duration-700 group-hover:scale-105 cursor-zoom-in"
+                                                loading="lazy"
+                                                alt={`Evidência ${i + 1}`}
+                                                onClick={() => window.open(photo, '_blank')}
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all flex flex-col justify-end p-8 pointer-events-none">
+                                                <span className="text-brand-accent font-black text-[10px] uppercase tracking-widest mb-1">Registro #{i + 1}</span>
+                                                <span className="text-white font-bold text-xs">Visualizar em nova aba</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 };
