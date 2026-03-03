@@ -26,12 +26,14 @@ interface LeanPageProps {
     onNavigateToCheckoutSummary?: () => void;
     onNavigateToTeams?: () => void;
     onNavigateToOrgSummary?: () => void;
+    onNavigateToSystem?: () => void;
     onNavigateToRestrictions: () => void;
     onSaveRestriction: (restriction: Omit<Restriction, 'id' | 'created_at' | 'user_id'>) => Promise<void>;
     onUpdateRestriction: (id: string, updates: Partial<Restriction>) => Promise<void>;
     onDeleteRestriction: (id: string) => Promise<void>;
     restrictions: Restriction[];
     onUpgradeClick: () => void;
+    onAddTask?: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
@@ -58,6 +60,8 @@ const LeanPage: React.FC<LeanPageProps> = ({
     onNavigateToCheckoutSummary,
     onNavigateToTeams,
     onNavigateToOrgSummary,
+    onNavigateToSystem,
+    onAddTask,
     showToast
 }) => {
     const { currentUser: user, tasks, baselineTasks, currentScheduleTasks, currentScheduleCutOffDateStr, signOut } = useData();
@@ -247,7 +251,9 @@ const LeanPage: React.FC<LeanPageProps> = ({
                 onNavigateToOrgChart={onNavigateToOrgChart}
                 onNavigateToOrgSummary={onNavigateToOrgSummary}
                 onNavigateToVisualControl={onNavigateToVisualControl}
+                onNavigateToSystem={onNavigateToSystem}
                 onUpgradeClick={onUpgradeClick}
+                onAddTask={onAddTask}
             />
 
             <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-brand-darkest/50 relative">

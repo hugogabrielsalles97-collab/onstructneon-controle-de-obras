@@ -19,6 +19,7 @@ interface Logical4DPageProps {
     onNavigateToLeanConstruction: () => void;
     onNavigateToCost: () => void;
     onUpgradeClick: () => void;
+    onAddTask?: () => void;
 }
 
 const Logical4DPage: React.FC<Logical4DPageProps> = ({
@@ -33,7 +34,8 @@ const Logical4DPage: React.FC<Logical4DPageProps> = ({
     onNavigateToLean,
     onNavigateToLeanConstruction,
     onNavigateToCost,
-    onUpgradeClick
+    onUpgradeClick,
+    onAddTask
 }) => {
     const { currentScheduleTasks } = useData();
 
@@ -139,6 +141,7 @@ const Logical4DPage: React.FC<Logical4DPageProps> = ({
                 onNavigateToLeanConstruction={onNavigateToLeanConstruction}
                 onNavigateToCost={onNavigateToCost}
                 onUpgradeClick={onUpgradeClick}
+                onAddTask={onAddTask}
             />
 
             <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-brand-darkest/50 relative">

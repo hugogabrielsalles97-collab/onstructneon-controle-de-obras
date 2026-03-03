@@ -1,7 +1,8 @@
 /// <reference types="vite/client" />
 import React, { useState, useEffect, useMemo } from 'react';
 import { Task, TaskStatus, Resource, User, OrgMember } from '../types';
-import { useOrgMembers } from '../hooks/dataHooks';
+import { useOrgMembers, CatalogItem } from '../hooks/dataHooks';
+import { useData } from '../context/DataProvider';
 import XIcon from './icons/XIcon';
 import PlusIcon from './icons/PlusIcon';
 import SparkleIcon from './icons/SparkleIcon';
@@ -75,6 +76,7 @@ const ResourceSection: React.FC<{
 };
 
 const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, tasks, baselineTasks, user, allUsers, onUpgradeClick }) => {
+    const { catalogs } = useData();
     const getInitialFormData = (): Omit<Task, 'id' | 'status'> => {
         const today = new Date().toISOString().split('T')[0];
         return {
@@ -571,11 +573,40 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
 
     if (!isOpen) return null;
 
-    const levelOptions = formData.discipline ? disciplineOptions[formData.discipline] || [] : [];
+    const isTitleAutoPopulated = ['Terraplenagem', 'Contenções'].includes(formData.discipline);
+
+    // Merge Catalogs with Hardcoded Options
+    const allDisciplineOptions = useMemo(() => {
+        const base = Object.keys(disciplineOptions);
+        const fromCatalog = catalogs.map(c => c.discipline);
+        return Array.from(new Set([...base, ...fromCatalog])).sort();
+    }, [catalogs]);
+
+    const allLevelOptions = useMemo(() => {
+        if (!formData.discipline) return [];
+        const base = disciplineOptions[formData.discipline] || [];
+        const fromCatalog = catalogs
+            .filter(c => c.discipline === formData.discipline && c.level)
+            .map(c => c.level as string);
+        return Array.from(new Set([...base, ...fromCatalog])).sort();
+    }, [formData.discipline, catalogs]);
+
+    const allActivityOptions = useMemo(() => {
+        if (!formData.discipline || !formData.level) return undefined;
+        const base = taskTitleOptions[formData.discipline]?.[formData.level] || [];
+        const fromCatalog = catalogs
+            .filter(c => c.discipline === formData.discipline && c.level === formData.level && c.activity_title)
+            .map(c => c.activity_title as string);
+
+        const merged = Array.from(new Set([...base, ...fromCatalog])).sort();
+        return merged.length > 0 ? merged : undefined;
+    }, [formData.discipline, formData.level, catalogs]);
+
     const isOAE = formData.discipline === 'Obras de arte especiais';
     const isOAESuperestrutura = isOAE && formData.level === 'Superestrutura';
-    const specificTaskOptions = formData.discipline && formData.level ? taskTitleOptions[formData.discipline]?.[formData.level] : undefined;
-    const isTitleAutoPopulated = ['Terraplenagem', 'Contenções'].includes(formData.discipline);
+
+    const levelOptions = allLevelOptions;
+    const specificTaskOptions = allActivityOptions;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -644,7 +675,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                         style={{ backgroundImage: 'linear-gradient(45deg, transparent 50%, gray 50%), linear-gradient(135deg, gray 50%, transparent 50%)', backgroundPosition: 'calc(100% - 20px) calc(1em + 2px), calc(100% - 15px) calc(1em + 2px)', backgroundSize: '5px 5px, 5px 5px', backgroundRepeat: 'no-repeat' }}
                                     >
                                         <option value="">Selecione a Disciplina</option>
-                                        {Object.keys(disciplineOptions).map(disc => <option key={disc} value={disc}>{disc}</option>)}
+                                        {allDisciplineOptions.map(disc => <option key={disc} value={disc}>{disc}</option>)}
                                     </select>
                                 </div>
 
@@ -766,8 +797,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                             onClick={() => setFormData(prev => ({ ...prev, shift: prev.shift === 'Diurno' ? null : 'Diurno' }))}
                                             disabled={isReadOnlyPlanning}
                                             className={`flex-1 flex items-center justify-center gap-3 py-3.5 px-4 rounded-2xl border-2 transition-all duration-300 font-black text-sm uppercase tracking-wider group ${formData.shift === 'Diurno'
-                                                    ? 'bg-amber-500/15 border-amber-400/50 text-amber-300 shadow-lg shadow-amber-500/10'
-                                                    : 'bg-white/5 border-white/10 text-brand-med-gray hover:border-amber-400/30 hover:text-amber-300/70'
+                                                ? 'bg-amber-500/15 border-amber-400/50 text-amber-300 shadow-lg shadow-amber-500/10'
+                                                : 'bg-white/5 border-white/10 text-brand-med-gray hover:border-amber-400/30 hover:text-amber-300/70'
                                                 } disabled:opacity-50`}
                                         >
                                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform group-hover:scale-110 ${formData.shift === 'Diurno' ? 'text-amber-400' : ''}`}>
@@ -788,8 +819,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                             onClick={() => setFormData(prev => ({ ...prev, shift: prev.shift === 'Noturno' ? null : 'Noturno' }))}
                                             disabled={isReadOnlyPlanning}
                                             className={`flex-1 flex items-center justify-center gap-3 py-3.5 px-4 rounded-2xl border-2 transition-all duration-300 font-black text-sm uppercase tracking-wider group ${formData.shift === 'Noturno'
-                                                    ? 'bg-indigo-500/15 border-indigo-400/50 text-indigo-300 shadow-lg shadow-indigo-500/10'
-                                                    : 'bg-white/5 border-white/10 text-brand-med-gray hover:border-indigo-400/30 hover:text-indigo-300/70'
+                                                ? 'bg-indigo-500/15 border-indigo-400/50 text-indigo-300 shadow-lg shadow-indigo-500/10'
+                                                : 'bg-white/5 border-white/10 text-brand-med-gray hover:border-indigo-400/30 hover:text-indigo-300/70'
                                                 } disabled:opacity-50`}
                                         >
                                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform group-hover:scale-110 ${formData.shift === 'Noturno' ? 'text-indigo-400' : ''}`}>

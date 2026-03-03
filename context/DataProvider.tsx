@@ -3,7 +3,7 @@ import { Session } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient';
 import { User, Task, Restriction, LeanTask } from '../types';
 import { useQueryClient } from '@tanstack/react-query';
-import { useTasks, useBaselineTasks, useCurrentScheduleTasks, useRestrictions, useAllUsers, useCurrentUser, useLeanTasks, useCheckoutLogs, useProjectSettings } from '../hooks/dataHooks';
+import { useTasks, useBaselineTasks, useCurrentScheduleTasks, useRestrictions, useAllUsers, useCurrentUser, useLeanTasks, useCheckoutLogs, useProjectSettings, useCatalogs, CatalogItem } from '../hooks/dataHooks';
 
 interface DataContextType {
     session: Session | null;
@@ -13,6 +13,7 @@ interface DataContextType {
     baselineTasks: Task[];
     currentScheduleTasks: Task[];
     leanTasks: LeanTask[];
+    catalogs: CatalogItem[];
     costItems: any[];
     measurements: any[];
     cashFlow: any[];
@@ -24,6 +25,8 @@ interface DataContextType {
     deleteTask: (taskId: string) => Promise<{ success: boolean; error?: string }>;
     saveLeanTask: (task: LeanTask) => Promise<{ success: boolean; error?: string }>;
     deleteLeanTask: (taskId: string) => Promise<{ success: boolean; error?: string }>;
+    saveCatalogItem: (item: Omit<CatalogItem, 'id' | 'created_at'>) => Promise<{ success: boolean; error?: string }>;
+    deleteCatalogItem: (id: string) => Promise<{ success: boolean; error?: string }>;
     importBaseline: (tasks: Task[]) => Promise<{ success: boolean; error?: string }>;
     importCurrentSchedule: (tasks: Task[]) => Promise<{ success: boolean; error?: string }>;
     restrictions: Restriction[];
@@ -53,12 +56,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     useEffect(() => {
         let mounted = true;
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            if (mounted) {
-                setSession(session);
-                setIsAuthLoading(false);
+        const initializeAuth = async () => {
+            try {
+                const { data: { session }, error } = await supabase.auth.getSession();
+                if (error) throw error;
+                if (mounted) {
+                    setSession(session);
+                    setIsAuthLoading(false);
+                }
+            } catch (err) {
+                console.error('Erro na inicialização da autenticação:', err);
+                // Even on error, we must stop the loading state so the login screen can show its own errors
+                if (mounted) setIsAuthLoading(false);
             }
-        });
+        };
+
+        initializeAuth();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             if (mounted) {
@@ -84,6 +97,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { data: currentScheduleTasks = [], isLoading: loadingCurrentSchedule } = useCurrentScheduleTasks(isLoggedIn);
     const { data: restrictions = [], isLoading: loadingRestrictions } = useRestrictions(isLoggedIn);
     const { data: leanTasks = [], isLoading: loadingLeanTasks } = useLeanTasks(isLoggedIn);
+    const { data: catalogs = [], isLoading: loadingCatalogs } = useCatalogs(isLoggedIn);
     const { data: checkoutLogs = [], isLoading: loadingCheckoutLogs } = useCheckoutLogs(isLoggedIn);
     const { data: settings, isLoading: loadingSettings } = useProjectSettings(isLoggedIn);
 
@@ -136,10 +150,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     ]);
 
     // isLoading logic:
-    // 1. Auth is loading? -> True
-    // 2. User logged in? -> Wait for queries
-    // 3. User logged out? -> False (show login)
-    const isLoading = isAuthLoading || (isLoggedIn && (loadingUser || loadingAllUsers || loadingTasks || loadingBaseline || loadingCurrentSchedule || loadingRestrictions || loadingLeanTasks || loadingCheckoutLogs || loadingSettings));
+    // We only block the app for Auth initialization and the current user profile.
+    // Tasks, Catalogs, and other data will load in the background to avoid 
+    // "infinite loading" on slower connections or large databases.
+    const isLoading = isAuthLoading || (isLoggedIn && loadingUser);
+
+    // Auxiliary state to track if secondary data is still coming
+    const isBackgroundLoading = isLoggedIn && (loadingAllUsers || loadingTasks || loadingBaseline || loadingCurrentSchedule || loadingRestrictions || loadingCatalogs);
+
 
     const refreshData = async () => {
         await queryClient.invalidateQueries();
@@ -269,6 +287,30 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const { error } = await supabase.from('lean_tasks').delete().eq('id', taskId);
             if (error) throw error;
             queryClient.invalidateQueries({ queryKey: ['leanTasks'] });
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    };
+
+    const saveCatalogItem = async (item: Omit<CatalogItem, 'id' | 'created_at'>) => {
+        if (!session) return { success: false, error: 'No session' };
+        try {
+            const { error } = await supabase.from('activity_catalogs').insert([{ ...item, user_id: session.user.id }]);
+            if (error) throw error;
+            queryClient.invalidateQueries({ queryKey: ['catalogs'] });
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    };
+
+    const deleteCatalogItem = async (id: string) => {
+        if (!session) return { success: false, error: 'No session' };
+        try {
+            const { error } = await supabase.from('activity_catalogs').delete().eq('id', id);
+            if (error) throw error;
+            queryClient.invalidateQueries({ queryKey: ['catalogs'] });
             return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };
@@ -457,6 +499,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         <DataContext.Provider value={{
             session, currentUser: currentUser || null, allUsers, tasks, baselineTasks, currentScheduleTasks, restrictions, leanTasks, costItems, measurements, cashFlow, checkoutLogs, isLoading, refreshData,
             saveTask, deleteTask, importBaseline, importCurrentSchedule, saveRestriction, updateRestriction, deleteRestriction, saveLeanTask, deleteLeanTask, deleteCheckoutLog,
+            saveCatalogItem, deleteCatalogItem, catalogs,
             baselineCutOffDateStr,
             setBaselineCutOffDateStr: handleSetBaselineCutOffDateStr,
             currentScheduleCutOffDateStr,

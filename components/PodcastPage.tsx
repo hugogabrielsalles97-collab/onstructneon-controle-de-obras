@@ -25,6 +25,7 @@ interface PodcastPageProps {
     onNavigateToVisualControl?: () => void;
     onNavigateToTeams?: () => void;
     onUpgradeClick: () => void;
+    onAddTask?: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
     user: User;
     signOut: () => Promise<{ success: boolean; error?: string }>;
@@ -48,6 +49,7 @@ const PodcastPage: React.FC<PodcastPageProps> = ({
     onNavigateToOrgSummary,
     onNavigateToVisualControl,
     onNavigateToTeams,
+    onAddTask,
     showToast,
     user,
     signOut
@@ -211,6 +213,7 @@ const PodcastPage: React.FC<PodcastPageProps> = ({
                 onNavigateToOrgSummary={onNavigateToOrgSummary}
                 onNavigateToVisualControl={onNavigateToVisualControl}
                 onUpgradeClick={onUpgradeClick}
+                onAddTask={onAddTask}
             />
 
             <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-brand-darkest/50 relative">

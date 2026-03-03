@@ -77,6 +77,7 @@ interface VisualControlPageProps {
     onNavigateToOrgSummary?: () => void;
     onNavigateToVisualControl?: () => void;
     onUpgradeClick: () => void;
+    onAddTask?: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
@@ -638,6 +639,7 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
                 onNavigateToOrgSummary={props.onNavigateToOrgSummary}
                 onNavigateToVisualControl={props.onNavigateToVisualControl}
                 onUpgradeClick={props.onUpgradeClick}
+                onAddTask={props.onAddTask}
             />
 
             <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-brand-darkest/50 relative">

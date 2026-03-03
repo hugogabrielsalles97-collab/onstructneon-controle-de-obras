@@ -27,7 +27,9 @@ interface ReportsPageProps {
   onNavigateToOrgSummary?: () => void;
   onNavigateToVisualControl?: () => void;
   onNavigateToTeams?: () => void;
+  onNavigateToSystem?: () => void;
   onUpgradeClick: () => void;
+  onAddTask?: () => void;
   showToast: (message: string, type: 'success' | 'error') => void;
 }
 
@@ -55,7 +57,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
   onNavigateToOrgSummary,
   onNavigateToVisualControl,
   onNavigateToTeams,
+  onNavigateToSystem,
   onUpgradeClick,
+  onAddTask,
   showToast
 }) => {
   const { currentUser: user, tasks, baselineTasks, signOut } = useData();
@@ -142,7 +146,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
         onNavigateToOrgChart={onNavigateToOrgChart}
         onNavigateToOrgSummary={onNavigateToOrgSummary}
         onNavigateToVisualControl={onNavigateToVisualControl}
+        onNavigateToSystem={onNavigateToSystem}
         onUpgradeClick={onUpgradeClick}
+        onAddTask={onAddTask}
       />
 
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-brand-darkest/50 relative">

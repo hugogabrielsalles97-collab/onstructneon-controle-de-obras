@@ -45,7 +45,9 @@ interface DashboardProps {
   onNavigateToOrgSummary?: () => void;
   onNavigateToTeams?: () => void;
   onNavigateToVisualControl?: () => void;
+  onNavigateToSystem?: () => void;
   onUpgradeClick: () => void;
+  onAddTask?: () => void;
   showToast: (message: string, type: 'success' | 'error') => void;
 }
 
@@ -62,7 +64,7 @@ const initialFilters = {
   engineer: '',
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToHome, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onUpgradeClick, showToast }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToHome, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToSystem, onUpgradeClick, onAddTask, showToast }) => {
   const { currentUser: user, tasks, allUsers, baselineTasks, signOut, deleteTask } = useData();
   const { data: orgMembers } = useOrgMembers();
   const [filters, setFilters] = useState(initialFilters);
@@ -254,7 +256,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
         onNavigateToOrgSummary={onNavigateToOrgSummary}
         onNavigateToVisualControl={onNavigateToVisualControl}
         onNavigateToTeams={onNavigateToTeams}
+        onNavigateToSystem={onNavigateToSystem}
         onUpgradeClick={onUpgradeClick}
+        onAddTask={onAddTask}
       />
 
       {/* Main Content */}

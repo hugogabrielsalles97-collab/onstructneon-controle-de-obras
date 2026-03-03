@@ -25,6 +25,7 @@ interface TeamsPageProps {
     onNavigateToVisualControl?: () => void;
     onNavigateToTeams: () => void;
     onUpgradeClick: () => void;
+    onAddTask?: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
@@ -121,6 +122,7 @@ const TeamsPage: React.FC<TeamsPageProps> = (props) => {
                 onNavigateToOrgChart={props.onNavigateToOrgChart}
                 onNavigateToVisualControl={props.onNavigateToVisualControl}
                 onUpgradeClick={props.onUpgradeClick}
+                onAddTask={props.onAddTask}
             />
 
             <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-brand-darkest/50">

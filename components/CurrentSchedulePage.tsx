@@ -29,6 +29,7 @@ interface CurrentSchedulePageProps {
     onNavigateToVisualControl?: () => void;
     onNavigateToTeams?: () => void;
     onUpgradeClick: () => void;
+    onAddTask?: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
@@ -75,6 +76,7 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
     onNavigateToVisualControl,
     onNavigateToTeams,
     onUpgradeClick,
+    onAddTask,
     showToast
 }) => {
     const { currentUser: user, currentScheduleTasks, importCurrentSchedule, signOut, currentScheduleCutOffDateStr, setCurrentScheduleCutOffDateStr } = useData();
@@ -482,6 +484,7 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
                 onNavigateToOrgSummary={onNavigateToOrgSummary}
                 onNavigateToVisualControl={onNavigateToVisualControl}
                 onUpgradeClick={onUpgradeClick}
+                onAddTask={onAddTask}
             />
 
             <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-brand-darkest/50 relative">

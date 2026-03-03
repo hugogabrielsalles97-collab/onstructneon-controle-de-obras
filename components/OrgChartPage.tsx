@@ -27,6 +27,7 @@ interface OrgChartPageProps {
     onNavigateToOrgSummary?: () => void;
     onNavigateToVisualControl?: () => void;
     onUpgradeClick: () => void;
+    onAddTask?: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
@@ -262,6 +263,7 @@ const OrgChartPage: React.FC<OrgChartPageProps> = (props) => {
                 onNavigateToOrgSummary={props.onNavigateToOrgSummary}
                 onNavigateToVisualControl={props.onNavigateToVisualControl}
                 onUpgradeClick={props.onUpgradeClick}
+                onAddTask={props.onAddTask}
             />
 
             <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-brand-darkest/50">

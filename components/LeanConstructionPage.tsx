@@ -31,6 +31,7 @@ interface LeanConstructionPageProps {
     onNavigateToTeams?: () => void;
     onUpgradeClick: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
+    onAddTask?: () => void;
 }
 
 const formatBR = (value: number | string | undefined, decimals: number = 2) => {
@@ -44,7 +45,7 @@ const formatBR = (value: number | string | undefined, decimals: number = 2) => {
 };
 
 const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
-    onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToHome, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToVisualControl, onNavigateToCheckoutSummary, onNavigateToTeams, onUpgradeClick, showToast
+    onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToHome, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToVisualControl, onNavigateToCheckoutSummary, onNavigateToTeams, onUpgradeClick, onAddTask, showToast
 }) => {
     const { currentUser: user, signOut, leanTasks, saveLeanTask, deleteLeanTask, checkoutLogs, tasks } = useData();
     const [selectedTask, setSelectedTask] = useState<LeanTask | null>(null);
@@ -563,6 +564,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                 onNavigateToOrgSummary={onNavigateToOrgSummary}
                 onNavigateToVisualControl={onNavigateToVisualControl}
                 onUpgradeClick={onUpgradeClick}
+                onAddTask={onAddTask}
             />
 
             <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-brand-darkest/50 relative">

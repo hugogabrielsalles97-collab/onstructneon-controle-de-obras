@@ -27,6 +27,7 @@ interface CheckoutSummaryPageProps {
     onNavigateToVisualControl?: () => void;
     onNavigateToTeams?: () => void;
     onUpgradeClick: () => void;
+    onAddTask?: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
@@ -48,6 +49,7 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
     onNavigateToVisualControl,
     onNavigateToTeams,
     onUpgradeClick,
+    onAddTask,
     showToast
 }) => {
     const { currentUser, checkoutLogs, tasks, signOut, deleteCheckoutLog } = useData();
@@ -177,6 +179,7 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                 onNavigateToOrgSummary={onNavigateToOrgSummary}
                 onNavigateToVisualControl={onNavigateToVisualControl}
                 onUpgradeClick={onUpgradeClick}
+                onAddTask={onAddTask}
             />
 
             <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-brand-darkest/50">

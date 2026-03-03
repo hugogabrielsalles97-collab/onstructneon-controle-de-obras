@@ -27,6 +27,7 @@ interface ManagementPageProps {
     onNavigateToOrgSummary?: () => void;
     onNavigateToTeams?: () => void;
     onUpgradeClick: () => void;
+    onAddTask?: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
@@ -48,6 +49,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
     onNavigateToVisualControl,
     onNavigateToCheckoutSummary,
     onNavigateToTeams,
+    onAddTask,
     showToast
 }) => {
     const { currentUser: user, tasks, currentScheduleTasks, signOut, currentScheduleCutOffDateStr } = useData();
@@ -212,6 +214,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 onNavigateToOrgSummary={onNavigateToOrgSummary}
                 onNavigateToVisualControl={onNavigateToVisualControl}
                 onUpgradeClick={onUpgradeClick}
+                onAddTask={onAddTask}
             />
 
             <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-brand-darkest/50 relative">

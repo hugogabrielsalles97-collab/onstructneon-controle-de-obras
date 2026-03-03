@@ -29,6 +29,7 @@ interface BaselinePageProps {
     onNavigateToOrgSummary?: () => void;
     onNavigateToTeams?: () => void;
     onUpgradeClick: () => void;
+    onAddTask?: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
@@ -75,6 +76,7 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
     onNavigateToVisualControl,
     onNavigateToCheckoutSummary,
     onNavigateToTeams,
+    onAddTask,
     showToast
 }) => {
     const { currentUser: user, baselineTasks, importBaseline, signOut, baselineCutOffDateStr, setBaselineCutOffDateStr } = useData();
@@ -482,6 +484,7 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
                 onNavigateToOrgSummary={onNavigateToOrgSummary}
                 onNavigateToVisualControl={onNavigateToVisualControl}
                 onUpgradeClick={onUpgradeClick}
+                onAddTask={onAddTask}
             />
 
             <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-brand-darkest/50 relative">

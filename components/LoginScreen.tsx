@@ -26,38 +26,49 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister, onVisit
       return;
     }
 
-    const loginEmail = username.includes('@') ? username : `${username}@construcao.com`;
+    try {
+      const loginEmail = username.includes('@') ? username : `${username}@construcao.com`;
 
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-      email: loginEmail,
-      password: password,
-    });
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: password,
+      });
 
-    if (signInError) {
-      if (signInError.message.toLowerCase().includes('invalid api key') || signInError.message.toLowerCase().includes('failed to fetch')) {
-        setError('Erro de Configuração: A chave de API (supabaseAnonKey) está incorreta. Verifique o arquivo supabaseClient.ts.');
-      } else {
-        setError(signInError.message === 'Invalid login credentials' ? 'Usuário ou senha inválidos.' : signInError.message);
+      if (signInError) {
+        if (signInError.message.toLowerCase().includes('invalid api key') || signInError.message.toLowerCase().includes('failed to fetch')) {
+          setError('Erro de Conexão: Não foi possível alcançar o servidor. Verifique sua internet.');
+        } else {
+          setError(signInError.message === 'Invalid login credentials' ? 'Usuário ou senha inválidos.' : signInError.message);
+        }
+        setLoading(false);
+        return;
       }
-    } else if (signInData.user) {
-      // Check if user is approved
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('is_approved')
-        .eq('id', signInData.user.id)
-        .single();
 
-      if (profileError) {
-        setError('Erro ao verificar perfil. Tente novamente.');
-        await supabase.auth.signOut();
-      } else if (profile && !profile.is_approved) {
-        setError('Sua conta ainda não foi aprovada por um usuário Master. Por favor, aguarde a aprovação.');
-        await supabase.auth.signOut();
-      } else {
-        showToast('Login bem-sucedido!', 'success');
+      if (signInData.user) {
+        // Check if user is approved
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('is_approved')
+          .eq('id', signInData.user.id)
+          .single();
+
+        if (profileError) {
+          setError('Erro ao verificar perfil. Tente novamente.');
+          await supabase.auth.signOut();
+        } else if (profile && !profile.is_approved) {
+          setError('Sua conta ainda não foi aprovada por um administrador.');
+          await supabase.auth.signOut();
+        } else {
+          showToast('Login bem-sucedido!', 'success');
+          // No need to setLoading(false) here as App.tsx will unmount us
+        }
       }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('Ocorreu um erro inesperado no login.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (

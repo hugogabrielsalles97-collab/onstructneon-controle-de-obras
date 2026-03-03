@@ -2,30 +2,54 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabaseClient';
 import { Task, User, Restriction, LeanTask, CheckoutLog, OrgMember } from '../types';
 
+export interface CatalogItem {
+    id: string;
+    discipline: string;
+    level: string | null;
+    activity_title: string | null;
+    created_at?: string;
+}
+
 // Helper function to fetch all rows (bypass Supabase 1000 limit)
 const fetchAllRows = async (tableName: string) => {
     let allRows: any[] = [];
     let from = 0;
     const step = 1000;
+    const MAX_ATTEMPTS = 50; // Safety cap to prevent infinite loops
+    let attempts = 0;
 
-    while (true) {
-        const { data, error } = await supabase
-            .from(tableName)
-            .select('*')
-            .range(from, from + step - 1);
+    try {
+        while (attempts < MAX_ATTEMPTS) {
+            attempts++;
+            // Setup a promise that rejects after 15 seconds as a safety timeout
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error(`Timeout fetching ${tableName}`)), 15000)
+            );
 
-        if (error) {
-            console.error(`Error fetching ${tableName}:`, error);
-            throw error;
+            const fetchPromise = supabase
+                .from(tableName)
+                .select('*')
+                .range(from, from + step - 1);
+
+            const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
+
+            if (error) {
+                console.error(`Error fetching ${tableName}:`, error);
+                throw error;
+            }
+
+            if (data && data.length > 0) {
+                allRows = [...allRows, ...data];
+                if (data.length < step) break; // End of data
+                from += step;
+            } else {
+                break;
+            }
         }
-
-        if (data && data.length > 0) {
-            allRows = [...allRows, ...data];
-            if (data.length < step) break; // Chegou ao fim
-            from += step;
-        } else {
-            break;
-        }
+    } catch (err) {
+        console.error(`Fatal error in fetchAllRows for ${tableName}:`, err);
+        // Return whatever we have so far instead of crashing everything
+        return allRows;
     }
     return allRows;
 };
@@ -35,7 +59,8 @@ export const useTasks = (enabled: boolean = true) => {
         queryKey: ['tasks'],
         queryFn: () => fetchAllRows('tasks'),
         enabled,
-        staleTime: 1000 * 60 * 5, // 5 minutes stale time
+        staleTime: 1000 * 60 * 5,
+        retry: 1,
     });
 };
 
@@ -48,6 +73,7 @@ export const useLeanTasks = (enabled: boolean = true) => {
         },
         enabled,
         staleTime: 1000 * 60 * 5,
+        retry: 1,
     });
 };
 
@@ -56,7 +82,8 @@ export const useBaselineTasks = (enabled: boolean = true) => {
         queryKey: ['baselineTasks'],
         queryFn: () => fetchAllRows('baseline_tasks'),
         enabled,
-        staleTime: 1000 * 60 * 60, // 1 hour (less frequent changes)
+        staleTime: 1000 * 60 * 60,
+        retry: 1,
     });
 };
 
@@ -65,7 +92,8 @@ export const useCurrentScheduleTasks = (enabled: boolean = true) => {
         queryKey: ['currentScheduleTasks'],
         queryFn: () => fetchAllRows('current_schedule_tasks'),
         enabled,
-        staleTime: 1000 * 60 * 30, // 30 minutes
+        staleTime: 1000 * 60 * 30,
+        retry: 1,
     });
 };
 
@@ -74,6 +102,7 @@ export const useRestrictions = (enabled: boolean = true) => {
         queryKey: ['restrictions'],
         queryFn: () => fetchAllRows('restrictions'),
         enabled,
+        retry: 1,
     });
 };
 
@@ -88,6 +117,7 @@ export const useAllUsers = (enabled: boolean = true) => {
             return data as User[];
         },
         enabled,
+        retry: 1,
     });
 };
 
@@ -118,6 +148,7 @@ export const useCurrentUser = (userId: string | undefined) => {
             return data as User;
         },
         enabled: !!userId,
+        retry: 1,
     });
 };
 
@@ -133,6 +164,7 @@ export const useCheckoutLogs = (enabled: boolean = true) => {
             return data as CheckoutLog[];
         },
         enabled,
+        retry: 1,
     });
 };
 
@@ -141,6 +173,17 @@ export const useOrgMembers = (enabled: boolean = true) => {
         queryKey: ['orgMembers'],
         queryFn: () => fetchAllRows('org_members'),
         enabled,
+        retry: 1,
+    });
+};
+
+export const useCatalogs = (enabled: boolean = true) => {
+    return useQuery<CatalogItem[]>({
+        queryKey: ['catalogs'],
+        queryFn: () => fetchAllRows('activity_catalogs'),
+        enabled,
+        staleTime: 1000 * 60 * 30,
+        retry: 1,
     });
 };
 
@@ -162,6 +205,7 @@ export const useProjectSettings = (enabled: boolean = true) => {
         },
         enabled,
         staleTime: 1000 * 60 * 5,
+        retry: 1,
     });
 };
 

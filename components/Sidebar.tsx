@@ -31,10 +31,12 @@ interface SidebarProps {
     onNavigateToOrgSummary?: () => void;
     onNavigateToTeams?: () => void;
     onNavigateToVisualControl?: () => void;
+    onNavigateToSystem?: () => void;
     onUpgradeClick: () => void;
+    onAddTask?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome, onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onUpgradeClick }) => {
+const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome, onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToSystem, onUpgradeClick, onAddTask }) => {
     const showFullMenu = user.role !== 'Executor';
     const isCostModule = activeScreen === 'cost';
     const isOrgModule = activeScreen === 'orgSummary' || activeScreen === 'orgChart';
@@ -46,7 +48,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
 
     return (
         <aside className="hidden lg:flex flex-col w-72 bg-[#0a0f18] border-r border-white/5 non-printable transition-all duration-300">
-            <div className="p-8 flex-1">
+            <div className="p-8 flex-1 overflow-y-auto custom-scrollbar flex flex-col">
                 <div className="flex flex-col mb-10">
                     <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 ${accentBg} rounded-xl flex items-center justify-center shadow-lg ${accentShadow}`}>
@@ -166,6 +168,21 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                                     icon={<TvIcon className="w-5 h-5 text-red-500" />}
                                     label="War Room (TV)"
                                     onClick={onNavigateToWarRoom}
+                                    isCostModule={isCostModule}
+                                />
+                            )}
+
+                            {(user.role === 'Master' || user.role === 'Planejador') && onNavigateToSystem && (
+                                <NavButton
+                                    active={activeScreen === 'system'}
+                                    icon={
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-brand-accent">
+                                            <circle cx="12" cy="12" r="3" />
+                                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H4a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H20a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                                        </svg>
+                                    }
+                                    label="Sistema"
+                                    onClick={onNavigateToSystem}
                                     isCostModule={isCostModule}
                                 />
                             )}

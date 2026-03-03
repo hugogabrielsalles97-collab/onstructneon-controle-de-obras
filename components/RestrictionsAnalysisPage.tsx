@@ -36,6 +36,7 @@ interface RestrictionsAnalysisPageProps {
     onNavigateToTeams?: () => void;
     onNavigateToOrgSummary?: () => void;
     onUpgradeClick: () => void;
+    onAddTask?: () => void;
 }
 
 const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
@@ -61,7 +62,8 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
     onNavigateToVisualControl,
     onNavigateToTeams,
     onNavigateToOrgSummary,
-    onUpgradeClick
+    onUpgradeClick,
+    onAddTask
 }) => {
     const [filterStatuses, setFilterStatuses] = useState<RestrictionStatus[]>(Object.values(RestrictionStatus));
     const [filterType, setFilterType] = useState<RestrictionType | 'all'>('all');
@@ -349,6 +351,7 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                 onNavigateToVisualControl={onNavigateToVisualControl}
                 onNavigateToTeams={onNavigateToTeams}
                 onUpgradeClick={onUpgradeClick}
+                onAddTask={onAddTask}
             />
 
             <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-brand-darkest/50 relative">
@@ -457,8 +460,8 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                                 <button
                                     onClick={() => setFilterImpacted(!filterImpacted)}
                                     className={`px-6 py-2 rounded-lg font-bold text-sm transition-all z-10 ${filterImpacted
-                                            ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
-                                            : 'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20'
+                                        ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
+                                        : 'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20'
                                         }`}
                                 >
                                     {filterImpacted ? 'Mostrar Todas' : 'Ver Impactos'}
@@ -651,8 +654,8 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                                                             }
                                                         }}
                                                         className={`px-4 py-2 rounded-md text-xs font-bold transition-all ${isActive
-                                                                ? 'bg-[#1c2333] shadow-lg border border-white/10 ' + statusOpt.color
-                                                                : 'text-gray-500 hover:text-white hover:bg-white/5'
+                                                            ? 'bg-[#1c2333] shadow-lg border border-white/10 ' + statusOpt.color
+                                                            : 'text-gray-500 hover:text-white hover:bg-white/5'
                                                             }`}
                                                     >
                                                         {statusOpt.label}
@@ -709,18 +712,18 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                                                     )}
                                                     {restriction.due_date && (
                                                         <span className={`${(() => {
-                                                                const task = baselineTasks.find(t => String(t.id) === String(restriction.baseline_task_id));
-                                                                if (task && restriction.status !== RestrictionStatus.Resolved) {
-                                                                    const startDate = new Date(task.startDate);
-                                                                    const impactLimit = new Date(startDate);
-                                                                    impactLimit.setDate(startDate.getDate() - 2);
+                                                            const task = baselineTasks.find(t => String(t.id) === String(restriction.baseline_task_id));
+                                                            if (task && restriction.status !== RestrictionStatus.Resolved) {
+                                                                const startDate = new Date(task.startDate);
+                                                                const impactLimit = new Date(startDate);
+                                                                impactLimit.setDate(startDate.getDate() - 2);
 
-                                                                    if (new Date(restriction.due_date!) > impactLimit) {
-                                                                        return 'text-red-400 font-bold animate-pulse';
-                                                                    }
+                                                                if (new Date(restriction.due_date!) > impactLimit) {
+                                                                    return 'text-red-400 font-bold animate-pulse';
                                                                 }
-                                                                return 'text-white font-bold';
-                                                            })()
+                                                            }
+                                                            return 'text-white font-bold';
+                                                        })()
                                                             }`}>
                                                             Previsão Conclusão: {new Date(restriction.due_date).toLocaleDateString('pt-BR')}
                                                             {(() => {

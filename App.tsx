@@ -25,11 +25,12 @@ import OrgChartPage from './components/OrgChartPage';
 import OrgSummaryPage from './components/OrgSummaryPage';
 import TeamsPage from './components/TeamsPage';
 import VisualControlPage from './components/VisualControlPage';
+import SystemPage from './components/SystemPage';
 import { Task, Restriction } from './types';
 import { DataProvider, useData } from './context/DataProvider';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
-type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'warRoom' | 'restrictions' | 'cost' | 'podcast' | 'checkoutSummary' | 'orgChart' | 'orgSummary' | 'visualControl';
+type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'warRoom' | 'restrictions' | 'cost' | 'podcast' | 'checkoutSummary' | 'orgChart' | 'orgSummary' | 'visualControl' | 'system';
 
 const AppContent: React.FC = () => {
   const {
@@ -44,16 +45,32 @@ const AppContent: React.FC = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
+  // Safety timeout: if loading takes more than 8 seconds, force exit loading screen
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+  useEffect(() => {
+    if (isLoading) {
+      const timer = setTimeout(() => {
+        console.warn('Loading timed out after 8 seconds. Forcing app to render.');
+        setLoadingTimedOut(true);
+      }, 8000);
+      return () => clearTimeout(timer);
+    } else {
+      setLoadingTimedOut(false);
+    }
+  }, [isLoading]);
+
+  const effectiveLoading = isLoading && !loadingTimedOut;
+
   // Efeito para redirecionar para login se não houver usuário, ou moduleSelection se houver e a tela for login
   useEffect(() => {
-    if (!isLoading) {
+    if (!effectiveLoading) {
       if (!currentUser && screen !== 'register') {
         setScreen('login');
       } else if (currentUser && (screen === 'login' || screen === 'register')) {
         setScreen('moduleSelection');
       }
     }
-  }, [currentUser, isLoading, screen]);
+  }, [currentUser, effectiveLoading, screen]);
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -61,7 +78,7 @@ const AppContent: React.FC = () => {
 
   // Efeito para lidar com deep links (ex: redirecionamento do WhatsApp)
   useEffect(() => {
-    if (!isLoading && currentUser && tasks.length > 0) {
+    if (!effectiveLoading && currentUser && tasks.length > 0) {
       const params = new URLSearchParams(window.location.search);
       const taskId = params.get('taskId');
       const action = params.get('action');
@@ -87,7 +104,7 @@ const AppContent: React.FC = () => {
         }
       }
     }
-  }, [isLoading, currentUser, tasks]);
+  }, [effectiveLoading, currentUser, tasks]);
 
   const handleOpenTaskModal = (task: Task | null) => {
     setEditingTask(task);
@@ -156,7 +173,7 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no Lean Solut
 
 
   const renderContent = () => {
-    if (isLoading) {
+    if (effectiveLoading) {
       return (
         <div className="relative min-h-screen flex flex-col items-center justify-center bg-[#020202] overflow-hidden font-sans selection:bg-brand-accent selection:text-white">
           {/* Dynamic Background */}
@@ -230,8 +247,10 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no Lean Solut
       onNavigateToOrgSummary: () => setScreen('orgSummary'),
       onNavigateToTeams: () => setScreen('teams'),
       onNavigateToVisualControl: () => setScreen('visualControl'),
+      onNavigateToSystem: () => setScreen('system'),
       onUpgradeClick: () => setIsUpgradeModalOpen(true),
       onNavigateToHome: handleNavigateToHome,
+      onAddTask: () => handleOpenTaskModal(null),
     };
 
     switch (screen) {
@@ -316,6 +335,14 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no Lean Solut
           showToast={showToast}
         />
       );
+      case 'system': return (
+        <SystemPage
+          {...navigationProps}
+          user={currentUser}
+          activeScreen={screen}
+          showToast={showToast}
+        />
+      );
       default: return (
         <ModuleSelectionScreen
           onSelectPlanning={() => setScreen('dashboard')}
@@ -350,7 +377,7 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no Lean Solut
           onUpgradeClick={() => setIsUpgradeModalOpen(true)}
         />
       )}
-      {currentUser && !isLoading && screen !== 'warRoom' && (
+      {currentUser && !effectiveLoading && screen !== 'warRoom' && (
         <AIAssistant
           tasks={tasks}
           baselineTasks={baselineTasks}
