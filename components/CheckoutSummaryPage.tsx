@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { formatNumberBR } from '../utils/formatters';
 import { useData } from '../context/DataProvider';
 import Sidebar from './Sidebar';
@@ -31,6 +31,43 @@ interface CheckoutSummaryPageProps {
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
+const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR');
+};
+
+const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+};
+
+const getTranslatedField = (field: string) => {
+    const translations: Record<string, string> = {
+        status: 'Status',
+        progress: 'Avanço',
+        actualQuantity: 'Qtd Realizada',
+        actualStartDate: 'Início Real',
+        actualEndDate: 'Fim Real'
+    };
+    return translations[field] || field;
+};
+
+const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+        'ToDo': 'Pendente',
+        'InProgress': 'Em Progresso',
+        'Completed': 'Concluído'
+    };
+    return labels[status] || status;
+};
+
+const calculateDailyQuantity = (metadata: any) => {
+    if (!metadata || !metadata.startDate || !metadata.dueDate || !metadata.quantity) return null;
+    const start = new Date(metadata.startDate);
+    const end = new Date(metadata.dueDate);
+    const duration = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    if (duration <= 0) return formatNumberBR(metadata.quantity, 2);
+    return formatNumberBR(metadata.quantity / duration, 2);
+};
+
 const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
     onNavigateToHome,
     onNavigateToDashboard,
@@ -61,6 +98,17 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
     const [filterStatus, setFilterStatus] = React.useState('');
     const [deletingLogId, setDeletingLogId] = React.useState<string | null>(null);
     const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null);
+    const [viewMode, setViewMode] = React.useState<'checkouts' | 'pendencias'>('checkouts');
+    const [pendenciaDate, setPendenciaDate] = React.useState('');
+
+    // ==== OTIMIZAÇÃO: Map de tarefas por ID para lookup O(1) em vez de O(n) ====
+    const taskMap = useMemo(() => {
+        const map = new Map<string, typeof tasks[0]>();
+        for (const t of tasks) {
+            map.set(t.id, t);
+        }
+        return map;
+    }, [tasks]);
 
     const handleDeleteCheckout = async (logId: string) => {
         setDeletingLogId(logId);
@@ -81,82 +129,111 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
         if (!success && error) showToast(`Erro ao sair: ${error}`, 'error');
     };
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('pt-BR');
-    };
+    // ==== OTIMIZAÇÃO: useMemo para valores de filtros ====
+    const users = useMemo(
+        () => Array.from(new Set(checkoutLogs.map(log => log.user_name))).sort(),
+        [checkoutLogs]
+    );
+    const locations = useMemo(
+        () => Array.from(new Set(tasks.map(t => t.location).filter(Boolean))).sort(),
+        [tasks]
+    );
+    const disciplines = useMemo(
+        () => Array.from(new Set(tasks.map(t => t.discipline).filter(Boolean))).sort(),
+        [tasks]
+    );
+    const availableDates = useMemo(() => {
+        return Array.from(new Set(checkoutLogs.map(log => formatDate(log.created_at)))).sort((a, b) => {
+            return new Date((b as string).split('/').reverse().join('-')).getTime() - new Date((a as string).split('/').reverse().join('-')).getTime();
+        });
+    }, [checkoutLogs]);
 
-    const formatTime = (dateString: string) => {
-        return new Date(dateString).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    };
+    // ==== OTIMIZAÇÃO: useMemo para logs filtrados ====
+    const filteredLogs = useMemo(() => {
+        return checkoutLogs.filter(log => {
+            const task = taskMap.get(log.task_id);
+            const metadata = log.changes._metadata;
 
-    // Extract unique values for filters
-    const users = Array.from(new Set(checkoutLogs.map(log => log.user_name))).sort();
-    const locations = Array.from(new Set(tasks.map(t => t.location).filter(Boolean))).sort();
-    const disciplines = Array.from(new Set(tasks.map(t => t.discipline).filter(Boolean))).sort();
-    const availableDates = Array.from(new Set(checkoutLogs.map(log => formatDate(log.created_at)))).sort((a, b) => {
-        return new Date((b as string).split('/').reverse().join('-')).getTime() - new Date((a as string).split('/').reverse().join('-')).getTime();
-    });
+            const location = metadata?.location || task?.location;
+            const discipline = task?.discipline;
+            const status = log.changes.status?.to;
 
-    // Filter logs
-    const filteredLogs = checkoutLogs.filter(log => {
-        const task = tasks.find(t => t.id === log.task_id);
-        const metadata = log.changes._metadata;
+            if (filterLocation && location !== filterLocation) return false;
+            if (filterUser && log.user_name !== filterUser) return false;
+            if (selectedDates.length > 0 && !selectedDates.includes(formatDate(log.created_at))) return false;
+            if (filterDiscipline && discipline !== filterDiscipline) return false;
+            if (filterStatus && status !== filterStatus) return false;
 
-        const location = metadata?.location || task?.location;
-        const discipline = task?.discipline;
-        const status = log.changes.status?.to;
+            return true;
+        });
+    }, [checkoutLogs, taskMap, filterLocation, filterUser, selectedDates, filterDiscipline, filterStatus]);
 
-        if (filterLocation && location !== filterLocation) return false;
-        if (filterUser && log.user_name !== filterUser) return false;
+    // ==== OTIMIZAÇÃO: useMemo para agrupamento por dia ====
+    const { logsByDay, days } = useMemo(() => {
+        const grouped = filteredLogs.reduce((acc: Record<string, any[]>, log) => {
+            const day = formatDate(log.created_at);
+            if (!acc[day]) acc[day] = [];
+            acc[day].push(log);
+            return acc;
+        }, {});
 
-        if (selectedDates.length > 0 && !selectedDates.includes(formatDate(log.created_at))) return false;
+        const sortedDays = Object.keys(grouped).sort((a, b) => {
+            return new Date(b.split('/').reverse().join('-')).getTime() - new Date(a.split('/').reverse().join('-')).getTime();
+        });
 
-        if (filterDiscipline && discipline !== filterDiscipline) return false;
-        if (filterStatus && status !== filterStatus) return false;
+        return { logsByDay: grouped, days: sortedDays };
+    }, [filteredLogs]);
 
-        return true;
-    });
+    // ==== PENDÊNCIAS: Só calcula quando está na aba pendências E tem data selecionada ====
+    const pendingCheckouts = useMemo(() => {
+        if (viewMode !== 'pendencias' || !pendenciaDate) return [];
 
-    // Group logs by day
-    const logsByDay = filteredLogs.reduce((acc: Record<string, any[]>, log) => {
-        const day = formatDate(log.created_at);
-        if (!acc[day]) acc[day] = [];
-        acc[day].push(log);
-        return acc;
-    }, {});
+        const dayDate = new Date(pendenciaDate);
+        const dayStr = formatDate(pendenciaDate);
 
-    const days = Object.keys(logsByDay).sort((a, b) => {
-        return new Date(b.split('/').reverse().join('-')).getTime() - new Date(a.split('/').reverse().join('-')).getTime();
-    });
+        // Tarefas previstas para este dia (excluir concluídas)
+        const tasksForDay = tasks.filter(t => {
+            if (!t.startDate || !t.dueDate || !t.assignee) return false;
+            if (t.status === 'Completed') return false; // Excluir concluídas
+            const start = new Date(t.startDate);
+            const end = new Date(t.dueDate);
+            return dayDate >= start && dayDate <= end;
+        });
 
-    const getTranslatedField = (field: string) => {
-        const translations: Record<string, string> = {
-            status: 'Status',
-            progress: 'Avanço',
-            actualQuantity: 'Qtd Realizada',
-            actualStartDate: 'Início Real',
-            actualEndDate: 'Fim Real'
-        };
-        return translations[field] || field;
-    };
+        // Tarefas que tiveram checkout neste dia (por QUALQUER usuário)
+        const checkedOutTaskIds = new Set<string>();
+        for (const log of checkoutLogs) {
+            if (formatDate(log.created_at) === dayStr) {
+                checkedOutTaskIds.add(log.task_id);
+            }
+        }
 
-    const getStatusLabel = (status: string) => {
-        const labels: Record<string, string> = {
-            'ToDo': 'Pendente',
-            'InProgress': 'Em Progresso',
-            'Completed': 'Concluído'
-        };
-        return labels[status] || status;
-    };
+        // Tarefas sem nenhum checkout no dia (de nenhum usuário)
+        const missing: { assignee: string; taskTitle: string; location: string; discipline: string; taskId: string }[] = [];
+        const seenTaskIds = new Set<string>();
 
-    const calculateDailyQuantity = (metadata: any) => {
-        if (!metadata || !metadata.startDate || !metadata.dueDate || !metadata.quantity) return null;
-        const start = new Date(metadata.startDate);
-        const end = new Date(metadata.dueDate);
-        const duration = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-        if (duration <= 0) return formatNumberBR(metadata.quantity, 2);
-        return formatNumberBR(metadata.quantity / duration, 2);
-    };
+        for (const t of tasksForDay) {
+            // Se qualquer usuário fez checkout nesta tarefa no dia, pula
+            if (checkedOutTaskIds.has(t.id)) continue;
+            // Evitar duplicatas
+            if (seenTaskIds.has(t.id)) continue;
+
+            if (filterLocation && t.location !== filterLocation) continue;
+            if (filterDiscipline && t.discipline !== filterDiscipline) continue;
+            if (filterUser && t.assignee !== filterUser) continue;
+
+            missing.push({
+                assignee: t.assignee,
+                taskTitle: t.title,
+                location: t.location || '-',
+                discipline: t.discipline || '-',
+                taskId: t.id
+            });
+            seenTaskIds.add(t.id);
+        }
+
+        return missing;
+    }, [viewMode, pendenciaDate, tasks, checkoutLogs, filterLocation, filterDiscipline, filterUser]);
 
     return (
         <div className="flex h-screen bg-[#060a12] overflow-hidden">
@@ -214,6 +291,34 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                                     Resumo Checkout
                                 </h2>
                                 <p className="text-sm text-brand-med-gray mt-1">Histórico de atualizações e controle de produção.</p>
+                            </div>
+
+                            {/* Toggle: Checkouts / Pendências */}
+                            <div className="flex gap-1 p-1 bg-brand-darkest/60 rounded-xl border border-white/5">
+                                <button
+                                    onClick={() => setViewMode('checkouts')}
+                                    className={`px-5 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 ${viewMode === 'checkouts'
+                                        ? 'bg-brand-accent text-white shadow-lg shadow-brand-accent/20'
+                                        : 'text-brand-med-gray hover:text-white hover:bg-white/5'
+                                        }`}
+                                >
+                                    <HistoryIcon className="w-3.5 h-3.5" />
+                                    Checkouts
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('pendencias')}
+                                    className={`px-5 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 ${viewMode === 'pendencias'
+                                        ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
+                                        : 'text-brand-med-gray hover:text-white hover:bg-white/5'
+                                        }`}
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <line x1="12" y1="8" x2="12" y2="12" />
+                                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                                    </svg>
+                                    Pendências
+                                </button>
                             </div>
                         </div>
 
@@ -358,7 +463,96 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                                 )}
                             </div>
                         </div>
-                        {days.length === 0 ? (
+
+                        {/* ====== ABA PENDÊNCIAS ====== */}
+                        {viewMode === 'pendencias' ? (
+                            <div className="space-y-6">
+                                {/* Seletor de data obrigatório */}
+                                <div className="bg-[#111827]/60 p-6 rounded-2xl border border-red-500/10 shadow-2xl backdrop-blur-xl">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-xl bg-red-500/15 border border-red-500/20 flex items-center justify-center shrink-0">
+                                            <CalendarIcon className="w-5 h-5 text-red-400" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <label className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-2 block">Selecione a data para verificar pendências</label>
+                                            <input
+                                                type="date"
+                                                value={pendenciaDate}
+                                                onChange={(e) => setPendenciaDate(e.target.value)}
+                                                className="bg-brand-darkest/50 border border-white/10 text-white text-sm font-bold rounded-xl px-4 py-2.5 outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-500/10 transition-all w-full max-w-xs cursor-pointer"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {!pendenciaDate ? (
+                                    <div className="bg-[#111827]/40 border border-white/5 rounded-3xl p-16 text-center space-y-4">
+                                        <div className="w-16 h-16 bg-red-500/5 rounded-full flex items-center justify-center mx-auto border border-red-500/10">
+                                            <CalendarIcon className="w-8 h-8 text-red-400/30" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <h3 className="text-lg font-bold text-white">Selecione uma data</h3>
+                                            <p className="text-brand-med-gray max-w-sm mx-auto text-sm">Escolha o dia para verificar quais responsáveis não realizaram o checkout das atividades previstas.</p>
+                                        </div>
+                                    </div>
+                                ) : pendingCheckouts.length === 0 ? (
+                                    <div className="bg-green-500/5 border border-green-500/10 rounded-3xl p-16 text-center space-y-4 animate-fade-in">
+                                        <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto border border-green-500/20">
+                                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-400">
+                                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                                                <polyline points="22 4 12 14.01 9 11.01" />
+                                            </svg>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <h3 className="text-lg font-bold text-green-400">Tudo em dia! ✓</h3>
+                                            <p className="text-brand-med-gray max-w-sm mx-auto text-sm">Todos os responsáveis com atividades previstas para <strong className="text-white">{formatDate(pendenciaDate)}</strong> realizaram o checkout.</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="bg-red-500/5 border border-red-500/15 rounded-2xl p-5 animate-fade-in">
+                                        <div className="flex items-center gap-3 mb-5">
+                                            <div className="w-9 h-9 rounded-lg bg-red-500/15 border border-red-500/20 flex items-center justify-center">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-400">
+                                                    <circle cx="12" cy="12" r="10" />
+                                                    <line x1="12" y1="8" x2="12" y2="12" />
+                                                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                                                </svg>
+                                            </div>
+                                            <div className="flex-1">
+                                                <h4 className="text-sm font-black text-red-400 uppercase tracking-tight">
+                                                    Checkouts Pendentes — {formatDate(pendenciaDate)}
+                                                </h4>
+                                                <p className="text-[10px] text-red-300/60 font-medium">
+                                                    Atividades não concluídas sem atualização neste dia
+                                                </p>
+                                            </div>
+                                            <span className="text-[9px] font-black text-red-400 bg-red-500/10 px-3 py-1.5 rounded-full border border-red-500/15 uppercase tracking-widest">
+                                                {pendingCheckouts.length} pendente{pendingCheckouts.length > 1 ? 's' : ''}
+                                            </span>
+                                        </div>
+
+                                        <div className="grid gap-2">
+                                            {pendingCheckouts.map((m, idx) => (
+                                                <div key={idx} className="flex items-center gap-3 bg-red-500/5 border border-red-500/10 rounded-xl px-4 py-3 hover:bg-red-500/10 transition-all">
+                                                    <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center text-red-400 text-[11px] font-black shrink-0">
+                                                        {m.assignee.charAt(0)}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-[13px] font-bold text-white truncate">{m.assignee}</p>
+                                                        <p className="text-[10px] text-red-300/50 truncate">
+                                                            {m.taskTitle} • {m.location} • {m.discipline}
+                                                        </p>
+                                                    </div>
+                                                    <span className="text-[8px] font-black text-red-400/70 uppercase tracking-widest bg-red-500/10 px-2.5 py-1 rounded-lg shrink-0 border border-red-500/10">
+                                                        Sem checkout
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : /* ABA CHECKOUTS */ days.length === 0 ? (
                             <div className="bg-[#111827]/40 border border-white/5 rounded-3xl p-20 text-center space-y-4">
                                 <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto">
                                     <HistoryIcon className="w-10 h-10 text-brand-med-gray opacity-20" />
@@ -385,7 +579,7 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
 
                                         <div className="grid gap-3">
                                             {logsByDay[day].map((log) => {
-                                                const taskFromState = tasks.find(t => t.id === log.task_id);
+                                                const taskFromState = taskMap.get(log.task_id);
                                                 const metadata = log.changes._metadata || (taskFromState ? {
                                                     location: taskFromState.location,
                                                     corte: taskFromState.corte,
@@ -394,6 +588,9 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                                                     quantity: taskFromState.quantity,
                                                     unit: taskFromState.unit
                                                 } : null);
+
+                                                // FIX: Usar a unidade da tarefa real, não 'un' como fallback genérico
+                                                const taskUnit = metadata?.unit || taskFromState?.unit || '';
 
                                                 const entries = Object.entries(log.changes).filter(([k]) => k !== '_metadata');
                                                 const realDates = entries.filter(([k]) => k === 'actualStartDate' || k === 'actualEndDate');
@@ -558,14 +755,14 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                                                                                     <p className="text-[8px] font-black text-amber-500/70 uppercase">Meta (Dia)</p>
                                                                                     <p className="text-sm text-white font-black">
                                                                                         {calculateDailyQuantity(metadata) || "0,00"}
-                                                                                        <span className="text-[10px] ml-1 opacity-50">{metadata?.unit || 'un'}</span>
+                                                                                        {taskUnit && <span className="text-[10px] ml-1 opacity-50">{taskUnit}</span>}
                                                                                     </p>
                                                                                 </div>
                                                                                 <div>
                                                                                     <p className="text-[8px] font-black text-amber-500/70 uppercase">Total Previsto</p>
                                                                                     <p className="text-sm text-white font-black">
                                                                                         {formatNumberBR(metadata?.quantity || 0, 2)}
-                                                                                        <span className="text-[10px] ml-1 opacity-50">{metadata?.unit || 'un'}</span>
+                                                                                        {taskUnit && <span className="text-[10px] ml-1 opacity-50">{taskUnit}</span>}
                                                                                     </p>
                                                                                 </div>
                                                                             </div>
@@ -589,10 +786,10 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                                                                                                     {field === 'progress'
                                                                                                         ? `+${delta.toFixed(1)}%`
                                                                                                         : `+${delta.toFixed(2)}`}
-                                                                                                    {field !== 'progress' && <span className="text-[10px] ml-1 opacity-70">{metadata?.unit || 'un'}</span>}
+                                                                                                    {field !== 'progress' && taskUnit && <span className="text-[10px] ml-1 opacity-70">{taskUnit}</span>}
                                                                                                 </span>
                                                                                                 <span className="text-[9px] text-white/30 font-bold">
-                                                                                                    (`${field === "progress" ? formatNumberBR(values.to, 1) + "%" : formatNumberBR(values.to, 2) + (metadata?.unit || "un")}`)
+                                                                                                    ({field === "progress" ? formatNumberBR(values.to, 1) + "%" : formatNumberBR(values.to, 2) + (taskUnit ? ` ${taskUnit}` : "")})
                                                                                                 </span>
                                                                                             </div>
                                                                                         </div>
