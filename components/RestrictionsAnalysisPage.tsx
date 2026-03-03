@@ -274,7 +274,7 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
             });
 
             const prompt = `
-                Você é um consultor especialista em Lean Construction integrado ao sistema 'Lean Solution'.
+                Você é um consultor especialista em Lean Construction integrado ao sistema 'ELOS - Egtc Lean Operational System'.
                 Sua tarefa é analisar as restrições ativas da obra e fornecer um resumo geral e sugestões de tomada de decisão estratégica.
 
                 **Dados Atuais (Restrições Ativas):**

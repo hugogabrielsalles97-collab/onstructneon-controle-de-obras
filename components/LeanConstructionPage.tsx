@@ -51,6 +51,21 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
     const [selectedTask, setSelectedTask] = useState<LeanTask | null>(null);
     const [isMainFormOpen, setIsMainFormOpen] = useState(false);
     const [isSubFormOpen, setIsSubFormOpen] = useState(false);
+
+    // State to keep track of excluded days for a task, persisting via localStorage
+    const [excludedDays, setExcludedDays] = useState<{ [taskTitle: string]: string[] }>(() => {
+        try {
+            const saved = localStorage.getItem('@onstructneon/excludedDays');
+            return saved ? JSON.parse(saved) : {};
+        } catch {
+            return {};
+        }
+    });
+
+    useEffect(() => {
+        localStorage.setItem('@onstructneon/excludedDays', JSON.stringify(excludedDays));
+    }, [excludedDays]);
+
     const [editingSubTaskId, setEditingSubTaskId] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; id: string; type: 'task' | 'subtask' | null }>({ isOpen: false, id: '', type: null });
@@ -472,6 +487,10 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                     };
                 }
 
+                if (excludedDays[groupKey] && excludedDays[groupKey].includes(date)) {
+                    return; // skip this day completely
+                }
+
                 if (!taskStats[groupKey].daily[date]) {
                     taskStats[groupKey].daily[date] = { produced: 0, manHours: 0, taskIds: new Set() };
                 }
@@ -533,7 +552,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                 lastProd: history.length > 0 ? history[history.length - 1].cumProductivity : '0.000'
             };
         });
-    }, [checkoutLogs, tasks, analyticsStartDate, analyticsEndDate, analyticsAssigneeFilter]);
+    }, [checkoutLogs, tasks, analyticsStartDate, analyticsEndDate, analyticsAssigneeFilter, excludedDays]);
 
     function fmtDateBR(isoDate: string) {
         const [y, m, d] = isoDate.split('-');
@@ -780,6 +799,7 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                                     <th className="py-4 px-2 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Mão de Obra</th>
                                                                     <th className="py-4 px-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest text-center">Produt. Dia</th>
                                                                     <th className="py-4 px-2 text-[10px] font-black text-cyan-400 uppercase tracking-widest text-center">RUP Dia</th>
+                                                                    <th className="py-4 px-2 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center w-10">Ações</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody className="divide-y divide-white/[0.02]">
@@ -790,8 +810,25 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                                                                         <td className="py-4 px-2 text-sm font-bold text-gray-300 text-center">{formatBR(day.manHours, 1)} <span className="text-[10px] opacity-40 font-black">Hh</span></td>
                                                                         <td className="py-4 px-2 text-sm font-black text-indigo-400 text-center">{formatBR(day.productivity, 3)}</td>
                                                                         <td className="py-4 px-2 text-sm font-black text-cyan-400 text-center">{formatBR(day.rup, 3)}</td>
+                                                                        <td className="py-4 px-2 text-center">
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    if (window.confirm('Excluir os dados deste dia do cálculo? Eles deixarão de participar dos acumulados permanentemente (até que sejam restaurados manualmente).')) {
+                                                                                        setExcludedDays(prev => {
+                                                                                            const cur = prev[stat.taskTitle] || [];
+                                                                                            return { ...prev, [stat.taskTitle]: [...cur, day.date] };
+                                                                                        });
+                                                                                    }
+                                                                                }}
+                                                                                className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover/row:opacity-100"
+                                                                                title="Excluir dia do cálculo"
+                                                                            >
+                                                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                                            </button>
+                                                                        </td>
                                                                     </tr>
                                                                 ))}
+
                                                             </tbody>
                                                         </table>
                                                     </div>

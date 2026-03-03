@@ -77,9 +77,9 @@ const CostPage: React.FC<CostPageProps> = ({
                             <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center shadow-lg shadow-green-600/20">
                                 <ConstructionIcon className="w-6 h-6 text-white" />
                             </div>
-                            <h1 className="text-2xl font-black text-white tracking-tighter">LEAN</h1>
+                            <h1 className="text-2xl font-black text-white tracking-tighter">ELOS</h1>
                         </div>
-                        <p className="text-[10px] text-green-500 font-black uppercase tracking-[0.2em] ml-13 mt-[-4px] ml-[52px]">SOLUTION • V1.0</p>
+                        <p className="text-[8px] text-green-500 font-black uppercase tracking-[0.1em] ml-13 mt-[-4px] ml-[52px]">Egtc Lean Operational System</p>
                     </div>
 
                     <nav className="space-y-2">

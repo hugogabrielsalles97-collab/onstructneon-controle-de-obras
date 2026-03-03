@@ -96,7 +96,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister, onVisit
               <ConstructionIcon className="relative w-16 h-16 text-brand-accent drop-shadow-[0_0_15px_rgba(227,90,16,0.5)]" />
             </div>
             <h1 className="text-4xl font-black text-center text-white tracking-tighter uppercase italic">
-              Lean <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-accent to-orange-400">Solution</span>
+              ELOS
             </h1>
             <p className="text-center text-brand-med-gray font-bold uppercase tracking-[0.3em] text-[10px] mt-2 opacity-80">
               Sistema de Gestão de Obras
@@ -187,7 +187,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister, onVisit
         </div>
 
         <p className="text-center text-[10px] text-gray-600 mt-6 font-mono opacity-50">
-          &copy; 2026 Lean Solution.
+          &copy; 2026 ELOS. Egtc Lean Operational System.
         </p>
       </div>
     </div>

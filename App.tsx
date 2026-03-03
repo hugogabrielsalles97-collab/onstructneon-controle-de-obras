@@ -136,7 +136,7 @@ const AppContent: React.FC = () => {
     const message = `
 *Nova Tarefa Atribuída* 🏗️
 
-Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no Lean Solution.
+Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
 
 *Tarefa:* ${task.title}
 *Disciplina:* ${task.discipline} / ${task.level}
@@ -200,7 +200,7 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no Lean Solut
             </div>
 
             <h1 className="text-3xl font-black text-white tracking-tighter uppercase italic mb-1">
-              Lean <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-accent to-orange-400">Solution</span>
+              ELOS
             </h1>
 
             <p className="text-[10px] text-brand-med-gray font-bold uppercase tracking-[0.4em] mb-10 opacity-70">

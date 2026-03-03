@@ -97,7 +97,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks, activeS
       const prompt = isCostModule
         ? `
             Você é 'Hugo', um assistente de IA especialista em GESTÃO FINANCEIRA E CUSTOS de obras.
-            Você está no Módulo de Custos da plataforma Lean Solution.
+            Você está no Módulo de Custos da plataforma ELOS.
             Responda de forma concisa.
 
             **Contexto Financeiro:**
@@ -262,7 +262,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks, activeS
                   </button>
                 </form>
                 <p className="text-[10px] text-gray-600 text-center mt-3 font-mono">
-                  Hugo AI powered by Lean Solution
+                  Hugo AI powered by ELOS
                 </p>
               </div>
             </>

@@ -144,7 +144,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin, show
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-6">
                 <ConstructionIcon className="w-10 h-10 text-brand-accent" />
-                <span className="text-xl font-black text-white italic tracking-tighter">LEAN SOLUTION</span>
+                <span className="text-xl font-black text-white italic tracking-tighter">ELOS</span>
               </div>
               <h2 className="text-3xl font-bold text-white mb-4 leading-tight">Construa o futuro <br /><span className="text-brand-accent">com inteligência.</span></h2>
               <p className="text-brand-med-gray text-sm leading-relaxed">
@@ -171,9 +171,9 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin, show
                   ))}
                 </ul>
               </div>
-              <div className="text-xs text-gray-500 font-mono">
-                &copy; 2026 Lean Solution.
-              </div>
+              <p className="text-center text-[10px] text-gray-600 mt-6 font-mono opacity-50">
+                &copy; 2026 ELOS. Egtc Lean Operational System.
+              </p>
             </div>
           </div>
 

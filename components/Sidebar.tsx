@@ -54,10 +54,10 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                         <div className={`w-10 h-10 ${accentBg} rounded-xl flex items-center justify-center shadow-lg ${accentShadow}`}>
                             <ConstructionIcon className="w-6 h-6 text-white" />
                         </div>
-                        <h1 className="text-2xl font-black text-white tracking-tighter">LEAN</h1>
+                        <h1 className="text-2xl font-black text-white tracking-tighter">ELOS</h1>
                     </div>
-                    <p className={`text-[10px] ${accentText} font-black uppercase tracking-[0.2em] ml-[52px] mt-[-4px]`}>
-                        SOLUTION • V1.0
+                    <p className={`text-[8px] ${accentText} font-black uppercase tracking-[0.15em] ml-[52px] mt-[-4px] break-words leading-tight`}>
+                        Egtc Lean Operational System
                     </p>
                 </div>
 

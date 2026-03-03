@@ -51,7 +51,7 @@ const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({ onSelectP
             <div className="relative z-20 p-6 flex justify-between items-center max-w-7xl mx-auto w-full">
                 <div className="flex items-center gap-3 opacity-80 hover:opacity-100 transition-opacity cursor-default">
                     <ConstructionIcon className="w-6 h-6 text-brand-accent" />
-                    <span className="text-sm font-bold tracking-widest uppercase text-brand-med-gray">Lean Solution</span>
+                    <span className="text-sm font-bold tracking-widest uppercase text-brand-med-gray">ELOS</span>
                 </div>
                 <button
                     onClick={handleLogout}
@@ -71,7 +71,6 @@ const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({ onSelectP
                         Selecione o módulo de gestão para acessar.
                     </p>
                 </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl px-4 animate-fade-in-up delay-100">
                     {/* Card: Planejamento */}
                     <button
@@ -165,7 +164,7 @@ const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({ onSelectP
                 </div>
 
                 <p className="mt-12 text-[10px] text-gray-600 font-mono tracking-widest uppercase opacity-50">
-                    Lean Solution V1.0 • Powered by Hugo AI
+                    ELOS V1.0 • Powered by Hugo AI
                 </p>
             </main>
         </div>

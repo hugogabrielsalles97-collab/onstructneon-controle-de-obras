@@ -139,7 +139,7 @@ const Header: React.FC<HeaderProps> = ({
               disabled={!onNavigateToHome}
             >
               <ConstructionIcon className={`h-6 w-6 ${isCostModule ? 'text-green-500' : 'text-brand-accent'}`} />
-              <span className="ml-2.5 text-lg font-black text-white italic tracking-tighter uppercase">LEAN SOLUTION</span>
+              <span className="ml-2.5 text-lg font-black text-white italic tracking-tighter uppercase">ELOS</span>
             </button>
           </div>
 
