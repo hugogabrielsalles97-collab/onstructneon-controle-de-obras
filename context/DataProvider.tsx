@@ -20,6 +20,7 @@ interface DataContextType {
     checkoutLogs: any[];
     deleteCheckoutLog: (logId: string) => Promise<{ success: boolean; error?: string }>;
     isLoading: boolean;
+    isLoadingTasks: boolean;
     refreshData: () => Promise<void>;
     saveTask: (task: Task) => Promise<{ success: boolean; error?: string }>;
     deleteTask: (taskId: string) => Promise<{ success: boolean; error?: string }>;
@@ -497,7 +498,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     return (
         <DataContext.Provider value={{
-            session, currentUser: currentUser || null, allUsers, tasks, baselineTasks, currentScheduleTasks, restrictions, leanTasks, costItems, measurements, cashFlow, checkoutLogs, isLoading, refreshData,
+            session, currentUser: currentUser || null, allUsers, tasks, baselineTasks, currentScheduleTasks, restrictions, leanTasks, costItems, measurements, cashFlow, checkoutLogs, isLoading, isLoadingTasks: loadingTasks, refreshData,
             saveTask, deleteTask, importBaseline, importCurrentSchedule, saveRestriction, updateRestriction, deleteRestriction, saveLeanTask, deleteLeanTask, deleteCheckoutLog,
             saveCatalogItem, deleteCatalogItem, catalogs,
             baselineCutOffDateStr,

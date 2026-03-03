@@ -12,46 +12,62 @@ export interface CatalogItem {
 
 // Helper function to fetch all rows (bypass Supabase 1000 limit)
 const fetchAllRows = async (tableName: string) => {
-    let allRows: any[] = [];
-    let from = 0;
-    const step = 1000;
-    const MAX_ATTEMPTS = 50; // Safety cap to prevent infinite loops
-    let attempts = 0;
-
     try {
-        while (attempts < MAX_ATTEMPTS) {
-            attempts++;
-            // Setup a promise that rejects after 15 seconds as a safety timeout
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error(`Timeout fetching ${tableName}`)), 15000)
-            );
+        // 1. Obter o count total primeiro para saber quantas páginas buscar
+        const { count, error: countError } = await supabase
+            .from(tableName)
+            .select('*', { count: 'exact', head: true });
 
-            const fetchPromise = supabase
-                .from(tableName)
-                .select('*')
-                .range(from, from + step - 1);
+        if (countError) throw countError;
+        if (!count) return [];
 
-            const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
+        const step = 1000;
+        const totalPages = Math.ceil(count / step);
 
-            if (error) {
-                console.error(`Error fetching ${tableName}:`, error);
-                throw error;
-            }
-
-            if (data && data.length > 0) {
-                allRows = [...allRows, ...data];
-                if (data.length < step) break; // End of data
-                from += step;
-            } else {
-                break;
-            }
+        // Se for apenas uma página, busca direto
+        if (totalPages === 1) {
+            const { data, error } = await supabase.from(tableName).select('*');
+            if (error) throw error;
+            return data || [];
         }
+
+        // 2. Criar promessas para buscar todas as páginas em PARALELO
+        const promises = [];
+        for (let i = 0; i < totalPages; i++) {
+            const from = i * step;
+            promises.push(
+                supabase
+                    .from(tableName)
+                    .select('*')
+                    .range(from, from + step - 1)
+                    .then(({ data, error }) => {
+                        if (error) throw error;
+                        return data || [];
+                    })
+            );
+        }
+
+        // 3. Aguardar todas as buscas terminarem
+        const results = await Promise.all(promises);
+
+        // 4. Achatar o array de resultados
+        return results.flat();
     } catch (err) {
-        console.error(`Fatal error in fetchAllRows for ${tableName}:`, err);
-        // Return whatever we have so far instead of crashing everything
+        console.error(`Erro crítico ao buscar ${tableName} em paralelo:`, err);
+
+        // Fallback para busca sequencial segura caso a paralela falhe (ex: limite de conexões)
+        let allRows: any[] = [];
+        let from = 0;
+        const step = 1000;
+        while (true) {
+            const { data, error } = await supabase.from(tableName).select('*').range(from, from + step - 1);
+            if (error || !data || data.length === 0) break;
+            allRows = [...allRows, ...data];
+            if (data.length < step) break;
+            from += step;
+        }
         return allRows;
     }
-    return allRows;
 };
 
 export const useTasks = (enabled: boolean = true) => {

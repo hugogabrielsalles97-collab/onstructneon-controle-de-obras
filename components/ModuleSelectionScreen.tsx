@@ -96,8 +96,14 @@ const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({ onSelectP
 
                     {/* Card: Organograma */}
                     <button
-                        onClick={onSelectOrg}
-                        className="group relative h-[300px] bg-[#111827]/40 rounded-3xl border border-white/5 overflow-hidden transition-all duration-500 hover:border-blue-500/50 hover:shadow-[0_0_50px_-10px_rgba(59,130,246,0.3)] hover:-translate-y-2 text-left"
+                        onClick={() => {
+                            if (user.role !== 'Executor') {
+                                onSelectOrg();
+                            } else {
+                                showToast('Acesso restrito a gestores.', 'error');
+                            }
+                        }}
+                        className={`group relative h-[300px] bg-[#111827]/40 rounded-3xl border border-white/5 overflow-hidden transition-all duration-500 hover:border-blue-500/50 hover:shadow-[0_0_50px_-10px_rgba(59,130,246,0.3)] hover:-translate-y-2 text-left ${user.role === 'Executor' ? 'opacity-75' : ''}`}
                     >
                         <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                         <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:opacity-40 group-hover:scale-110 transition-transform duration-700">
@@ -110,12 +116,14 @@ const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({ onSelectP
                             </div>
                             <h2 className="text-2xl font-bold text-white mb-2 group-hover:text-blue-500 transition-colors flex items-center gap-3">
                                 Organograma
-                                <span className={`text-[8px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded-full font-black tracking-widest uppercase`}>
-                                    Equipe
+                                <span className={`text-[8px] ${user.role === 'Executor' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'} border px-1.5 py-0.5 rounded-full font-black tracking-widest uppercase`}>
+                                    {user.role === 'Executor' ? 'Acesso Restrito' : 'Equipe'}
                                 </span>
                             </h2>
                             <p className="text-xs text-brand-med-gray font-medium leading-relaxed max-w-[80%] group-hover:text-gray-300 transition-colors">
-                                Resumo de colaboradores por função, hierarquia e estrutura da obra.
+                                {user.role === 'Executor'
+                                    ? 'Apenas GESTORES podem visualizar a estrutura hierárquica e resumo de pessoal.'
+                                    : 'Resumo de colaboradores por função, hierarquia e estrutura da obra.'}
                             </p>
                         </div>
                     </button>

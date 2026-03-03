@@ -65,7 +65,7 @@ const initialFilters = {
 };
 
 const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToHome, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToSystem, onUpgradeClick, onAddTask, showToast }) => {
-  const { currentUser: user, tasks, allUsers, baselineTasks, signOut, deleteTask } = useData();
+  const { currentUser: user, tasks, allUsers, baselineTasks, signOut, deleteTask, isLoadingTasks } = useData();
   const { data: orgMembers } = useOrgMembers();
   const [filters, setFilters] = useState(initialFilters);
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'dueDate', direction: 'asc' });
@@ -121,28 +121,36 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     setFilters(initialFilters);
   };
 
-  const getEngineerForAssignee = useCallback((assignee: string) => {
-    if (!orgMembers || !allUsers) return null;
-    const selectedUser = allUsers.find(u => u.fullName === assignee);
-    let currentMember = orgMembers.find(m =>
-      (selectedUser && m.user_id === selectedUser.id) ||
-      m.name === assignee
-    );
+  // OTIMIZAÇÃO: Mapeamento de Engenheiros por Responsável (O(N) uma única vez)
+  const engineerByAssigneeMap = useMemo(() => {
+    if (!orgMembers || !allUsers) return new Map<string, string>();
 
-    if (!currentMember) return null;
+    const map = new Map<string, string>();
+    const memberById = new Map<string, typeof orgMembers[0]>();
+    orgMembers.forEach(m => memberById.set(m.id, m));
 
-    let parent = orgMembers.find(m => m.id === currentMember?.parent_id);
-    let topParent = null;
+    allUsers.forEach(u => {
+      let currentMember = orgMembers.find(m => m.user_id === u.id || m.name === u.fullName);
+      if (!currentMember) return;
 
-    while (parent) {
-      if (parent.role.toLowerCase().includes('eng')) return parent.name;
-      if (!parent.parent_id) {
-        topParent = parent;
-        break;
+      let parent = memberById.get(currentMember.parent_id || '');
+      let topParent = null;
+
+      while (parent) {
+        if (parent.role.toLowerCase().includes('eng')) {
+          map.set(u.fullName, parent.name);
+          return;
+        }
+        if (!parent.parent_id) {
+          topParent = parent;
+          break;
+        }
+        parent = memberById.get(parent.parent_id);
       }
-      parent = orgMembers.find(m => m.id === parent?.parent_id);
-    }
-    return topParent?.name || null;
+      if (topParent) map.set(u.fullName, topParent.name);
+    });
+
+    return map;
   }, [orgMembers, allUsers]);
 
   const uniqueOptions = useMemo(() => {
@@ -157,7 +165,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     visibleTasks.forEach(task => {
       if (task.assignee) {
         assignees.add(task.assignee);
-        const eng = getEngineerForAssignee(task.assignee);
+        const eng = engineerByAssigneeMap.get(task.assignee);
         if (eng) engineers.add(eng);
       }
       if (task.discipline) disciplines.add(task.discipline);
@@ -176,63 +184,59 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
       support: Array.from(supports).sort(),
       engineer: Array.from(engineers).sort(),
     };
-  }, [visibleTasks, getEngineerForAssignee]);
+  }, [visibleTasks, engineerByAssigneeMap]);
 
   const filteredAndSortedTasks = useMemo(() => {
-    let filtered = visibleTasks.filter(task => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const dueDate = new Date(task.dueDate + 'T00:00:00');
-      const isOverdue = dueDate < today && task.status !== TaskStatus.Completed;
+    const todayNum = new Date().setHours(0, 0, 0, 0);
+    const filterStartDateNum = filters.startDate ? new Date(filters.startDate + 'T00:00:00').getTime() : null;
+    const filterEndDateNum = filters.endDate ? new Date(filters.endDate + 'T00:00:00').getTime() : null;
 
-      let matchesStatus;
-      if (filters.status === 'all') {
-        matchesStatus = true;
-      } else if (filters.status === 'overdue') {
-        matchesStatus = isOverdue;
-      } else {
-        matchesStatus = task.status === filters.status;
+    let filtered = visibleTasks.filter(task => {
+      const taskDueDateNum = new Date(task.dueDate + 'T00:00:00').getTime();
+      const isOverdue = taskDueDateNum < todayNum && task.status !== TaskStatus.Completed;
+
+      let matchesStatus = true;
+      if (filters.status === 'overdue') matchesStatus = isOverdue;
+      else if (filters.status !== 'all') matchesStatus = task.status === filters.status;
+
+      if (!matchesStatus) return false;
+
+      // Filtros de texto (Case Insensitive)
+      if (filters.assignee && !task.assignee.toLowerCase().includes(filters.assignee.toLowerCase())) return false;
+      if (filters.discipline && !task.discipline.toLowerCase().includes(filters.discipline.toLowerCase())) return false;
+      if (filters.level && !task.level.toLowerCase().includes(filters.level.toLowerCase())) return false;
+      if (filters.location && !task.location.toLowerCase().includes(filters.location.toLowerCase())) return false;
+      if (filters.corte && (!task.corte || !task.corte.toLowerCase().includes(filters.corte.toLowerCase()))) return false;
+      if (filters.support && !task.support.toLowerCase().includes(filters.support.toLowerCase())) return false;
+
+      // Filtros de Data (usando timestamps numéricos para velocidade)
+      if (filterStartDateNum) {
+        const taskStartNum = new Date(task.startDate + 'T00:00:00').getTime();
+        if (taskStartNum < filterStartDateNum) return false;
+      }
+      if (filterEndDateNum && taskDueDateNum > filterEndDateNum) return false;
+
+      // Filtro de Engenheiro
+      if (filters.engineer) {
+        const eng = engineerByAssigneeMap.get(task.assignee);
+        if (eng !== filters.engineer) return false;
       }
 
-      const matchesAssignee = filters.assignee === '' || task.assignee.toLowerCase().includes(filters.assignee.toLowerCase());
-      const matchesDiscipline = filters.discipline === '' || task.discipline.toLowerCase().includes(filters.discipline.toLowerCase());
-      const matchesLevel = filters.level === '' || task.level.toLowerCase().includes(filters.level.toLowerCase());
-      const matchesLocation = filters.location === '' || task.location.toLowerCase().includes(filters.location.toLowerCase());
-      const matchesCorte = filters.corte === '' || (task.corte && task.corte.toLowerCase().includes(filters.corte.toLowerCase()));
-      const matchesSupport = filters.support === '' || task.support.toLowerCase().includes(filters.support.toLowerCase());
-
-      const taskStartDate = new Date(task.startDate + 'T00:00:00');
-      const taskDueDate = new Date(task.dueDate + 'T00:00:00');
-
-      const filterStartDate = filters.startDate ? new Date(filters.startDate + 'T00:00:00') : null;
-      const filterEndDate = filters.endDate ? new Date(filters.endDate + 'T00:00:00') : null;
-
-      const matchesStartDate = !filterStartDate || taskStartDate >= filterStartDate;
-      const matchesEndDate = !filterEndDate || taskDueDate <= filterEndDate;
-
-      const eng = getEngineerForAssignee(task.assignee);
-      const matchesEngineer = filters.engineer === '' || (eng && eng === filters.engineer);
-
-      return matchesStatus && matchesAssignee && matchesDiscipline && matchesLevel && matchesLocation && matchesCorte && matchesSupport && matchesStartDate && matchesEndDate && matchesEngineer;
+      return true;
     });
 
     if (sortConfig.key !== 'none') {
       filtered.sort((a, b) => {
         const aValue = a[sortConfig.key as keyof Task];
         const bValue = b[sortConfig.key as keyof Task];
-
-        if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
       });
     }
 
     return filtered;
-  }, [visibleTasks, filters, sortConfig, getEngineerForAssignee]);
+  }, [visibleTasks, filters, sortConfig, engineerByAssigneeMap]);
 
   const handleSort = (key: SortKey) => {
     let direction: SortDirection = 'asc';
@@ -391,16 +395,23 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
                 <h3 className="text-lg font-black text-white uppercase tracking-wide">Programação Semanal</h3>
                 <span className="text-[10px] font-bold text-brand-med-gray bg-white/5 px-2 py-1 rounded-full">{filteredAndSortedTasks.length} tarefas</span>
               </div>
-              <TaskListView
-                tasks={filteredAndSortedTasks}
-                baselineTasks={baselineTasks}
-                onEditTask={onOpenModal}
-                onDeleteTask={handleDeleteTask}
-                onSort={handleSort}
-                sortConfig={sortConfig}
-                userRole={user.role}
-                allUsers={allUsers}
-              />
+              {isLoadingTasks && tasks.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <div className="w-10 h-10 border-4 border-brand-accent border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-brand-med-gray font-bold text-xs uppercase tracking-widest animate-pulse">Buscando atividades no servidor...</p>
+                </div>
+              ) : (
+                <TaskListView
+                  tasks={filteredAndSortedTasks}
+                  baselineTasks={baselineTasks}
+                  onEditTask={onOpenModal}
+                  onDeleteTask={handleDeleteTask}
+                  onSort={handleSort}
+                  sortConfig={sortConfig}
+                  userRole={user.role}
+                  allUsers={allUsers}
+                />
+              )}
             </div>
           </div>
         </div>

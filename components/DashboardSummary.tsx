@@ -55,23 +55,32 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ title, value, color, onClick,
 
 const DashboardSummary: React.FC<DashboardSummaryProps> = ({ tasks, onStatusSelect, activeStatus }) => {
   const { completedTasks, overdueTasks, inProgressOnTime, toDoOnTime } = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayNum = new Date().setHours(0, 0, 0, 0);
 
-    const completed = tasks.filter(t => t.status === TaskStatus.Completed);
-    const notCompleted = tasks.filter(t => t.status !== TaskStatus.Completed);
+    let completed = 0;
+    let overdue = 0;
+    let inProgress = 0;
+    let toDo = 0;
 
-    const overdue = notCompleted.filter(t => new Date(t.dueDate + 'T00:00:00') < today);
-    const onTime = notCompleted.filter(t => new Date(t.dueDate + 'T00:00:00') >= today);
-
-    const inProgress = onTime.filter(t => t.status === TaskStatus.InProgress);
-    const toDo = onTime.filter(t => t.status === TaskStatus.ToDo);
+    tasks.forEach(task => {
+      if (task.status === TaskStatus.Completed) {
+        completed++;
+      } else {
+        const dueDateNum = new Date(task.dueDate + 'T00:00:00').getTime();
+        if (dueDateNum < todayNum) {
+          overdue++;
+        } else {
+          if (task.status === TaskStatus.InProgress) inProgress++;
+          else if (task.status === TaskStatus.ToDo) toDo++;
+        }
+      }
+    });
 
     return {
-      completedTasks: completed.length,
-      overdueTasks: overdue.length,
-      inProgressOnTime: inProgress.length,
-      toDoOnTime: toDo.length,
+      completedTasks: completed,
+      overdueTasks: overdue,
+      inProgressOnTime: inProgress,
+      toDoOnTime: toDo,
     };
   }, [tasks]);
 
