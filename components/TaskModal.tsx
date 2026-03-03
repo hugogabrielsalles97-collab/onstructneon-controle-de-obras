@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Task, TaskStatus, Resource, User, OrgMember } from '../types';
 import { useOrgMembers, CatalogItem } from '../hooks/dataHooks';
 import { useData } from '../context/DataProvider';
@@ -15,6 +16,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { disciplineOptions, taskTitleOptions, oaeLocations, frentes, apoios, vaos, sideOptions, unitOptions } from '../utils/constants';
 import AIRestrictedAccess from './AIRestrictedAccess';
 import ConfirmModal from './ConfirmModal';
+import EyeIcon from './icons/EyeIcon';
 
 
 interface TaskModalProps {
@@ -135,6 +137,18 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         return false;
     };
     const [analyzingPhotoIndex, setAnalyzingPhotoIndex] = useState<number | null>(null);
+    const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                if (previewPhoto) setPreviewPhoto(null);
+                else if (isOpen) onClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [previewPhoto, isOpen, onClose]);
     const [safetyAnalysisResult, setSafetyAnalysisResult] = useState<{ status: 'idle' | 'safe' | 'risk'; message: string }>({ status: 'idle', message: '' });
 
     const isMaster = user.role === 'Master';
@@ -1093,11 +1107,12 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
 
                                         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4">
                                             {formData.photos?.map((photo, idx) => (
-                                                <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden border-2 border-white/5 group hover:border-brand-accent/50 transition-all shadow-xl">
+                                                <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden border-2 border-white/5 group hover:border-brand-accent/50 transition-all shadow-xl bg-black/20">
                                                     <img src={photo} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                                        <button type="button" onClick={() => handleAnalyzeSafety(photo, idx)} className="p-2 bg-blue-500 rounded-lg hover:bg-blue-600 shadow-lg transition-transform active:scale-90"><SafetyAnalysisIcon className="w-4 h-4 text-white" /></button>
-                                                        <button type="button" onClick={() => handleRemovePhoto(idx)} className="p-2 bg-red-500 rounded-lg hover:bg-red-600 shadow-lg transition-transform active:scale-90"><XIcon className="w-4 h-4 text-white" /></button>
+                                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
+                                                        <button type="button" onClick={() => setPreviewPhoto(photo)} className="p-2 bg-brand-accent rounded-lg hover:bg-brand-accent/80 shadow-lg transition-transform active:scale-90" title="Visualizar"><EyeIcon className="w-4 h-4 text-white" /></button>
+                                                        <button type="button" onClick={() => handleAnalyzeSafety(photo, idx)} className="p-2 bg-blue-500 rounded-lg hover:bg-blue-600 shadow-lg transition-transform active:scale-90" title="Análise IA"><SafetyAnalysisIcon className="w-4 h-4 text-white" /></button>
+                                                        <button type="button" onClick={() => handleRemovePhoto(idx)} className="p-2 bg-red-500 rounded-lg hover:bg-red-600 shadow-lg transition-transform active:scale-90" title="Excluir"><XIcon className="w-4 h-4 text-white" /></button>
                                                     </div>
                                                 </div>
                                             ))}
@@ -1201,6 +1216,38 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                         />
                     </div>
                 </div>
+            )}
+
+            {/* Modal de Visualização de Foto via Portal */}
+            {previewPhoto && createPortal(
+                <div
+                    className="fixed inset-0 z-[9999] flex items-center justify-center p-4 md:p-12 bg-black/90 backdrop-blur-md"
+                    onClick={() => setPreviewPhoto(null)}
+                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+                >
+                    <div className="relative max-w-5xl w-full flex flex-col items-center gap-6" onClick={e => e.stopPropagation()}>
+                        <div className="w-full flex justify-end">
+                            <button
+                                onClick={() => setPreviewPhoto(null)}
+                                className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-white/10 flex items-center justify-center text-white hover:bg-red-500 transition-all border border-white/10 group shadow-2xl"
+                                title="Fechar (Esc)"
+                            >
+                                <XIcon className="w-5 h-5 md:w-6 md:h-6 group-hover:rotate-90 transition-transform" />
+                            </button>
+                        </div>
+                        <div className="w-full bg-[#0a0f18] rounded-[2.5rem] border border-white/10 overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)] p-4 flex items-center justify-center">
+                            {previewPhoto && (
+                                <img
+                                    src={previewPhoto}
+                                    className="max-w-full max-h-[75vh] object-contain rounded-2xl cursor-zoom-in"
+                                    alt="Preview"
+                                    onClick={() => window.open(previewPhoto, '_blank')}
+                                />
+                            )}
+                        </div>
+                    </div>
+                </div>,
+                document.body
             )}
         </div>
     );

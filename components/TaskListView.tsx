@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { Task, TaskStatus, User } from '../types';
 import SortIcon from './icons/SortIcon';
 import EditIcon from './icons/EditIcon';
@@ -78,6 +79,16 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEdi
     baselineTasks.forEach(bt => map.set(bt.id, bt));
     return map;
   }, [baselineTasks]);
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedPhotos(null);
+    };
+    if (selectedPhotos) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedPhotos]);
 
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return '-';
@@ -270,29 +281,72 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEdi
         </div>
       )}
 
-      {/* Photo Gallery Modal */}
-      {selectedPhotos && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-fade-in" onClick={() => setSelectedPhotos(null)}>
-          <div className="relative max-w-5xl w-full p-4 flex flex-col items-center gap-8" onClick={e => e.stopPropagation()}>
-            <div className="absolute -top-12 right-0 flex items-center gap-4">
-              <p className="text-white/40 font-black uppercase tracking-[3px] text-[10px]">Galeria de Evidências • {selectedPhotos.length} itens</p>
-              <button onClick={() => setSelectedPhotos(null)} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all border border-white/10">
-                <XIcon className="w-6 h-6" />
+      {/* Photo Gallery Modal via Portal */}
+      {selectedPhotos && selectedPhotos.length > 0 && createPortal(
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 md:p-12 bg-black/90 backdrop-blur-md"
+          onClick={() => setSelectedPhotos(null)}
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+        >
+          <div className="relative max-w-6xl w-full max-h-[90vh] flex flex-col bg-[#0a0f18] rounded-[2.5rem] border border-white/10 shadow-[0_0_100px_rgba(0,0,0,1)] overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Header Area */}
+            <div className="flex justify-between items-center p-6 md:p-8 border-b border-white/5 shrink-0">
+              <div className="flex flex-col">
+                <h3 className="text-white font-black uppercase tracking-widest text-xl md:text-2xl italic">Galeria de Evidências</h3>
+                <p className="text-brand-accent font-black text-[10px] uppercase tracking-[4px] mt-1">
+                  {selectedPhotos.length} registro(s) fotográfico(s) • Clique p/ Ampliar
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedPhotos(null)}
+                className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-white/5 flex items-center justify-center text-white hover:bg-red-500 transition-all border border-white/10 group"
+                title="Fechar (Esc)"
+              >
+                <XIcon className="w-5 h-5 md:w-6 md:h-6 group-hover:scale-110" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 overflow-y-auto max-h-[80vh] w-full custom-scrollbar p-4">
-              {selectedPhotos.map((photo, i) => (
-                <div key={i} className="group relative aspect-video rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-black/20">
-                  <img src={photo} className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-105" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
-                    <span className="text-white font-black text-[10px] uppercase tracking-widest bg-brand-accent/80 px-3 py-1.5 rounded-lg shadow-lg">Evidência #{i + 1}</span>
+            {/* Content Area */}
+            <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar flex items-center justify-center">
+              {selectedPhotos.length === 1 ? (
+                /* Single Image - Hero View */
+                <div className="w-full h-full max-h-[75vh] flex items-center justify-center">
+                  <div className="relative group w-full h-full flex items-center justify-center">
+                    <img
+                      src={selectedPhotos[0]}
+                      className="max-w-full max-h-full object-contain rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/10 cursor-zoom-in"
+                      alt="Evidência única"
+                      onClick={() => window.open(selectedPhotos[0], '_blank')}
+                    />
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      <span className="text-white font-bold text-[10px] uppercase tracking-widest">Clique p/ Abrir Original</span>
+                    </div>
                   </div>
                 </div>
-              ))}
+              ) : (
+                /* Multiple Images - Grid View */
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-8 w-full max-w-5xl">
+                  {selectedPhotos.map((photo, i) => (
+                    <div key={i} className="group relative h-[45vh] md:h-[50vh] rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl bg-black/20 flex items-center justify-center p-2">
+                      <img
+                        src={photo}
+                        className="w-full h-full object-contain transition-all duration-700 group-hover:scale-105 cursor-zoom-in"
+                        loading="lazy"
+                        alt={`Evidência ${i + 1}`}
+                        onClick={() => window.open(photo, '_blank')}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all flex flex-col justify-end p-8 pointer-events-none">
+                        <span className="text-brand-accent font-black text-[10px] uppercase tracking-widest mb-1">Registro #{i + 1}</span>
+                        <span className="text-white font-bold text-xs">Visualizar em nova aba</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
