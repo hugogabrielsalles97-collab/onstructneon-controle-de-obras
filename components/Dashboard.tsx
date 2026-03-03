@@ -71,6 +71,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'dueDate', direction: 'asc' });
 
   if (!user) return null;
+
+  // ==== ACL: Filtragem por Perfil ====
+  // Executores veem apenas o que lhes foi alocado E que NÃO foi concluído
+  // Outros cargos (Master, Gerenciador, Planejador) veem tudo
+  const visibleTasks = useMemo(() => {
+    if (user.role === 'Executor') {
+      return tasks.filter(t => t.assignee === user.fullName && t.status !== TaskStatus.Completed);
+    }
+    return tasks;
+  }, [tasks, user.role, user.fullName]);
+
   const showFullMenu = user.role !== 'Executor';
   const canWritePlanning = user.role === 'Master' || user.role === 'Planejador';
   const canUseAI = user.role === 'Master' || user.role === 'Gerenciador';
@@ -143,7 +154,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     const supports = new Set<string>();
     const engineers = new Set<string>();
 
-    tasks.forEach(task => {
+    visibleTasks.forEach(task => {
       if (task.assignee) {
         assignees.add(task.assignee);
         const eng = getEngineerForAssignee(task.assignee);
@@ -165,10 +176,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
       support: Array.from(supports).sort(),
       engineer: Array.from(engineers).sort(),
     };
-  }, [tasks, getEngineerForAssignee]);
+  }, [visibleTasks, getEngineerForAssignee]);
 
   const filteredAndSortedTasks = useMemo(() => {
-    let filtered = tasks.filter(task => {
+    let filtered = visibleTasks.filter(task => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const dueDate = new Date(task.dueDate + 'T00:00:00');
@@ -221,7 +232,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     }
 
     return filtered;
-  }, [tasks, filters, sortConfig, getEngineerForAssignee]);
+  }, [visibleTasks, filters, sortConfig, getEngineerForAssignee]);
 
   const handleSort = (key: SortKey) => {
     let direction: SortDirection = 'asc';
@@ -320,7 +331,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
 
             {/* Dash Analytics Summary */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 non-printable">
-              <DashboardSummary tasks={tasks} onStatusSelect={handleStatusSelect} activeStatus={filters.status} />
+              <DashboardSummary tasks={visibleTasks} onStatusSelect={handleStatusSelect} activeStatus={filters.status} />
             </div>
 
             {/* Interactive Filters Glass Panel */}
