@@ -172,12 +172,9 @@ export const useCheckoutLogs = (enabled: boolean = true) => {
     return useQuery<CheckoutLog[]>({
         queryKey: ['checkoutLogs'],
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from('checkout_logs')
-                .select('*')
-                .order('created_at', { ascending: false });
-            if (error) throw error;
-            return data as CheckoutLog[];
+            const rows = await fetchAllRows('checkout_logs');
+            // Sort by created_at DESC locally after fetching all (since fetchAllRows doesn't guarantee order)
+            return rows.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) as CheckoutLog[];
         },
         enabled,
         retry: 1,

@@ -196,6 +196,26 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     changes.actualEndDate = { from: existingTask.actualEndDate, to: task.actualEndDate };
                     hasChanges = true;
                 }
+                if ((existingTask.observations || '') !== (task.observations || '')) {
+                    changes.observations = { from: existingTask.observations, to: task.observations };
+                    hasChanges = true;
+                }
+                if (existingTask.support !== task.support) {
+                    changes.support = { from: existingTask.support, to: task.support };
+                    hasChanges = true;
+                }
+                if (existingTask.side !== task.side) {
+                    changes.side = { from: existingTask.side, to: task.side };
+                    hasChanges = true;
+                }
+                if (existingTask.corte !== task.corte) {
+                    changes.corte = { from: existingTask.corte, to: task.corte };
+                    hasChanges = true;
+                }
+                if (existingTask.shift !== task.shift) {
+                    changes.shift = { from: existingTask.shift, to: task.shift };
+                    hasChanges = true;
+                }
 
                 if (hasChanges) {
                     await supabase.from('checkout_logs').insert([{

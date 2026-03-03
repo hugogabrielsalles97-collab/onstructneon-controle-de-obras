@@ -36,10 +36,17 @@ interface CheckoutSummaryPageProps {
 }
 
 const formatDate = (dateString: string) => {
+    if (!dateString) return '-';
+    // Se a string tem apenas YYYY-MM-DD (sem T...), tratamos como local para evitar fuso horário
+    if (dateString.length === 10 && dateString.includes('-')) {
+        const [year, month, day] = dateString.split('-').map(Number);
+        return new Date(year, month - 1, day).toLocaleDateString('pt-BR');
+    }
     return new Date(dateString).toLocaleDateString('pt-BR');
 };
 
 const formatTime = (dateString: string) => {
+    if (!dateString) return '-';
     return new Date(dateString).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 };
 
@@ -97,7 +104,8 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
 
     const [filterLocation, setFilterLocation] = React.useState('');
     const [filterUser, setFilterUser] = React.useState('');
-    const [selectedDates, setSelectedDates] = React.useState<string[]>([]);
+    const [filterDateStart, setFilterDateStart] = React.useState('');
+    const [filterDateEnd, setFilterDateEnd] = React.useState('');
     const [filterDiscipline, setFilterDiscipline] = React.useState('');
     const [filterStatus, setFilterStatus] = React.useState('');
     const [deletingLogId, setDeletingLogId] = React.useState<string | null>(null);
@@ -157,11 +165,7 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
         () => Array.from(new Set(tasks.map(t => t.discipline).filter(Boolean))).sort(),
         [tasks]
     );
-    const availableDates = useMemo(() => {
-        return Array.from(new Set(checkoutLogs.map(log => formatDate(log.created_at)))).sort((a, b) => {
-            return new Date((b as string).split('/').reverse().join('-')).getTime() - new Date((a as string).split('/').reverse().join('-')).getTime();
-        });
-    }, [checkoutLogs]);
+    // availableDates can be removed as we are no longer using the dropdown
 
     // ==== OTIMIZAÇÃO: useMemo para logs filtrados ====
     const filteredLogs = useMemo(() => {
@@ -173,15 +177,24 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
             const discipline = task?.discipline;
             const status = log.changes.status?.to;
 
+            // Log date in YYYY-MM-DD for comparison
+            const logDate = new Date(log.created_at);
+            const logDateIso = logDate.getFullYear() + '-' +
+                String(logDate.getMonth() + 1).padStart(2, '0') + '-' +
+                String(logDate.getDate()).padStart(2, '0');
+
             if (filterLocation && location !== filterLocation) return false;
             if (filterUser && log.user_name !== filterUser) return false;
-            if (selectedDates.length > 0 && !selectedDates.includes(formatDate(log.created_at))) return false;
+
+            if (filterDateStart && logDateIso < filterDateStart) return false;
+            if (filterDateEnd && logDateIso > filterDateEnd) return false;
+
             if (filterDiscipline && discipline !== filterDiscipline) return false;
             if (filterStatus && status !== filterStatus) return false;
 
             return true;
         });
-    }, [checkoutLogs, taskMap, filterLocation, filterUser, selectedDates, filterDiscipline, filterStatus]);
+    }, [checkoutLogs, taskMap, filterLocation, filterUser, filterDateStart, filterDateEnd, filterDiscipline, filterStatus]);
 
     // ==== OTIMIZAÇÃO: useMemo para agrupamento por dia ====
     const { logsByDay, days } = useMemo(() => {
@@ -219,9 +232,11 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
         });
 
         // Passo 2: Verificar quais dessas tarefas tiveram QUALQUER checkout neste dia
-        // Precisamos converter log.created_at (ISO timestamp) para YYYY-MM-DD local
+        // Isso inclui modificações de observações, avanço, status, etc.
         const checkedOutTaskIdsOnThisDay = new Set<string>();
-        for (const log of checkoutLogs) {
+
+        // Otimização: Filtrar logs do dia selecionado de forma mais eficiente
+        checkoutLogs.forEach(log => {
             const logDate = new Date(log.created_at);
             const logDateIso = logDate.getFullYear() + '-' +
                 String(logDate.getMonth() + 1).padStart(2, '0') + '-' +
@@ -230,10 +245,10 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
             if (logDateIso === dayStrIso) {
                 checkedOutTaskIdsOnThisDay.add(log.task_id);
             }
-        }
+        });
 
         // Passo 3: O resultado são as tarefas previstas que NÃO possuem checkout registrado
-        const missing: { assignee: string; taskTitle: string; location: string; discipline: string; taskId: string }[] = [];
+        const missing: { assignee: string; taskTitle: string; location: string; discipline: string; support: string; taskId: string }[] = [];
         const seenTaskIds = new Set<string>();
 
         for (const t of tasksToConsider) {
@@ -251,6 +266,7 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                 taskTitle: t.title,
                 location: t.location || '-',
                 discipline: t.discipline || '-',
+                support: t.support || '-',
                 taskId: t.id
             });
             seenTaskIds.add(t.id);
@@ -349,135 +365,136 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                         {/* Filters Section */}
                         <div className="bg-[#111827]/60 p-5 rounded-2xl border border-white/5 shadow-2xl backdrop-blur-xl">
                             <div className="flex flex-wrap lg:flex-nowrap items-end gap-4">
-                                {/* Frente / Local */}
+                                {/* Disciplina */}
+                                <div className="flex flex-col gap-1.5 flex-1 min-w-[140px]">
+                                    <label className="text-[9px] text-brand-med-gray uppercase font-black tracking-[0.15em] px-1 opacity-60">Disciplina</label>
+                                    <div className="relative group/select">
+                                        <select
+                                            value={filterDiscipline}
+                                            onChange={(e) => setFilterDiscipline(e.target.value)}
+                                            className="w-full bg-brand-darkest/40 border border-white/10 text-white text-[11px] font-bold rounded-xl px-3 py-2.5 outline-none focus:border-brand-accent/50 focus:bg-brand-darkest/60 transition-all cursor-pointer appearance-none hover:border-white/20 pl-8"
+                                        >
+                                            <option value="">Todas as Disciplinas</option>
+                                            {disciplines.map(d => (
+                                                <option key={d} value={d}>{d}</option>
+                                            ))}
+                                        </select>
+                                        <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
+                                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Localização */}
                                 <div className="flex flex-col gap-1.5 flex-1 min-w-[140px]">
                                     <label className="text-[9px] text-brand-med-gray uppercase font-black tracking-[0.15em] px-1 opacity-60">Localização</label>
-                                    <select
-                                        value={filterLocation}
-                                        onChange={(e) => setFilterLocation(e.target.value)}
-                                        className="w-full bg-brand-darkest/40 border border-white/10 text-white text-[11px] font-bold rounded-xl px-3 py-2.5 outline-none focus:border-brand-accent/50 focus:bg-brand-darkest/60 transition-all cursor-pointer appearance-none hover:border-white/20"
-                                    >
-                                        <option value="">Todas as Frentes</option>
-                                        {locations.map(l => (
-                                            <option key={l} value={l}>{l}</option>
-                                        ))}
-                                    </select>
+                                    <div className="relative group/select">
+                                        <select
+                                            value={filterLocation}
+                                            onChange={(e) => setFilterLocation(e.target.value)}
+                                            className="w-full bg-brand-darkest/40 border border-white/10 text-white text-[11px] font-bold rounded-xl px-3 py-2.5 outline-none focus:border-brand-accent/50 focus:bg-brand-darkest/60 transition-all cursor-pointer appearance-none hover:border-white/20 pl-8"
+                                        >
+                                            <option value="">Todas as Frentes</option>
+                                            {locations.map(l => (
+                                                <option key={l} value={l}>{l}</option>
+                                            ))}
+                                        </select>
+                                        <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
+                                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {/* Executante */}
                                 <div className="flex flex-col gap-1.5 flex-1 min-w-[140px]">
                                     <label className="text-[9px] text-brand-med-gray uppercase font-black tracking-[0.15em] px-1 opacity-60">Executante</label>
-                                    <select
-                                        value={filterUser}
-                                        onChange={(e) => setFilterUser(e.target.value)}
-                                        className="w-full bg-brand-darkest/40 border border-white/10 text-white text-[11px] font-bold rounded-xl px-3 py-2.5 outline-none focus:border-brand-accent/50 focus:bg-brand-darkest/60 transition-all cursor-pointer appearance-none hover:border-white/20"
-                                    >
-                                        <option value="">Todos os Usuários</option>
-                                        {users.map(u => (
-                                            <option key={u} value={u}>{u}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {/* Datas do Checkout */}
-                                <div className="flex flex-col gap-1.5 flex-[1.5] min-w-[240px]">
-                                    <label className="text-[9px] text-brand-med-gray uppercase font-black tracking-[0.15em] px-1 opacity-60">Datas do Checkout</label>
-                                    <div className="relative group/dates">
-                                        <div className="flex flex-wrap gap-1 p-1 bg-brand-darkest/40 border border-white/10 rounded-xl min-h-[42px] max-h-[100px] overflow-y-auto cursor-pointer hover:border-white/20 focus-within:border-brand-accent/50 transition-all">
-                                            {selectedDates.length === 0 ? (
-                                                <div className="flex items-center gap-2 h-full px-3 py-2">
-                                                    <CalendarIcon className="w-3.5 h-3.5 text-brand-med-gray opacity-40" />
-                                                    <span className="text-[11px] text-brand-med-gray font-bold">Todas as Datas</span>
-                                                </div>
-                                            ) : (
-                                                <div className="flex flex-wrap gap-1 p-1">
-                                                    {selectedDates.map(date => (
-                                                        <span key={date} className="bg-brand-accent/20 text-brand-accent text-[9px] font-black px-2 py-1 rounded-lg flex items-center gap-1 group/tag animate-scale-in">
-                                                            {date}
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setSelectedDates(prev => prev.filter(d => d !== date));
-                                                                }}
-                                                                className="hover:text-white transition-colors"
-                                                            >
-                                                                ×
-                                                            </button>
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Dropdown de Datas */}
-                                        <div className="absolute top-[calc(100%+8px)] left-0 w-full bg-[#111827] border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-3 z-[100] hidden group-hover/dates:block hover:block animate-slide-down backdrop-blur-2xl">
-                                            <p className="text-[9px] font-black text-brand-med-gray uppercase mb-2 px-1 tracking-widest opacity-40">Selecione os dias</p>
-                                            <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
-                                                {availableDates.map(d => {
-                                                    const dateStr = d as string;
-                                                    const isSelected = selectedDates.includes(dateStr);
-                                                    return (
-                                                        <button
-                                                            key={dateStr}
-                                                            onClick={() => {
-                                                                setSelectedDates(prev =>
-                                                                    isSelected ? prev.filter(item => item !== dateStr) : [...prev, dateStr]
-                                                                );
-                                                            }}
-                                                            className={`text-left px-3 py-2 rounded-xl text-[10px] font-bold transition-all flex items-center justify-between group/item ${isSelected
-                                                                ? 'bg-brand-accent text-white shadow-[0_4px_12px_rgba(249,115,22,0.3)]'
-                                                                : 'text-brand-med-gray hover:bg-white/5 hover:text-white'
-                                                                }`}
-                                                        >
-                                                            {dateStr}
-                                                            {isSelected && <CircleIcon className="w-1.5 h-1.5 fill-current" />}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
+                                    <div className="relative group/select">
+                                        <select
+                                            value={filterUser}
+                                            onChange={(e) => setFilterUser(e.target.value)}
+                                            className="w-full bg-brand-darkest/40 border border-white/10 text-white text-[11px] font-bold rounded-xl px-3 py-2.5 outline-none focus:border-brand-accent/50 focus:bg-brand-darkest/60 transition-all cursor-pointer appearance-none hover:border-white/20 pl-8"
+                                        >
+                                            <option value="">Todos os Usuários</option>
+                                            {users.map(u => (
+                                                <option key={u} value={u}>{u}</option>
+                                            ))}
+                                        </select>
+                                        <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
+                                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Disciplina */}
-                                <div className="flex flex-col gap-1.5 flex-1 min-w-[140px]">
-                                    <label className="text-[9px] text-brand-med-gray uppercase font-black tracking-[0.15em] px-1 opacity-60">Disciplina</label>
-                                    <select
-                                        value={filterDiscipline}
-                                        onChange={(e) => setFilterDiscipline(e.target.value)}
-                                        className="w-full bg-brand-darkest/40 border border-white/10 text-white text-[11px] font-bold rounded-xl px-3 py-2.5 outline-none focus:border-brand-accent/50 focus:bg-brand-darkest/60 transition-all cursor-pointer appearance-none hover:border-white/20"
-                                    >
-                                        <option value="">Todas as Disciplinas</option>
-                                        {disciplines.map(d => (
-                                            <option key={d} value={d}>{d}</option>
-                                        ))}
-                                    </select>
-                                </div>
+                                {viewMode === 'checkouts' ? (
+                                    <>
+                                        {/* Intervalo de Datas */}
+                                        <div className="flex flex-col gap-1.5 flex-[1.5] min-w-[280px]">
+                                            <label className="text-[9px] text-brand-med-gray uppercase font-black tracking-[0.15em] px-1 opacity-60">Período do Checkout</label>
+                                            <div className="flex items-center gap-2">
+                                                <div className="relative flex-1">
+                                                    <input
+                                                        type="date"
+                                                        value={filterDateStart}
+                                                        onChange={(e) => setFilterDateStart(e.target.value)}
+                                                        className="w-full bg-brand-darkest/40 border border-white/10 text-white text-[11px] font-bold rounded-xl px-3 py-2.5 outline-none focus:border-brand-accent/50 focus:bg-brand-darkest/60 transition-all cursor-pointer appearance-none hover:border-white/20"
+                                                    />
+                                                </div>
+                                                <span className="text-white/20 text-[10px] font-black">ATÉ</span>
+                                                <div className="relative flex-1">
+                                                    <input
+                                                        type="date"
+                                                        value={filterDateEnd}
+                                                        onChange={(e) => setFilterDateEnd(e.target.value)}
+                                                        className="w-full bg-brand-darkest/40 border border-white/10 text-white text-[11px] font-bold rounded-xl px-3 py-2.5 outline-none focus:border-brand-accent/50 focus:bg-brand-darkest/60 transition-all cursor-pointer appearance-none hover:border-white/20"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                {/* Status */}
-                                <div className="flex flex-col gap-1.5 flex-1 min-w-[140px]">
-                                    <label className="text-[9px] text-brand-med-gray uppercase font-black tracking-[0.15em] px-1 opacity-60">Status Final</label>
-                                    <select
-                                        value={filterStatus}
-                                        onChange={(e) => setFilterStatus(e.target.value)}
-                                        className="w-full bg-brand-darkest/40 border border-white/10 text-white text-[11px] font-bold rounded-xl px-3 py-2.5 outline-none focus:border-brand-accent/50 focus:bg-brand-darkest/60 transition-all cursor-pointer appearance-none hover:border-white/20"
-                                    >
-                                        <option value="">Qualquer Status</option>
-                                        <option value="ToDo">Pendente</option>
-                                        <option value="InProgress">Em Andamento</option>
-                                        <option value="Completed">Concluído</option>
-                                    </select>
-                                </div>
+                                        {/* Status */}
+                                        <div className="flex flex-col gap-1.5 flex-1 min-w-[140px]">
+                                            <label className="text-[9px] text-brand-med-gray uppercase font-black tracking-[0.15em] px-1 opacity-60">Status Final</label>
+                                            <select
+                                                value={filterStatus}
+                                                onChange={(e) => setFilterStatus(e.target.value)}
+                                                className="w-full bg-brand-darkest/40 border border-white/10 text-white text-[11px] font-bold rounded-xl px-3 py-2.5 outline-none focus:border-brand-accent/50 focus:bg-brand-darkest/60 transition-all cursor-pointer appearance-none hover:border-white/20"
+                                            >
+                                                <option value="">Qualquer Status</option>
+                                                <option value="ToDo">Pendente</option>
+                                                <option value="InProgress">Em Andamento</option>
+                                                <option value="Completed">Concluído</option>
+                                            </select>
+                                        </div>
+                                    </>
+                                ) : (
+                                    /* Seletor de data exclusivo para Pendências (dentro do filtro principal agora) */
+                                    <div className="flex flex-col gap-1.5 flex-[1.5] min-w-[200px]">
+                                        <label className="text-[9px] text-red-400 uppercase font-black tracking-[0.15em] px-1 opacity-60 text-center">Data de Verificação</label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="date"
+                                                value={pendenciaDate}
+                                                onChange={(e) => setPendenciaDate(e.target.value)}
+                                                className="w-full bg-brand-darkest/40 border border-red-500/20 text-white text-[11px] font-bold rounded-xl px-3 py-2.5 outline-none focus:border-red-500/50 focus:bg-brand-darkest/60 transition-all cursor-pointer appearance-none hover:border-red-500/30"
+                                            />
+                                            <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                                                <CalendarIcon className="w-4 h-4 text-red-400" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Clear Button */}
-                                {(filterLocation || filterUser || selectedDates.length > 0 || filterDiscipline || filterStatus) && (
+                                {(filterLocation || filterUser || filterDateStart || filterDateEnd || filterDiscipline || filterStatus || pendenciaDate) && (
                                     <button
                                         onClick={() => {
                                             setFilterLocation('');
                                             setFilterUser('');
-                                            setSelectedDates([]);
+                                            setFilterDateStart('');
+                                            setFilterDateEnd('');
                                             setFilterDiscipline('');
                                             setFilterStatus('');
+                                            setPendenciaDate('');
                                         }}
                                         className="flex items-center justify-center p-2.5 rounded-xl bg-brand-accent/10 border border-brand-accent/20 text-brand-accent hover:bg-brand-accent hover:text-white transition-all shadow-lg group ml-auto lg:ml-0"
                                         title="Limpar Filtros"
@@ -491,24 +508,6 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                         {/* ====== ABA PENDÊNCIAS ====== */}
                         {viewMode === 'pendencias' ? (
                             <div className="space-y-6">
-                                {/* Seletor de data obrigatório */}
-                                <div className="bg-[#111827]/60 p-6 rounded-2xl border border-red-500/10 shadow-2xl backdrop-blur-xl">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-xl bg-red-500/15 border border-red-500/20 flex items-center justify-center shrink-0">
-                                            <CalendarIcon className="w-5 h-5 text-red-400" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <label className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-2 block">Selecione a data para verificar pendências</label>
-                                            <input
-                                                type="date"
-                                                value={pendenciaDate}
-                                                onChange={(e) => setPendenciaDate(e.target.value)}
-                                                className="bg-brand-darkest/50 border border-white/10 text-white text-sm font-bold rounded-xl px-4 py-2.5 outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-500/10 transition-all w-full max-w-xs cursor-pointer"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
                                 {!pendenciaDate ? (
                                     <div className="bg-[#111827]/40 border border-white/5 rounded-3xl p-16 text-center space-y-4">
                                         <div className="w-16 h-16 bg-red-500/5 rounded-full flex items-center justify-center mx-auto border border-red-500/10">
@@ -564,7 +563,7 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-[13px] font-bold text-white truncate">{m.assignee}</p>
                                                         <p className="text-[10px] text-red-300/50 truncate">
-                                                            {m.taskTitle} • {m.location} • {m.discipline}
+                                                            {m.taskTitle} • {m.location} {m.support !== '-' && `/ ${m.support}`} • {m.discipline}
                                                         </p>
                                                     </div>
                                                     <div className="flex items-center gap-2 shrink-0">
