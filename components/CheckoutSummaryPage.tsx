@@ -571,23 +571,25 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                                                         <span className="text-[8px] font-black text-red-400/70 uppercase tracking-widest bg-red-500/10 px-2.5 py-1 rounded-lg border border-red-500/10">
                                                             Sem checkout
                                                         </span>
-                                                        <button
-                                                            onClick={() => {
-                                                                const selectedUser = allUsers.find(u => u.fullName === m.assignee);
-                                                                if (!selectedUser?.whatsapp) {
-                                                                    alert("Responsável não possui WhatsApp cadastrado.");
-                                                                    return;
-                                                                }
-                                                                const phone = selectedUser.whatsapp.replace(/\D/g, '');
-                                                                const checkoutLink = `${window.location.origin}${window.location.pathname}?taskId=${m.taskId}&action=checkout`;
-                                                                const message = `Olá *${selectedUser.fullName}*,%0A%0AIdentificamos que a atividade *${m.taskTitle}* (${m.location}) está sem checkout hoje (${formatDate(pendenciaDate)}).%0A%0A*Poderia atualizar o status no sistema, por favor?* 🙏🏗️%0A%0A👉 *Atualize aqui:* ${checkoutLink}`;
-                                                                window.open(`https://wa.me/55${phone}?text=${message}`, '_blank');
-                                                            }}
-                                                            className="p-2 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white rounded-lg transition-all duration-300 border border-green-500/20"
-                                                            title="Notificar via WhatsApp"
-                                                        >
-                                                            <WhatsAppIcon className="w-3.5 h-3.5" />
-                                                        </button>
+                                                        {currentUser?.role !== 'Executor' && (
+                                                            <button
+                                                                onClick={() => {
+                                                                    const selectedUser = allUsers.find(u => u.fullName === m.assignee);
+                                                                    if (!selectedUser?.whatsapp) {
+                                                                        alert("Responsável não possui WhatsApp cadastrado.");
+                                                                        return;
+                                                                    }
+                                                                    const phone = selectedUser.whatsapp.replace(/\D/g, '');
+                                                                    const checkoutLink = `${window.location.origin}${window.location.pathname}?taskId=${m.taskId}&action=checkout`;
+                                                                    const message = `Olá *${selectedUser.fullName}*,%0A%0AIdentificamos que a atividade *${m.taskTitle}* (${m.location}) está sem checkout hoje (${formatDate(pendenciaDate)}).%0A%0A*Poderia atualizar o status no sistema, por favor?* 🙏🏗️%0A%0A👉 *Atualize aqui:* ${checkoutLink}`;
+                                                                    window.open(`https://wa.me/55${phone}?text=${message}`, '_blank');
+                                                                }}
+                                                                className="p-2 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white rounded-lg transition-all duration-300 border border-green-500/20"
+                                                                title="Notificar via WhatsApp"
+                                                            >
+                                                                <WhatsAppIcon className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
                                             ))}

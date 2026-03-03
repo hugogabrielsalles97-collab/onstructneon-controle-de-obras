@@ -932,7 +932,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                             {assignableUsers.map(u => <option key={u.username} value={u.fullName}>{u.fullName} • {u.role}</option>)}
                                         </select>
 
-                                        {formData.assignee && (
+                                        {formData.assignee && user.role !== 'Executor' && (
                                             <button
                                                 type="button"
                                                 onClick={handleWhatsAppShare}

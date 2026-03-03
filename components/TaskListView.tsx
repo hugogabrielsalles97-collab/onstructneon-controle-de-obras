@@ -232,7 +232,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEdi
                       <EditIcon className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
                       <span>Checkout</span>
                     </button>
-                    {task.assignee && (
+                    {task.assignee && userRole !== 'Executor' && (
                       <button
                         onClick={() => {
                           const selectedUser = allUsers.find(u => u.fullName === task.assignee);
