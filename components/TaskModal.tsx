@@ -105,6 +105,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             photos: [],
             observations: '',
             baseline_id: '',
+            rescheduleHistory: [],
         };
     };
 
@@ -179,6 +180,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                     photos: task.photos || [],
                     observations: task.observations || '',
                     baseline_id: task.baseline_id || '',
+                    rescheduleHistory: task.rescheduleHistory || [],
                 });
             } else {
                 setFormData(getInitialFormData());
@@ -542,6 +544,23 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         const weather = await fetchWeather(formData.location, formData.actualStartDate, formData.actualEndDate || formData.actualStartDate, false);
         setActualWeather(weather);
         setIsFetchingActualWeather(false);
+    };
+
+    const handleReschedule = () => {
+        const today = new Date().toISOString().split('T')[0];
+        setFormData(prev => ({
+            ...prev,
+            rescheduleHistory: [
+                ...(prev.rescheduleHistory || []),
+                {
+                    startDate: prev.startDate,
+                    dueDate: prev.dueDate,
+                    rescheduledAt: new Date().toISOString()
+                }
+            ],
+            startDate: today,
+            dueDate: today,
+        }));
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -915,20 +934,62 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div className="space-y-4 p-6 bg-white/5 rounded-3xl border border-white/5">
-                                        <div className="flex justify-between items-center mb-1">
-                                            <label className="text-[10px] font-black text-cyan-400 uppercase tracking-[2px]">Prazo de Execução</label>
-                                            <button
-                                                type="button"
-                                                onClick={handleFetchPlannedWeather}
-                                                className="text-[9px] font-black text-white/50 hover:text-cyan-400 uppercase tracking-widest flex items-center gap-2 transition-all p-1"
-                                            >
-                                                <WeatherIcon className="w-3.5 h-3.5" /> Predição Meteorológica
-                                            </button>
+                                        <div className="flex justify-between items-center mb-1 flex-wrap gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <label className="text-[10px] font-black text-cyan-400 uppercase tracking-[2px]">Prazo de Execução</label>
+                                                {(formData.rescheduleHistory?.length || 0) > 0 && (
+                                                    <span className="text-[8px] font-black text-amber-400 bg-amber-500/15 border border-amber-500/20 px-2 py-0.5 rounded-lg uppercase tracking-wider animate-scale-in">
+                                                        {formData.rescheduleHistory!.length}ª Reprogramação
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {!isReadOnlyPlanning && task && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleReschedule}
+                                                        className="text-[9px] font-black text-amber-400/70 hover:text-amber-400 uppercase tracking-widest flex items-center gap-1.5 transition-all p-1 hover:bg-amber-500/10 rounded-lg border border-transparent hover:border-amber-500/20"
+                                                        title="Salvar prazo atual no histórico e definir novo prazo"
+                                                    >
+                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                            <polyline points="1 4 1 10 7 10" />
+                                                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                                                        </svg>
+                                                        Reprogramar
+                                                    </button>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={handleFetchPlannedWeather}
+                                                    className="text-[9px] font-black text-white/50 hover:text-cyan-400 uppercase tracking-widest flex items-center gap-2 transition-all p-1"
+                                                >
+                                                    <WeatherIcon className="w-3.5 h-3.5" /> Predição Meteorológica
+                                                </button>
+                                            </div>
                                         </div>
+
+                                        {/* Histórico de reprogramações */}
+                                        {(formData.rescheduleHistory?.length || 0) > 0 && (
+                                            <div className="space-y-1.5 mb-3">
+                                                <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">Programações Anteriores</p>
+                                                {formData.rescheduleHistory!.map((h, idx) => (
+                                                    <div key={idx} className="flex items-center gap-2 text-[9px] bg-white/[0.03] border border-white/5 rounded-lg px-3 py-1.5">
+                                                        <span className="text-amber-400/60 font-black">{idx + 1}ª</span>
+                                                        <span className="text-white/40 font-mono">
+                                                            {new Date(h.startDate).toLocaleDateString('pt-BR')} → {new Date(h.dueDate).toLocaleDateString('pt-BR')}
+                                                        </span>
+                                                        <span className="text-white/15 ml-auto text-[8px]">
+                                                            {new Date(h.rescheduledAt).toLocaleDateString('pt-BR')}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
                                         <div className="flex items-center gap-3">
-                                            <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} className="flex-1 bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-white text-xs font-mono" />
+                                            <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} disabled={isReadOnlyPlanning} className="flex-1 bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-white text-xs font-mono disabled:opacity-50" />
                                             <div className="text-gray-600 font-bold">→</div>
-                                            <input type="date" name="dueDate" value={formData.dueDate} onChange={handleChange} className="flex-1 bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-white text-xs font-mono" />
+                                            <input type="date" name="dueDate" value={formData.dueDate} onChange={handleChange} disabled={isReadOnlyPlanning} className="flex-1 bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-white text-xs font-mono disabled:opacity-50" />
                                         </div>
                                         {plannedWeather && (
                                             <div className="mt-4 p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-[10px] text-cyan-300 font-medium leading-relaxed italic">
