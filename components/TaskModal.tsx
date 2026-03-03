@@ -587,7 +587,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         }
 
         const phone = selectedUser.whatsapp.replace(/\D/g, '');
-        const message = `Olá *${selectedUser.fullName}*,\n\nVocê tem uma nova atividade alocada:\n📌 *${formData.title}*\n📍 Local: ${formData.location}\n📅 Prazo: ${new Date(formData.startDate + 'T00:00:00').toLocaleDateString('pt-BR')} até ${new Date(formData.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}\n\n*Vamos pra cima!* 🚀🏗️`;
+        const message = `Olá *${selectedUser.fullName}*,\n\nVocê tem uma nova atividade alocada:\n📌 *${formData.title}*\n📍 Local: ${formData.location}\n📅 Prazo: ${new Date(formData.startDate + 'T00:00:00').toLocaleDateString('pt-BR')} até ${new Date(formData.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}\n\n_Acesse o sistema:_ ${window.location.origin}\n\n*Vamos pra cima!* 🚀🏗️`;
 
         const url = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
         window.open(url, '_blank');

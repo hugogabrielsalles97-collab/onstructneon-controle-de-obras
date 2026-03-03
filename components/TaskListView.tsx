@@ -241,7 +241,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEdi
                             return;
                           }
                           const phone = selectedUser.whatsapp.replace(/\D/g, '');
-                          const message = `Olá *${selectedUser.fullName}*,%0A%0AFollow-up da atividade:%0A📌 *${task.title}*%0A📍 Local: ${task.location}%0A📅 Prazo: ${new Date(task.startDate + 'T00:00:00').toLocaleDateString('pt-BR')} até ${new Date(task.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}%0A%0A*Favor atualizar o status no sistema!* 🚀`;
+                          const message = `Olá *${selectedUser.fullName}*,%0A%0AFollow-up da atividade:%0A📌 *${task.title}*%0A📍 Local: ${task.location}%0A📅 Prazo: ${new Date(task.startDate + 'T00:00:00').toLocaleDateString('pt-BR')} até ${new Date(task.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}%0A%0A_Acesse aqui:_ ${window.location.origin}%0A%0A*Favor atualizar o status no sistema!* 🚀🏗️`;
                           window.open(`https://wa.me/55${phone}?text=${message}`, '_blank');
                         }}
                         className="p-2 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white rounded-lg transition-all duration-300 border border-green-500/20"

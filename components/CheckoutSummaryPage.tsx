@@ -579,7 +579,7 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                                                                     return;
                                                                 }
                                                                 const phone = selectedUser.whatsapp.replace(/\D/g, '');
-                                                                const message = `Olá *${selectedUser.fullName}*,%0A%0AIdentificamos que a atividade *${m.taskTitle}* (${m.location}) está sem checkout hoje (${formatDate(pendenciaDate)}).%0A%0A*Poderia atualizar o status no sistema, por favor?* 🙏🏗️`;
+                                                                const message = `Olá *${selectedUser.fullName}*,%0A%0AIdentificamos que a atividade *${m.taskTitle}* (${m.location}) está sem checkout hoje (${formatDate(pendenciaDate)}).%0A%0A*Poderia atualizar o status no sistema, por favor?* 🙏🏗️%0A%0A_Acesse aqui:_ ${window.location.origin}`;
                                                                 window.open(`https://wa.me/55${phone}?text=${message}`, '_blank');
                                                             }}
                                                             className="p-2 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white rounded-lg transition-all duration-300 border border-green-500/20"
