@@ -573,7 +573,37 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
     }, [oaeTaskData]);
 
     const totalWorkersOnDate = useMemo(() => {
-        return (Object.values(oaeTaskData) as OAETaskEntry[]).reduce((sum, d) => sum + d.totalWorkers, 0);
+        let globalTotal = 0;
+        const assigneeRoleMax: Record<string, Record<string, number>> = {};
+
+        (Object.values(oaeTaskData) as OAETaskEntry[]).forEach(d => {
+            d.tasks.forEach(task => {
+                const assignee = task.assignee?.trim().toUpperCase();
+
+                if (assignee) {
+                    if (!assigneeRoleMax[assignee]) assigneeRoleMax[assignee] = {};
+                    (task.plannedManpower || []).forEach((mp: Resource) => {
+                        if (mp.role && mp.quantity) {
+                            const role = mp.role.trim().toUpperCase();
+                            assigneeRoleMax[assignee][role] = Math.max(assigneeRoleMax[assignee][role] || 0, mp.quantity);
+                        }
+                    });
+                } else {
+                    (task.plannedManpower || []).forEach((mp: Resource) => {
+                        if (mp.quantity) globalTotal += mp.quantity;
+                    });
+                }
+            });
+        });
+
+        // Add up all deduplicated contingents
+        Object.values(assigneeRoleMax).forEach(roles => {
+            Object.values(roles).forEach(qty => {
+                globalTotal += qty;
+            });
+        });
+
+        return globalTotal;
     }, [oaeTaskData]);
 
     const shiftSummary = useMemo(() => {

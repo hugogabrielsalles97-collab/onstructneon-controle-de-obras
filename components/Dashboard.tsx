@@ -128,9 +128,25 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     }
 
     // 1. Identify "busy" assignees via tasks in the selected date
+    const targetTime = new Date(availabilityDate + 'T12:00:00').getTime();
+
     const busyAssignees = new Set(
       tasks
-        .filter(t => t.status !== TaskStatus.Completed && t.startDate <= availabilityDate && t.dueDate >= availabilityDate)
+        .filter(t => {
+          if (!t.startDate || !t.dueDate) return false;
+
+          // Usar a melhor data de início disponível (real ou planejada)
+          const startStr = t.actualStartDate || t.startDate;
+          // Se a tarefa já acabou, a data de fim real é a que vale pra liberar ele. Se não acabou, olhamos a data planejada para frente.
+          const endStr = t.status === TaskStatus.Completed ? (t.actualEndDate || t.dueDate) : t.dueDate;
+
+          // Ensure the string is parsed securely
+          const startTime = new Date(startStr + 'T00:00:00').getTime();
+          const endTime = new Date(endStr + 'T23:59:59').getTime();
+
+          // Se a data que queremos aferir cai dentro deste intervalo, ele está Ocupado
+          return targetTime >= startTime && targetTime <= endTime;
+        })
         .map(t => t.assignee?.trim().toLowerCase())
     );
 
