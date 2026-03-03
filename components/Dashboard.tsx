@@ -94,6 +94,97 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // ==== Availability Checker ====
+  const [showAvailability, setShowAvailability] = useState(false);
+  const [availabilityDate, setAvailabilityDate] = useState('');
+  const [availabilityEngineer, setAvailabilityEngineer] = useState('');
+
+  const engineersList = useMemo(() => {
+    if (!orgMembers) return [];
+    return orgMembers.filter(m => (m.role || '').toLowerCase().includes('engenheiro')).sort((a, b) => a.name.localeCompare(b.name));
+  }, [orgMembers]);
+
+  const freeEncarregadosData = useMemo(() => {
+    if (!availabilityDate || !orgMembers) return [];
+
+    // 0. Filter by chosen Engineer (traverse down to find all descendants of the selected engineer)
+    let allowedEncarregadosIds: Set<string> | null = null;
+    if (availabilityEngineer) {
+      const eng = orgMembers.find(m => m.name === availabilityEngineer && (m.role || '').toLowerCase().includes('engenheiro'));
+      if (eng) {
+        allowedEncarregadosIds = new Set();
+        const findDescendants = (parentId: string) => {
+          const children = orgMembers.filter(m => m.parent_id === parentId);
+          children.forEach(c => {
+            allowedEncarregadosIds!.add(c.id);
+            findDescendants(c.id);
+          });
+        };
+        findDescendants(eng.id);
+      } else {
+        // engineer not found, don't show any encarregados
+        allowedEncarregadosIds = new Set();
+      }
+    }
+
+    // 1. Identify "busy" assignees via tasks in the selected date
+    const busyAssignees = new Set(
+      tasks
+        .filter(t => t.status !== TaskStatus.Completed && t.startDate <= availabilityDate && t.dueDate >= availabilityDate)
+        .map(t => t.assignee?.trim().toLowerCase())
+    );
+
+    // 2. Find orgMembers who are "Encarregado" but not "Encarregado de Frente"
+    const encarregados = orgMembers.filter(m => {
+      const roleLower = (m.role || '').toLowerCase();
+      const isEncarregado = roleLower.includes('encarregado') && !roleLower.includes('frente');
+      if (!isEncarregado) return false;
+
+      if (allowedEncarregadosIds !== null && !allowedEncarregadosIds.has(m.id)) {
+        return false;
+      }
+      return true;
+    });
+
+    // 3. Filter only those who are FREE
+    const freeEncarregados = encarregados.filter(e => {
+      const nameLower = (e.name || '').trim().toLowerCase();
+      return !busyAssignees.has(nameLower);
+    });
+
+    // 4. For each free encarregado, gather their team summary
+    return freeEncarregados.map(enc => {
+      const counts: Record<string, number> = {};
+      const processedIds = new Set<string>();
+
+      const addDescendants = (parentId: string) => {
+        const children = orgMembers.filter(m => m.parent_id === parentId);
+        children.forEach(child => {
+          if (!processedIds.has(child.id)) {
+            processedIds.add(child.id);
+            const roleKey = child.role.trim().toUpperCase();
+            const count = child.quantity || 1;
+            counts[roleKey] = (counts[roleKey] || 0) + count;
+            addDescendants(child.id);
+          }
+        });
+      };
+
+      addDescendants(enc.id);
+
+      const total = Object.values(counts).reduce((a, b) => a + b, 0);
+
+      return {
+        id: enc.id,
+        name: enc.name || 'Sem Nome',
+        role: enc.role || 'Encarregado',
+        counts,
+        total
+      };
+    }).sort((a, b) => a.name.localeCompare(b.name));
+
+  }, [availabilityDate, availabilityEngineer, tasks, orgMembers]);
+
   const confirmDelete = async () => {
     if (!taskToDelete) return;
     setIsDeleting(true);
@@ -322,9 +413,114 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
                   </button>
                 )}
                 {canWritePlanning && (
+                  <>
+                    <button
+                      onClick={() => setShowAvailability(true)}
+                      className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-[#1b2333]/80 text-gray-300 px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300 font-bold border border-white/10 shadow-xl hover:shadow-[0_0_15px_rgba(99,102,241,0.5)] hover:border-indigo-500/50"
+                      title="Verificar Disponibilidade de Encarregados"
+                    >
+                      <svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      <span className="hidden sm:inline">Disponibilidade</span>
+                    </button>
+
+                    {showAvailability && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in-up">
+                        <div className="bg-[#111827] border border-white/10 rounded-3xl shadow-2xl w-full max-w-5xl p-6 flex flex-col max-h-[90vh]">
+                          <div className="flex justify-between items-start md:items-center border-b border-white/10 pb-4 mb-6 relative">
+                            <div>
+                              <h2 className="text-2xl font-black text-white tracking-tight uppercase flex items-center gap-3 mb-1">
+                                <span className="w-3 h-3 rounded-full bg-indigo-500 animate-pulse"></span>
+                                Disponibilidade de Encarregados
+                              </h2>
+                              <p className="text-xs text-brand-med-gray tracking-wide">
+                                Encarregados livres na data selecionada (exclui encarregados de frente) e o contingente consolidado de cada uno.
+                              </p>
+                            </div>
+                            <button onClick={() => setShowAvailability(false)} className="absolute top-0 right-0 md:relative text-gray-500 hover:text-white transition-colors bg-white/5 p-2 rounded-xl hover:bg-white/10 border border-white/5">
+                              <ClearIcon className="w-5 h-5" />
+                            </button>
+                          </div>
+
+                          <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
+                            <div>
+                              <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">Selecione a Data Estimada</label>
+                              <input
+                                type="date"
+                                className="w-full bg-[#0a0f18] border border-white/10 rounded-xl p-3.5 text-white text-sm focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 shadow-inner custom-date-input"
+                                value={availabilityDate}
+                                onChange={e => setAvailabilityDate(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">Filtrar por Engenheiro</label>
+                              <select
+                                className="w-full bg-[#0a0f18] border border-white/10 rounded-xl p-3.5 text-white text-sm focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 shadow-inner appearance-none custom-select"
+                                value={availabilityEngineer}
+                                onChange={e => setAvailabilityEngineer(e.target.value)}
+                              >
+                                <option value="">Todos os Engenheiros</option>
+                                {engineersList.map(eng => (
+                                  <option key={eng.id} value={eng.name}>{eng.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 min-h-[300px]">
+                            {!availabilityDate ? (
+                              <div className="flex flex-col items-center justify-center h-full opacity-40 py-20">
+                                <svg className="w-16 h-16 text-indigo-400 mb-4 drop-shadow-lg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                <p className="text-sm text-gray-300 font-bold uppercase tracking-widest">Selecione uma data acima para visualizar</p>
+                              </div>
+                            ) : freeEncarregadosData.length === 0 ? (
+                              <div className="flex flex-col items-center justify-center h-full opacity-80 py-20">
+                                <svg className="w-16 h-16 text-orange-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                <p className="text-sm font-bold text-orange-400 uppercase tracking-widest bg-orange-500/10 px-6 py-2 rounded-xl border border-orange-500/20">Nenhum Encarregado Livre</p>
+                                <p className="text-xs text-brand-med-gray mt-3">Todos os encarregados estão alocados em alguma atividade.</p>
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                                {freeEncarregadosData.map(enc => (
+                                  <div key={enc.id} className="bg-[#1b2333]/40 backdrop-blur-md border border-white/5 rounded-2xl p-5 flex flex-col hover:border-indigo-500/40 hover:bg-[#1b2333]/60 transition-all duration-300 shadow-xl group">
+                                    <div className="flex justify-between items-start mb-5">
+                                      <div className="flex-1 pr-2">
+                                        <h3 className="text-sm font-black text-white uppercase tracking-tight break-words leading-tight group-hover:text-indigo-400 transition-colors" title={enc.name}>{enc.name}</h3>
+                                        <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest block mt-1">{enc.role}</span>
+                                      </div>
+                                      <div className="bg-indigo-500/10 px-3 py-1.5 rounded-xl border border-indigo-500/20 flex flex-col items-center justify-center min-w-[3.5rem] shadow-inner flex-shrink-0">
+                                        <span className="text-xs font-black text-indigo-400 leading-none mb-1">{enc.total}</span>
+                                        <span className="text-[7px] text-gray-500 uppercase font-bold leading-none tracking-widest">Pessoas</span>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex-1 space-y-2 overflow-y-auto max-h-48 custom-scrollbar pr-1">
+                                      {Object.entries(enc.counts).length > 0 ? (
+                                        Object.entries(enc.counts).map(([role, qty]) => (
+                                          <div key={role} className="flex justify-between items-center text-[11px] p-2.5 bg-white/[0.03] rounded-xl border border-white/[0.02] hover:bg-white/[0.06] transition-colors">
+                                            <span className="text-gray-300 truncate pr-2 font-medium" title={role}>{role}</span>
+                                            <span className="font-black text-white px-2 py-0.5 bg-black/30 rounded-md border border-white/5">{qty}</span>
+                                          </div>
+                                        ))
+                                      ) : (
+                                        <div className="h-full flex items-center justify-center py-6 border border-dashed border-white/10 rounded-xl">
+                                          <p className="text-[10px] text-gray-500 text-center italic font-medium uppercase tracking-widest">Sem equipe estruturada</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+                {canWritePlanning && (
                   <button
                     onClick={() => onOpenModal(null)}
-                    className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-brand-accent text-white px-6 py-3 rounded-xl hover:bg-[#e35a10] transition-all duration-300 font-bold shadow-xl shadow-brand-accent/20 border border-white/10"
+                    className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-brand-accent text-white px-6 py-3 rounded-xl hover:bg-[#e35a10] transition-all duration-300 font-bold shadow-xl shadow-brand-accent/20 border border-white/10 hover:shadow-[0_0_15px_rgba(235,90,16,0.5)] hover:border-[#eb5a10]/50"
                   >
                     <PlusIcon className="w-5 h-5" />
                     <span>Nova Tarefa</span>
