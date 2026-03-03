@@ -9,6 +9,7 @@ import UserIcon from './icons/UserIcon';
 import CalendarIcon from './icons/CalendarIcon';
 import ClockIcon from './icons/ClockIcon';
 import CircleIcon from './icons/CircleIcon';
+import WhatsAppIcon from './icons/WhatsAppIcon';
 
 interface CheckoutSummaryPageProps {
     onNavigateToHome?: () => void;
@@ -89,7 +90,7 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
     onAddTask,
     showToast
 }) => {
-    const { currentUser, checkoutLogs, tasks, signOut, deleteCheckoutLog } = useData();
+    const { currentUser, checkoutLogs, tasks, allUsers, signOut, deleteCheckoutLog } = useData();
 
     const [filterLocation, setFilterLocation] = React.useState('');
     const [filterUser, setFilterUser] = React.useState('');
@@ -188,34 +189,43 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
     const pendingCheckouts = useMemo(() => {
         if (viewMode !== 'pendencias' || !pendenciaDate) return [];
 
-        const dayDate = new Date(pendenciaDate);
-        const dayStr = formatDate(pendenciaDate);
+        const dayStrIso = pendenciaDate; // Formato YYYY-MM-DD do input de data
 
-        // Tarefas previstas para este dia (excluir concluídas)
-        const tasksForDay = tasks.filter(t => {
+        // Passo 1: Filtrar tarefas que teriam atividade NESTE dia
+        const tasksToConsider = tasks.filter(t => {
             if (!t.startDate || !t.dueDate || !t.assignee) return false;
-            if (t.status === 'Completed') return false; // Excluir concluídas
-            const start = new Date(t.startDate);
-            const end = new Date(t.dueDate);
-            return dayDate >= start && dayDate <= end;
+
+            // REGRA: Atividades já concluídas (status ou data de fim preenchida) NÃO devem aparecer
+            if (t.status === 'Completed') return false;
+            if (t.actualEndDate) return false;
+
+            // Comparação direta de strings YYYY-MM-DD (Seguro contra fuso horário)
+            const isWithinRange = dayStrIso >= t.startDate && dayStrIso <= t.dueDate;
+            return isWithinRange;
         });
 
-        // Tarefas que tiveram checkout neste dia (por QUALQUER usuário)
-        const checkedOutTaskIds = new Set<string>();
+        // Passo 2: Verificar quais dessas tarefas tiveram QUALQUER checkout neste dia
+        // Precisamos converter log.created_at (ISO timestamp) para YYYY-MM-DD local
+        const checkedOutTaskIdsOnThisDay = new Set<string>();
         for (const log of checkoutLogs) {
-            if (formatDate(log.created_at) === dayStr) {
-                checkedOutTaskIds.add(log.task_id);
+            const logDate = new Date(log.created_at);
+            const logDateIso = logDate.getFullYear() + '-' +
+                String(logDate.getMonth() + 1).padStart(2, '0') + '-' +
+                String(logDate.getDate()).padStart(2, '0');
+
+            if (logDateIso === dayStrIso) {
+                checkedOutTaskIdsOnThisDay.add(log.task_id);
             }
         }
 
-        // Tarefas sem nenhum checkout no dia (de nenhum usuário)
+        // Passo 3: O resultado são as tarefas previstas que NÃO possuem checkout registrado
         const missing: { assignee: string; taskTitle: string; location: string; discipline: string; taskId: string }[] = [];
         const seenTaskIds = new Set<string>();
 
-        for (const t of tasksForDay) {
-            // Se qualquer usuário fez checkout nesta tarefa no dia, pula
-            if (checkedOutTaskIds.has(t.id)) continue;
-            // Evitar duplicatas
+        for (const t of tasksToConsider) {
+            // Se já houve checkout nesta tarefa no dia, pula
+            if (checkedOutTaskIdsOnThisDay.has(t.id)) continue;
+            // Evitar duplicatas (caso haja inconsistência no estado)
             if (seenTaskIds.has(t.id)) continue;
 
             if (filterLocation && t.location !== filterLocation) continue;
@@ -543,9 +553,27 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                                                             {m.taskTitle} • {m.location} • {m.discipline}
                                                         </p>
                                                     </div>
-                                                    <span className="text-[8px] font-black text-red-400/70 uppercase tracking-widest bg-red-500/10 px-2.5 py-1 rounded-lg shrink-0 border border-red-500/10">
-                                                        Sem checkout
-                                                    </span>
+                                                    <div className="flex items-center gap-2 shrink-0">
+                                                        <span className="text-[8px] font-black text-red-400/70 uppercase tracking-widest bg-red-500/10 px-2.5 py-1 rounded-lg border border-red-500/10">
+                                                            Sem checkout
+                                                        </span>
+                                                        <button
+                                                            onClick={() => {
+                                                                const selectedUser = allUsers.find(u => u.fullName === m.assignee);
+                                                                if (!selectedUser?.whatsapp) {
+                                                                    alert("Responsável não possui WhatsApp cadastrado.");
+                                                                    return;
+                                                                }
+                                                                const phone = selectedUser.whatsapp.replace(/\D/g, '');
+                                                                const message = `Olá *${selectedUser.fullName}*,%0A%0AIdentificamos que a atividade *${m.taskTitle}* (${m.location}) está sem checkout hoje (${formatDate(pendenciaDate)}).%0A%0A*Poderia atualizar o status no sistema, por favor?* 🙏🏗️`;
+                                                                window.open(`https://wa.me/55${phone}?text=${message}`, '_blank');
+                                                            }}
+                                                            className="p-2 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white rounded-lg transition-all duration-300 border border-green-500/20"
+                                                            title="Notificar via WhatsApp"
+                                                        >
+                                                            <WhatsAppIcon className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>

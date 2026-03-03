@@ -4,6 +4,9 @@ import { Task, TaskStatus, User } from '../types';
 import SortIcon from './icons/SortIcon';
 import EditIcon from './icons/EditIcon';
 import DeleteIcon from './icons/DeleteIcon';
+import EyeIcon from './icons/EyeIcon';
+import XIcon from './icons/XIcon';
+import WhatsAppIcon from './icons/WhatsAppIcon';
 
 type SortKey = keyof Task | 'none';
 type SortDirection = 'asc' | 'desc';
@@ -17,6 +20,7 @@ interface TaskListViewProps {
   onSort: (key: SortKey) => void;
   sortConfig: { key: SortKey; direction: SortDirection };
   userRole: User['role'];
+  allUsers: User[];
 }
 
 const statusColorConfig: Record<DisplayStatus, string> = {
@@ -65,7 +69,16 @@ const HeaderCell: React.FC<{
   );
 };
 
-const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEditTask, onDeleteTask, onSort, sortConfig, userRole }) => {
+const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEditTask, onDeleteTask, onSort, sortConfig, userRole, allUsers }) => {
+  const [selectedPhotos, setSelectedPhotos] = React.useState<string[] | null>(null);
+
+  // OTIMIZAÇÃO: Indexar tarefas da baseline para consulta rápida O(1)
+  const baselineMap = React.useMemo(() => {
+    const map = new Map<string, Task>();
+    baselineTasks.forEach(bt => map.set(bt.id, bt));
+    return map;
+  }, [baselineTasks]);
+
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
@@ -102,7 +115,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEdi
         <tbody>
           {tasks.map((task, index) => {
             const display = getDisplayStatus(task);
-            const baselineTask = baselineTasks.find(bt => bt.id === task.id);
+            const baselineTask = baselineMap.get(task.id);
             // Aplicar stagger apenas às primeiras 10 linhas para performance
             const staggerClass = index < 10 ? `animate-stagger-${Math.min(index + 1, 4)}` : '';
 
@@ -208,6 +221,33 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEdi
                       <EditIcon className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
                       <span>Checkout</span>
                     </button>
+                    {task.assignee && (
+                      <button
+                        onClick={() => {
+                          const selectedUser = allUsers.find(u => u.fullName === task.assignee);
+                          if (!selectedUser?.whatsapp) {
+                            alert("Responsável não possui WhatsApp cadastrado.");
+                            return;
+                          }
+                          const phone = selectedUser.whatsapp.replace(/\D/g, '');
+                          const message = `Olá *${selectedUser.fullName}*,%0A%0AFollow-up da atividade:%0A📌 *${task.title}*%0A📍 Local: ${task.location}%0A📅 Prazo: ${new Date(task.startDate + 'T00:00:00').toLocaleDateString('pt-BR')} até ${new Date(task.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}%0A%0A*Favor atualizar o status no sistema!* 🚀`;
+                          window.open(`https://wa.me/55${phone}?text=${message}`, '_blank');
+                        }}
+                        className="p-2 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white rounded-lg transition-all duration-300 border border-green-500/20"
+                        title="Reenviar WhatsApp"
+                      >
+                        <WhatsAppIcon className="w-4 h-4" />
+                      </button>
+                    )}
+                    {task.photos && task.photos.length > 0 && (
+                      <button
+                        onClick={() => setSelectedPhotos(task.photos || null)}
+                        className="p-2 bg-blue-500/10 hover:bg-blue-500 text-blue-400 hover:text-white rounded-lg transition-all duration-300 border border-blue-500/20"
+                        title="Ver Fotos"
+                      >
+                        <EyeIcon className="w-4 h-4" />
+                      </button>
+                    )}
                     {(userRole === 'Master' || userRole === 'Planejador') && (
                       <button
                         onClick={() => onDeleteTask(task.id)}
@@ -227,6 +267,31 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEdi
       {tasks.length === 0 && (
         <div className="text-center py-10 text-brand-med-gray">
           Nenhuma tarefa encontrada. Tente ajustar seus filtros.
+        </div>
+      )}
+
+      {/* Photo Gallery Modal */}
+      {selectedPhotos && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-fade-in" onClick={() => setSelectedPhotos(null)}>
+          <div className="relative max-w-5xl w-full p-4 flex flex-col items-center gap-8" onClick={e => e.stopPropagation()}>
+            <div className="absolute -top-12 right-0 flex items-center gap-4">
+              <p className="text-white/40 font-black uppercase tracking-[3px] text-[10px]">Galeria de Evidências • {selectedPhotos.length} itens</p>
+              <button onClick={() => setSelectedPhotos(null)} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all border border-white/10">
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 overflow-y-auto max-h-[80vh] w-full custom-scrollbar p-4">
+              {selectedPhotos.map((photo, i) => (
+                <div key={i} className="group relative aspect-video rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-black/20">
+                  <img src={photo} className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-105" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
+                    <span className="text-white font-black text-[10px] uppercase tracking-widest bg-brand-accent/80 px-3 py-1.5 rounded-lg shadow-lg">Evidência #{i + 1}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>

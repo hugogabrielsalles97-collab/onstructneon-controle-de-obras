@@ -10,6 +10,7 @@ import WeatherIcon from './icons/WeatherIcon';
 import SafetyAnalysisIcon from './icons/SafetyAnalysisIcon';
 import ConstructionIcon from './icons/ConstructionIcon';
 import ManagementIcon from './icons/ManagementIcon';
+import WhatsAppIcon from './icons/WhatsAppIcon';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { disciplineOptions, taskTitleOptions, oaeLocations, frentes, apoios, vaos, sideOptions, unitOptions } from '../utils/constants';
 import AIRestrictedAccess from './AIRestrictedAccess';
@@ -563,6 +564,21 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         }));
     };
 
+    const handleWhatsAppShare = () => {
+        if (!formData.assignee) return;
+        const selectedUser = allUsers.find(u => u.fullName === formData.assignee);
+        if (!selectedUser?.whatsapp) {
+            alert("Responsável não possui WhatsApp cadastrado no sistema.");
+            return;
+        }
+
+        const phone = selectedUser.whatsapp.replace(/\D/g, '');
+        const message = `Olá *${selectedUser.fullName}*,\n\nVocê tem uma nova atividade alocada:\n📌 *${formData.title}*\n📍 Local: ${formData.location}\n📅 Prazo: ${new Date(formData.startDate + 'T00:00:00').toLocaleDateString('pt-BR')} até ${new Date(formData.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}\n\n*Vamos pra cima!* 🚀🏗️`;
+
+        const url = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank');
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         let finalStatus: TaskStatus;
@@ -901,6 +917,17 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                             {assignableUsers.map(u => <option key={u.username} value={u.fullName}>{u.fullName} • {u.role}</option>)}
                                         </select>
 
+                                        {formData.assignee && (
+                                            <button
+                                                type="button"
+                                                onClick={handleWhatsAppShare}
+                                                className="mt-2 flex items-center justify-center gap-2 w-full py-2.5 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white rounded-xl border border-green-500/20 transition-all duration-300 font-bold text-xs group"
+                                            >
+                                                <WhatsAppIcon className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                                Reenviar p/ WhatsApp
+                                            </button>
+                                        )}
+
                                         {supervisor && (
                                             <div className="mt-3 p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl flex items-center gap-4 animate-fade-in shadow-lg">
                                                 <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20">
@@ -1091,15 +1118,27 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                     <div className="space-y-4">
                                         <div className="flex justify-between items-center">
                                             <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px]">Observações Técnicas (RDO)</label>
-                                            <button
-                                                type="button"
-                                                onClick={handleAIAssist}
-                                                disabled={isAnalyzing}
-                                                className="text-[9px] font-black text-brand-accent uppercase flex items-center gap-2 bg-brand-accent/10 py-1.5 px-4 rounded-xl border border-brand-accent/20 hover:bg-brand-accent hover:text-white transition-all shadow-inner"
-                                            >
-                                                <SparkleIcon className={`w-3 h-3 ${isAnalyzing ? 'animate-spin' : ''}`} />
-                                                Gerador Assistido por IA
-                                            </button>
+                                            <div className="flex gap-3">
+                                                {formData.assignee && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleWhatsAppShare}
+                                                        className="text-[9px] font-black text-green-400 uppercase flex items-center gap-2 bg-green-500/10 py-1.5 px-4 rounded-xl border border-green-500/20 hover:bg-green-500 hover:text-white transition-all shadow-inner"
+                                                    >
+                                                        <WhatsAppIcon className="w-3 h-3" />
+                                                        Reenviar p/ WhatsApp
+                                                    </button>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={handleAIAssist}
+                                                    disabled={isAnalyzing}
+                                                    className="text-[9px] font-black text-brand-accent uppercase flex items-center gap-2 bg-brand-accent/10 py-1.5 px-4 rounded-xl border border-brand-accent/20 hover:bg-brand-accent hover:text-white transition-all shadow-inner"
+                                                >
+                                                    <SparkleIcon className={`w-3 h-3 ${isAnalyzing ? 'animate-spin' : ''}`} />
+                                                    Gerador Assistido por IA
+                                                </button>
+                                            </div>
                                         </div>
                                         <textarea
                                             name="observations"

@@ -388,6 +388,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
                 onSort={handleSort}
                 sortConfig={sortConfig}
                 userRole={user.role}
+                allUsers={allUsers}
               />
             </div>
           </div>
