@@ -35,8 +35,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister, onVisit
       });
 
       if (signInError) {
-        if (signInError.message.toLowerCase().includes('invalid api key') || signInError.message.toLowerCase().includes('failed to fetch')) {
-          setError('Erro de Conexão: Não foi possível alcançar o servidor. Verifique sua internet.');
+        const msg = signInError.message.toLowerCase();
+        if (msg.includes('invalid api key') || msg.includes('failed to fetch') || msg.includes('network') || msg.includes('timeout') || msg.includes('econnrefused') || msg.includes('503') || msg.includes('502')) {
+          setError('Erro de Conexão: O servidor está temporariamente indisponível. Tente novamente em alguns minutos.');
         } else {
           setError(signInError.message === 'Invalid login credentials' ? 'Usuário ou senha inválidos.' : signInError.message);
         }

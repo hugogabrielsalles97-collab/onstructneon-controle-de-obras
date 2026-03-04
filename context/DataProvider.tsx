@@ -161,7 +161,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 
     const refreshData = async () => {
-        await queryClient.invalidateQueries();
+        // Invalida apenas queries essenciais (não todas de uma vez)
+        // Isso evita bombardear o Supabase com muitas requisições simultâneas
+        await queryClient.invalidateQueries({ queryKey: ['tasks'] });
+        // Aguarda um pouco antes de invalidar as próximas para não sobrecarregar
+        setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ['restrictions'] });
+            queryClient.invalidateQueries({ queryKey: ['checkoutLogs'] });
+        }, 2000);
     };
 
     const saveTask = async (task: Task) => {

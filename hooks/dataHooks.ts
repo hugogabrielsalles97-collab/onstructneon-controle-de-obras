@@ -10,63 +10,48 @@ export interface CatalogItem {
     created_at?: string;
 }
 
-// Helper function to fetch all rows (bypass Supabase 1000 limit)
-const fetchAllRows = async (tableName: string) => {
+// ==========================================
+// OTIMIZADO: Busca sequencial com paginação menor
+// para reduzir consumo de RAM e Disk I/O no Supabase
+// ==========================================
+const fetchAllRows = async (tableName: string, columns: string = '*') => {
     try {
-        // 1. Obter o count total primeiro para saber quantas páginas buscar
+        const step = 500; // Reduzido de 1000 para 500 para menos pressão no disco
+
+        // 1. Obter o count total primeiro (requisição leve, head: true)
         const { count, error: countError } = await supabase
             .from(tableName)
-            .select('*', { count: 'exact', head: true });
+            .select(columns, { count: 'exact', head: true });
 
         if (countError) throw countError;
-        if (!count) return [];
+        if (count === 0 || count === null) return [];
 
-        const step = 1000;
         const totalPages = Math.ceil(count / step);
 
-        // Se for apenas uma página, busca direto
+        // Se cabe em uma página, busca direto
         if (totalPages === 1) {
-            const { data, error } = await supabase.from(tableName).select('*');
+            const { data, error } = await supabase.from(tableName).select(columns);
             if (error) throw error;
             return data || [];
         }
 
-        // 2. Criar promessas para buscar todas as páginas em PARALELO
-        const promises = [];
+        // 2. Busca SEQUENCIAL (uma página por vez) para não sobrecarregar o Supabase
+        let allRows: any[] = [];
         for (let i = 0; i < totalPages; i++) {
             const from = i * step;
-            promises.push(
-                supabase
-                    .from(tableName)
-                    .select('*')
-                    .range(from, from + step - 1)
-                    .then(({ data, error }) => {
-                        if (error) throw error;
-                        return data || [];
-                    })
-            );
+            const { data, error } = await supabase
+                .from(tableName)
+                .select(columns)
+                .range(from, from + step - 1);
+
+            if (error) throw error;
+            if (data) allRows = allRows.concat(data);
         }
 
-        // 3. Aguardar todas as buscas terminarem
-        const results = await Promise.all(promises);
-
-        // 4. Achatar o array de resultados
-        return results.flat();
-    } catch (err) {
-        console.error(`Erro crítico ao buscar ${tableName} em paralelo:`, err);
-
-        // Fallback para busca sequencial segura caso a paralela falhe (ex: limite de conexões)
-        let allRows: any[] = [];
-        let from = 0;
-        const step = 1000;
-        while (true) {
-            const { data, error } = await supabase.from(tableName).select('*').range(from, from + step - 1);
-            if (error || !data || data.length === 0) break;
-            allRows = [...allRows, ...data];
-            if (data.length < step) break;
-            from += step;
-        }
         return allRows;
+    } catch (err) {
+        console.error(`Erro ao buscar ${tableName}:`, err);
+        return [];
     }
 };
 
@@ -75,7 +60,10 @@ export const useTasks = (enabled: boolean = true) => {
         queryKey: ['tasks'],
         queryFn: () => fetchAllRows('tasks'),
         enabled,
-        staleTime: 1000 * 60 * 5,
+        staleTime: 1000 * 60 * 15, // 15 min (era 5 min)
+        gcTime: 1000 * 60 * 30, // Mantém em cache por 30 min
+        refetchOnWindowFocus: false, // NÃO rebuscar ao focar janela
+        refetchOnReconnect: false,
         retry: 1,
     });
 };
@@ -88,7 +76,10 @@ export const useLeanTasks = (enabled: boolean = true) => {
             return rows.map(r => ({ ...r.task_data, id: r.id }));
         },
         enabled,
-        staleTime: 1000 * 60 * 5,
+        staleTime: 1000 * 60 * 15,
+        gcTime: 1000 * 60 * 30,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
         retry: 1,
     });
 };
@@ -98,7 +89,10 @@ export const useBaselineTasks = (enabled: boolean = true) => {
         queryKey: ['baselineTasks'],
         queryFn: () => fetchAllRows('baseline_tasks'),
         enabled,
-        staleTime: 1000 * 60 * 60,
+        staleTime: 1000 * 60 * 60 * 4, // 4 horas (baseline quase nunca muda)
+        gcTime: 1000 * 60 * 60 * 6,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
         retry: 1,
     });
 };
@@ -108,7 +102,10 @@ export const useCurrentScheduleTasks = (enabled: boolean = true) => {
         queryKey: ['currentScheduleTasks'],
         queryFn: () => fetchAllRows('current_schedule_tasks'),
         enabled,
-        staleTime: 1000 * 60 * 30,
+        staleTime: 1000 * 60 * 60 * 2, // 2 horas
+        gcTime: 1000 * 60 * 60 * 4,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
         retry: 1,
     });
 };
@@ -118,6 +115,10 @@ export const useRestrictions = (enabled: boolean = true) => {
         queryKey: ['restrictions'],
         queryFn: () => fetchAllRows('restrictions'),
         enabled,
+        staleTime: 1000 * 60 * 15,
+        gcTime: 1000 * 60 * 30,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
         retry: 1,
     });
 };
@@ -133,6 +134,8 @@ export const useAllUsers = (enabled: boolean = true) => {
             return data as User[];
         },
         enabled,
+        staleTime: 1000 * 60 * 30, // 30 min (lista de usuarios muda raramente)
+        refetchOnWindowFocus: false,
         retry: 1,
     });
 };
@@ -172,11 +175,18 @@ export const useCheckoutLogs = (enabled: boolean = true) => {
     return useQuery<CheckoutLog[]>({
         queryKey: ['checkoutLogs'],
         queryFn: async () => {
-            const rows = await fetchAllRows('checkout_logs');
-            // Sort by created_at DESC locally after fetching all (since fetchAllRows doesn't guarantee order)
-            return rows.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) as CheckoutLog[];
+            // Buscar apenas os últimos 500 logs (ordenados no servidor), evitando carregar histórico completo
+            const { data, error } = await supabase
+                .from('checkout_logs')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(500);
+            if (error) throw error;
+            return (data || []) as CheckoutLog[];
         },
         enabled,
+        staleTime: 1000 * 60 * 10, // 10 min
+        refetchOnWindowFocus: false,
         retry: 1,
     });
 };
@@ -186,6 +196,8 @@ export const useOrgMembers = (enabled: boolean = true) => {
         queryKey: ['orgMembers'],
         queryFn: () => fetchAllRows('org_members'),
         enabled,
+        staleTime: 1000 * 60 * 30,
+        refetchOnWindowFocus: false,
         retry: 1,
     });
 };
@@ -195,7 +207,9 @@ export const useCatalogs = (enabled: boolean = true) => {
         queryKey: ['catalogs'],
         queryFn: () => fetchAllRows('activity_catalogs'),
         enabled,
-        staleTime: 1000 * 60 * 30,
+        staleTime: 1000 * 60 * 60, // 1 hora
+        gcTime: 1000 * 60 * 60 * 2,
+        refetchOnWindowFocus: false,
         retry: 1,
     });
 };
@@ -217,7 +231,8 @@ export const useProjectSettings = (enabled: boolean = true) => {
             return data as ProjectSettings;
         },
         enabled,
-        staleTime: 1000 * 60 * 5,
+        staleTime: 1000 * 60 * 30,
+        refetchOnWindowFocus: false,
         retry: 1,
     });
 };
