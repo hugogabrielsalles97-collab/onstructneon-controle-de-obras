@@ -69,17 +69,42 @@ const fetchAllRows = async (tableName: string, columns: string = '*') => {
 
 // ==========================================
 // Buscar IDs das tarefas com fotos (query leve — só transfere IDs)
+// Usa RPC se disponível, senão fallback com checagem local
 // ==========================================
 export const fetchTaskIdsWithPhotos = async (): Promise<Set<string>> => {
     try {
+        // Tenta usar a RPC function (mais eficiente — filtragem no banco)
+        const { data: rpcData, error: rpcError } = await supabase
+            .rpc('get_task_ids_with_photos');
+
+        if (!rpcError && rpcData) {
+            return new Set(rpcData.map((r: any) => r.id));
+        }
+
+        // Fallback: busca id e apenas o 1º elemento de photos (arrow JSONB)
+        // Se photos->0 não for null, a tarefa tem pelo menos 1 foto
         const { data, error } = await supabase
             .from('tasks')
-            .select('id')
-            .not('photos', 'is', null)
-            .not('photos', 'eq', '[]');
+            .select('id, first_photo:photos->0');
 
-        if (error) throw error;
-        return new Set((data || []).map((r: any) => r.id));
+        if (error) {
+            // Se o arrow não funcionar, busca tudo e filtra localmente
+            const { data: fullData, error: fullError } = await supabase
+                .from('tasks')
+                .select('id, photos');
+            if (fullError) throw fullError;
+
+            const ids = (fullData || [])
+                .filter((r: any) => r.photos && Array.isArray(r.photos) && r.photos.length > 0)
+                .map((r: any) => r.id);
+            return new Set(ids);
+        }
+
+        const ids = (data || [])
+            .filter((r: any) => r.first_photo !== null && r.first_photo !== undefined)
+            .map((r: any) => r.id);
+
+        return new Set(ids);
     } catch (err) {
         console.warn('Erro ao verificar quais tarefas têm fotos:', err);
         return new Set();
