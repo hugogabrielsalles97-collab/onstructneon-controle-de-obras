@@ -627,6 +627,7 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                                                 const metadata = log.changes._metadata || (taskFromState ? {
                                                     location: taskFromState.location,
                                                     corte: taskFromState.corte,
+                                                    support: taskFromState.support,
                                                     startDate: taskFromState.startDate,
                                                     dueDate: taskFromState.dueDate,
                                                     quantity: taskFromState.quantity,
@@ -731,6 +732,12 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                                                                         <span className="text-[8px] font-black text-brand-med-gray uppercase">Corte</span>
                                                                         <span className="text-[11px] text-white font-bold">{metadata?.corte || '-'}</span>
                                                                     </div>
+                                                                    {(metadata?.support || taskFromState?.support) && (
+                                                                        <div className="bg-white/5 px-2.5 py-1 rounded-lg border border-white/5 flex items-center gap-2">
+                                                                            <span className="text-[8px] font-black text-brand-med-gray uppercase">Apoio</span>
+                                                                            <span className="text-[11px] text-white font-bold">{metadata?.support || taskFromState?.support}</span>
+                                                                        </div>
+                                                                    )}
                                                                     {log.changes.status && (
                                                                         <div className={`px-2.5 py-1 rounded-lg border flex items-center gap-2 ml-auto ${log.changes.status.to === 'Completed' ? 'bg-green-500/10 border-green-500/20 text-green-400' :
                                                                             log.changes.status.to === 'InProgress' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' :

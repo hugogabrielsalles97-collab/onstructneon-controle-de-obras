@@ -235,6 +235,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                             _metadata: {
                                 location: task.location,
                                 corte: task.corte,
+                                support: task.support,
                                 startDate: task.startDate,
                                 dueDate: task.dueDate,
                                 quantity: task.quantity
