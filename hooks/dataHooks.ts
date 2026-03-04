@@ -68,6 +68,25 @@ const fetchAllRows = async (tableName: string, columns: string = '*') => {
 };
 
 // ==========================================
+// Buscar IDs das tarefas com fotos (query leve — só transfere IDs)
+// ==========================================
+export const fetchTaskIdsWithPhotos = async (): Promise<Set<string>> => {
+    try {
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('id')
+            .not('photos', 'is', null)
+            .not('photos', 'eq', '[]');
+
+        if (error) throw error;
+        return new Set((data || []).map((r: any) => r.id));
+    } catch (err) {
+        console.warn('Erro ao verificar quais tarefas têm fotos:', err);
+        return new Set();
+    }
+};
+
+// ==========================================
 // Buscar dados pesados de UMA tarefa específica (sob demanda)
 // ==========================================
 export const fetchTaskHeavyData = async (taskId: string, tableName: string = 'tasks') => {

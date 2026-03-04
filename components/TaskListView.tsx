@@ -1,8 +1,8 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Task, TaskStatus, User } from '../types';
-import { fetchTaskHeavyData } from '../hooks/dataHooks';
+import { fetchTaskHeavyData, fetchTaskIdsWithPhotos } from '../hooks/dataHooks';
 import SortIcon from './icons/SortIcon';
 import EditIcon from './icons/EditIcon';
 import DeleteIcon from './icons/DeleteIcon';
@@ -74,6 +74,12 @@ const HeaderCell: React.FC<{
 const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEditTask, onDeleteTask, onSort, sortConfig, userRole, allUsers }) => {
   const [selectedPhotos, setSelectedPhotos] = React.useState<string[] | null>(null);
   const [loadingPhotoTaskId, setLoadingPhotoTaskId] = useState<string | null>(null);
+  const [taskIdsWithPhotos, setTaskIdsWithPhotos] = useState<Set<string>>(new Set());
+
+  // Busca leve: quais tarefas TEM fotos (só IDs, sem carregar imagens)
+  useEffect(() => {
+    fetchTaskIdsWithPhotos().then(ids => setTaskIdsWithPhotos(ids));
+  }, [tasks]); // re-busca quando a lista de tasks muda (ex: após salvar nova foto)
 
   // Busca fotos sob demanda para uma tarefa específica (1 por vez = leve na memória)
   const handleViewPhotos = useCallback(async (taskId: string) => {
@@ -84,7 +90,6 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEdi
       if (photos.length > 0) {
         setSelectedPhotos(photos);
       } else {
-        // Sem fotos — mostra alerta rápido
         setSelectedPhotos(null);
         alert('Nenhuma foto registrada para esta tarefa.');
       }
@@ -271,21 +276,23 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEdi
                           <WhatsAppIcon className="w-4 h-4" />
                         </button>
                       )}
-                      <button
-                        onClick={() => handleViewPhotos(task.id)}
-                        disabled={loadingPhotoTaskId === task.id}
-                        className={`p-2 rounded-lg transition-all duration-300 border ${loadingPhotoTaskId === task.id
+                      {taskIdsWithPhotos.has(task.id) && (
+                        <button
+                          onClick={() => handleViewPhotos(task.id)}
+                          disabled={loadingPhotoTaskId === task.id}
+                          className={`p-2 rounded-lg transition-all duration-300 border ${loadingPhotoTaskId === task.id
                             ? 'bg-blue-500/20 text-blue-300 border-blue-500/30 cursor-wait'
                             : 'bg-blue-500/10 hover:bg-blue-500 text-blue-400 hover:text-white border-blue-500/20'
-                          }`}
-                        title="Ver Fotos"
-                      >
-                        {loadingPhotoTaskId === task.id ? (
-                          <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <EyeIcon className="w-4 h-4" />
-                        )}
-                      </button>
+                            }`}
+                          title="Ver Fotos"
+                        >
+                          {loadingPhotoTaskId === task.id ? (
+                            <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <EyeIcon className="w-4 h-4" />
+                          )}
+                        </button>
+                      )}
                       {(userRole === 'Master' || userRole === 'Planejador') && (
                         <button
                           onClick={() => onDeleteTask(task.id)}
