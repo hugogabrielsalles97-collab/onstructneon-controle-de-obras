@@ -79,7 +79,13 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
     onAddTask,
     showToast
 }) => {
-    const { currentUser: user, baselineTasks, importBaseline, signOut, baselineCutOffDateStr, setBaselineCutOffDateStr } = useData();
+    const { currentUser: user, baselineTasks, importBaseline, signOut, baselineCutOffDateStr, setBaselineCutOffDateStr, enableBaselineLoading } = useData();
+
+    // Ativa o carregamento dos dados de baseline ao entrar nesta página
+    useEffect(() => {
+        enableBaselineLoading();
+    }, []);
+
     const [isImporting, setIsImporting] = useState(baselineTasks.length === 0);
     const [file, setFile] = useState<File | null>(null);
     const [fileHeaders, setFileHeaders] = useState<string[]>([]);

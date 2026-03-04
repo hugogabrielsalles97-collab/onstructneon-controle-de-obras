@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Task, TaskStatus, Resource, User, OrgMember } from '../types';
-import { useOrgMembers, CatalogItem } from '../hooks/dataHooks';
+import { useOrgMembers, CatalogItem, fetchTaskHeavyData } from '../hooks/dataHooks';
 import { useData } from '../context/DataProvider';
 import XIcon from './icons/XIcon';
 import PlusIcon from './icons/PlusIcon';
@@ -207,6 +207,24 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             setSafetyAnalysisResult({ status: 'idle', message: '' });
         }
     }, [task, isOpen, allUsers]);
+
+    // Busca os campos pesados (JSONB) sob demanda quando editando uma tarefa existente
+    useEffect(() => {
+        if (isOpen && task?.id) {
+            fetchTaskHeavyData(task.id, 'tasks').then(heavyData => {
+                if (heavyData) {
+                    setFormData(prev => ({
+                        ...prev,
+                        plannedManpower: heavyData.plannedManpower || prev.plannedManpower || [],
+                        plannedMachinery: heavyData.plannedMachinery || prev.plannedMachinery || [],
+                        actualManpower: heavyData.actualManpower || prev.actualManpower || [],
+                        actualMachinery: heavyData.actualMachinery || prev.actualMachinery || [],
+                        photos: heavyData.photos || prev.photos || [],
+                    }));
+                }
+            }).catch(err => console.warn('Erro ao buscar dados pesados da tarefa:', err));
+        }
+    }, [isOpen, task?.id]);
 
     useEffect(() => {
         if (['Terraplenagem', 'Contenções'].includes(formData.discipline) && formData.level) {

@@ -44,6 +44,8 @@ interface DataContextType {
     deleteUser: (userId: string) => Promise<{ success: boolean; error?: string }>;
     isDevToolsOpen: boolean;
     setIsDevToolsOpen: (isOpen: boolean) => void;
+    enableBaselineLoading: () => void;
+    enableScheduleLoading: () => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -54,6 +56,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [currentScheduleCutOffDateStr, setCurrentScheduleCutOffDateStr] = useState('2026-01-10');
     const [isAuthLoading, setIsAuthLoading] = useState(true);
     const queryClient = useQueryClient();
+
+    // Controle de carregamento sob demanda: baseline e schedule SÓ carregam quando solicitados
+    const [enableBaseline, setEnableBaseline] = useState(false);
+    const [enableSchedule, setEnableSchedule] = useState(false);
+    // Controle de carregamento escalonado: dados secundários carregam depois dos essenciais
+    const [enableSecondary, setEnableSecondary] = useState(false);
 
     useEffect(() => {
         let mounted = true;
@@ -90,17 +98,30 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const userId = session?.user?.id;
     const isLoggedIn = !!session;
 
-    // React Query Hooks
+    // React Query Hooks — carregamento escalonado
+    // ONDA 1: Essenciais (login) — carregam imediatamente
     const { data: currentUser, isLoading: loadingUser } = useCurrentUser(userId);
     const { data: allUsers = [], isLoading: loadingAllUsers } = useAllUsers(isLoggedIn);
     const { data: tasks = [], isLoading: loadingTasks } = useTasks(isLoggedIn);
-    const { data: baselineTasks = [], isLoading: loadingBaseline } = useBaselineTasks(isLoggedIn);
-    const { data: currentScheduleTasks = [], isLoading: loadingCurrentSchedule } = useCurrentScheduleTasks(isLoggedIn);
-    const { data: restrictions = [], isLoading: loadingRestrictions } = useRestrictions(isLoggedIn);
-    const { data: leanTasks = [], isLoading: loadingLeanTasks } = useLeanTasks(isLoggedIn);
-    const { data: catalogs = [], isLoading: loadingCatalogs } = useCatalogs(isLoggedIn);
-    const { data: checkoutLogs = [], isLoading: loadingCheckoutLogs } = useCheckoutLogs(isLoggedIn);
     const { data: settings, isLoading: loadingSettings } = useProjectSettings(isLoggedIn);
+
+    // ONDA 2: Secundários — carregam 3s depois do login para não sobrecarregar
+    const { data: restrictions = [], isLoading: loadingRestrictions } = useRestrictions(isLoggedIn && enableSecondary);
+    const { data: leanTasks = [], isLoading: loadingLeanTasks } = useLeanTasks(isLoggedIn && enableSecondary);
+    const { data: catalogs = [], isLoading: loadingCatalogs } = useCatalogs(isLoggedIn && enableSecondary);
+    const { data: checkoutLogs = [], isLoading: loadingCheckoutLogs } = useCheckoutLogs(isLoggedIn && enableSecondary);
+
+    // ONDA 3: Sob demanda — SÓ carregam quando o usuário navega para a página
+    const { data: baselineTasks = [], isLoading: loadingBaseline } = useBaselineTasks(isLoggedIn && enableBaseline);
+    const { data: currentScheduleTasks = [], isLoading: loadingCurrentSchedule } = useCurrentScheduleTasks(isLoggedIn && enableSchedule);
+
+    // Ativar carregamento secundário 3s depois do login
+    useEffect(() => {
+        if (isLoggedIn && !enableSecondary) {
+            const timer = setTimeout(() => setEnableSecondary(true), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [isLoggedIn, enableSecondary]);
 
     // Sincronizar estados locais com o banco de dados quando carregado
     useEffect(() => {
@@ -157,7 +178,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const isLoading = isAuthLoading || (isLoggedIn && loadingUser);
 
     // Auxiliary state to track if secondary data is still coming
-    const isBackgroundLoading = isLoggedIn && (loadingAllUsers || loadingTasks || loadingBaseline || loadingCurrentSchedule || loadingRestrictions || loadingCatalogs);
+    const isBackgroundLoading = isLoggedIn && (loadingAllUsers || loadingTasks || loadingRestrictions);
 
 
     const refreshData = async () => {
@@ -533,7 +554,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setBaselineCutOffDateStr: handleSetBaselineCutOffDateStr,
             currentScheduleCutOffDateStr,
             setCurrentScheduleCutOffDateStr: handleSetCurrentScheduleCutOffDateStr,
-            signOut, upgradeRole, updateUser, deleteUser, isDevToolsOpen, setIsDevToolsOpen
+            signOut, upgradeRole, updateUser, deleteUser, isDevToolsOpen, setIsDevToolsOpen,
+            enableBaselineLoading: () => setEnableBaseline(true),
+            enableScheduleLoading: () => setEnableSchedule(true),
         }}>
             {children}
         </DataContext.Provider>

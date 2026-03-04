@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useData } from '../context/DataProvider';
 import Header from './Header';
 import { TaskStatus, Restriction, RestrictionType } from '../types';
@@ -64,7 +64,13 @@ const LeanPage: React.FC<LeanPageProps> = ({
     onAddTask,
     showToast
 }) => {
-    const { currentUser: user, tasks, baselineTasks, currentScheduleTasks, currentScheduleCutOffDateStr, signOut } = useData();
+    const { currentUser: user, tasks, baselineTasks, currentScheduleTasks, currentScheduleCutOffDateStr, signOut, enableBaselineLoading, enableScheduleLoading } = useData();
+
+    // Ativa o carregamento de baseline e schedule ao entrar nesta página
+    useEffect(() => {
+        enableBaselineLoading();
+        enableScheduleLoading();
+    }, []);
     const [restrictionModal, setRestrictionModal] = useState<{
         taskId: string;
         taskTitle: string;

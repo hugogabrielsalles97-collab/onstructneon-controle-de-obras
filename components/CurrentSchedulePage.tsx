@@ -79,7 +79,13 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
     onAddTask,
     showToast
 }) => {
-    const { currentUser: user, currentScheduleTasks, importCurrentSchedule, signOut, currentScheduleCutOffDateStr, setCurrentScheduleCutOffDateStr } = useData();
+    const { currentUser: user, currentScheduleTasks, importCurrentSchedule, signOut, currentScheduleCutOffDateStr, setCurrentScheduleCutOffDateStr, enableScheduleLoading } = useData();
+
+    // Ativa o carregamento dos dados do cronograma corrente ao entrar nesta página
+    useEffect(() => {
+        enableScheduleLoading();
+    }, []);
+
     const [isImporting, setIsImporting] = useState(currentScheduleTasks.length === 0);
     const [file, setFile] = useState<File | null>(null);
     const [fileHeaders, setFileHeaders] = useState<string[]>([]);
