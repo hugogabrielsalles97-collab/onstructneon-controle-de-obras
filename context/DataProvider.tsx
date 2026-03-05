@@ -63,6 +63,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [enableSchedule, setEnableSchedule] = useState(false);
     // Controle de carregamento escalonado: dados secundários carregam depois dos essenciais
     const [enableSecondary, setEnableSecondary] = useState(false);
+    const [enableTertiary, setEnableTertiary] = useState(false);
 
     useEffect(() => {
         let mounted = true;
@@ -108,28 +109,36 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // ONDA 2: Secundários — carregam 3s depois do login para não sobrecarregar
     const { data: restrictions = [], isLoading: loadingRestrictions } = useRestrictions(isLoggedIn && enableSecondary);
-    const { data: leanTasks = [], isLoading: loadingLeanTasks } = useLeanTasks(isLoggedIn && enableSecondary);
     const { data: catalogs = [], isLoading: loadingCatalogs } = useCatalogs(isLoggedIn && enableSecondary);
-    const { data: checkoutLogs = [], isLoading: loadingCheckoutLogs } = useCheckoutLogs(isLoggedIn && enableSecondary);
 
-    // ONDA 3: Sob demanda — SÓ carregam quando o usuário navega para a página
+    // ONDA 3: Terciários — carregam 5s depois, dividindo a carga da rede e CPU do banco
+    const { data: leanTasks = [], isLoading: loadingLeanTasks } = useLeanTasks(isLoggedIn && enableTertiary);
+    const { data: checkoutLogs = [], isLoading: loadingCheckoutLogs } = useCheckoutLogs(isLoggedIn && enableTertiary);
+
+    // ONDA 4: Sob demanda — SÓ carregam quando o usuário navega para a página
     const { data: baselineTasks = [], isLoading: loadingBaseline } = useBaselineTasks(isLoggedIn && enableBaseline);
     const { data: currentScheduleTasks = [], isLoading: loadingCurrentSchedule } = useCurrentScheduleTasks(isLoggedIn && enableSchedule);
 
-    // Ativar carregamento secundário 3s depois do login
+    // Ativar carregamento secundário 3s depois do login e terciário 5s depois
     useEffect(() => {
-        if (isLoggedIn && !enableSecondary) {
-            const timer = setTimeout(() => setEnableSecondary(true), 3000);
-            return () => clearTimeout(timer);
+        if (isLoggedIn) {
+            if (!enableSecondary) {
+                const timer = setTimeout(() => setEnableSecondary(true), 3000);
+                return () => clearTimeout(timer);
+            }
+            if (!enableTertiary) {
+                const timer2 = setTimeout(() => setEnableTertiary(true), 5000);
+                return () => clearTimeout(timer2);
+            }
         }
-    }, [isLoggedIn, enableSecondary]);
+    }, [isLoggedIn, enableSecondary, enableTertiary]);
 
-    // Migração automática: Fotos Base64 → Supabase Storage (roda 5s após login, em background)
+    // Migração automática: Fotos Base64 → Supabase Storage (roda 8s após login, em background)
     useEffect(() => {
         if (isLoggedIn && !loadingTasks) {
             const migrationTimer = setTimeout(() => {
                 runAutoMigration();
-            }, 5000);
+            }, 8000);
             return () => clearTimeout(migrationTimer);
         }
     }, [isLoggedIn, loadingTasks]);

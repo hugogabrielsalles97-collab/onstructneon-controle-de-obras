@@ -30,34 +30,32 @@ const TASK_HEAVY_COLUMNS = `"plannedManpower", "plannedMachinery", "actualManpow
 // ==========================================
 const fetchAllRows = async (tableName: string, columns: string = '*') => {
     try {
-        const step = 500;
-
-        const { count, error: countError } = await supabase
-            .from(tableName)
-            .select(columns, { count: 'exact', head: true });
-
-        if (countError) throw countError;
-        if (count === 0 || count === null) return [];
-
-        const totalPages = Math.ceil(count / step);
-
-        if (totalPages === 1) {
-            const { data, error } = await supabase.from(tableName).select(columns);
-            if (error) throw error;
-            return data || [];
-        }
-
-        // Busca SEQUENCIAL (uma página por vez)
+        const step = 200; // Reduzido de 500 para 200: alivia a RAM do PostgREST/V8 em cada pedido
         let allRows: any[] = [];
-        for (let i = 0; i < totalPages; i++) {
-            const from = i * step;
+        let from = 0;
+        let hasMore = true;
+
+        // BEM MAIS LEVE: Ao invés de usar `count: 'exact'` (que força o Supabase a ler
+        // a tabela inteira do zero consumindo RAM absurdamente), nós apenas tentamos 
+        // puxar as linhas e paramos quando vier menos que a capacidade máxima da página.
+        while (hasMore) {
             const { data, error } = await supabase
                 .from(tableName)
                 .select(columns)
                 .range(from, from + step - 1);
 
             if (error) throw error;
-            if (data) allRows = allRows.concat(data);
+
+            if (data && data.length > 0) {
+                allRows = allRows.concat(data);
+                if (data.length < step) {
+                    hasMore = false; // Última página
+                } else {
+                    from += step; // Próxima página
+                }
+            } else {
+                hasMore = false; // Vazio, acabou
+            }
         }
 
         return allRows;

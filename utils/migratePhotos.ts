@@ -14,7 +14,7 @@ export const migratePhotosToStorage = async (
         // Obter contagem total de tarefas para paginação e progresso
         const { count, error: countError } = await supabase
             .from('tasks')
-            .select('id', { count: 'exact', head: true });
+            .select('id', { count: 'estimated', head: true });
 
         if (countError) throw countError;
         if (!count || count === 0) return { success: true, migrated: 0, errors: [] };
