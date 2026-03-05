@@ -1,33 +1,36 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import LoginScreen from './components/LoginScreen';
 import RegisterScreen from './components/RegisterScreen';
 import ModuleSelectionScreen from './components/ModuleSelectionScreen';
-import Dashboard from './components/Dashboard';
-import ReportsPage from './components/ReportsPage';
-import BaselinePage from './components/BaselinePage';
-import CurrentSchedulePage from './components/CurrentSchedulePage';
-import ManagementPage from './components/ManagementPage';
-import LeanPage from './components/LeanPage';
-import LeanConstructionPage from './components/LeanConstructionPage';
-import RestrictionsAnalysisPage from './components/RestrictionsAnalysisPage';
-import CostPage from './components/CostPage';
-import CheckoutSummaryPage from './components/CheckoutSummaryPage';
 import TaskModal from './components/TaskModal';
 import RdoModal from './components/RdoModal';
 import AIAssistant from './components/AIAssistant';
 import UpgradeModal from './components/UpgradeModal';
 import Toast from './components/Toast';
 import ConstructionIcon from './components/icons/ConstructionIcon';
-import PodcastPage from './components/PodcastPage';
-import OrgChartPage from './components/OrgChartPage';
-import OrgSummaryPage from './components/OrgSummaryPage';
-import TeamsPage from './components/TeamsPage';
-import VisualControlPage from './components/VisualControlPage';
-import SystemPage from './components/SystemPage';
 import { Task, Restriction } from './types';
 import { DataProvider, useData } from './context/DataProvider';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+
+// Telas principais com carregamento preguiçoso para poupar memória do navegador/celular
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const ReportsPage = lazy(() => import('./components/ReportsPage'));
+const BaselinePage = lazy(() => import('./components/BaselinePage'));
+const CurrentSchedulePage = lazy(() => import('./components/CurrentSchedulePage'));
+const ManagementPage = lazy(() => import('./components/ManagementPage'));
+const LeanPage = lazy(() => import('./components/LeanPage'));
+const LeanConstructionPage = lazy(() => import('./components/LeanConstructionPage'));
+const RestrictionsAnalysisPage = lazy(() => import('./components/RestrictionsAnalysisPage'));
+const CostPage = lazy(() => import('./components/CostPage'));
+const CheckoutSummaryPage = lazy(() => import('./components/CheckoutSummaryPage'));
+const PodcastPage = lazy(() => import('./components/PodcastPage'));
+const OrgChartPage = lazy(() => import('./components/OrgChartPage'));
+const OrgSummaryPage = lazy(() => import('./components/OrgSummaryPage'));
+const TeamsPage = lazy(() => import('./components/TeamsPage'));
+const VisualControlPage = lazy(() => import('./components/VisualControlPage'));
+const SystemPage = lazy(() => import('./components/SystemPage'));
+
 
 type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'restrictions' | 'cost' | 'podcast' | 'checkoutSummary' | 'orgChart' | 'orgSummary' | 'visualControl' | 'system';
 
@@ -351,9 +354,21 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
     }
   };
 
+  // Um fallback super amigável para enquanto os pedaços da aplicação viajam pela rede (no wi-fi/3G)
+  const loadingFallback = (
+    <div className="flex h-screen items-center justify-center bg-[#0a0f18]">
+      <div className="flex flex-col items-center">
+        <div className="w-10 h-10 border-4 border-brand-accent border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-brand-med-gray text-sm font-medium animate-pulse">Carregando módulo...</p>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-brand-darkest text-gray-100">
-      {renderContent()}
+      <Suspense fallback={loadingFallback}>
+        {renderContent()}
+      </Suspense>
       {isTaskModalOpen && currentUser && (
         <TaskModal
           isOpen={isTaskModalOpen}
