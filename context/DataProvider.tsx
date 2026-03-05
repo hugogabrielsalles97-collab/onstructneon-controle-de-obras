@@ -285,10 +285,46 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     }]);
                 }
 
-                // Update
+                // === OTIMIZAÇÃO CRÍTICA DE MEMÓRIA (DELTA UPDATE) ===
+                // Para evitar enviar e reescrever arrays gigantescos (como fotos ou plannedManpower)
+                // no banco de dados toda vez que mudamos apenas uma data ou status.
                 const { id, ...taskUpdates } = task;
-                const { error } = await supabase.from('tasks').update({ ...taskUpdates, user_id: session.user.id }).eq('id', id);
-                if (error) throw error;
+                let changedFields: any = {};
+
+                try {
+                    // Pega o estado real completo do banco para comparar
+                    const { data: currentDbTask } = await supabase.from('tasks').select('*').eq('id', id).single();
+
+                    if (currentDbTask) {
+                        for (const key of Object.keys(taskUpdates)) {
+                            const taskKey = key as keyof Task;
+                            const newVal = taskUpdates[taskKey];
+                            const oldVal = currentDbTask[taskKey];
+
+                            if (typeof newVal === 'object' && newVal !== null) {
+                                // Compara os arrays/objetos (JSONs)
+                                if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
+                                    changedFields[taskKey] = newVal;
+                                }
+                            } else if (newVal !== oldVal) {
+                                changedFields[taskKey] = newVal;
+                            }
+                        }
+                    } else {
+                        // Fallback de segurança se não achar na base
+                        changedFields = { ...taskUpdates };
+                    }
+                } catch (err) {
+                    console.warn("Erro ao fazer diff no saveTask, enviando tudo", err);
+                    changedFields = { ...taskUpdates };
+                }
+
+                // Só faz o UPDATE se houver realmente mudanças estruturais
+                if (Object.keys(changedFields).length > 0) {
+                    changedFields.user_id = session.user.id;
+                    const { error } = await supabase.from('tasks').update(changedFields).eq('id', id);
+                    if (error) throw error;
+                }
 
                 queryClient.invalidateQueries({ queryKey: ['tasks'] });
                 queryClient.invalidateQueries({ queryKey: ['checkoutLogs'] });
