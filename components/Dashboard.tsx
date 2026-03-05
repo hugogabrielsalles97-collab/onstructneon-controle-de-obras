@@ -303,8 +303,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
       const isOverdue = taskDueDateNum < todayNum && task.status !== TaskStatus.Completed;
 
       let matchesStatus = true;
-      if (filters.status === 'overdue') matchesStatus = isOverdue;
-      else if (filters.status !== 'all') matchesStatus = task.status === filters.status;
+      if (filters.status === 'overdue') {
+        matchesStatus = isOverdue;
+      } else if (filters.status !== 'all') {
+        if (filters.status === TaskStatus.Completed) {
+          matchesStatus = task.status === TaskStatus.Completed;
+        } else {
+          // 'Em Andamento' / 'A Iniciar': Mostrar somente as que NÃO estão atrasadas
+          matchesStatus = task.status === filters.status && !isOverdue;
+        }
+      }
 
       if (!matchesStatus) return false;
 

@@ -110,13 +110,21 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
     if (statusFilter === 'all') return dateFilteredTasks;
 
     return dateFilteredTasks.filter(task => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dueDate = new Date(task.dueDate + 'T00:00:00');
+      const isOverdue = dueDate < today && task.status !== TaskStatus.Completed;
+
       if (statusFilter === 'overdue') {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const dueDate = new Date(task.dueDate + 'T00:00:00');
-        return dueDate < today && task.status !== TaskStatus.Completed;
+        return isOverdue;
       }
-      return task.status === statusFilter;
+
+      if (statusFilter === TaskStatus.Completed) {
+        return task.status === TaskStatus.Completed;
+      } else {
+        // 'Em Andamento' / 'A Iniciar': Mostrar somente as que NÃO estão atrasadas
+        return task.status === statusFilter && !isOverdue;
+      }
     });
   }, [dateFilteredTasks, statusFilter]);
 
