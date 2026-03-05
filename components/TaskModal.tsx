@@ -716,7 +716,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         let finalStatus: TaskStatus;
         if (formData.progress >= 100 && formData.actualEndDate) {
             finalStatus = TaskStatus.Completed;
-        } else if (formData.progress > 0) {
+        } else if (formData.progress > 0 || formData.actualStartDate) {
             finalStatus = TaskStatus.InProgress;
         } else {
             finalStatus = TaskStatus.ToDo;

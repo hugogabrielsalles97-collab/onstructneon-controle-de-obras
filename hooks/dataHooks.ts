@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabaseClient';
-import { Task, User, Restriction, LeanTask, CheckoutLog, OrgMember } from '../types';
+import { Task, TaskStatus, User, Restriction, LeanTask, CheckoutLog, OrgMember } from '../types';
 
 export interface CatalogItem {
     id: string;
@@ -197,7 +197,16 @@ export const useVisualControlWorkers = (filterDate: string, enabled: boolean = t
 export const useTasks = (enabled: boolean = true) => {
     return useQuery<Task[]>({
         queryKey: ['tasks'],
-        queryFn: () => fetchAllRows('tasks', TASK_LIGHT_COLUMNS),
+        queryFn: async () => {
+            const data = await fetchAllRows('tasks', TASK_LIGHT_COLUMNS);
+            // Auto-heal local: se a tarefa tem início real, não pode estar A Iniciar
+            return data.map((t: any) => {
+                if (t.status === TaskStatus.ToDo && t.actualStartDate) {
+                    return { ...t, status: TaskStatus.InProgress };
+                }
+                return t;
+            }) as Task[];
+        },
         enabled,
         staleTime: 1000 * 60 * 15,
         gcTime: 1000 * 60 * 30,
