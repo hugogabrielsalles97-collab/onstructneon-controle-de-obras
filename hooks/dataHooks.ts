@@ -125,6 +125,74 @@ export const fetchTaskHeavyData = async (taskId: string, tableName: string = 'ta
 };
 
 // ==========================================
+// Resumo de trabalhadores para o Controle Visual (via RPC)
+// Faz a agregação no banco; não transfere JSONB pesados.
+// ==========================================
+export interface VisualControlWorkerRow {
+    task_id: string;
+    task_title: string;
+    task_location: string;
+    task_assignee: string | null;
+    task_support: string | null;
+    task_shift: string | null;
+    manpower_role: string;
+    manpower_qty: number;
+}
+
+export const useVisualControlWorkers = (filterDate: string, enabled: boolean = true) => {
+    return useQuery<VisualControlWorkerRow[]>({
+        queryKey: ['visualControlWorkers', filterDate],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .rpc('get_visual_control_workers', { p_date: filterDate });
+
+            if (error) {
+                console.warn('RPC get_visual_control_workers falhou, usando fallback:', error.message);
+                // Fallback: busca colunas leves + apenas plannedManpower
+                const { data: fallbackData, error: fbError } = await supabase
+                    .from('tasks')
+                    .select('id, title, location, assignee, support, shift, "plannedManpower", "startDate", "dueDate"')
+                    .not('location', 'is', null);
+
+                if (fbError) throw fbError;
+
+                const rows: VisualControlWorkerRow[] = [];
+                (fallbackData || []).forEach((t: any) => {
+                    const start = new Date(t.startDate + 'T00:00:00');
+                    const end = new Date(t.dueDate + 'T23:59:59');
+                    const sel = new Date(filterDate + 'T12:00:00');
+                    if (sel < start || sel > end) return;
+
+                    (t.plannedManpower || []).forEach((mp: any) => {
+                        if (mp.role && mp.quantity > 0) {
+                            rows.push({
+                                task_id: t.id,
+                                task_title: t.title,
+                                task_location: t.location,
+                                task_assignee: t.assignee || null,
+                                task_support: t.support || null,
+                                task_shift: t.shift || null,
+                                manpower_role: mp.role,
+                                manpower_qty: mp.quantity,
+                            });
+                        }
+                    });
+                });
+                return rows;
+            }
+
+            return (data || []) as VisualControlWorkerRow[];
+        },
+        enabled,
+        staleTime: 1000 * 60 * 5,      // 5 min
+        gcTime: 1000 * 60 * 15,         // 15 min
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        retry: 1,
+    });
+};
+
+// ==========================================
 // HOOKS — com colunas LEVES (sem JSONB pesado)
 // ==========================================
 

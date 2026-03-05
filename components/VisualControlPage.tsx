@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useData } from '../context/DataProvider';
 import { supabase } from '../supabaseClient';
+import { useVisualControlWorkers, VisualControlWorkerRow } from '../hooks/dataHooks';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import { Task, Resource } from '../types';
@@ -255,6 +256,10 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
         workersByRole: Record<string, number>;
         assignees: Set<string>;
     };
+
+    // Hook leve: busca dados de trabalhadores via RPC (sem JSONB pesado)
+    const { data: workerRows } = useVisualControlWorkers(filterDate);
+
     const oaeTaskData = useMemo(() => {
         const result: Record<string, OAETaskEntry> = {};
 
@@ -262,7 +267,7 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
             result[oae.id] = { tasks: [], totalWorkers: 0, workersByRole: {}, assignees: new Set() };
         });
 
-        // Filter tasks active on the selected date
+        // 1) Cruzar tasks leves (sem JSONB) com os OAEs para montar a lista de tarefas/responsáveis
         tasks.forEach(task => {
             if (!task.location) return;
 
@@ -284,20 +289,32 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
                 const entry = result[matchingOAE.id];
                 entry.tasks.push(task);
                 if (task.assignee) entry.assignees.add(task.assignee);
-
-                // Accumulate manpower (normalize role to uppercase)
-                (task.plannedManpower || []).forEach((mp: Resource) => {
-                    if (mp.role && mp.quantity) {
-                        const normalizedRole = mp.role.trim().toUpperCase();
-                        entry.workersByRole[normalizedRole] = (entry.workersByRole[normalizedRole] || 0) + mp.quantity;
-                        entry.totalWorkers += mp.quantity;
-                    }
-                });
             }
         });
 
+        // 2) Acumular contagem de trabalhadores a partir da RPC leve
+        if (workerRows && workerRows.length > 0) {
+            workerRows.forEach((row: VisualControlWorkerRow) => {
+                if (!row.task_location) return;
+
+                const loc = row.task_location.toUpperCase().trim();
+                const matchingOAE = OAE_LIST.find(oae =>
+                    loc.includes(oae.id.toUpperCase()) ||
+                    loc.includes(oae.label) ||
+                    loc === oae.id.toUpperCase()
+                );
+
+                if (matchingOAE && result[matchingOAE.id]) {
+                    const entry = result[matchingOAE.id];
+                    const normalizedRole = row.manpower_role.trim().toUpperCase();
+                    entry.workersByRole[normalizedRole] = (entry.workersByRole[normalizedRole] || 0) + row.manpower_qty;
+                    entry.totalWorkers += row.manpower_qty;
+                }
+            });
+        }
+
         return result;
-    }, [tasks, filterDate]);
+    }, [tasks, filterDate, workerRows]);
 
     // ─── Mouse drag handlers ────────────────────────────────────
     const handleMouseDown = (e: React.MouseEvent) => {
@@ -576,35 +593,30 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
         let globalTotal = 0;
         const assigneeRoleMax: Record<string, Record<string, number>> = {};
 
-        (Object.values(oaeTaskData) as OAETaskEntry[]).forEach(d => {
-            d.tasks.forEach(task => {
-                const assignee = task.assignee?.trim().toUpperCase();
+        // Usar os dados da RPC para calcular o total deduplicado
+        if (workerRows && workerRows.length > 0) {
+            workerRows.forEach((row: VisualControlWorkerRow) => {
+                const assignee = row.task_assignee?.trim().toUpperCase();
 
                 if (assignee) {
                     if (!assigneeRoleMax[assignee]) assigneeRoleMax[assignee] = {};
-                    (task.plannedManpower || []).forEach((mp: Resource) => {
-                        if (mp.role && mp.quantity) {
-                            const role = mp.role.trim().toUpperCase();
-                            assigneeRoleMax[assignee][role] = Math.max(assigneeRoleMax[assignee][role] || 0, mp.quantity);
-                        }
-                    });
+                    const role = row.manpower_role.trim().toUpperCase();
+                    assigneeRoleMax[assignee][role] = Math.max(assigneeRoleMax[assignee][role] || 0, row.manpower_qty);
                 } else {
-                    (task.plannedManpower || []).forEach((mp: Resource) => {
-                        if (mp.quantity) globalTotal += mp.quantity;
-                    });
+                    globalTotal += row.manpower_qty;
                 }
             });
-        });
 
-        // Add up all deduplicated contingents
-        Object.values(assigneeRoleMax).forEach(roles => {
-            Object.values(roles).forEach(qty => {
-                globalTotal += qty;
+            // Somar todos os contingentes deduplicados
+            Object.values(assigneeRoleMax).forEach(roles => {
+                Object.values(roles).forEach(qty => {
+                    globalTotal += qty;
+                });
             });
-        });
+        }
 
         return globalTotal;
-    }, [oaeTaskData]);
+    }, [workerRows]);
 
     const shiftSummary = useMemo(() => {
         let diurno = 0;
@@ -625,27 +637,38 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
         if (!shiftFilter) return oaeTaskData;
 
         const result: Record<string, OAETaskEntry> = {};
+
+        // Indexar workerRows pelo task_id e filtro de turno
+        const filteredWorkerRows = (workerRows || []).filter(
+            (r: VisualControlWorkerRow) => r.task_shift === shiftFilter
+        );
+
         Object.entries(oaeTaskData).forEach(([oaeId, entry]) => {
             const filteredTasks = (entry as OAETaskEntry).tasks.filter(t => t.shift === shiftFilter);
             const workersByRole: Record<string, number> = {};
             let totalWorkers = 0;
             const assignees = new Set<string>();
 
+            // IDs das tarefas filtradas por turno neste OAE
+            const taskIds = new Set(filteredTasks.map(t => t.id));
+
             filteredTasks.forEach(task => {
                 if (task.assignee) assignees.add(task.assignee);
-                (task.plannedManpower || []).forEach((mp: Resource) => {
-                    if (mp.role && mp.quantity) {
-                        const normalizedRole = mp.role.trim().toUpperCase();
-                        workersByRole[normalizedRole] = (workersByRole[normalizedRole] || 0) + mp.quantity;
-                        totalWorkers += mp.quantity;
-                    }
-                });
+            });
+
+            // Acumular trabalhadores a partir da RPC (dados leves)
+            filteredWorkerRows.forEach((row: VisualControlWorkerRow) => {
+                if (taskIds.has(row.task_id)) {
+                    const normalizedRole = row.manpower_role.trim().toUpperCase();
+                    workersByRole[normalizedRole] = (workersByRole[normalizedRole] || 0) + row.manpower_qty;
+                    totalWorkers += row.manpower_qty;
+                }
             });
 
             result[oaeId] = { tasks: filteredTasks, totalWorkers, workersByRole, assignees };
         });
         return result;
-    }, [oaeTaskData, shiftFilter]);
+    }, [oaeTaskData, shiftFilter, workerRows]);
 
     if (!user) return null;
 
