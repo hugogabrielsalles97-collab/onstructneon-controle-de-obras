@@ -6,6 +6,8 @@ import { useData } from '../context/DataProvider';
 import PlusIcon from './icons/PlusIcon';
 import ClearIcon from './icons/ClearIcon';
 import { disciplineOptions, taskTitleOptions } from '../utils/constants';
+import { migratePhotosToStorage } from '../utils/migratePhotos';
+import SparkleIcon from './icons/SparkleIcon';
 
 interface SystemPageProps {
     user: User;
@@ -46,6 +48,10 @@ const SystemPage: React.FC<SystemPageProps> = ({
     const [discipline, setDiscipline] = useState('');
     const [level, setLevel] = useState('');
     const [activityTitle, setActivityTitle] = useState('');
+
+    // Photo migration state
+    const [isMigrating, setIsMigrating] = useState(false);
+    const [migrationProgress, setMigrationProgress] = useState({ current: 0, total: 0 });
 
     // Derived data: use the SAME base options as TaskModal (Nova Atividade)
     // Plus any custom entries from catalogs
@@ -123,6 +129,28 @@ const SystemPage: React.FC<SystemPageProps> = ({
             else setDiscipline('');
         } else {
             showToast(`Erro ao salvar: ${res.error}`, 'error');
+        }
+    };
+
+    const handleStartMigration = async () => {
+        if (!window.confirm('Isso migerará todas as fotos em Base64 para o Storage e atualizará os registros. Deseja iniciar?')) return;
+
+        setIsMigrating(true);
+        try {
+            const result = await migratePhotosToStorage((cur, tot) => {
+                setMigrationProgress({ current: cur, total: tot });
+            });
+
+            if (result.success) {
+                showToast(`Sucesso! ${result.migrated} fotos migradas.`, 'success');
+            } else {
+                showToast('Erro durante a migração parcial.', 'error');
+            }
+        } catch (error) {
+            showToast('Falha crítica na migração.', 'error');
+        } finally {
+            setIsMigrating(false);
+            setMigrationProgress({ current: 0, total: 0 });
         }
     };
 
@@ -370,6 +398,61 @@ const SystemPage: React.FC<SystemPageProps> = ({
                         <p className="text-brand-med-gray font-medium leading-relaxed">
                             <strong>Nota:</strong> As opções cadastradas aqui serão mescladas com a base padrão do sistema. Ao criar uma nova tarefa, elas aparecerão automaticamente nos seletores de Disciplina, Nível e Título da Atividade.
                         </p>
+                    </div>
+
+                    {/* SEÇÃO DE MANUTENÇÃO */}
+                    <div className="mt-8 p-8 bg-blue-500/5 border border-blue-500/10 rounded-[2.5rem] animate-fade-in">
+                        <div className="flex flex-col md:flex-row gap-8 items-center justify-between">
+                            <div className="flex gap-6 items-center">
+                                <div className="w-14 h-14 bg-blue-600/20 rounded-2xl flex items-center justify-center text-blue-400 shrink-0 border border-blue-400/20 shadow-lg shadow-blue-500/10">
+                                    <SparkleIcon className="w-7 h-7" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">Otimização de Armazenamento</h3>
+                                    <p className="text-brand-med-gray text-sm mt-1 max-w-xl">
+                                        Migre fotos antigas (Base64) para o Supabase Storage para liberar memória do banco de dados e melhorar a performance geral do app.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col items-end gap-3 shrink-0">
+                                <button
+                                    onClick={handleStartMigration}
+                                    disabled={isMigrating}
+                                    className={`px-8 py-4 rounded-2xl font-black uppercase italic tracking-tighter flex items-center gap-3 transition-all ${isMigrating
+                                            ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-white/5'
+                                            : 'bg-blue-600 text-white hover:bg-blue-500 shadow-xl shadow-blue-600/20 border border-blue-400/30'
+                                        }`}
+                                >
+                                    {isMigrating ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                                            Processando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <SparkleIcon className="w-5 h-5" />
+                                            Iniciar Migração
+                                        </>
+                                    )}
+                                </button>
+
+                                {isMigrating && (
+                                    <div className="w-full space-y-2 translate-y-1">
+                                        <div className="flex justify-between text-[10px] font-black uppercase text-blue-400 tracking-widest">
+                                            <span>Tarefas: {migrationProgress.current} / {migrationProgress.total}</span>
+                                            <span>{Math.round((migrationProgress.current / migrationProgress.total) * 100)}%</span>
+                                        </div>
+                                        <div className="w-64 h-2 bg-blue-900/30 rounded-full overflow-hidden border border-blue-400/10">
+                                            <div
+                                                className="h-full bg-blue-500 transition-all duration-300 shadow-[0_0_10px_rgba(59,130,246,0.5)]"
+                                                style={{ width: `${(migrationProgress.current / migrationProgress.total) * 100}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </main>

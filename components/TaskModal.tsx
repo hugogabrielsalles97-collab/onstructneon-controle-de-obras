@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { Task, TaskStatus, Resource, User, OrgMember } from '../types';
 import { useOrgMembers, CatalogItem, fetchTaskHeavyData } from '../hooks/dataHooks';
 import { useData } from '../context/DataProvider';
+import { supabase } from '../supabaseClient';
 import XIcon from './icons/XIcon';
 import PlusIcon from './icons/PlusIcon';
 import SparkleIcon from './icons/SparkleIcon';
@@ -389,20 +390,47 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         });
     };
 
-    const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            for (const file of e.target.files) {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    setFormData(prev => ({
-                        ...prev,
-                        photos: [...(prev.photos || []), reader.result as string]
-                    }));
-                };
-                reader.readAsDataURL(file);
+    const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+
+        const files = Array.from(e.target.files);
+        const uploadPromises = files.map(async (file: File) => {
+            try {
+                // Gerar um nome único para o arquivo: timestamp-nome
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+                const filePath = `${fileName}`;
+
+                // Upload para o Bucket 'task-photos'
+                const { data, error } = await supabase.storage
+                    .from('task-photos')
+                    .upload(filePath, file);
+
+                if (error) throw error;
+
+                // Obter a URL pública
+                const { data: { publicUrl } } = supabase.storage
+                    .from('task-photos')
+                    .getPublicUrl(filePath);
+
+                return publicUrl;
+            } catch (error) {
+                console.error('Erro no upload da foto:', error);
+                return null;
             }
-            e.target.value = '';
+        });
+
+        const uploadedUrls = await Promise.all(uploadPromises);
+        const validUrls = uploadedUrls.filter((url): url is string => url !== null);
+
+        if (validUrls.length > 0) {
+            setFormData(prev => ({
+                ...prev,
+                photos: [...(prev.photos || []), ...validUrls]
+            }));
         }
+
+        e.target.value = '';
     };
 
     const handleRemovePhoto = (indexToRemove: number) => {
@@ -510,17 +538,40 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         }
     };
 
-    const handleAnalyzeSafety = async (photoBase64: string, index: number) => {
+    const handleAnalyzeSafety = async (photoUrlOrBase64: string, index: number) => {
         if (checkAIRestriction("Análise de Segurança IA", "O Hugo analisa suas fotos de obra em busca de riscos de segurança, falta de EPIs ou desorganização do canteiro.")) return;
         setAnalyzingPhotoIndex(index);
         setSafetyAnalysisResult({ status: 'idle', message: '' });
         try {
-            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY);
-            const mimeType = photoBase64.split(';')[0].split(':')[1];
-            const imageData = photoBase64.split(',')[1];
+            let mimeType = '';
+            let imageData = '';
 
+            // Verificar se é uma URL ou Base64
+            if (photoUrlOrBase64.startsWith('http')) {
+                // Se for URL, precisamos baixar a imagem para converter em base64 para a API do Gemini
+                const response = await fetch(photoUrlOrBase64);
+                const blob = await response.blob();
+                mimeType = blob.type;
+
+                // Converter blob para base64
+                imageData = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const base64String = reader.result as string;
+                        resolve(base64String.split(',')[1]);
+                    };
+                    reader.readAsDataURL(blob);
+                });
+            } else {
+                // Formato Base64 antigo (legado)
+                mimeType = photoUrlOrBase64.split(';')[0].split(':')[1];
+                imageData = photoUrlOrBase64.split(',')[1];
+            }
+
+            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY);
             const prompt = `
             Analise a imagem em busca de riscos de segurança na obra (EPIs, queda, organização).
+            Seja direto e técnico.
             Retorne JSON: {"is_safe": boolean, "findings": "descrição"}.
             `;
 
@@ -541,6 +592,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
 
         } catch (error) {
             console.error("Erro na análise de segurança:", error);
+            alert("Erro ao analisar imagem: " + (error instanceof Error ? error.message : String(error)));
         } finally {
             setAnalyzingPhotoIndex(null);
         }

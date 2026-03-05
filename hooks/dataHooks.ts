@@ -213,12 +213,13 @@ export const useLeanTasks = (enabled: boolean = true) => {
     return useQuery<LeanTask[]>({
         queryKey: ['leanTasks'],
         queryFn: async () => {
-            const rows = await fetchAllRows('lean_tasks');
+            // Busca leve: só id e task_data (necessário, mas carrega sob demanda pela paginação)
+            const rows = await fetchAllRows('lean_tasks', 'id, task_data');
             return rows.map(r => ({ ...r.task_data, id: r.id }));
         },
         enabled,
         staleTime: 1000 * 60 * 30,
-        gcTime: 1000 * 60 * 60,
+        gcTime: 1000 * 60 * 45,       // Reduzido de 60min para 45min
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
         retry: 1,
@@ -253,13 +254,20 @@ export const useCurrentScheduleTasks = (enabled: boolean = false) => {
     });
 };
 
+// Colunas específicas para restrictions (evita SELECT *)
+const RESTRICTION_COLUMNS = `
+    id, baseline_task_id, type, description, status, priority,
+    responsible, department, due_date, created_at, resolved_at,
+    resolution_notes, actual_start_date, actual_completion_date, user_id
+`.replace(/\s+/g, ' ').trim();
+
 export const useRestrictions = (enabled: boolean = true) => {
     return useQuery<Restriction[]>({
         queryKey: ['restrictions'],
-        queryFn: () => fetchAllRows('restrictions'),
+        queryFn: () => fetchAllRows('restrictions', RESTRICTION_COLUMNS),
         enabled,
         staleTime: 1000 * 60 * 30,
-        gcTime: 1000 * 60 * 60,
+        gcTime: 1000 * 60 * 45,       // Reduzido de 60min para 45min
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
         retry: 1,
@@ -316,32 +324,46 @@ export const useCurrentUser = (userId: string | undefined) => {
     });
 };
 
+// Checkout logs: limit reduzido + gcTime curto para aliviar memória
 export const useCheckoutLogs = (enabled: boolean = true) => {
     return useQuery<CheckoutLog[]>({
         queryKey: ['checkoutLogs'],
         queryFn: async () => {
-            // Buscar apenas os últimos 200 logs (reduzido de 500)
+            // Limit reduzido de 200→80 para diminuir transferência de JSONB 'changes'
             const { data, error } = await supabase
                 .from('checkout_logs')
-                .select('*')
+                .select('id, task_id, task_title, user_id, user_name, created_at, changes')
                 .order('created_at', { ascending: false })
-                .limit(200);
+                .limit(80);
             if (error) throw error;
             return (data || []) as CheckoutLog[];
         },
         enabled,
-        staleTime: 1000 * 60 * 15,
+        staleTime: 1000 * 60 * 10,         // 10 min (reduzido de 15)
+        gcTime: 1000 * 60 * 20,             // 20 min — libera cache rápido
         refetchOnWindowFocus: false,
         retry: 1,
     });
 };
 
+// Buscar detalhes (changes JSONB) de UM log específico — sob demanda
+export const fetchCheckoutLogDetails = async (logId: string) => {
+    const { data, error } = await supabase
+        .from('checkout_logs')
+        .select('id, changes')
+        .eq('id', logId)
+        .single();
+    if (error) throw error;
+    return data;
+};
+
 export const useOrgMembers = (enabled: boolean = true) => {
     return useQuery<OrgMember[]>({
         queryKey: ['orgMembers'],
-        queryFn: () => fetchAllRows('org_members'),
+        queryFn: () => fetchAllRows('org_members', 'id, name, role, quantity, parent_id, user_id, created_at'),
         enabled,
         staleTime: 1000 * 60 * 60,
+        gcTime: 1000 * 60 * 60 * 2,
         refetchOnWindowFocus: false,
         retry: 1,
     });

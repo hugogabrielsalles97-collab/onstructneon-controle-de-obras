@@ -1,8 +1,9 @@
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { formatNumberBR } from '../utils/formatters';
 import { useData } from '../context/DataProvider';
+import { fetchTaskIdsWithPhotos, fetchTaskHeavyData } from '../hooks/dataHooks';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import HistoryIcon from './icons/HistoryIcon';
@@ -113,6 +114,8 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
     const [viewMode, setViewMode] = React.useState<'checkouts' | 'pendencias'>('checkouts');
     const [pendenciaDate, setPendenciaDate] = useState('');
     const [selectedPhotos, setSelectedPhotos] = useState<string[] | null>(null);
+    const [taskIdsWithPhotos, setTaskIdsWithPhotos] = useState<Set<string>>(new Set());
+    const [loadingPhotoTaskId, setLoadingPhotoTaskId] = useState<string | null>(null);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -132,6 +135,29 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
         }
         return map;
     }, [tasks]);
+
+    // Buscar IDs de tarefas com fotos (query leve)
+    useEffect(() => {
+        fetchTaskIdsWithPhotos().then(ids => setTaskIdsWithPhotos(ids));
+    }, [tasks]);
+
+    // Buscar fotos sob demanda ao clicar
+    const handleViewPhotos = useCallback(async (taskId: string) => {
+        setLoadingPhotoTaskId(taskId);
+        try {
+            const heavyData = await fetchTaskHeavyData(taskId, 'tasks');
+            const photos = heavyData?.photos || [];
+            if (photos.length > 0) {
+                setSelectedPhotos(photos);
+            } else {
+                setSelectedPhotos(null);
+            }
+        } catch (err) {
+            console.warn('Erro ao buscar fotos:', err);
+        } finally {
+            setLoadingPhotoTaskId(null);
+        }
+    }, []);
 
     const handleDeleteCheckout = async (logId: string) => {
         setDeletingLogId(logId);
@@ -672,13 +698,21 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                                                                     </div>
 
                                                                     {/* Photos button */}
-                                                                    {taskFromState?.photos && taskFromState.photos.length > 0 && (
+                                                                    {taskIdsWithPhotos.has(log.task_id) && (
                                                                         <button
-                                                                            onClick={() => setSelectedPhotos(taskFromState.photos || null)}
-                                                                            className="p-1.5 bg-blue-500/10 hover:bg-blue-500 text-blue-400 hover:text-white rounded-lg transition-all duration-300 border border-blue-500/20 group/photo"
+                                                                            onClick={() => handleViewPhotos(log.task_id)}
+                                                                            disabled={loadingPhotoTaskId === log.task_id}
+                                                                            className={`p-1.5 rounded-lg transition-all duration-300 border group/photo ${loadingPhotoTaskId === log.task_id
+                                                                                    ? 'bg-blue-500/20 text-blue-300 border-blue-500/30 cursor-wait'
+                                                                                    : 'bg-blue-500/10 hover:bg-blue-500 text-blue-400 hover:text-white border-blue-500/20'
+                                                                                }`}
                                                                             title="Ver Fotos da Tarefa"
                                                                         >
-                                                                            <EyeIcon className="w-4 h-4 group-hover/photo:scale-110 transition-transform" />
+                                                                            {loadingPhotoTaskId === log.task_id ? (
+                                                                                <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                                                                            ) : (
+                                                                                <EyeIcon className="w-4 h-4 group-hover/photo:scale-110 transition-transform" />
+                                                                            )}
                                                                         </button>
                                                                     )}
 

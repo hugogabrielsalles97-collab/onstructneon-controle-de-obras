@@ -9,7 +9,6 @@ import ScheduleIcon from './icons/ScheduleIcon';
 import ManagementIcon from './icons/ManagementIcon';
 import LeanIcon from './icons/LeanIcon';
 import LeanConstructionIcon from './icons/LeanConstructionIcon';
-import TvIcon from './icons/TvIcon';
 import XIcon from './icons/XIcon';
 import HistoryIcon from './icons/HistoryIcon';
 import BriefcaseIcon from './icons/BriefcaseIcon';
@@ -29,7 +28,6 @@ interface HeaderProps {
   onNavigateToAnalysis?: () => void;
   onNavigateToLean?: () => void;
   onNavigateToLeanConstruction?: () => void;
-  onNavigateToWarRoom?: () => void;
   onNavigateToPodcast?: () => void;
   onNavigateToCost?: () => void;
   onNavigateToCheckoutSummary?: () => void;
@@ -50,7 +48,6 @@ const Header: React.FC<HeaderProps> = ({
   onNavigateToAnalysis,
   onNavigateToLean,
   onNavigateToLeanConstruction,
-  onNavigateToWarRoom,
   onNavigateToPodcast,
   onNavigateToCost,
   onNavigateToCheckoutSummary,
@@ -95,8 +92,7 @@ const Header: React.FC<HeaderProps> = ({
           <line x1="8" y1="23" x2="16" y2="23" />
         </svg>
       ), onClick: onNavigateToPodcast, show: showFullMenu && !isOrgModule
-    },
-    { id: 'warRoom', label: 'War Room (TV)', icon: <TvIcon className="w-5 h-5 text-red-500" />, onClick: onNavigateToWarRoom, show: !isOrgModule },
+    }
   ];
 
   const handleMenuClick = (onClick?: () => void) => {

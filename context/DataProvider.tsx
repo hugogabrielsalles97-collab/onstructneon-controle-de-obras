@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import { User, Task, Restriction, LeanTask } from '../types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTasks, useBaselineTasks, useCurrentScheduleTasks, useRestrictions, useAllUsers, useCurrentUser, useLeanTasks, useCheckoutLogs, useProjectSettings, useCatalogs, CatalogItem } from '../hooks/dataHooks';
+import { runAutoMigration } from '../utils/migratePhotos';
 
 interface DataContextType {
     session: Session | null;
@@ -122,6 +123,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             return () => clearTimeout(timer);
         }
     }, [isLoggedIn, enableSecondary]);
+
+    // Migração automática: Fotos Base64 → Supabase Storage (roda 5s após login, em background)
+    useEffect(() => {
+        if (isLoggedIn && !loadingTasks) {
+            const migrationTimer = setTimeout(() => {
+                runAutoMigration();
+            }, 5000);
+            return () => clearTimeout(migrationTimer);
+        }
+    }, [isLoggedIn, loadingTasks]);
 
     // Sincronizar estados locais com o banco de dados quando carregado
     useEffect(() => {

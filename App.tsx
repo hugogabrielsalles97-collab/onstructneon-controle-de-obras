@@ -10,7 +10,6 @@ import CurrentSchedulePage from './components/CurrentSchedulePage';
 import ManagementPage from './components/ManagementPage';
 import LeanPage from './components/LeanPage';
 import LeanConstructionPage from './components/LeanConstructionPage';
-import WarRoomPage from './components/WarRoomPage';
 import RestrictionsAnalysisPage from './components/RestrictionsAnalysisPage';
 import CostPage from './components/CostPage';
 import CheckoutSummaryPage from './components/CheckoutSummaryPage';
@@ -30,7 +29,7 @@ import { Task, Restriction } from './types';
 import { DataProvider, useData } from './context/DataProvider';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
-type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'warRoom' | 'restrictions' | 'cost' | 'podcast' | 'checkoutSummary' | 'orgChart' | 'orgSummary' | 'visualControl' | 'system';
+type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'restrictions' | 'cost' | 'podcast' | 'checkoutSummary' | 'orgChart' | 'orgSummary' | 'visualControl' | 'system';
 
 const AppContent: React.FC = () => {
   const {
@@ -239,7 +238,7 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
       onNavigateToAnalysis: () => setScreen('management'),
       onNavigateToLean: () => setScreen('lean'),
       onNavigateToLeanConstruction: () => setScreen('leanConstruction'),
-      onNavigateToWarRoom: () => setScreen('warRoom'),
+      onNavigateToWarRoom: () => { },
       onNavigateToPodcast: () => setScreen('podcast'),
       onNavigateToCost: () => setScreen('cost'),
       onNavigateToCheckoutSummary: () => setScreen('checkoutSummary'),
@@ -269,7 +268,6 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
       case 'currentSchedule': return <CurrentSchedulePage {...navigationProps} showToast={showToast} />;
       case 'management': return <ManagementPage {...navigationProps} showToast={showToast} />;
       case 'leanConstruction': return <LeanConstructionPage {...navigationProps} showToast={showToast} />;
-      case 'warRoom': return <WarRoomPage onNavigateToHome={() => setScreen('dashboard')} />;
       case 'podcast': return <PodcastPage {...navigationProps} user={currentUser} showToast={showToast} signOut={signOut} />;
       case 'cost': return (
         <CostPage
@@ -377,7 +375,7 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
           onUpgradeClick={() => setIsUpgradeModalOpen(true)}
         />
       )}
-      {currentUser && !effectiveLoading && screen !== 'warRoom' && (
+      {currentUser && !effectiveLoading && (
         <AIAssistant
           tasks={tasks}
           baselineTasks={baselineTasks}

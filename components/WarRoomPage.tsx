@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useData } from '../context/DataProvider';
-import { TaskStatus, RestrictionType, RestrictionPriority } from '../types';
+import { TaskStatus, RestrictionType, RestrictionPriority, Task } from '../types';
+import { fetchTaskIdsWithPhotos, fetchTaskHeavyData } from '../hooks/dataHooks';
 import CumulativeProgressChart from './CumulativeProgressChart';
 import RestrictionsRadarChart from './RestrictionsRadarChart';
 import AssigneeSummaryChart from './AssigneeSummaryChart';
@@ -93,28 +94,65 @@ const WarRoomPage: React.FC<WarRoomPageProps> = ({ onNavigateToHome }) => {
     }, [restrictions]);
 
     // 2. Completed Tasks with Real Photos (Last Week + This Week)
-    const completedTasksWithPhotos = useMemo(() => {
-        const now = new Date();
-        const startOfPeriod = new Date(now);
-        startOfPeriod.setDate(now.getDate() - now.getDay() - 7); // Sunday of last week
-        startOfPeriod.setHours(0, 0, 0, 0);
+    // Busca fotos sob demanda usando fetchTaskHeavyData (não depende de TASK_LIGHT_COLUMNS)
+    const [completedTasksWithPhotos, setCompletedTasksWithPhotos] = useState<(Task & { photoUrl: string })[]>([]);
 
-        const endOfPeriod = new Date(now);
-        endOfPeriod.setHours(23, 59, 59, 999);
+    useEffect(() => {
+        let cancelled = false;
 
-        const completed = tasks.filter(t => {
-            if (t.status !== TaskStatus.Completed) return false;
-            if (!t.photos || t.photos.length === 0) return false;
+        const loadCompletedPhotos = async () => {
+            const now = new Date();
+            const startOfPeriod = new Date(now);
+            startOfPeriod.setDate(now.getDate() - now.getDay() - 7); // Sunday of last week
+            startOfPeriod.setHours(0, 0, 0, 0);
 
-            if (!t.dueDate) return false;
-            const taskDate = new Date(t.dueDate);
-            return taskDate >= startOfPeriod && taskDate <= endOfPeriod;
-        });
+            const endOfPeriod = new Date(now);
+            endOfPeriod.setHours(23, 59, 59, 999);
 
-        return completed.map(t => ({
-            ...t,
-            photoUrl: t.photos![0]
-        })).slice(0, 15); // Increased limit slightly to accommodate more photos
+            // Tarefas concluídas no período
+            const completedInPeriod = tasks.filter(t => {
+                if (t.status !== TaskStatus.Completed) return false;
+                if (!t.dueDate) return false;
+                const taskDate = new Date(t.dueDate);
+                return taskDate >= startOfPeriod && taskDate <= endOfPeriod;
+            });
+
+            if (completedInPeriod.length === 0) {
+                if (!cancelled) setCompletedTasksWithPhotos([]);
+                return;
+            }
+
+            // Buscar IDs que têm fotos (query leve)
+            const idsWithPhotos = await fetchTaskIdsWithPhotos();
+
+            // Filtrar apenas as concluídas que têm fotos
+            const candidateTasks = completedInPeriod.filter(t => idsWithPhotos.has(t.id)).slice(0, 15);
+
+            if (candidateTasks.length === 0) {
+                if (!cancelled) setCompletedTasksWithPhotos([]);
+                return;
+            }
+
+            // Buscar a primeira foto de cada tarefa sob demanda
+            const results: (Task & { photoUrl: string })[] = [];
+            for (const task of candidateTasks) {
+                if (cancelled) break;
+                try {
+                    const heavy = await fetchTaskHeavyData(task.id, 'tasks');
+                    if (heavy?.photos && heavy.photos.length > 0) {
+                        results.push({ ...task, photoUrl: heavy.photos[0] });
+                    }
+                } catch (err) {
+                    console.warn(`[WarRoom] Erro ao buscar fotos da tarefa ${task.id}:`, err);
+                }
+            }
+
+            if (!cancelled) setCompletedTasksWithPhotos(results);
+        };
+
+        loadCompletedPhotos();
+
+        return () => { cancelled = true; };
     }, [tasks]);
 
     // 3. Hall of Fame Data

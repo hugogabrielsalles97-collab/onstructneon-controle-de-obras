@@ -7,7 +7,6 @@ import BaselineIcon from './icons/BaselineIcon';
 import ScheduleIcon from './icons/ScheduleIcon';
 import LeanIcon from './icons/LeanIcon';
 import ManagementIcon from './icons/ManagementIcon';
-import TvIcon from './icons/TvIcon';
 import HistoryIcon from './icons/HistoryIcon';
 import UserIcon from './icons/UserIcon';
 import BriefcaseIcon from './icons/BriefcaseIcon';
@@ -23,7 +22,6 @@ interface SidebarProps {
     onNavigateToAnalysis: () => void;
     onNavigateToLean?: () => void;
     onNavigateToLeanConstruction?: () => void;
-    onNavigateToWarRoom?: () => void;
     onNavigateToCost?: () => void;
     onNavigateToPodcast?: () => void;
     onNavigateToCheckoutSummary: () => void;
@@ -36,7 +34,7 @@ interface SidebarProps {
     onAddTask?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome, onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToSystem, onUpgradeClick, onAddTask }) => {
+const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome, onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToPodcast, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToSystem, onUpgradeClick, onAddTask }) => {
     const showFullMenu = user.role !== 'Executor';
     const isCostModule = activeScreen === 'cost';
     const isOrgModule = activeScreen === 'orgSummary' || activeScreen === 'orgChart';
@@ -161,15 +159,6 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                                         />
                                     )}
                                 </>
-                            )}
-                            {onNavigateToWarRoom && (
-                                <NavButton
-                                    active={activeScreen === 'warRoom'}
-                                    icon={<TvIcon className="w-5 h-5 text-red-500" />}
-                                    label="War Room (TV)"
-                                    onClick={onNavigateToWarRoom}
-                                    isCostModule={isCostModule}
-                                />
                             )}
 
                             {(user.role === 'Master' || user.role === 'Planejador') && onNavigateToSystem && (
