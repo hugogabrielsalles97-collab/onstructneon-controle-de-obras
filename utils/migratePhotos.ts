@@ -11,94 +11,111 @@ export const migratePhotosToStorage = async (
     const errors: any[] = [];
 
     try {
-        // 1. Buscar todas as tarefas que possuem fotos
-        const { data: tasks, error } = await supabase
+        // Obter contagem total de tarefas para paginação e progresso
+        const { count, error: countError } = await supabase
             .from('tasks')
-            .select('id, photos')
-            .not('photos', 'eq', '[]');
+            .select('id', { count: 'exact', head: true });
 
-        if (error) throw error;
-        if (!tasks || tasks.length === 0) return { success: true, migrated: 0, errors: [] };
+        if (countError) throw countError;
+        if (!count || count === 0) return { success: true, migrated: 0, errors: [] };
 
-        // Filtrar apenas tarefas que de fato possuem Base64
-        const tasksWithBase64 = tasks.filter(t =>
-            Array.isArray(t.photos) &&
-            t.photos.some((p: string) => typeof p === 'string' && p.startsWith('data:image'))
-        );
+        const pageSize = 10;
+        let offset = 0;
+        let hasMore = true;
+        let processedTasks = 0;
 
-        if (tasksWithBase64.length === 0) return { success: true, migrated: 0, errors: [] };
+        while (hasMore) {
+            // Busca apenas 10 tarefas por vez, trazendo as fotos para não estourar memória do Supabase
+            const { data: tasks, error: fetchError } = await supabase
+                .from('tasks')
+                .select('id, photos')
+                .range(offset, offset + pageSize - 1);
 
-        const totalTasks = tasksWithBase64.length;
+            if (fetchError) throw fetchError;
+            if (!tasks || tasks.length === 0) {
+                hasMore = false;
+                break;
+            }
 
-        for (let i = 0; i < tasksWithBase64.length; i++) {
-            const task = tasksWithBase64[i];
-            const photos = task.photos as string[];
-            let hasChanges = false;
-            const newPhotos: string[] = [];
+            const tasksWithBase64 = tasks.filter(t =>
+                Array.isArray(t.photos) &&
+                t.photos.some((p: string) => typeof p === 'string' && p.startsWith('data:image'))
+            );
 
-            if (onProgress) onProgress(i + 1, totalTasks);
+            for (let i = 0; i < tasksWithBase64.length; i++) {
+                const task = tasksWithBase64[i];
+                const photos = task.photos as string[];
+                let hasChanges = false;
+                const newPhotos: string[] = [];
 
-            for (const photo of photos) {
-                // Se for Base64 (começa com data:image)
-                if (photo.startsWith('data:image')) {
-                    try {
-                        const mimeType = photo.split(';')[0].split(':')[1];
-                        const base64Data = photo.split(',')[1];
+                if (onProgress) onProgress(processedTasks + i + 1, count);
 
-                        // Converter Base64 para Blob
-                        const byteCharacters = atob(base64Data);
-                        const byteNumbers = new Array(byteCharacters.length);
-                        for (let j = 0; j < byteCharacters.length; j++) {
-                            byteNumbers[j] = byteCharacters.charCodeAt(j);
+                for (const photo of photos) {
+                    // Se for Base64 (começa com data:image)
+                    if (photo.startsWith('data:image')) {
+                        try {
+                            const mimeType = photo.split(';')[0].split(':')[1];
+                            const base64Data = photo.split(',')[1];
+
+                            // Converter Base64 para Blob
+                            const byteCharacters = atob(base64Data);
+                            const byteNumbers = new Array(byteCharacters.length);
+                            for (let j = 0; j < byteCharacters.length; j++) {
+                                byteNumbers[j] = byteCharacters.charCodeAt(j);
+                            }
+                            const byteArray = new Uint8Array(byteNumbers);
+                            const blob = new Blob([byteArray], { type: mimeType });
+
+                            // Gerar nome único
+                            const fileExt = mimeType.split('/')[1] || 'jpg';
+                            const fileName = `migrated-${task.id}-${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+
+                            // Upload para Storage
+                            const { error: uploadError } = await supabase.storage
+                                .from('task-photos')
+                                .upload(fileName, blob, {
+                                    contentType: mimeType,
+                                    upsert: true
+                                });
+
+                            if (uploadError) throw uploadError;
+
+                            // Obter URL pública
+                            const { data: { publicUrl } } = supabase.storage
+                                .from('task-photos')
+                                .getPublicUrl(fileName);
+
+                            newPhotos.push(publicUrl);
+                            hasChanges = true;
+                            migratedCount++;
+                        } catch (err) {
+                            console.error(`Erro ao migrar foto da tarefa ${task.id}:`, err);
+                            errors.push({ taskId: task.id, error: err });
+                            newPhotos.push(photo); // Mantém a original em caso de erro
                         }
-                        const byteArray = new Uint8Array(byteNumbers);
-                        const blob = new Blob([byteArray], { type: mimeType });
-
-                        // Gerar nome único
-                        const fileExt = mimeType.split('/')[1] || 'jpg';
-                        const fileName = `migrated-${task.id}-${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-
-                        // Upload para Storage
-                        const { error: uploadError } = await supabase.storage
-                            .from('task-photos')
-                            .upload(fileName, blob, {
-                                contentType: mimeType,
-                                upsert: true
-                            });
-
-                        if (uploadError) throw uploadError;
-
-                        // Obter URL pública
-                        const { data: { publicUrl } } = supabase.storage
-                            .from('task-photos')
-                            .getPublicUrl(fileName);
-
-                        newPhotos.push(publicUrl);
-                        hasChanges = true;
-                        migratedCount++;
-                    } catch (err) {
-                        console.error(`Erro ao migrar foto da tarefa ${task.id}:`, err);
-                        errors.push({ taskId: task.id, error: err });
-                        newPhotos.push(photo); // Mantém a original em caso de erro
+                    } else {
+                        // Já é uma URL, mantém como está
+                        newPhotos.push(photo);
                     }
-                } else {
-                    // Já é uma URL, mantém como está
-                    newPhotos.push(photo);
                 }
-            }
 
-            // 2. Se houve migração, atualizar a tarefa no banco
-            if (hasChanges) {
-                const { error: updateError } = await supabase
-                    .from('tasks')
-                    .update({ photos: newPhotos })
-                    .eq('id', task.id);
+                // 2. Se houve migração, atualizar a tarefa no banco
+                if (hasChanges) {
+                    const { error: updateError } = await supabase
+                        .from('tasks')
+                        .update({ photos: newPhotos })
+                        .eq('id', task.id);
 
-                if (updateError) {
-                    errors.push({ taskId: task.id, updateError });
+                    if (updateError) {
+                        errors.push({ taskId: task.id, updateError });
+                    }
                 }
-            }
-        }
+            } // Fim do for de tarefas que tem base64
+
+            processedTasks += tasks.length;
+            if (onProgress) onProgress(processedTasks, count);
+            offset += pageSize;
+        } // Fim do while
 
         return { success: true, migrated: migratedCount, errors };
     } catch (error) {
