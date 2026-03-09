@@ -705,7 +705,15 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
 
         const phone = selectedUser.whatsapp.replace(/\D/g, '');
         const checkoutLink = `${window.location.origin}${window.location.pathname}?taskId=${task?.id || ''}&action=checkout`;
-        const message = `Olá *${selectedUser.fullName}*,\n\nVocê tem uma nova atividade alocada:\n📌 *${formData.title}*\n📍 Local: ${formData.location}\n📅 Prazo: ${new Date(formData.startDate + 'T00:00:00').toLocaleDateString('pt-BR')} até ${new Date(formData.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}\n\n👉 *Atualize o avanço aqui:* ${checkoutLink}\n\n*Vamos pra cima!* 🚀🏗️`;
+
+        const localDetails = [
+            formData.location,
+            formData.support ? `Apoio/Vão: ${formData.support}` : '',
+            formData.corte ? `Corte: ${formData.corte}` : '',
+            formData.side ? `Lado: ${formData.side}` : ''
+        ].filter(Boolean).join(' | ');
+
+        const message = `Olá *${selectedUser.fullName}*,\n\nVocê tem uma nova atividade alocada:\n📌 *${formData.title}*\n📍 Local: ${localDetails}\n📅 Prazo: ${new Date(formData.startDate + 'T00:00:00').toLocaleDateString('pt-BR')} até ${new Date(formData.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}\n\n👉 *Atualize o avanço aqui:* ${checkoutLink}\n\n*Vamos pra cima!* 🚀🏗️`;
 
         const url = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
         window.open(url, '_blank');
