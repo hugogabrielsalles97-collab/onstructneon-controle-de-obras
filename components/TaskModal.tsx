@@ -228,7 +228,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
     }, [isOpen, task?.id]);
 
     useEffect(() => {
-        if (['Terraplenagem', 'Contenções'].includes(formData.discipline) && formData.level) {
+        if (['Contenções'].includes(formData.discipline) && formData.level) {
             setFormData(prev => ({ ...prev, title: prev.level }));
         }
     }, [formData.discipline, formData.level]);
@@ -740,7 +740,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
 
     if (!isOpen) return null;
 
-    const isTitleAutoPopulated = ['Terraplenagem', 'Contenções'].includes(formData.discipline);
+    const isTitleAutoPopulated = ['Contenções'].includes(formData.discipline);
 
     // Merge Catalogs with Hardcoded Options
     const allDisciplineOptions = useMemo(() => {
