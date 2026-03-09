@@ -355,12 +355,18 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             }
 
             const quant = newValues.quantity;
-            const actualQuant = newValues.actualQuantity;
 
-            if (quant > 0) {
-                newValues.progress = Math.min(100, Math.round((actualQuant / quant) * 100));
-            } else {
-                newValues.progress = 0;
+            if (name === 'progress') {
+                newValues.progress = Math.min(100, Math.max(0, newValues.progress || 0));
+                newValues.actualQuantity = Number(((newValues.progress / 100) * quant).toFixed(2));
+            } else if (name === 'quantity') {
+                newValues.actualQuantity = Number(((newValues.progress / 100) * quant).toFixed(2));
+            } else if (name === 'actualQuantity') {
+                if (quant > 0) {
+                    newValues.progress = Math.min(100, Math.round((newValues.actualQuantity / quant) * 100));
+                } else {
+                    newValues.progress = 0;
+                }
             }
 
             if (name === 'actualStartDate' && !value) {
@@ -1201,8 +1207,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
 
                                         <div className="space-y-4">
                                             <div className="flex justify-between items-end mb-1">
-                                                <label className="text-[10px] font-black text-green-400 uppercase tracking-[2px]">Avanço ({formData.progress}%)</label>
-                                                <span className="text-[10px] font-bold text-brand-med-gray italic tracking-tight">{formData.actualQuantity} / {formData.quantity} {formData.unit}</span>
+                                                <label className="text-[10px] font-black text-green-400 uppercase tracking-[2px]">Avanço (%)</label>
+                                                <span className="text-[10px] font-bold text-brand-med-gray italic tracking-tight">Volume: {formData.actualQuantity} / {formData.quantity} {formData.unit}</span>
                                             </div>
                                             <div className="relative h-12 bg-black/40 rounded-2xl border border-white/5 overflow-hidden group">
                                                 <div
@@ -1213,11 +1219,16 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                                 </div>
                                                 <input
                                                     type="number"
-                                                    name="actualQuantity"
-                                                    value={formData.actualQuantity}
+                                                    name="progress"
+                                                    value={formData.progress}
                                                     onChange={handleChange}
-                                                    className="absolute inset-0 w-full h-full bg-transparent text-center font-black text-xl text-white focus:outline-none"
+                                                    min="0"
+                                                    max="100"
+                                                    className="absolute inset-0 w-full h-full bg-transparent text-center font-black text-xl text-white focus:outline-none pr-6"
                                                 />
+                                                <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                                                    <span className="text-white/50 font-black text-lg">%</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
