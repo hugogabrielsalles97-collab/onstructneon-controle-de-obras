@@ -164,7 +164,9 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
     const isReadOnlyPlanning = !canEditPlanning;
     const isReadOnlyExecution = !canEditExecution;
 
-    const assignableUsers = (allUsers || []).filter(u => u.role !== 'Gerenciador');
+    const assignableUsers = (allUsers || [])
+        .filter(u => u.role !== 'Gerenciador')
+        .sort((a, b) => a.fullName.localeCompare(b.fullName));
 
     useEffect(() => {
         if (isOpen) {
