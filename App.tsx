@@ -30,9 +30,10 @@ const OrgSummaryPage = lazy(() => import('./components/OrgSummaryPage'));
 const TeamsPage = lazy(() => import('./components/TeamsPage'));
 const VisualControlPage = lazy(() => import('./components/VisualControlPage'));
 const SystemPage = lazy(() => import('./components/SystemPage'));
+const WarRoomTVPage = lazy(() => import('./components/WarRoomTVPage'));
 
 
-type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'restrictions' | 'cost' | 'podcast' | 'checkoutSummary' | 'orgChart' | 'orgSummary' | 'visualControl' | 'system';
+type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'restrictions' | 'cost' | 'podcast' | 'checkoutSummary' | 'orgChart' | 'orgSummary' | 'visualControl' | 'system' | 'warRoomTV';
 
 const AppContent: React.FC = () => {
   const {
@@ -241,7 +242,7 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
       onNavigateToAnalysis: () => setScreen('management'),
       onNavigateToLean: () => setScreen('lean'),
       onNavigateToLeanConstruction: () => setScreen('leanConstruction'),
-      onNavigateToWarRoom: () => { },
+      onNavigateToWarRoom: () => setScreen('warRoomTV'),
       onNavigateToPodcast: () => setScreen('podcast'),
       onNavigateToCost: () => setScreen('cost'),
       onNavigateToCheckoutSummary: () => setScreen('checkoutSummary'),
@@ -333,6 +334,12 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
       case 'visualControl': return (
         <VisualControlPage
           {...navigationProps}
+          showToast={showToast}
+        />
+      );
+      case 'warRoomTV': return (
+        <WarRoomTVPage
+          onNavigateToHome={handleNavigateToHome}
           showToast={showToast}
         />
       );
