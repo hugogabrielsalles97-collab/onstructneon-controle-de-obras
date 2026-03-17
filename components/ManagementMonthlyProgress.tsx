@@ -70,15 +70,20 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
             const dateObj = new Date(parseInt(year), parseInt(month) - 1, 1);
             const label = dateObj.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).replace('.', '');
 
+            // Novas variáveis para interrupção em 100%
+            const chartP1 = accP1 > 100.1 ? null : accP1;
+            const chartP2 = accP2 > 100.1 ? null : accP2;
+            const chartReal = (currentAccReal !== null && currentAccReal > 100.1) ? null : currentAccReal;
+
             return {
                 ...m,
                 label,
                 'LB01 (Mês)': m.planned1,
                 'LB04 (Mês)': m.planned2,
                 'Real (Mês)': m.actual,
-                'LB01 (Acum)': accP1,
-                'LB04 (Acum)': accP2,
-                'Real (Acum)': currentAccReal
+                'LB01 (Acum)': chartP1,
+                'LB04 (Acum)': chartP2,
+                'Real (Acum)': chartReal
             };
         });
     }, [months]);
