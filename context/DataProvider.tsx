@@ -157,11 +157,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const updateProjectSettings = async (updates: { baseline_cutoff_date?: string, current_schedule_cutoff_date?: string, monthly_planning?: any[] }) => {
         try {
+            // Utilizamos o ID fixo garantido pela migração para evitar duplicidade ou perda de dados
+            const SETTINGS_ID = '00000000-0000-0000-0000-000000000001';
+            
             const { error } = await supabase
                 .from('project_settings')
                 .update({ ...updates, updated_at: new Date().toISOString(), updated_by: session?.user?.id })
-                .neq('id', '00000000-0000-0000-0000-000000000000'); // Garante que atualiza a linha existente
-            if (error) throw error;
+                .eq('id', SETTINGS_ID);
+                
+            if (error) {
+                console.error('Erro no updateProjectSettings:', error);
+                // Fallback: se por algum motivo a linha sumir, tenta inserir
+                if (error.code === 'PGRST116' || error.message.includes('JSON object requested')) {
+                     await supabase.from('project_settings').insert([{ id: SETTINGS_ID, ...updates }]);
+                }
+            }
+
             queryClient.invalidateQueries({ queryKey: ['projectSettings'] });
         } catch (error) {
             console.error('Erro ao atualizar configurações do projeto:', error);

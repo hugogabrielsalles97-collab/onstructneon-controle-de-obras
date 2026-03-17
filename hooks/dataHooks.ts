@@ -400,10 +400,10 @@ export const useProjectSettings = (enabled: boolean = true) => {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('project_settings')
-                .select('baseline_cutoff_date, current_schedule_cutoff_date')
-                .single();
+                .select('baseline_cutoff_date, current_schedule_cutoff_date, monthly_planning')
+                .limit(1);
             if (error) throw error;
-            return data as ProjectSettings;
+            return (data && data.length > 0 ? data[0] : { baseline_cutoff_date: '2026-03-17', current_schedule_cutoff_date: '2026-03-17' }) as ProjectSettings;
         },
         enabled,
         staleTime: 1000 * 60 * 60,
