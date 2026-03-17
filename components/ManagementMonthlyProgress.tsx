@@ -314,6 +314,14 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
                             {/* Barras Mensais */}
                             <Bar 
                                 yAxisId="left" 
+                                dataKey="LB04 (Mês)" 
+                                fill="rgba(139, 92, 246, 0.4)" 
+                                radius={[4, 4, 0, 0]} 
+                                barSize={20}
+                                name="LB04 (Mês)"
+                            />
+                            <Bar 
+                                yAxisId="left" 
                                 dataKey="Real (Mês)" 
                                 fill="#06b6d4" 
                                 radius={[4, 4, 0, 0]} 
