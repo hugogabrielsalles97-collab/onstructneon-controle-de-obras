@@ -281,6 +281,7 @@ CREATE TABLE IF NOT EXISTS project_settings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     baseline_cutoff_date DATE DEFAULT '2026-01-10',
     current_schedule_cutoff_date DATE DEFAULT '2026-01-10',
+    monthly_planning JSONB DEFAULT '[]'::jsonb, -- Armazena o array de MonthlyProgress
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_by UUID REFERENCES auth.users(id)
 );
@@ -295,8 +296,8 @@ BEGIN
 END $$;
 
 -- Inserir uma linha padrão se a tabela estiver vazia
-INSERT INTO project_settings (baseline_cutoff_date, current_schedule_cutoff_date)
-SELECT '2026-01-10', '2026-01-10'
+INSERT INTO project_settings (baseline_cutoff_date, current_schedule_cutoff_date, monthly_planning)
+SELECT '2026-01-10', '2026-01-10', '[]'::jsonb
 WHERE NOT EXISTS (SELECT 1 FROM project_settings LIMIT 1);
 
 

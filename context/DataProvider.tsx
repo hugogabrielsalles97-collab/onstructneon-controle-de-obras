@@ -39,6 +39,8 @@ interface DataContextType {
     setBaselineCutOffDateStr: (date: string) => void;
     currentScheduleCutOffDateStr: string;
     setCurrentScheduleCutOffDateStr: (date: string) => void;
+    monthlyPlanning: any[];
+    setMonthlyPlanning: (data: any[]) => void;
     signOut: () => Promise<{ success: boolean; error?: string }>;
     upgradeRole: (newRole: User['role']) => Promise<{ success: boolean; error?: string }>;
     updateUser: (userId: string, updates: Partial<User>) => Promise<{ success: boolean; error?: string }>;
@@ -55,6 +57,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [session, setSession] = useState<Session | null>(null);
     const [baselineCutOffDateStr, setBaselineCutOffDateStr] = useState('2026-01-10');
     const [currentScheduleCutOffDateStr, setCurrentScheduleCutOffDateStr] = useState('2026-01-10');
+    const [monthlyPlanning, setMonthlyPlanning] = useState<any[]>([]);
     const [isAuthLoading, setIsAuthLoading] = useState(true);
     const queryClient = useQueryClient();
 
@@ -148,10 +151,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (settings) {
             setBaselineCutOffDateStr(settings.baseline_cutoff_date);
             setCurrentScheduleCutOffDateStr(settings.current_schedule_cutoff_date);
+            if (settings.monthly_planning) setMonthlyPlanning(settings.monthly_planning);
         }
     }, [settings]);
 
-    const updateProjectSettings = async (updates: { baseline_cutoff_date?: string, current_schedule_cutoff_date?: string }) => {
+    const updateProjectSettings = async (updates: { baseline_cutoff_date?: string, current_schedule_cutoff_date?: string, monthly_planning?: any[] }) => {
         try {
             const { error } = await supabase
                 .from('project_settings')
@@ -160,7 +164,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (error) throw error;
             queryClient.invalidateQueries({ queryKey: ['projectSettings'] });
         } catch (error) {
-            console.error('Erro ao atualizar datas de corte:', error);
+            console.error('Erro ao atualizar configurações do projeto:', error);
         }
     };
 
@@ -172,6 +176,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const handleSetCurrentScheduleCutOffDateStr = (date: string) => {
         setCurrentScheduleCutOffDateStr(date);
         updateProjectSettings({ current_schedule_cutoff_date: date });
+    };
+
+    const handleSetMonthlyPlanning = (data: any[]) => {
+        setMonthlyPlanning(data);
+        updateProjectSettings({ monthly_planning: data });
     };
 
     // Dados Mockados para o Módulo de Custos (Temporário)
@@ -610,6 +619,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setBaselineCutOffDateStr: handleSetBaselineCutOffDateStr,
             currentScheduleCutOffDateStr,
             setCurrentScheduleCutOffDateStr: handleSetCurrentScheduleCutOffDateStr,
+            monthlyPlanning,
+            setMonthlyPlanning: handleSetMonthlyPlanning,
             signOut, upgradeRole, updateUser, deleteUser, isDevToolsOpen, setIsDevToolsOpen,
             enableBaselineLoading: () => setEnableBaseline(true),
             enableScheduleLoading: () => setEnableSchedule(true),

@@ -391,6 +391,7 @@ export const useCatalogs = (enabled: boolean = true) => {
 export interface ProjectSettings {
     baseline_cutoff_date: string;
     current_schedule_cutoff_date: string;
+    monthly_planning?: any[];
 }
 
 export const useProjectSettings = (enabled: boolean = true) => {

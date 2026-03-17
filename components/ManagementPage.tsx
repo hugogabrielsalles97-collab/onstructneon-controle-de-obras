@@ -8,6 +8,7 @@ import PpcChart from './PpcChart';
 import CumulativeProgressChart from './CumulativeProgressChart';
 import Sidebar from './Sidebar';
 import { exportTasksToExcel } from '../utils/excelExport';
+import ManagementMonthlyProgress from './ManagementMonthlyProgress';
 
 interface ManagementPageProps {
     onNavigateToDashboard: () => void;
@@ -52,7 +53,15 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
     onAddTask,
     showToast
 }) => {
-    const { currentUser: user, tasks, currentScheduleTasks, signOut, currentScheduleCutOffDateStr } = useData();
+    const { 
+        currentUser: user, 
+        tasks, 
+        currentScheduleTasks, 
+        signOut, 
+        currentScheduleCutOffDateStr,
+        monthlyPlanning,
+        setMonthlyPlanning
+    } = useData();
     const [selectedStatuses, setSelectedStatuses] = React.useState<string[]>(['Concluída', 'Em Andamento', 'Não Iniciada', 'Atrasada']);
     const [dateFilters, setDateFilters] = React.useState({ startDate: '', endDate: '' });
 
@@ -333,6 +342,12 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                 </div>
                             </div>
                         )}
+
+                        {/* Planejamento Mensal e Curva S */}
+                        <ManagementMonthlyProgress 
+                            data={monthlyPlanning}
+                            onSave={setMonthlyPlanning}
+                        />
 
                         <div className="grid grid-cols-1 gap-4">
                             {analysisData.length === 0 ? (
