@@ -59,9 +59,16 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
         let accP1 = 0;
         let accP2 = 0;
         let accReal = 0;
-        let foundLastReal = false;
+        
+        let p1Reached100 = false;
+        let p2Reached100 = false;
+        let realReached100 = false;
 
         return months.map(m => {
+            const prevAccP1 = accP1;
+            const prevAccP2 = accP2;
+            const prevAccReal = accReal;
+
             accP1 += m.planned1;
             accP2 += m.planned2;
             
@@ -69,18 +76,21 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
             if (m.actual !== null && m.actual !== undefined) {
                 accReal += m.actual;
                 currentAccReal = accReal;
-            } else {
-                foundLastReal = true;
             }
 
             const [year, month] = m.month.split('-');
             const dateObj = new Date(parseInt(year), parseInt(month) - 1, 1);
             const label = dateObj.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).replace('.', '');
 
-            // Novas variáveis para interrupção em 100%
-            const chartP1 = accP1 > 100.1 ? null : accP1;
-            const chartP2 = accP2 > 100.1 ? null : accP2;
-            const chartReal = (currentAccReal !== null && currentAccReal > 100.1) ? null : currentAccReal;
+            // Lógica de interrupção: se já atingiu 100% no mês anterior, não desenha mais
+            const chartP1 = p1Reached100 ? null : accP1;
+            const chartP2 = p2Reached100 ? null : accP2;
+            const chartReal = (realReached100 || currentAccReal === null) ? null : currentAccReal;
+
+            // Atualiza flags para o próximo mês
+            if (accP1 >= 99.99) p1Reached100 = true;
+            if (accP2 >= 99.99) p2Reached100 = true;
+            if (currentAccReal !== null && currentAccReal >= 99.99) realReached100 = true;
 
             return {
                 ...m,
