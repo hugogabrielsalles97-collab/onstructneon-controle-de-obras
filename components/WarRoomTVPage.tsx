@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Task, TaskStatus } from '../types';
 import { useData } from '../context/DataProvider';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine, Legend, AreaChart, Area } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine, Legend, AreaChart, Area, ComposedChart, Line } from 'recharts';
 import ConstructionIcon from './icons/ConstructionIcon';
 
 interface WarRoomTVPageProps {
@@ -11,89 +11,12 @@ interface WarRoomTVPageProps {
 }
 
 // ==============================
-// SLIDE 1 — RESUMO GERAL DE TAREFAS
+// SLIDE 1 COMBINADO — PPC SEMANAL E ACUMULADO
 // ==============================
-const SlideTaskSummary: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
-    const stats = useMemo(() => {
-        const todayNum = new Date().setHours(0, 0, 0, 0);
-        let completed = 0, overdue = 0, inProgress = 0, toDo = 0;
-        let totalProgress = 0;
-
-        tasks.forEach(task => {
-            totalProgress += task.progress || 0;
-            if (task.status === TaskStatus.Completed) {
-                completed++;
-            } else {
-                const dueDateNum = new Date(task.dueDate + 'T00:00:00').getTime();
-                if (dueDateNum < todayNum) {
-                    overdue++;
-                } else {
-                    if (task.status === TaskStatus.InProgress) inProgress++;
-                    else if (task.status === TaskStatus.ToDo) toDo++;
-                }
-            }
-        });
-
-        const avgProgress = tasks.length > 0 ? Math.round(totalProgress / tasks.length) : 0;
-        const completionRate = tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0;
-
-        return { total: tasks.length, completed, overdue, inProgress, toDo, avgProgress, completionRate };
-    }, [tasks]);
-
-    const cards = [
-        { label: 'Total de Tarefas', value: stats.total, color: '#6b7280', icon: '📋', bgGlow: 'rgba(107,114,128,0.15)' },
-        { label: 'Concluídas', value: stats.completed, color: '#22c55e', icon: '✅', bgGlow: 'rgba(34,197,94,0.15)' },
-        { label: 'Atrasadas', value: stats.overdue, color: '#ef4444', icon: '🚨', bgGlow: 'rgba(239,68,68,0.15)' },
-        { label: 'Em Andamento', value: stats.inProgress, color: '#3b82f6', icon: '🔄', bgGlow: 'rgba(59,130,246,0.15)' },
-        { label: 'A Iniciar', value: stats.toDo, color: '#eab308', icon: '⏳', bgGlow: 'rgba(234,179,8,0.15)' },
-    ];
-
-    return (
-        <div className="h-full flex flex-col items-center justify-center px-8">
-            <div className="text-center mb-12 animate-fade-in">
-                <h2 className="text-5xl font-black text-white tracking-tighter uppercase mb-2">Resumo Geral</h2>
-                <p className="text-brand-med-gray text-lg font-medium tracking-widest uppercase">Visão de tarefas programadas</p>
-            </div>
-
-            <div className="grid grid-cols-5 gap-6 w-full max-w-7xl mb-12">
-                {cards.map((card, i) => (
-                    <div key={card.label} className="relative overflow-hidden bg-[#111827]/80 backdrop-blur-xl rounded-3xl border border-white/5 p-8 flex flex-col items-center justify-center text-center group hover:scale-105 transition-all duration-500" style={{ animationDelay: `${i * 100}ms`, boxShadow: `0 0 60px ${card.bgGlow}` }}>
-                        <div className="absolute top-0 right-0 w-32 h-32 blur-[80px] opacity-30" style={{ backgroundColor: card.color }}></div>
-                        <span className="text-4xl mb-3">{card.icon}</span>
-                        <p className="text-6xl font-black tracking-tighter mb-2" style={{ color: card.color }}>{card.value}</p>
-                        <p className="text-[11px] font-black text-brand-med-gray uppercase tracking-[2px]">{card.label}</p>
-                    </div>
-                ))}
-            </div>
-
-            <div className="grid grid-cols-2 gap-8 w-full max-w-3xl">
-                <div className="bg-[#111827]/60 backdrop-blur-xl rounded-3xl border border-white/5 p-8 text-center" style={{ boxShadow: '0 0 40px rgba(227,90,16,0.1)' }}>
-                    <p className="text-[10px] font-black text-brand-med-gray uppercase tracking-[3px] mb-3">Avanço Médio</p>
-                    <p className="text-7xl font-black text-brand-accent tracking-tighter">{stats.avgProgress}%</p>
-                    <div className="mt-4 h-2 bg-white/5 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full bg-gradient-to-r from-brand-accent to-orange-400 transition-all duration-1000" style={{ width: `${stats.avgProgress}%` }}></div>
-                    </div>
-                </div>
-                <div className="bg-[#111827]/60 backdrop-blur-xl rounded-3xl border border-white/5 p-8 text-center" style={{ boxShadow: '0 0 40px rgba(34,197,94,0.1)' }}>
-                    <p className="text-[10px] font-black text-brand-med-gray uppercase tracking-[3px] mb-3">Taxa de Conclusão</p>
-                    <p className="text-7xl font-black text-green-500 tracking-tighter">{stats.completionRate}%</p>
-                    <div className="mt-4 h-2 bg-white/5 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full bg-gradient-to-r from-green-500 to-emerald-400 transition-all duration-1000" style={{ width: `${stats.completionRate}%` }}></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// ==============================
-// SLIDE 2 — PPC (Percentual de Planos Concluídos)
-// ==============================
-const SlidePPC: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
-    const chartData = useMemo(() => {
+const SlidePPCCombined: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
+    // Lógica PPC Semanal
+    const weeklyData = useMemo(() => {
         if (tasks.length === 0) return [];
-
-        // Determinar o fim da última semana fechada (sábado passado)
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const currentWeekStart = new Date(today);
@@ -109,17 +32,14 @@ const SlidePPC: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
 
         tasks.forEach(task => {
             const taskDueDate = new Date(task.dueDate + 'T23:59:59');
-
-            // Ignorar tarefas (e semanas) que ainda não foram fechadas (da semana atual em diante)
             if (taskDueDate > lastClosedWeekEnd) return;
-
             if (taskDueDate >= start && taskDueDate <= end) {
                 const d = new Date(taskDueDate);
                 d.setDate(d.getDate() - d.getDay());
                 const weekKey = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
                 if (!weeks[weekKey]) weeks[weekKey] = { planned: 0, completed: 0 };
                 weeks[weekKey].planned += 1;
-                if (task.status === 'Concluído' && task.actualEndDate) {
+                if (task.status === TaskStatus.Completed && task.actualEndDate) {
                     const actualEnd = new Date(task.actualEndDate + 'T00:00:00');
                     const dueLimit = new Date(task.dueDate + 'T23:59:59');
                     if (actualEnd <= dueLimit) {
@@ -134,61 +54,127 @@ const SlidePPC: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
             const [db, mb] = b.split('/').map(Number);
             return (ma * 100 + da) - (mb * 100 + db);
         }).map(week => ({
-            name: `Sem. ${week}`,
+            name: `${week}`,
             ppc: weeks[week].planned > 0 ? Math.round((weeks[week].completed / weeks[week].planned) * 100) : 0,
-            planned: weeks[week].planned,
-            completed: weeks[week].completed
         }));
     }, [tasks]);
 
+    // Lógica PPC Acumulado
+    const accumulatedData = useMemo(() => {
+        if (tasks.length === 0) return [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const currentWeekStart = new Date(today);
+        currentWeekStart.setDate(currentWeekStart.getDate() - currentWeekStart.getDay());
+        const lastClosedWeekEnd = new Date(currentWeekStart);
+        lastClosedWeekEnd.setDate(lastClosedWeekEnd.getDate() - 1);
+
+        const tasksByWeek: { weekStart: Date; weekEnd: Date; key: string; total: number; completed: number }[] = [];
+        const allDates = tasks.flatMap(t => [new Date(t.startDate), new Date(t.dueDate)]);
+        const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
+        const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
+
+        const current = new Date(minDate);
+        current.setDate(current.getDate() - current.getDay());
+
+        while (current <= maxDate) {
+            const weekEnd = new Date(current);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+            const key = current.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+            let total = 0, completed = 0;
+            tasks.forEach(task => {
+                const dueDate = new Date(task.dueDate + 'T00:00:00');
+                if (dueDate <= weekEnd) {
+                    total++;
+                    if (task.status === TaskStatus.Completed) completed++;
+                }
+            });
+            if (total > 0) {
+                tasksByWeek.push({ weekStart: new Date(current), weekEnd: new Date(weekEnd), key, total, completed });
+            }
+            current.setDate(current.getDate() + 7);
+        }
+
+        return tasksByWeek.map(week => {
+            const isAfterLastClosed = week.weekStart > lastClosedWeekEnd;
+            return {
+                name: `${week.key}`,
+                planejado: Math.round((week.total / tasks.length) * 100),
+                realizado: isAfterLastClosed ? null : Math.round((week.completed / tasks.length) * 100),
+            };
+        });
+    }, [tasks]);
+
     const averagePpc = useMemo(() => {
-        if (chartData.length === 0) return 0;
-        return Math.round(chartData.reduce((acc, d) => acc + d.ppc, 0) / chartData.length);
-    }, [chartData]);
+        if (weeklyData.length === 0) return 0;
+        return Math.round(weeklyData.reduce((acc, d) => acc + d.ppc, 0) / weeklyData.length);
+    }, [weeklyData]);
 
     return (
         <div className="h-full flex flex-col items-center justify-center px-8">
-            <div className="text-center mb-8">
-                <h2 className="text-5xl font-black text-white tracking-tighter uppercase mb-2">Curva PPC</h2>
-                <p className="text-brand-med-gray text-lg font-medium tracking-widest uppercase">Percentual de Planos Concluídos por Semana</p>
+            <div className="text-center mb-6">
+                <h2 className="text-5xl font-black text-white tracking-tighter uppercase mb-2">Semanas vs Acumulado</h2>
+                <p className="text-brand-med-gray text-lg font-medium tracking-widest uppercase">Análise de cumprimento de metas e tendência de avanço</p>
             </div>
 
-            <div className="flex items-center gap-8 mb-8">
-                <div className="bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-white/5 px-10 py-6 text-center" style={{ boxShadow: '0 0 50px rgba(227,90,16,0.15)' }}>
-                    <p className="text-[10px] font-black text-brand-med-gray uppercase tracking-[3px] mb-1">PPC Médio</p>
-                    <p className="text-6xl font-black text-brand-accent tracking-tighter">{averagePpc}%</p>
+            <div className="grid grid-cols-2 gap-8 w-full max-w-[95%] h-[550px]">
+                {/* Lado Esquerdo: PPC Semanal */}
+                <div className="bg-[#111827]/40 backdrop-blur-xl rounded-3xl border border-white/5 p-8 flex flex-col">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-xl font-bold text-white uppercase tracking-wider">Curva PPC</h3>
+                        <div className="bg-brand-accent/20 px-3 py-1 rounded-lg border border-brand-accent/30">
+                            <span className="text-brand-accent font-black text-2xl">{averagePpc}%</span>
+                            <span className="text-[9px] text-brand-med-gray uppercase font-bold ml-2">Média</span>
+                        </div>
+                    </div>
+                    <div className="flex-1 min-h-0">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={weeklyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 9, fontWeight: '700' }} axisLine={false} tickLine={false} />
+                                <YAxis stroke="#64748b" tick={{ fontSize: 9, fontWeight: '700' }} domain={[0, 100]} axisLine={false} tickLine={false} />
+                                <Tooltip
+                                    cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                                    contentStyle={{ backgroundColor: '#0a0f18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', fontSize: '10px' }}
+                                />
+                                <ReferenceLine y={averagePpc} stroke="#e35a10" strokeDasharray="5 5" strokeWidth={2} />
+                                <Bar dataKey="ppc" name="PPC %" radius={[4, 4, 0, 0]} barSize={25}>
+                                    {weeklyData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.ppc >= 80 ? '#22c55e' : entry.ppc >= 50 ? '#eab308' : '#ef4444'} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
-                <div className="bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-white/5 px-10 py-6 text-center">
-                    <p className="text-[10px] font-black text-brand-med-gray uppercase tracking-[3px] mb-1">Semanas</p>
-                    <p className="text-6xl font-black text-cyan-400 tracking-tighter">{chartData.length}</p>
-                </div>
-            </div>
 
-            <div className="w-full max-w-6xl h-[400px]">
-                {chartData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                            <XAxis dataKey="name" stroke="#9d9d9c" tick={{ fontSize: 12, fontWeight: '700' }} axisLine={false} tickLine={false} />
-                            <YAxis stroke="#9d9d9c" tick={{ fontSize: 12, fontWeight: '700' }} domain={[0, 100]} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
-                            <Tooltip
-                                cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                                contentStyle={{ backgroundColor: '#0a0f18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', fontSize: '12px', fontWeight: '700' }}
-                                itemStyle={{ color: '#f3f4f6' }}
-                            />
-                            <ReferenceLine y={averagePpc} stroke="#e35a10" strokeDasharray="5 5" strokeWidth={2}
-                                label={{ position: 'right', value: `Média: ${averagePpc}%`, fill: '#e35a10', fontSize: 12, fontWeight: '800' }}
-                            />
-                            <Bar dataKey="ppc" name="PPC %" radius={[8, 8, 0, 0]} barSize={50}>
-                                {chartData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.ppc >= 80 ? '#22c55e' : entry.ppc >= 50 ? '#eab308' : '#ef4444'} fillOpacity={0.85} />
-                                ))}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
-                ) : (
-                    <div className="flex items-center justify-center h-full text-brand-med-gray text-xl italic">Dados insuficientes para PPC</div>
-                )}
+                {/* Lado Direito: PPC Acumulado */}
+                <div className="bg-[#111827]/40 backdrop-blur-xl rounded-3xl border border-white/5 p-8 flex flex-col">
+                    <h3 className="text-xl font-bold text-white uppercase tracking-wider mb-4">PPC Acumulado</h3>
+                    <div className="flex-1 min-h-0">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={accumulatedData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="colorPlanejado" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                    </linearGradient>
+                                    <linearGradient id="colorRealizado" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 9, fontWeight: '700' }} axisLine={false} tickLine={false} />
+                                <YAxis stroke="#64748b" tick={{ fontSize: 9, fontWeight: '700' }} domain={[0, 100]} axisLine={false} tickLine={false} />
+                                <Tooltip contentStyle={{ backgroundColor: '#0a0f18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', fontSize: '10px' }} />
+                                <Area type="monotone" dataKey="planejado" stroke="#3b82f6" strokeWidth={3} fill="url(#colorPlanejado)" name="Plan. %" />
+                                <Area type="monotone" dataKey="realizado" stroke="#22c55e" strokeWidth={3} fill="url(#colorRealizado)" name="Real. %" connectNulls={false} />
+                                <Legend iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: '800', textTransform: 'uppercase', paddingTop: '10px' }} />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
             </div>
         </div>
     );
@@ -339,95 +325,71 @@ const SlideLevel: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
 };
 
 // ==============================
-// SLIDE 5 — PPC ACUMULADO
+// SLIDE 2 — CURVA S (PLANEJAMENTO MENSAL)
 // ==============================
-const SlidePPCAccumulated: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
+const SlideScurve: React.FC<{ data: any[] }> = ({ data }) => {
     const chartData = useMemo(() => {
-        if (tasks.length === 0) return [];
+        if (!data || data.length === 0) return [];
+        let accP1 = 0, accP2 = 0, accReal = 0;
+        let p1Reached100 = false, p2Reached100 = false, realReached100 = false;
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        // Encontrar o início da semana atual (domingo)
-        const currentWeekStart = new Date(today);
-        currentWeekStart.setDate(currentWeekStart.getDate() - currentWeekStart.getDay());
-        // A última semana "fechada" é a que terminou antes do início da semana atual
-        const lastClosedWeekEnd = new Date(currentWeekStart);
-        lastClosedWeekEnd.setDate(lastClosedWeekEnd.getDate() - 1); // Sábado passado
-
-        const tasksByWeek: { weekStart: Date; weekEnd: Date; key: string; total: number; completed: number }[] = [];
-        const allDates = tasks.flatMap(t => [new Date(t.startDate), new Date(t.dueDate)]);
-        const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
-        const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
-
-        // Criar intervalos semanais
-        const current = new Date(minDate);
-        current.setDate(current.getDate() - current.getDay()); // Início da semana (domingo)
-
-        while (current <= maxDate) {
-            const weekEnd = new Date(current);
-            weekEnd.setDate(weekEnd.getDate() + 6);
-            const key = current.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-
-            let total = 0, completed = 0;
-            tasks.forEach(task => {
-                const dueDate = new Date(task.dueDate + 'T00:00:00');
-                if (dueDate <= weekEnd) {
-                    total++;
-                    if (task.status === TaskStatus.Completed) completed++;
-                }
-            });
-
-            if (total > 0) {
-                tasksByWeek.push({ weekStart: new Date(current), weekEnd: new Date(weekEnd), key, total, completed });
+        return data.map(m => {
+            accP1 += (m.planned1 || 0);
+            accP2 += (m.planned2 || 0);
+            let currentAccReal: number | null = null;
+            if (m.actual !== null && m.actual !== undefined) {
+                accReal += m.actual;
+                currentAccReal = accReal;
             }
 
-            current.setDate(current.getDate() + 7);
-        }
+            const [year, month] = m.month.split('-');
+            const dateObj = new Date(parseInt(year), parseInt(month) - 1, 1);
+            const label = dateObj.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).replace('.', '');
 
-        return tasksByWeek.map(week => {
-            // O "realizado" só mostra dados até a última semana fechada
-            const isAfterLastClosed = week.weekStart > lastClosedWeekEnd;
+            const chartP1 = p1Reached100 ? null : accP1;
+            const chartP2 = p2Reached100 ? null : accP2;
+            const chartReal = (realReached100 || currentAccReal === null) ? null : currentAccReal;
+
+            if (accP1 >= 99.99) p1Reached100 = true;
+            if (accP2 >= 99.99) p2Reached100 = true;
+            if (currentAccReal !== null && currentAccReal >= 99.99) realReached100 = true;
+
             return {
-                name: `Sem. ${week.key}`,
-                planejado: Math.round((week.total / tasks.length) * 100),
-                realizado: isAfterLastClosed ? null : Math.round((week.completed / tasks.length) * 100),
+                label,
+                'LB01 (Mês)': m.planned1,
+                'LB04 (Mês)': m.planned2,
+                'Real (Mês)': m.actual,
+                'LB01 (Acum)': chartP1,
+                'LB04 (Acum)': chartP2,
+                'Real (Acum)': chartReal
             };
         });
-    }, [tasks]);
+    }, [data]);
 
     return (
         <div className="h-full flex flex-col items-center justify-center px-8">
-            <div className="text-center mb-8">
-                <h2 className="text-5xl font-black text-white tracking-tighter uppercase mb-2">PPC Acumulado</h2>
-                <p className="text-brand-med-gray text-lg font-medium tracking-widest uppercase">Planejado vs Realizado — Acumulado até a última semana fechada</p>
+            <div className="text-center mb-6">
+                <h2 className="text-5xl font-black text-white tracking-tighter uppercase mb-2">Curva S</h2>
+                <p className="text-brand-med-gray text-lg font-medium tracking-widest uppercase">LB01 vs LB04 vs Realizado</p>
             </div>
 
-            <div className="w-full max-w-6xl h-[480px]">
-                {chartData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={chartData} margin={{ top: 20, right: 40, left: 0, bottom: 10 }}>
-                            <defs>
-                                <linearGradient id="colorPlanejado" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                </linearGradient>
-                                <linearGradient id="colorRealizado" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                            <XAxis dataKey="name" stroke="#9d9d9c" tick={{ fontSize: 11, fontWeight: '700' }} axisLine={false} tickLine={false} />
-                            <YAxis stroke="#9d9d9c" tick={{ fontSize: 11, fontWeight: '700' }} domain={[0, 100]} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
-                            <Tooltip contentStyle={{ backgroundColor: '#0a0f18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', fontSize: '12px', fontWeight: '700' }} itemStyle={{ color: '#f3f4f6' }} />
-                            <Area type="monotone" dataKey="planejado" stroke="#3b82f6" strokeWidth={3} fill="url(#colorPlanejado)" name="Planejado %" connectNulls={false} />
-                            <Area type="monotone" dataKey="realizado" stroke="#22c55e" strokeWidth={3} fill="url(#colorRealizado)" name="Realizado %" connectNulls={false} />
-                            <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', paddingTop: '16px' }} />
-                        </AreaChart>
-                    </ResponsiveContainer>
-                ) : (
-                    <div className="flex items-center justify-center h-full text-brand-med-gray text-xl italic">Dados insuficientes</div>
-                )}
+            <div className="w-full max-w-[95%] h-[580px] bg-[#111827]/40 backdrop-blur-xl rounded-3xl border border-white/5 p-8">
+                <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={chartData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                        <XAxis dataKey="label" stroke="#64748b" tick={{ fontSize: 9, fontWeight: '700' }} axisLine={false} tickLine={false} />
+                        <YAxis yAxisId="left" stroke="#94a3b8" tick={{ fontSize: 9, fontWeight: '700' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} label={{ value: 'Mensal', angle: -90, position: 'insideLeft', fontSize: 9, fill: '#94a3b8', fontWeight: 'bold' }} />
+                        <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" tick={{ fontSize: 9, fontWeight: '700' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} domain={[0, 100]} label={{ value: 'Acumulado', angle: 90, position: 'insideRight', fontSize: 9, fill: '#94a3b8', fontWeight: 'bold' }} />
+                        <Tooltip contentStyle={{ backgroundColor: '#0a0f18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1rem', padding: '12px' }} itemStyle={{ fontSize: '10px', fontWeight: '700' }} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
+                        <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '9px', fontWeight: '800', textTransform: 'uppercase' }} />
+                        <Bar yAxisId="left" dataKey="LB04 (Mês)" fill="rgba(139, 92, 246, 0.4)" radius={[4, 4, 0, 0]} barSize={12} name="LB04 (Mês)" />
+                        <Bar yAxisId="left" dataKey="Real (Mês)" fill="#06b6d4" radius={[4, 4, 0, 0]} barSize={12} name="Realizado (Mês)" />
+                        <Bar yAxisId="left" dataKey="LB01 (Mês)" fill="rgba(227, 90, 16, 0.4)" radius={[4, 4, 0, 0]} barSize={12} name="LB01 (Mês)" />
+                        <Line yAxisId="right" type="monotone" dataKey="LB01 (Acum)" stroke="#e35a10" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 2 }} name="LB01 (Acum)" />
+                        <Line yAxisId="right" type="monotone" dataKey="LB04 (Acum)" stroke="#8b5cf6" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 2 }} name="LB04 (Acum)" />
+                        <Line yAxisId="right" type="monotone" dataKey="Real (Acum)" stroke="#06b6d4" strokeWidth={4} dot={{ r: 3 }} connectNulls={false} name="Realizado (Acum)" />
+                    </ComposedChart>
+                </ResponsiveContainer>
             </div>
         </div>
     );
@@ -639,19 +601,18 @@ const SlideVisualControl: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
 // COMPONENTE PRINCIPAL — WAR ROOM TV
 // ==============================
 const WarRoomTVPage: React.FC<WarRoomTVPageProps> = ({ onNavigateToHome }) => {
-    const { tasks, baselineTasks } = useData();
+    const { tasks, monthlyPlanning } = useData();
     const [currentSlide, setCurrentSlide] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
 
     const slides = useMemo(() => [
-        { id: 'summary', title: 'Resumo Geral', component: <SlideTaskSummary tasks={tasks} /> },
-        { id: 'ppc', title: 'Curva PPC', component: <SlidePPC tasks={tasks} /> },
+        { id: 'ppcCombined', title: 'PPC Semanal/Acum.', component: <SlidePPCCombined tasks={tasks} /> },
+        { id: 'scurve', title: 'Curva S', component: <SlideScurve data={monthlyPlanning} /> },
         { id: 'performance', title: 'Performance', component: <SlidePerformance tasks={tasks} /> },
         { id: 'level', title: 'Por Nível', component: <SlideLevel tasks={tasks} /> },
-        { id: 'ppcAccumulated', title: 'PPC Acumulado', component: <SlidePPCAccumulated tasks={tasks} /> },
         { id: 'visualControl', title: 'Execuções do Dia', component: <SlideVisualControl tasks={tasks} /> },
-    ], [tasks, baselineTasks]);
+    ], [tasks, monthlyPlanning]);
 
     // Auto-rotate every 15 seconds
     useEffect(() => {
