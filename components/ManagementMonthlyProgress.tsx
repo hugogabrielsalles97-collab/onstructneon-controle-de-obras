@@ -30,6 +30,13 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
     const [editingData, setEditingData] = useState<MonthlyProgress[]>(data);
     const [isEditing, setIsEditing] = useState(false);
 
+    // Sincronizar com dados do banco quando carregarem
+    React.useEffect(() => {
+        if (data && data.length > 0) {
+            setEditingData(data);
+        }
+    }, [data]);
+
     // Gerar meses se não existirem (ex: 12 meses a partir do primeiro ou do atual)
     const months = useMemo(() => {
         if (editingData.length > 0) return editingData;
