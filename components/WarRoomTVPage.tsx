@@ -113,7 +113,7 @@ const SlidePPCCombined: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
     return (
         <div className="h-full flex flex-col items-center justify-center px-8">
             <div className="text-center mb-6">
-                <h2 className="text-5xl font-black text-white tracking-tighter uppercase mb-2">Semanas vs Acumulado</h2>
+                <h2 className="text-5xl font-black text-white tracking-tighter uppercase mb-2">Acompanhamento PPC</h2>
                 <p className="text-brand-med-gray text-lg font-medium tracking-widest uppercase">Análise de cumprimento de metas e tendência de avanço</p>
             </div>
 
@@ -607,7 +607,7 @@ const WarRoomTVPage: React.FC<WarRoomTVPageProps> = ({ onNavigateToHome }) => {
     const [isFullscreen, setIsFullscreen] = useState(false);
 
     const slides = useMemo(() => [
-        { id: 'ppcCombined', title: 'PPC Semanal/Acum.', component: <SlidePPCCombined tasks={tasks} /> },
+        { id: 'ppcCombined', title: 'Acompanhamento PPC', component: <SlidePPCCombined tasks={tasks} /> },
         { id: 'scurve', title: 'Curva S', component: <SlideScurve data={monthlyPlanning} /> },
         { id: 'performance', title: 'Performance', component: <SlidePerformance tasks={tasks} /> },
         { id: 'level', title: 'Por Nível', component: <SlideLevel tasks={tasks} /> },
