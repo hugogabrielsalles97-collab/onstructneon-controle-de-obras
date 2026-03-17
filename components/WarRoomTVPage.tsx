@@ -52,7 +52,7 @@ const SlideTaskSummary: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
         <div className="h-full flex flex-col items-center justify-center px-8">
             <div className="text-center mb-12 animate-fade-in">
                 <h2 className="text-5xl font-black text-white tracking-tighter uppercase mb-2">Resumo Geral</h2>
-                <p className="text-brand-med-gray text-lg font-medium tracking-widest uppercase">Visão consolidada do projeto</p>
+                <p className="text-brand-med-gray text-lg font-medium tracking-widest uppercase">Visão de tarefas programadas</p>
             </div>
 
             <div className="grid grid-cols-5 gap-6 w-full max-w-7xl mb-12">
@@ -297,7 +297,7 @@ const SlideLevel: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
         <div className="h-full flex flex-col items-center justify-center px-8">
             <div className="text-center mb-8">
                 <h2 className="text-5xl font-black text-white tracking-tighter uppercase mb-2">Por Nível</h2>
-                <p className="text-brand-med-gray text-lg font-medium tracking-widest uppercase">Análise de progresso por nível/pavimento</p>
+                <p className="text-brand-med-gray text-lg font-medium tracking-widest uppercase">Análise de progresso por nível de disciplina</p>
             </div>
 
             <div className="w-full max-w-6xl">
