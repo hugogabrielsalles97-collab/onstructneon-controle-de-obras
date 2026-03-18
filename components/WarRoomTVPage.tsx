@@ -131,8 +131,8 @@ const SlidePPCCombined: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={weeklyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                                <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 9, fontWeight: '700' }} axisLine={false} tickLine={false} />
-                                <YAxis stroke="#64748b" tick={{ fontSize: 9, fontWeight: '700' }} domain={[0, 100]} axisLine={false} tickLine={false} />
+                                <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 14, fontWeight: '700' }} axisLine={false} tickLine={false} />
+                                <YAxis stroke="#64748b" tick={{ fontSize: 14, fontWeight: '700' }} domain={[0, 100]} axisLine={false} tickLine={false} />
                                 <Tooltip
                                     cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                                     contentStyle={{ backgroundColor: '#0a0f18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', fontSize: '10px' }}
@@ -165,12 +165,12 @@ const SlidePPCCombined: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 9, fontWeight: '700' }} axisLine={false} tickLine={false} />
-                                <YAxis stroke="#64748b" tick={{ fontSize: 9, fontWeight: '700' }} domain={[0, 100]} axisLine={false} tickLine={false} />
+                                <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 14, fontWeight: '700' }} axisLine={false} tickLine={false} />
+                                <YAxis stroke="#64748b" tick={{ fontSize: 14, fontWeight: '700' }} domain={[0, 100]} axisLine={false} tickLine={false} />
                                 <Tooltip contentStyle={{ backgroundColor: '#0a0f18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', fontSize: '10px' }} />
                                 <Area type="monotone" dataKey="planejado" stroke="#3b82f6" strokeWidth={3} fill="url(#colorPlanejado)" name="Plan. %" />
                                 <Area type="monotone" dataKey="realizado" stroke="#22c55e" strokeWidth={3} fill="url(#colorRealizado)" name="Real. %" connectNulls={false} />
-                                <Legend iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: '800', textTransform: 'uppercase', paddingTop: '10px' }} />
+                                <Legend iconType="circle" wrapperStyle={{ fontSize: '14px', fontWeight: '800', textTransform: 'uppercase', paddingTop: '10px' }} />
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
@@ -198,7 +198,7 @@ const SlidePerformance: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
 
         return Object.entries(assigneeMap)
             .map(([name, stats]) => ({
-                name: name.length > 18 ? name.substring(0, 18) + '…' : name,
+                name: name.length > 25 ? name.substring(0, 25) + '…' : name,
                 fullName: name,
                 concluídas: stats.completed,
                 atrasadas: stats.overdue,
@@ -222,8 +222,8 @@ const SlidePerformance: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={data} layout="vertical" margin={{ top: 10, right: 50, left: 10, bottom: 10 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
-                            <XAxis type="number" stroke="#9d9d9c" tick={{ fontSize: 11, fontWeight: '700' }} axisLine={false} tickLine={false} />
-                            <YAxis type="category" dataKey="name" width={160} stroke="#9d9d9c" tick={{ fontSize: 11, fontWeight: '600' }} axisLine={false} tickLine={false} />
+                            <XAxis type="number" stroke="#9d9d9c" tick={{ fontSize: 16, fontWeight: '700' }} axisLine={false} tickLine={false} />
+                            <YAxis type="category" dataKey="name" width={220} stroke="#9d9d9c" tick={{ fontSize: 16, fontWeight: '600' }} axisLine={false} tickLine={false} />
                             <Tooltip
                                 contentStyle={{ backgroundColor: '#0a0f18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', fontSize: '12px', fontWeight: '700' }}
                                 itemStyle={{ color: '#f3f4f6' }}
@@ -231,7 +231,7 @@ const SlidePerformance: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
                             <Bar dataKey="concluídas" stackId="a" fill="#22c55e" radius={[0, 0, 0, 0]} />
                             <Bar dataKey="emAberto" name="em aberto" stackId="a" fill="#3b82f6" />
                             <Bar dataKey="atrasadas" stackId="a" fill="#ef4444" radius={[0, 8, 8, 0]} />
-                            <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', paddingTop: '16px' }} />
+                            <Legend iconType="circle" wrapperStyle={{ fontSize: '16px', fontWeight: '800', textTransform: 'uppercase', paddingTop: '16px' }} />
                         </BarChart>
                     </ResponsiveContainer>
                 ) : (
@@ -290,17 +290,17 @@ const SlideLevel: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
                 <div className="grid grid-cols-1 gap-3">
                     {/* Table Header */}
                     <div className="grid grid-cols-7 gap-3 px-6 py-3">
-                        <div className="col-span-2 text-[10px] font-black text-brand-med-gray uppercase tracking-[2px]">Nível</div>
-                        <div className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] text-center">Total</div>
-                        <div className="text-[10px] font-black text-green-500 uppercase tracking-[2px] text-center">Concluídas</div>
-                        <div className="text-[10px] font-black text-blue-400 uppercase tracking-[2px] text-center">Andamento</div>
-                        <div className="text-[10px] font-black text-red-500 uppercase tracking-[2px] text-center">Atrasadas</div>
-                        <div className="text-[10px] font-black text-brand-accent uppercase tracking-[2px] text-center">% Conclusão</div>
+                        <div className="col-span-2 text-[14px] font-black text-brand-med-gray uppercase tracking-[2px]">Nível</div>
+                        <div className="text-[14px] font-black text-brand-med-gray uppercase tracking-[2px] text-center">Total</div>
+                        <div className="text-[14px] font-black text-green-500 uppercase tracking-[2px] text-center">Concluídas</div>
+                        <div className="text-[14px] font-black text-blue-400 uppercase tracking-[2px] text-center">Andamento</div>
+                        <div className="text-[14px] font-black text-red-500 uppercase tracking-[2px] text-center">Atrasadas</div>
+                        <div className="text-[14px] font-black text-brand-accent uppercase tracking-[2px] text-center">% Conclusão</div>
                     </div>
 
                     {data.map((item, i) => (
                         <div key={item.level} className="grid grid-cols-7 gap-3 bg-[#111827]/60 backdrop-blur-xl rounded-2xl border border-white/5 px-6 py-5 items-center hover:border-brand-accent/20 transition-all" style={{ animationDelay: `${i * 80}ms` }}>
-                            <div className="col-span-2 text-white font-bold text-sm">{item.level}</div>
+                            <div className="col-span-2 text-white font-bold text-lg">{item.level}</div>
                             <div className="text-center text-2xl font-black text-white">{item.total}</div>
                             <div className="text-center text-2xl font-black text-green-500">{item.completed}</div>
                             <div className="text-center text-2xl font-black text-blue-400">{item.inProgress}</div>
@@ -377,11 +377,11 @@ const SlideScurve: React.FC<{ data: any[] }> = ({ data }) => {
                 <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={chartData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                        <XAxis dataKey="label" stroke="#64748b" tick={{ fontSize: 9, fontWeight: '700' }} axisLine={false} tickLine={false} />
-                        <YAxis yAxisId="left" stroke="#94a3b8" tick={{ fontSize: 9, fontWeight: '700' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} label={{ value: 'Mensal', angle: -90, position: 'insideLeft', fontSize: 9, fill: '#94a3b8', fontWeight: 'bold' }} />
-                        <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" tick={{ fontSize: 9, fontWeight: '700' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} domain={[0, 100]} label={{ value: 'Acumulado', angle: 90, position: 'insideRight', fontSize: 9, fill: '#94a3b8', fontWeight: 'bold' }} />
+                        <XAxis dataKey="label" stroke="#64748b" tick={{ fontSize: 14, fontWeight: '700' }} axisLine={false} tickLine={false} />
+                        <YAxis yAxisId="left" stroke="#94a3b8" tick={{ fontSize: 14, fontWeight: '700' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} label={{ value: 'Mensal', angle: -90, position: 'insideLeft', fontSize: 14, fill: '#94a3b8', fontWeight: 'bold' }} />
+                        <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" tick={{ fontSize: 14, fontWeight: '700' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} domain={[0, 100]} label={{ value: 'Acumulado', angle: 90, position: 'insideRight', fontSize: 14, fill: '#94a3b8', fontWeight: 'bold' }} />
                         <Tooltip contentStyle={{ backgroundColor: '#0a0f18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1rem', padding: '12px' }} itemStyle={{ fontSize: '10px', fontWeight: '700' }} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
-                        <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '9px', fontWeight: '800', textTransform: 'uppercase' }} />
+                        <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '14px', fontWeight: '800', textTransform: 'uppercase' }} />
                         <Bar yAxisId="left" dataKey="LB04 (Mês)" fill="rgba(139, 92, 246, 0.4)" radius={[4, 4, 0, 0]} barSize={12} name="LB04 (Mês)" />
                         <Bar yAxisId="left" dataKey="Real (Mês)" fill="#06b6d4" radius={[4, 4, 0, 0]} barSize={12} name="Realizado (Mês)" />
                         <Bar yAxisId="left" dataKey="LB01 (Mês)" fill="rgba(227, 90, 16, 0.4)" radius={[4, 4, 0, 0]} barSize={12} name="LB01 (Mês)" />
