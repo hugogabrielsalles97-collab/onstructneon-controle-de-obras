@@ -197,11 +197,12 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
 
     const paretoData = useMemo(() => {
         const counts: Record<string, number> = {
+            'Projeto': 0,
             'Mão de obra': 0,
-            'Máquina': 0,
-            'Método': 0,
-            'Medida': 0,
-            'Meio ambiente': 0,
+            'Equipamento': 0,
+            'Acesso': 0,
+            'Chuva': 0,
+            'Inspeção': 0,
             'Material': 0
         };
 
