@@ -4,12 +4,11 @@ import { useData } from '../context/DataProvider';
 import Header from './Header';
 import DashboardSummary from './DashboardSummary';
 import StatusChart from './StatusChart';
-import TimelineView from './TimelineView';
 import AssigneeSummaryChart from './AssigneeSummaryChart';
-import CumulativeProgressChart from './CumulativeProgressChart';
 import ClearIcon from './icons/ClearIcon';
 import FilterInput from './ui/FilterInput';
 import Sidebar from './Sidebar';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine, AreaChart, Area, Legend } from 'recharts';
 
 interface ReportsPageProps {
   onNavigateToDashboard: () => void;
@@ -135,6 +134,90 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
     setStatusFilter(status);
   };
 
+  // --- NOVA LÓGICA PPC SEMANAL (WAR ROOM) ---
+  const weeklyData = useMemo(() => {
+    const tasksToUse = dateFilteredTasks;
+    if (tasksToUse.length === 0) return [];
+
+    const start = new Date(Math.min(...tasksToUse.map(t => new Date(t.startDate).getTime())));
+    const end = new Date(Math.max(...tasksToUse.map(t => new Date(t.dueDate).getTime())));
+
+    const weeks: { [key: string]: { planned: number; completed: number } } = {};
+
+    tasksToUse.forEach(task => {
+      const taskDueDate = new Date(task.dueDate + 'T23:59:59');
+      if (taskDueDate >= start && taskDueDate <= end) {
+        const d = new Date(taskDueDate);
+        d.setDate(d.getDate() - d.getDay()); // Domingo
+        const weekKey = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        if (!weeks[weekKey]) weeks[weekKey] = { planned: 0, completed: 0 };
+        weeks[weekKey].planned += 1;
+        if (task.status === TaskStatus.Completed && task.actualEndDate) {
+          const actualEnd = new Date(task.actualEndDate + 'T00:00:00');
+          const dueLimit = new Date(task.dueDate + 'T23:59:59');
+          if (actualEnd <= dueLimit) {
+            weeks[weekKey].completed += 1;
+          }
+        }
+      }
+    });
+
+    return Object.keys(weeks).sort((a, b) => {
+      const [da, ma] = a.split('/').map(Number);
+      const [db, mb] = b.split('/').map(Number);
+      return (ma * 100 + da) - (mb * 100 + db);
+    }).map(week => ({
+      name: `${week}`,
+      ppc: weeks[week].planned > 0 ? Math.round((weeks[week].completed / weeks[week].planned) * 100) : 0,
+    }));
+  }, [dateFilteredTasks]);
+
+  const averagePpc = useMemo(() => {
+    if (weeklyData.length === 0) return 0;
+    return Math.round(weeklyData.reduce((acc, d) => acc + d.ppc, 0) / weeklyData.length);
+  }, [weeklyData]);
+
+  // --- NOVA LÓGICA PPC ACUMULADO (WAR ROOM) ---
+  const accumulatedData = useMemo(() => {
+    const tasksToUse = dateFilteredTasks;
+    if (tasksToUse.length === 0) return [];
+
+    const tasksByWeek: { weekStart: Date; weekEnd: Date; key: string; total: number; completed: number }[] = [];
+    const allDates = tasksToUse.flatMap(t => [new Date(t.startDate), new Date(t.dueDate)]);
+    const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
+    const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
+
+    const current = new Date(minDate);
+    current.setDate(current.getDate() - current.getDay());
+
+    while (current <= maxDate) {
+      const weekEnd = new Date(current);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      const key = current.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      let total = 0, completed = 0;
+      tasksToUse.forEach(task => {
+        const dueDate = new Date(task.dueDate + 'T00:00:00');
+        if (dueDate <= weekEnd) {
+          total++;
+          if (task.status === TaskStatus.Completed) completed++;
+        }
+      });
+      if (total > 0) {
+        tasksByWeek.push({ weekStart: new Date(current), weekEnd: new Date(weekEnd), key, total, completed });
+      }
+      current.setDate(current.getDate() + 7);
+    }
+
+    const totalTasksCount = tasksToUse.length;
+    return tasksByWeek.map(week => {
+      return {
+        name: `${week.key}`,
+        planejado: Math.round((week.total / totalTasksCount) * 100),
+        realizado: Math.round((week.completed / totalTasksCount) * 100),
+      };
+    });
+  }, [dateFilteredTasks]);
+
   return (
     <div className="flex h-screen bg-[#060a12] overflow-hidden">
       <Sidebar
@@ -246,32 +329,133 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
               </div>
             </div>
 
-            <div className="space-y-12 animate-slide-up animate-stagger-3">
-              <section className="bg-[#111827]/40 backdrop-blur-sm rounded-2xl border border-white/5 overflow-hidden shadow-xl">
-                <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                  <h4 className="text-xs font-black text-white uppercase tracking-widest">Cronograma de Produção (Gantt)</h4>
-                  {statusFilter !== 'all' && (
-                    <span className="text-[10px] bg-brand-accent/20 text-brand-accent px-3 py-1 rounded-full border border-brand-accent/30 font-black uppercase tracking-tighter animate-pulse">
-                      Filtro Ativo: {statusFilter}
-                    </span>
-                  )}
+            {/* Novos Gráficos PPC (Curva e Acumulado) - Estilo War Room */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12 animate-slide-up animate-stagger-3">
+              {/* Lado Esquerdo: Curva PPC */}
+              <div className="bg-[#111827]/60 backdrop-blur-md p-8 rounded-[2rem] border border-white/5 shadow-2xl hover:border-brand-accent/20 transition-all group overflow-hidden relative">
+                <div className="flex justify-between items-center mb-8 relative z-10">
+                  <div className="flex items-center gap-3">
+                    <div className="w-1.5 h-8 bg-brand-accent rounded-full shadow-[0_0_15px_rgba(227,90,16,0.5)]"></div>
+                    <h4 className="text-xl font-black text-white uppercase tracking-widest">Curva PPC</h4>
+                  </div>
+                  <div className="bg-brand-accent/10 px-4 py-2 rounded-2xl border border-brand-accent/20 backdrop-blur-sm">
+                    <span className="text-brand-accent font-black text-2xl">{averagePpc}%</span>
+                    <span className="text-[10px] text-gray-500 uppercase font-bold ml-2 tracking-widest">Média</span>
+                  </div>
                 </div>
-                <div className="p-0">
-                  <TimelineView tasks={filteredTasks} baselineTasks={filteredBaselineTasks} onEditTask={() => { }} />
-                </div>
-              </section>
 
-              <section className="bg-[#111827]/60 backdrop-blur-md p-8 rounded-2xl border border-white/5 shadow-2xl hover:border-brand-accent/10 transition-colors w-full">
-                <h4 className="text-xs font-black text-brand-accent mb-8 uppercase tracking-[3px] text-center italic">Avanço Físico Acumulado (PPC)</h4>
-                <div className="h-[500px]">
-                  <CumulativeProgressChart
-                    tasks={filteredTasks}
-                    baselineTasks={filteredBaselineTasks}
-                    startDate={dateFilters.startDate}
-                    endDate={dateFilters.endDate}
-                  />
+                <div className="h-[400px] relative z-10">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={weeklyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                      <XAxis 
+                        dataKey="name" 
+                        stroke="#64748b" 
+                        tick={{ fontSize: 12, fontWeight: '700', fill: '#94a3b8' }} 
+                        axisLine={false} 
+                        tickLine={false} 
+                      />
+                      <YAxis 
+                        stroke="#64748b" 
+                        tick={{ fontSize: 12, fontWeight: '700', fill: '#94a3b8' }} 
+                        domain={[0, 100]} 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tickFormatter={(v) => `${v}%`}
+                      />
+                      <Tooltip
+                        cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                        contentStyle={{ 
+                          backgroundColor: '#0a1628', 
+                          border: '1px solid rgba(227,90,16,0.2)', 
+                          borderRadius: '1.25rem', 
+                          fontSize: '11px',
+                          boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
+                        }}
+                        itemStyle={{ fontWeight: 'bold' }}
+                      />
+                      <ReferenceLine y={averagePpc} stroke="#e35a10" strokeDasharray="5 5" strokeWidth={2} />
+                      <Bar dataKey="ppc" name="PPC %" radius={[6, 6, 0, 0]} barSize={35}>
+                        {weeklyData.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={entry.ppc >= 80 ? '#22c55e' : entry.ppc >= 50 ? '#eab308' : '#ef4444'} 
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
-              </section>
+              </div>
+
+              {/* Lado Direito: PPC Acumulado */}
+              <div className="bg-[#111827]/60 backdrop-blur-md p-8 rounded-[2rem] border border-white/5 shadow-2xl hover:border-blue-500/20 transition-all group overflow-hidden relative">
+                <div className="flex items-center gap-3 mb-8 relative z-10">
+                  <div className="w-1.5 h-8 bg-blue-500 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.5)]"></div>
+                  <h4 className="text-xl font-black text-white uppercase tracking-widest">PPC Acumulado</h4>
+                </div>
+
+                <div className="h-[400px] relative z-10">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={accumulatedData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorPlanejado" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="colorRealizado" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#22c55e" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                      <XAxis 
+                        dataKey="name" 
+                        stroke="#64748b" 
+                        tick={{ fontSize: 12, fontWeight: '700', fill: '#94a3b8' }} 
+                        axisLine={false} 
+                        tickLine={false} 
+                      />
+                      <YAxis 
+                        stroke="#64748b" 
+                        tick={{ fontSize: 12, fontWeight: '700', fill: '#94a3b8' }} 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tickFormatter={(v) => `${v}%`}
+                        domain={[0, 100]}
+                      />
+                      <Tooltip
+                        contentStyle={{ 
+                          backgroundColor: '#0a1628', 
+                          border: '1px solid rgba(59,130,246,0.2)', 
+                          borderRadius: '1.25rem',
+                          boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
+                        }}
+                      />
+                      <Legend wrapperStyle={{ paddingTop: '20px', textTransform: 'uppercase', fontSize: '10px', fontWeight: 'bold' }} />
+                      <Area
+                        type="monotone"
+                        dataKey="planejado"
+                        name="Planejado"
+                        stroke="#3b82f6"
+                        strokeWidth={3}
+                        fillOpacity={1}
+                        fill="url(#colorPlanejado)"
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="realizado"
+                        name="Realizado"
+                        stroke="#22c55e"
+                        strokeWidth={4}
+                        fillOpacity={1}
+                        fill="url(#colorRealizado)"
+                        connectNulls={true}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
             </div>
           </div>
         </div>
