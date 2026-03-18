@@ -5,10 +5,17 @@ import { Task, TaskStatus } from '../types';
 import ManagementIcon from './icons/ManagementIcon';
 import ExcelIcon from './icons/ExcelIcon';
 import PpcChart from './PpcChart';
+import XIcon from './icons/XIcon';
+import InfoIcon from './icons/InfoIcon';
 import CumulativeProgressChart from './CumulativeProgressChart';
 import Sidebar from './Sidebar';
 import { exportTasksToExcel } from '../utils/excelExport';
 import ManagementMonthlyProgress from './ManagementMonthlyProgress';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
+  ResponsiveContainer, Line, ComposedChart, Cell, LabelList 
+} from 'recharts';
+import AlertIcon from './icons/AlertIcon';
 
 interface ManagementPageProps {
     onNavigateToDashboard: () => void;
@@ -64,6 +71,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
     } = useData();
     const [selectedStatuses, setSelectedStatuses] = React.useState<string[]>(['Concluída', 'Em Andamento', 'Não Iniciada', 'Atrasada']);
     const [dateFilters, setDateFilters] = React.useState({ startDate: '', endDate: '' });
+    const [selectedImpactCategory, setSelectedImpactCategory] = React.useState<string | null>(null);
 
     if (!user) return null;
 
@@ -185,7 +193,49 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
             .filter((item): item is NonNullable<typeof item> => item !== null)
             .filter(item => selectedStatuses.includes(item.currentStatus))
             .sort((a, b) => new Date(a.baseline.dueDate).getTime() - new Date(b.baseline.dueDate).getTime());
-    }, [tasks, currentScheduleTasks, currentScheduleCutOffDateStr, selectedStatuses]);
+    }, [tasks, currentScheduleTasks, currentScheduleCutOffDateStr, selectedStatuses, dateFilters]);
+
+    const paretoData = useMemo(() => {
+        const counts: Record<string, number> = {
+            'Mão de obra': 0,
+            'Máquina': 0,
+            'Método': 0,
+            'Medida': 0,
+            'Meio ambiente': 0,
+            'Material': 0
+        };
+
+        tasks.forEach(t => {
+            const obs = t.observations || '';
+            Object.keys(counts).forEach(cat => {
+                if (obs.includes(`[${cat}]`)) {
+                    counts[cat]++;
+                }
+            });
+        });
+
+        const sorted = Object.entries(counts)
+            .sort((a, b) => b[1] - a[1]);
+
+        const total = sorted.reduce((acc, [_, count]) => acc + count, 0);
+        let cumulative = 0;
+
+        return sorted.map(([label, count]) => {
+            cumulative += count;
+            const cumulativePercent = total > 0 ? (cumulative / total) * 100 : 0;
+            
+            let abc = 'C';
+            if (cumulativePercent <= 80) abc = 'A';
+            else if (cumulativePercent <= 95) abc = 'B';
+
+            return {
+                label,
+                count,
+                cumulativePercent: Math.round(cumulativePercent),
+                abc
+            };
+        });
+    }, [tasks]);
 
     const globalStats = useMemo(() => {
         const total = analysisData.length;
@@ -286,6 +336,119 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                 </div>
                             </div>
                         )}
+
+                        {/* Gráfico de Pareto de Impactos (6M) */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 non-printable">
+                            <div className="lg:col-span-2 bg-[#111827]/40 backdrop-blur-sm p-6 rounded-2xl border border-white/5 shadow-xl hover-shine relative overflow-hidden group">
+                                <div className="flex justify-between items-center mb-6">
+                                    <div>
+                                        <h4 className="text-xs font-black text-brand-accent uppercase tracking-widest border-b border-white/5 pb-2">Análise de Pareto: Impactos na Tarefa (6M)</h4>
+                                        <p className="text-[9px] text-brand-med-gray mt-2 italic">Identificação dos principais ofensores do cronograma</p>
+                                    </div>
+                                </div>
+                                <div className="h-[350px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <ComposedChart data={paretoData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                                            <XAxis 
+                                                dataKey="label" 
+                                                stroke="#94a3b8" 
+                                                fontSize={10} 
+                                                fontWeight={800}
+                                                tickLine={false}
+                                                axisLine={false}
+                                                dy={10}
+                                            />
+                                            <YAxis 
+                                                yAxisId="left"
+                                                stroke="#94a3b8" 
+                                                fontSize={10} 
+                                                tickLine={false}
+                                                axisLine={false}
+                                                label={{ value: 'Frequência (Ocorrências)', angle: -90, position: 'insideLeft', style: { fill: '#94a3b8', fontSize: 10, fontWeight: 700 } }}
+                                            />
+                                            <YAxis 
+                                                yAxisId="right"
+                                                orientation="right"
+                                                stroke="#ef4444" 
+                                                fontSize={10} 
+                                                tickLine={false}
+                                                axisLine={false}
+                                                unit="%"
+                                                domain={[0, 100]}
+                                                label={{ value: '% Acumulada', angle: 90, position: 'insideRight', style: { fill: '#ef4444', fontSize: 10, fontWeight: 700 } }}
+                                            />
+                                            <Tooltip 
+                                                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '12px' }}
+                                                itemStyle={{ fontWeight: 'bold' }}
+                                            />
+                                            <Bar yAxisId="left" dataKey="count" fill="url(#barGradient)" radius={[6, 6, 0, 0]} barSize={40}>
+                                                {paretoData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.abc === 'A' ? '#e35a10' : entry.abc === 'B' ? '#3b82f6' : '#64748b'} />
+                                                ))}
+                                                <LabelList dataKey="count" position="top" fill="#94a3b8" fontSize={10} fontWeight={900} />
+                                            </Bar>
+                                            <Line 
+                                                yAxisId="right"
+                                                type="monotone" 
+                                                dataKey="cumulativePercent" 
+                                                stroke="#ef4444" 
+                                                strokeWidth={3}
+                                                dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
+                                                activeDot={{ r: 6, strokeWidth: 0 }}
+                                            />
+                                            <defs>
+                                                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="0%" stopColor="#e35a10" stopOpacity={0.8}/>
+                                                    <stop offset="100%" stopColor="#e35a10" stopOpacity={0.3}/>
+                                                </linearGradient>
+                                            </defs>
+                                        </ComposedChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                            <div className="bg-[#111827]/40 backdrop-blur-sm p-6 rounded-2xl border border-white/5 shadow-xl flex flex-col">
+                                <h4 className="text-xs font-black text-brand-accent uppercase tracking-widest border-b border-white/5 pb-2 mb-6">Classificação por Impacto</h4>
+                                <div className="space-y-4 flex-1">
+                                    {paretoData.map((item, idx) => (
+                                        <button 
+                                            key={idx} 
+                                            onClick={() => setSelectedImpactCategory(item.label)}
+                                            className="w-full flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10 group hover:border-brand-accent/50 hover:bg-brand-accent/5 transition-all text-left"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`p-2 rounded-lg ${
+                                                    item.abc === 'A' ? 'bg-red-500/10 text-red-500' : 
+                                                    item.abc === 'B' ? 'bg-blue-500/10 text-blue-500' : 
+                                                    'bg-gray-500/10 text-gray-500'
+                                                }`}>
+                                                    {idx === 0 && <AlertIcon className="w-5 h-5" />}
+                                                    {idx > 0 && <InfoIcon className="w-5 h-5" />}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-black text-white group-hover:text-brand-accent transition-colors uppercase tracking-tight">{item.label}</p>
+                                                    <p className="text-[10px] text-brand-med-gray font-bold">{item.count} ocorrências identificadas</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xs font-black text-white">{item.cumulativePercent}%</p>
+                                                <p className="text-[8px] text-brand-med-gray uppercase font-bold">Acumulado</p>
+                                            </div>
+                                        </button>
+                                    ))}
+                                    {paretoData.reduce((acc, i) => acc + i.count, 0) === 0 && (
+                                        <div className="flex flex-col items-center justify-center h-full text-center space-y-3 opacity-30">
+                                            <AlertIcon className="w-8 h-8" />
+                                            <p className="text-[10px] font-bold uppercase tracking-widest">Sem dados de impacto registrados nas tarefas.</p>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="mt-6 pt-4 border-t border-white/5 text-[9px] text-brand-med-gray font-medium italic">
+                                    Tip: A classe A representa os 80% dos problemas que devem ser atacados prioritariamente.
+                                </div>
+                            </div>
+                        </div>
 
                         {/* Planejamento Mensal e Curva S */}
                         <ManagementMonthlyProgress 
@@ -466,6 +629,84 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                     </div>
                 </div>
             </main>
+
+            {/* Modal de Detalhamento de Impactos (Drill-down) */}
+            {selectedImpactCategory && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in" onClick={() => setSelectedImpactCategory(null)}>
+                    <div 
+                        className="bg-[#0a0f18] border border-white/10 rounded-[2.5rem] w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-scale-in"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="p-8 border-b border-white/5 bg-brand-accent/5 flex justify-between items-center">
+                            <div>
+                                <h3 className="text-2xl font-black text-white uppercase tracking-tight flex items-center gap-3">
+                                    <span className="text-brand-accent">Detalhamento:</span> {selectedImpactCategory}
+                                </h3>
+                                <p className="text-xs text-brand-med-gray mt-1">Listagem de todas as tarefas que reportaram este impacto no cronograma.</p>
+                            </div>
+                            <button onClick={() => setSelectedImpactCategory(null)} className="w-12 h-12 rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white transition-all border border-white/10 group">
+                                <XIcon className="w-6 h-6 group-hover:rotate-90 transition-transform" />
+                            </button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto p-8 space-y-4 custom-scrollbar">
+                            {tasks.filter(t => (t.observations || '').includes(`[${selectedImpactCategory}]`)).length === 0 ? (
+                                <div className="text-center py-20 opacity-30">
+                                    <p className="text-sm font-bold uppercase tracking-widest">Nenhuma tarefa encontrada com este marcador.</p>
+                                </div>
+                            ) : (
+                                tasks.filter(t => (t.observations || '').includes(`[${selectedImpactCategory}]`)).map(t => (
+                                    <div key={t.id} className="bg-brand-dark/40 border border-white/5 rounded-2xl p-6 hover:border-brand-accent/30 transition-all group shadow-inner">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div>
+                                                <div className="flex items-center gap-3 mb-1">
+                                                    <span className="px-2 py-0.5 bg-brand-accent text-white text-[9px] font-black rounded uppercase">{t.location || 'Local Não Informado'}</span>
+                                                    <span className="text-[10px] text-brand-med-gray font-bold uppercase tracking-widest">{t.discipline}</span>
+                                                </div>
+                                                <h4 className="text-lg font-bold text-white group-hover:text-brand-accent transition-colors">{t.title}</h4>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[10px] text-brand-med-gray uppercase font-black">Avanço</p>
+                                                <p className="text-xl font-black text-white">{t.progress}%</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                                            <div className="bg-[#0a0f18]/60 p-3 rounded-xl border border-white/5">
+                                                <p className="text-[8px] text-brand-med-gray uppercase font-black mb-1">Apoio/Vão</p>
+                                                <p className="text-xs text-white font-bold">{t.support || '-'}</p>
+                                            </div>
+                                            <div className="bg-[#0a0f18]/60 p-3 rounded-xl border border-white/5">
+                                                <p className="text-[8px] text-brand-med-gray uppercase font-black mb-1">Nível</p>
+                                                <p className="text-xs text-white font-bold">{t.level || '-'}</p>
+                                            </div>
+                                            <div className="bg-[#0a0f18]/60 p-3 rounded-xl border border-white/5">
+                                                <p className="text-[8px] text-brand-med-gray uppercase font-black mb-1">Responsável</p>
+                                                <p className="text-xs text-white font-bold">{t.assignee || '-'}</p>
+                                            </div>
+                                            <div className="bg-[#0a0f18]/60 p-3 rounded-xl border border-white/5">
+                                                <p className="text-[8px] text-brand-med-gray uppercase font-black mb-1">Data Real</p>
+                                                <p className="text-xs text-white font-bold font-mono">{formatDate(t.actualStartDate)}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-brand-accent/5 p-4 rounded-xl border border-brand-accent/10">
+                                            <p className="text-[9px] text-brand-accent uppercase font-black mb-2">Observação de Campo:</p>
+                                            <p className="text-xs text-gray-300 italic leading-relaxed">
+                                                {t.observations?.replace(`[${selectedImpactCategory}]`, '').trim() || 'Sem detalhamento adicional.'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                        
+                        <div className="p-6 bg-brand-dark/50 border-t border-white/5 text-center">
+                            <p className="text-[10px] text-brand-med-gray font-bold uppercase tracking-widest opacity-50 italic">Fim da listagem de impactos para {selectedImpactCategory}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

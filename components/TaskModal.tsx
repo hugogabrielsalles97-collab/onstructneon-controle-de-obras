@@ -151,6 +151,16 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [previewPhoto, isOpen, onClose]);
     const [safetyAnalysisResult, setSafetyAnalysisResult] = useState<{ status: 'idle' | 'safe' | 'risk'; message: string }>({ status: 'idle', message: '' });
+    const [selected6M, setSelected6M] = useState<string[]>([]);
+
+    const categories6M = useMemo(() => [
+        { id: 'Mão de obra', label: 'Mão de obra', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg> },
+        { id: 'Máquina', label: 'Máquina', icon: <ConstructionIcon className="w-5 h-5" /> },
+        { id: 'Método', label: 'Método', icon: <ManagementIcon className="w-5 h-5" /> },
+        { id: 'Medida', label: 'Medida', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.3 15.3l-5-5L19 7l-2-2-3.3 2.7-5-5L2 9.4l7 7L6.3 19l2 2 3.4-3.4 5 5 2.6-2.6-2.7-3.3 5-5z" /><path d="M6 13l2-2" /><path d="M9 16l2-2" /><path d="M12 19l2-2" /><path d="M15 22l2-2" /></svg> },
+        { id: 'Meio ambiente', label: 'Meio ambiente', icon: <WeatherIcon className="w-5 h-5" /> },
+        { id: 'Material', label: 'Material', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></svg> },
+    ], []);
 
     const isMaster = user.role === 'Master';
     const isPlanner = user.role === 'Planejador';
@@ -196,12 +206,28 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                     actualManpower: task.actualManpower || [],
                     actualMachinery: task.actualMachinery || [],
                     photos: task.photos || [],
-                    observations: task.observations || '',
+                    observations: '', // Will be set below with cleaning
                     baseline_id: task.baseline_id || '',
                     rescheduleHistory: task.rescheduleHistory || [],
                 });
+
+                // Parse 6M tags and clean observations
+                const rawObs = task.observations || '';
+                const found6M: string[] = [];
+                let cleanObs = rawObs;
+                categories6M.forEach(cat => {
+                    const tag = `[${cat.id}]`;
+                    if (rawObs.includes(tag)) {
+                        found6M.push(cat.id);
+                        cleanObs = cleanObs.replace(tag, '');
+                    }
+                });
+                
+                setSelected6M(found6M);
+                setFormData(prev => ({ ...prev, observations: cleanObs.trim() }));
             } else {
                 setFormData(getInitialFormData());
+                setSelected6M([]);
             }
             setConflictingTasks([]);
             setPlannedWeather(null);
@@ -744,9 +770,13 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             finalFormData.actualQuantity = finalFormData.quantity;
         }
 
+        const mTags = selected6M.map(m => `[${m}]`).join(' ');
+        const finalObs = mTags ? `${mTags} ${formData.observations}`.trim() : formData.observations;
+
         const taskToSave: Task = {
             id: task?.id || new Date().toISOString(),
             ...finalFormData,
+            observations: finalObs,
             status: finalStatus,
             actualStartDate: formData.actualStartDate || null,
             actualEndDate: formData.actualEndDate || null,
@@ -1269,9 +1299,12 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                     </div>
 
 
-                                    <div className="space-y-4">
+                                    <div className="space-y-6">
                                         <div className="flex justify-between items-center">
-                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px]">Observações Técnicas (RDO)</label>
+                                            <div className="flex flex-col gap-1">
+                                                <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px]">Painel de Impactos (6M)</label>
+                                                <p className="text-[8px] text-brand-med-gray/50 font-bold uppercase tracking-widest italic">Selecione o(s) motivo(s) de impacto para detalhar</p>
+                                            </div>
                                             <div className="flex gap-3">
                                                 {formData.assignee && (
                                                     <button
@@ -1294,14 +1327,45 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                                 </button>
                                             </div>
                                         </div>
-                                        <textarea
-                                            name="observations"
-                                            value={formData.observations || ''}
-                                            onChange={handleChange}
-                                            rows={4}
-                                            placeholder="Descreva as ocorrências do dia, motivos de atraso ou observações de campo..."
-                                            className="w-full bg-black/40 border border-white/10 rounded-3xl py-4 px-6 text-white text-sm placeholder:text-gray-700 focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all"
-                                        />
+
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                                            {categories6M.map((cat) => (
+                                                <button
+                                                    key={cat.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSelected6M(prev => 
+                                                            prev.includes(cat.id) 
+                                                                ? prev.filter(x => x !== cat.id) 
+                                                                : [...prev, cat.id]
+                                                        );
+                                                    }}
+                                                    className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all duration-300 gap-2 group ${
+                                                        selected6M.includes(cat.id)
+                                                            ? 'bg-brand-accent/15 border-brand-accent text-brand-accent shadow-lg shadow-brand-accent/10'
+                                                            : 'bg-white/5 border-white/5 text-brand-med-gray hover:border-brand-accent/30 hover:bg-brand-accent/5'
+                                                    }`}
+                                                >
+                                                    <div className={`transition-transform duration-300 ${selected6M.includes(cat.id) ? 'scale-110' : 'group-hover:scale-110 opacity-50 group-hover:opacity-100'}`}>
+                                                        {cat.icon}
+                                                    </div>
+                                                    <span className="text-[9px] font-black uppercase tracking-widest text-center">{cat.label}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {(selected6M.length > 0 || (formData.observations && formData.observations.trim().length > 0)) && (
+                                            <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                                                <textarea
+                                                    name="observations"
+                                                    value={formData.observations || ''}
+                                                    onChange={handleChange}
+                                                    rows={4}
+                                                    placeholder="Descreva detalhadamente o(s) impacto(s) selecionado(s) acima, motivos de atraso ou observações de campo..."
+                                                    className="w-full bg-black/40 border border-brand-accent/20 rounded-3xl py-4 px-6 text-white text-sm placeholder:text-gray-700 focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all shadow-inner"
+                                                />
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </section>
