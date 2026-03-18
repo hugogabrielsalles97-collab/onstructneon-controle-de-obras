@@ -343,7 +343,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                             <div className="lg:col-span-2 bg-[#111827]/40 backdrop-blur-sm p-6 rounded-2xl border border-white/5 shadow-xl hover-shine relative overflow-hidden group">
                                 <div className="flex justify-between items-center mb-6">
                                     <div>
-                                        <h4 className="text-xs font-black text-brand-accent uppercase tracking-widest border-b border-white/5 pb-2">Análise de Pareto: Impactos na Tarefa (6M)</h4>
+                                        <h4 className="text-xs font-black text-brand-accent uppercase tracking-widest border-b border-white/5 pb-2">Causa de não cumprimento</h4>
                                         <p className="text-[9px] text-brand-med-gray mt-2 italic">Identificação dos principais ofensores do cronograma</p>
                                     </div>
                                 </div>

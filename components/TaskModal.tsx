@@ -1303,7 +1303,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                     <div className="space-y-6">
                                         <div className="flex justify-between items-center">
                                             <div className="flex flex-col gap-1">
-                                                <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px]">Painel de Impactos (6M)</label>
+                                                <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px]">Causa de não cumprimento</label>
                                                 <p className="text-[8px] text-brand-med-gray/50 font-bold uppercase tracking-widest italic">Selecione o(s) motivo(s) de impacto para detalhar</p>
                                             </div>
                                             <div className="flex gap-3">
@@ -1343,8 +1343,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                                     }}
                                                     className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all duration-300 gap-2 group ${
                                                         selected6M.includes(cat.id)
-                                                            ? 'bg-brand-accent/15 border-brand-accent text-brand-accent shadow-lg shadow-brand-accent/10'
-                                                            : 'bg-white/5 border-white/5 text-brand-med-gray hover:border-brand-accent/30 hover:bg-brand-accent/5'
+                                                            ? 'bg-green-500/15 border-green-500 text-green-500 shadow-lg shadow-green-500/10'
+                                                            : 'bg-white/5 border-white/5 text-brand-med-gray hover:border-green-500/30 hover:bg-green-500/5'
                                                     }`}
                                                 >
                                                     <div className={`transition-transform duration-300 ${selected6M.includes(cat.id) ? 'scale-110' : 'group-hover:scale-110 opacity-50 group-hover:opacity-100'}`}>
