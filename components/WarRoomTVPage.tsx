@@ -343,8 +343,8 @@ const SlideScurve: React.FC<{ data: any[] }> = ({ data }) => {
             }
 
             const [year, month] = m.month.split('-');
-            const dateObj = new Date(parseInt(year), parseInt(month) - 1, 1);
-            const label = dateObj.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).replace('.', '');
+            const months = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+            const label = `${months[parseInt(month) - 1]}/${year.slice(-2)}`;
 
             const chartP1 = p1Reached100 ? null : accP1;
             const chartP2 = p2Reached100 ? null : accP2;
