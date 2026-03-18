@@ -131,11 +131,11 @@ const SlidePPCCombined: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={weeklyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                                <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 14, fontWeight: '700' }} axisLine={false} tickLine={false} />
-                                <YAxis stroke="#64748b" tick={{ fontSize: 14, fontWeight: '700' }} domain={[0, 100]} axisLine={false} tickLine={false} />
+                                <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 24, fontWeight: '900' }} axisLine={false} tickLine={false} />
+                                <YAxis stroke="#64748b" tick={{ fontSize: 20, fontWeight: '800' }} domain={[0, 100]} axisLine={false} tickLine={false} />
                                 <Tooltip
                                     cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                                    contentStyle={{ backgroundColor: '#0a0f18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', fontSize: '10px' }}
+                                    contentStyle={{ backgroundColor: '#0a0f18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', fontSize: '18px' }}
                                 />
                                 <ReferenceLine y={averagePpc} stroke="#e35a10" strokeDasharray="5 5" strokeWidth={2} />
                                 <Bar dataKey="ppc" name="PPC %" radius={[4, 4, 0, 0]} barSize={25}>
@@ -165,12 +165,12 @@ const SlidePPCCombined: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 14, fontWeight: '700' }} axisLine={false} tickLine={false} />
-                                <YAxis stroke="#64748b" tick={{ fontSize: 14, fontWeight: '700' }} domain={[0, 100]} axisLine={false} tickLine={false} />
-                                <Tooltip contentStyle={{ backgroundColor: '#0a0f18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', fontSize: '10px' }} />
+                                <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 24, fontWeight: '700' }} axisLine={false} tickLine={false} />
+                                <YAxis stroke="#64748b" tick={{ fontSize: 20, fontWeight: '700' }} domain={[0, 100]} axisLine={false} tickLine={false} />
+                                <Tooltip contentStyle={{ backgroundColor: '#0a0f18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', fontSize: '18px' }} />
                                 <Area type="monotone" dataKey="planejado" stroke="#3b82f6" strokeWidth={3} fill="url(#colorPlanejado)" name="Plan. %" />
                                 <Area type="monotone" dataKey="realizado" stroke="#22c55e" strokeWidth={3} fill="url(#colorRealizado)" name="Real. %" connectNulls={false} />
-                                <Legend iconType="circle" wrapperStyle={{ fontSize: '14px', fontWeight: '800', textTransform: 'uppercase', paddingTop: '10px' }} />
+                                <Legend iconType="circle" wrapperStyle={{ fontSize: '18px', fontWeight: '800', textTransform: 'uppercase', paddingTop: '10px' }} />
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
@@ -222,16 +222,16 @@ const SlidePerformance: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={data} layout="vertical" margin={{ top: 10, right: 50, left: 10, bottom: 10 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
-                            <XAxis type="number" stroke="#9d9d9c" tick={{ fontSize: 16, fontWeight: '700' }} axisLine={false} tickLine={false} />
-                            <YAxis type="category" dataKey="name" width={220} stroke="#9d9d9c" tick={{ fontSize: 16, fontWeight: '600' }} axisLine={false} tickLine={false} />
+                            <XAxis type="number" stroke="#9d9d9c" tick={{ fontSize: 20, fontWeight: '700' }} axisLine={false} tickLine={false} />
+                            <YAxis type="category" dataKey="name" width={220} stroke="#9d9d9c" tick={{ fontSize: 20, fontWeight: '600' }} axisLine={false} tickLine={false} />
                             <Tooltip
-                                contentStyle={{ backgroundColor: '#0a0f18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', fontSize: '12px', fontWeight: '700' }}
+                                contentStyle={{ backgroundColor: '#0a0f18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', fontSize: '18px', fontWeight: '700' }}
                                 itemStyle={{ color: '#f3f4f6' }}
                             />
                             <Bar dataKey="concluídas" stackId="a" fill="#22c55e" radius={[0, 0, 0, 0]} />
                             <Bar dataKey="emAberto" name="em aberto" stackId="a" fill="#3b82f6" />
                             <Bar dataKey="atrasadas" stackId="a" fill="#ef4444" radius={[0, 8, 8, 0]} />
-                            <Legend iconType="circle" wrapperStyle={{ fontSize: '16px', fontWeight: '800', textTransform: 'uppercase', paddingTop: '16px' }} />
+                            <Legend iconType="circle" wrapperStyle={{ fontSize: '18px', fontWeight: '800', textTransform: 'uppercase', paddingTop: '16px' }} />
                         </BarChart>
                     </ResponsiveContainer>
                 ) : (
@@ -325,7 +325,7 @@ const SlideLevel: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
 };
 
 // ==============================
-// SLIDE 2 — CURVA S (PLANEJAMENTO MENSAL)
+// SLIDE 2 — PPC Acumulado (PLANEJAMENTO MENSAL)
 // ==============================
 const SlideScurve: React.FC<{ data: any[] }> = ({ data }) => {
     const chartData = useMemo(() => {
@@ -369,7 +369,7 @@ const SlideScurve: React.FC<{ data: any[] }> = ({ data }) => {
     return (
         <div className="h-full flex flex-col items-center justify-center px-8">
             <div className="text-center mb-6">
-                <h2 className="text-5xl font-black text-white tracking-tighter uppercase mb-2">Curva S</h2>
+                <h2 className="text-5xl font-black text-white tracking-tighter uppercase mb-2">PPC Acumulado</h2>
                 <p className="text-brand-med-gray text-lg font-medium tracking-widest uppercase">LB01 vs LB04 vs Realizado</p>
             </div>
 
@@ -377,11 +377,11 @@ const SlideScurve: React.FC<{ data: any[] }> = ({ data }) => {
                 <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={chartData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                        <XAxis dataKey="label" stroke="#64748b" tick={{ fontSize: 14, fontWeight: '700' }} axisLine={false} tickLine={false} />
-                        <YAxis yAxisId="left" stroke="#94a3b8" tick={{ fontSize: 14, fontWeight: '700' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} label={{ value: 'Mensal', angle: -90, position: 'insideLeft', fontSize: 14, fill: '#94a3b8', fontWeight: 'bold' }} />
-                        <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" tick={{ fontSize: 14, fontWeight: '700' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} domain={[0, 100]} label={{ value: 'Acumulado', angle: 90, position: 'insideRight', fontSize: 14, fill: '#94a3b8', fontWeight: 'bold' }} />
-                        <Tooltip contentStyle={{ backgroundColor: '#0a0f18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1rem', padding: '12px' }} itemStyle={{ fontSize: '10px', fontWeight: '700' }} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
-                        <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '14px', fontWeight: '800', textTransform: 'uppercase' }} />
+                        <XAxis dataKey="label" stroke="#64748b" tick={{ fontSize: 24, fontWeight: '900' }} axisLine={false} tickLine={false} />
+                        <YAxis yAxisId="left" stroke="#94a3b8" tick={{ fontSize: 20, fontWeight: '800' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} label={{ value: 'Mensal', angle: -90, position: 'insideLeft', fontSize: 20, fill: '#94a3b8', fontWeight: 'bold' }} />
+                        <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" tick={{ fontSize: 20, fontWeight: '800' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} domain={[0, 100]} label={{ value: 'Acumulado', angle: 90, position: 'insideRight', fontSize: 20, fill: '#94a3b8', fontWeight: 'bold' }} />
+                        <Tooltip contentStyle={{ backgroundColor: '#0a0f18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1rem', padding: '12px' }} itemStyle={{ fontSize: '18px', fontWeight: '900' }} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
+                        <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '18px', fontWeight: '900', textTransform: 'uppercase' }} />
                         <Bar yAxisId="left" dataKey="LB04 (Mês)" fill="rgba(139, 92, 246, 0.4)" radius={[4, 4, 0, 0]} barSize={12} name="LB04 (Mês)" />
                         <Bar yAxisId="left" dataKey="Real (Mês)" fill="#06b6d4" radius={[4, 4, 0, 0]} barSize={12} name="Realizado (Mês)" />
                         <Bar yAxisId="left" dataKey="LB01 (Mês)" fill="rgba(227, 90, 16, 0.4)" radius={[4, 4, 0, 0]} barSize={12} name="LB01 (Mês)" />
