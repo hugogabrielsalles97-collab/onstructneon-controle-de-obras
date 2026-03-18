@@ -4,7 +4,6 @@ import { useData } from '../context/DataProvider';
 import Header from './Header';
 import DashboardSummary from './DashboardSummary';
 import StatusChart from './StatusChart';
-import AssigneeSummaryChart from './AssigneeSummaryChart';
 import ClearIcon from './icons/ClearIcon';
 import FilterInput from './ui/FilterInput';
 import Sidebar from './Sidebar';
@@ -313,18 +312,11 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
               </div>
             </section>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12 animate-slide-up animate-stagger-2">
-              <div className="bg-[#111827]/40 backdrop-blur-sm p-6 rounded-2xl border border-white/5 shadow-xl hover-shine relative overflow-hidden group">
+            <div className="grid grid-cols-1 gap-8 mb-12 animate-slide-up animate-stagger-2">
+              <div className="bg-[#111827]/40 backdrop-blur-sm p-8 rounded-2xl border border-white/5 shadow-xl hover-shine relative overflow-hidden group">
                 <h4 className="text-xs font-black text-brand-accent mb-6 uppercase tracking-widest border-b border-white/5 pb-2">Distribuição por Status</h4>
-                <div className="h-[300px]">
+                <div className="h-[400px]">
                   <StatusChart tasks={filteredTasks} />
-                </div>
-              </div>
-
-              <div className="bg-[#111827]/40 backdrop-blur-sm p-6 rounded-2xl border border-white/5 shadow-xl hover-shine relative overflow-hidden group">
-                <h4 className="text-xs font-black text-brand-accent mb-6 uppercase tracking-widest border-b border-white/5 pb-2">Top Performance por Responsável</h4>
-                <div className="h-[300px]">
-                  <AssigneeSummaryChart tasks={filteredTasks} />
                 </div>
               </div>
             </div>
