@@ -436,7 +436,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
                     <span>Gerar RDO com IA</span>
                   </button>
                 )}
-                {canWritePlanning && (
+                {(canWritePlanning || user.role === 'Gerenciador') && (
                   <>
                     <button
                       onClick={() => setShowAvailability(true)}
