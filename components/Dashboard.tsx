@@ -418,6 +418,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
 
         <div className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-8 animate-slide-up animate-stagger-2">
           <div className="max-w-screen-2xl mx-auto space-y-8">
+            
+            {/* Cabeçalho exclusivo para Impressão */}
+            <div className="hidden print-only-header flex justify-between items-end border-b-2 border-gray-300 pb-4 mb-6">
+              <div>
+                <h1 className="text-2xl font-black uppercase tracking-tight text-black">Programação Semanal</h1>
+                <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">
+                  ELOS - Engenharia de Alta Performance | EGTC INFRA S.A
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-black uppercase text-gray-400">Gerado em: {new Date().toLocaleDateString('pt-BR')} {new Date().toLocaleTimeString('pt-BR')}</p>
+              </div>
+            </div>
 
             {/* Action Bar - Top Row */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 non-printable">

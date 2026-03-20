@@ -86,20 +86,40 @@
         size: A4 landscape;
       }
 
-      body {
-        background: none !important;
+      html, body, #root {
+        height: auto !important;
+        overflow: visible !important;
+        background: white !important;
         color: #000 !important;
         font-size: 8pt;
+      }
+
+      /* Reset flex/grid layouts that might break paging */
+      .flex, .grid {
+        display: block !important;
+        height: auto !important;
+        overflow: visible !important;
+      }
+
+      main, section, div, article {
+        overflow: visible !important;
+        height: auto !important;
+        min-height: auto !important;
+        position: static !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
       }
 
       .printable-area {
         display: block !important;
         width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
+        margin-top: 10px !important;
+      }
+
+      .print-only-header {
+        display: flex !important;
+        visibility: visible !important;
       }
 
       .non-printable {
@@ -111,17 +131,20 @@
         color: #000 !important;
         border-collapse: collapse !important;
         width: 100% !important;
-        table-layout: auto !important;
+        table-layout: fixed !important; /* Force fit */
+        margin-bottom: 20px !important;
       }
 
       .table-print th,
       .table-print td {
-        border: 1px solid #eee !important;
+        border: 1px solid #ddd !important;
         padding: 4px 6px !important;
         font-size: 7pt !important;
         vertical-align: middle !important;
         color: #000 !important;
         background: transparent !important;
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
       }
 
       .table-print th {
@@ -130,16 +153,24 @@
         text-transform: uppercase !important;
       }
 
-      /* Fix overlapping dates in print */
-      .grid.grid-cols-2 {
-        display: block !important;
+      .table-print tr {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
 
-      .grid.grid-cols-2>div {
-        display: inline-block !important;
-        width: 48% !important;
-        margin-bottom: 2px !important;
-        vertical-align: top !important;
+      /* Specific column width adjustments for A4 Landscape */
+      .table-print th:nth-child(1), .table-print td:nth-child(1) { width: 25%; } /* Tarefa */
+      .table-print th:nth-child(2), .table-print td:nth-child(2) { width: 12%; } /* Responsável */
+      .table-print th:nth-child(3), .table-print td:nth-child(3) { width: 12%; } /* Localização */
+      .table-print th:nth-child(4), .table-print td:nth-child(4) { width: 8%; }  /* Apoio */
+      .table-print th:nth-child(5), .table-print td:nth-child(5) { width: 10%; } /* Quantidades */
+      .table-print th:nth-child(6), .table-print td:nth-child(6) { width: 13%; } /* Datas */
+      .table-print th:nth-child(7), .table-print td:nth-child(7) { width: 10%; } /* Status */
+      .table-print th:nth-child(8), .table-print td:nth-child(8) { width: 10%; } /* Avanço */
+
+      /* Hide background effects */
+      body {
+        background-image: none !important;
       }
 
       .status-badge-print {
@@ -150,16 +181,34 @@
         border-radius: 2px !important;
         font-size: 6pt !important;
         font-weight: bold !important;
+        display: inline-block !important;
+        box-shadow: none !important;
       }
 
       .progress-bar-print-bg {
         background-color: #f3f4f6 !important;
         border: 1px solid #ddd !important;
         height: 6pt !important;
+        width: 100% !important;
+        display: block !important;
       }
 
       .progress-bar-print-fg {
-        background-color: #10b981 !important;
+        height: 100% !important;
+        display: block !important;
+        background-color: #10b981 !important; /* Default */
+      }
+
+      .progress-bar-print-fg.atrasado { background-color: #ef4444 !important; }
+      .progress-bar-print-fg.completed { background-color: #10b981 !important; }
+      .progress-bar-print-fg.inprogress { background-color: #3b82f6 !important; }
+      .progress-bar-print-fg.todo { background-color: #f59e0b !important; }
+
+      /* Fix staggering animations in print */
+      .animate-slide-up, .animate-stagger-1, .animate-stagger-2, .animate-stagger-3, .animate-stagger-4 {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
       }
     }
 

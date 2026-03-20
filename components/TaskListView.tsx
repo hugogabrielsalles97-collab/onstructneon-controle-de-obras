@@ -238,9 +238,9 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEdi
                   </td>
                   <td className="px-4 py-5 border-t border-b border-white/5 align-middle min-w-[120px]">
                     <div className="flex items-center gap-3">
-                      <div className="flex-1 bg-white/5 rounded-full h-2 shadow-inner overflow-hidden border border-white/5">
+                      <div className="flex-1 bg-white/5 rounded-full h-2 shadow-inner overflow-hidden border border-white/5 progress-bar-print-bg">
                         <div
-                          className={`h-full rounded-full transition-all duration-1000 ease-out border-r border-white/20 shadow-[0_0_10px_rgba(255,255,255,0.1)] ${progressBarColorConfig[display.status]}`}
+                          className={`h-full rounded-full transition-all duration-1000 ease-out border-r border-white/20 shadow-[0_0_10px_rgba(255,255,255,0.1)] ${progressBarColorConfig[display.status]} progress-bar-print-fg ${display.status.toLowerCase()}`}
                           style={{ width: `${task.progress}%` }}
                         ></div>
                       </div>
