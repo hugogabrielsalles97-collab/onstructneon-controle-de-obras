@@ -247,7 +247,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
     }, [tasks]);
 
     const weeklyImpactData = useMemo(() => {
-        const weekMap: Record<string, Record<string, number>> = {};
+        const weekMap: Record<string, { values: Record<string, number>, weekNum: number }> = {};
         const categories = IMPACT_CATEGORIES;
 
         tasks.forEach(t => {
@@ -255,8 +255,17 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
             const hasImpact = categories.some(cat => obs.includes(`[${cat}]`));
             if (!hasImpact) return;
 
-            // Calcula número da semana (ISO)
             const d = new Date(t.dueDate + 'T00:00:00');
+            
+            // Início da semana (Domingo)
+            const sun = new Date(d);
+            sun.setDate(d.getDate() - d.getDay());
+            
+            // Fim da semana (Sábado)
+            const sat = new Date(sun);
+            sat.setDate(sun.getDate() + 6);
+
+            // Calcula número da semana (ISO) para ordenação
             const target = new Date(d.valueOf());
             const dayNr = (d.getDay() + 6) % 7;
             target.setDate(target.getDate() - dayNr + 3);
@@ -266,32 +275,37 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 target.setMonth(0, 1 + ((4 - target.getDay() + 7) % 7));
             }
             const weekNum = 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
-            const weekLabel = `Semana ${weekNum}`;
+            
+            const formatDateShort = (date: Date) => {
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                return `${day}/${month}`;
+            };
+
+            const weekLabel = `Semana ${weekNum} (${formatDateShort(sun)} a ${formatDateShort(sat)})`;
 
             if (!weekMap[weekLabel]) {
-                weekMap[weekLabel] = {};
-                categories.forEach(c => weekMap[weekLabel][c] = 0);
+                weekMap[weekLabel] = {
+                    weekNum,
+                    values: {}
+                };
+                categories.forEach(c => weekMap[weekLabel].values[c] = 0);
             }
 
             categories.forEach(cat => {
                 if (obs.includes(`[${cat}]`)) {
-                    weekMap[weekLabel][cat]++;
+                    weekMap[weekLabel].values[cat]++;
                 }
             });
         });
 
-        // Ordenar semanas e pegar as últimas 10 (ou todas se for pouco)
         return Object.entries(weekMap)
-            .sort((a, b) => {
-                const numA = parseInt(a[0].split(' ')[1]);
-                const numB = parseInt(b[0].split(' ')[1]);
-                return numA - numB;
-            })
-            .map(([week, values]) => ({
+            .sort((a, b) => a[1].weekNum - b[1].weekNum)
+            .map(([week, data]) => ({
                 week,
-                ...values
+                ...data.values
             }))
-            .slice(-10); // Mostra as últimas 10 semanas de dados
+            .slice(-10);
     }, [tasks, IMPACT_CATEGORIES]);
 
     const globalStats = useMemo(() => {
