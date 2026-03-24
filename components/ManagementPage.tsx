@@ -76,7 +76,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
     const [editingImpactTaskId, setEditingImpactTaskId] = React.useState<string | null>(null);
     const [savingImpactTaskId, setSavingImpactTaskId] = React.useState<string | null>(null);
 
-    const IMPACT_CATEGORIES = ['Projeto', 'Mão de obra', 'Equipamento', 'Acesso', 'Chuva', 'Inspeção', 'Material'];
+    const IMPACT_CATEGORIES = ['Projeto', 'Mão de obra', 'Equipamento', 'Acesso', 'Chuva', 'Inspeção', 'Material', 'Predecessora', 'Interferências'];
     const canEditImpact = user && (user.role === 'Master' || user.role === 'Planejador');
 
     if (!user) return null;
@@ -209,7 +209,9 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
             'Acesso': 0,
             'Chuva': 0,
             'Inspeção': 0,
-            'Material': 0
+            'Material': 0,
+            'Predecessora': 0,
+            'Interferências': 0
         };
 
         tasks.forEach(t => {
