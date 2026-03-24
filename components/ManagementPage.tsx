@@ -409,9 +409,10 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
         lastClosedSaturday.setDate(now.getDate() - (now.getDay() + 1));
         lastClosedSaturday.setHours(23, 59, 59, 999);
 
+        const projectStart = new Date('2026-02-15T00:00:00'); // Início da análise em 21/02
+
         const tasksToUse = tasks.filter(t => {
             const tDate = new Date(t.dueDate + 'T00:00:00');
-            const projectStart = new Date('2026-02-15T00:00:00'); // Domingo da semana de 21/02
             if (tDate < projectStart) return false;
 
             if (!dateFilters.startDate && !dateFilters.endDate) return true;
@@ -424,11 +425,10 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
 
         const tasksByWeek: { weekStart: Date; weekEnd: Date; key: string; total: number; completed: number }[] = [];
         const allDates = tasksToUse.flatMap(t => [new Date(t.startDate), new Date(t.dueDate)]);
-        const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
         const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
 
-        const current = new Date(minDate);
-        current.setDate(current.getDate() - current.getDay());
+        // FORÇAR O INÍCIO EM 21/02 (Semana de 15/02 a 21/02)
+        const current = new Date(projectStart);
 
         while (current <= maxDate) {
             const weekEnd = new Date(current);
@@ -442,7 +442,6 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 const dueDate = new Date(task.dueDate + 'T00:00:00');
                 if (dueDate <= weekEnd) {
                     totalByWeekEnd++;
-                    // Para o realizado acumulado, só contamos tarefas que terminaram até o prazo planejado e cujas semanas estão fechadas
                     if (task.status === TaskStatus.Completed) {
                         const actualEnd = new Date(task.actualEndDate + 'T00:00:00');
                         const dueLimit = new Date(task.dueDate + 'T23:59:59');
@@ -469,7 +468,6 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 planejado: Math.round((week.total / totalTasksCount) * 100),
             };
             
-            // SÓ MOSTRA O REALIZADO SE A SEMANA ESTIVER FECHADA
             if (week.weekEnd <= lastClosedSaturday) {
                 data.realizado = Math.round((week.completed / totalTasksCount) * 100);
             }
@@ -753,10 +751,6 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                                             <p className="text-sm font-black text-white uppercase tracking-tight">{item.label}</p>
                                                             <p className="text-[10px] text-brand-med-gray font-bold">{item.count} ocorrências</p>
                                                         </div>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <p className="text-xs font-black text-white">{item.cumulativePercent}%</p>
-                                                        <p className="text-[8px] text-brand-med-gray uppercase font-bold">Acum.</p>
                                                     </div>
                                                 </button>
                                             ))}
