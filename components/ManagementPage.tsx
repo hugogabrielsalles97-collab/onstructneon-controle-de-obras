@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useData } from '../context/DataProvider';
 import Header from './Header';
 import { Task, TaskStatus } from '../types';
@@ -67,11 +67,17 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
         signOut, 
         currentScheduleCutOffDateStr,
         monthlyPlanning,
-        setMonthlyPlanning
+        setMonthlyPlanning,
+        saveTask
     } = useData();
     const [selectedStatuses, setSelectedStatuses] = React.useState<string[]>(['Concluída', 'Em Andamento', 'Não Iniciada', 'Atrasada']);
     const [dateFilters, setDateFilters] = React.useState({ startDate: '', endDate: '' });
     const [selectedImpactCategory, setSelectedImpactCategory] = React.useState<string | null>(null);
+    const [editingImpactTaskId, setEditingImpactTaskId] = React.useState<string | null>(null);
+    const [savingImpactTaskId, setSavingImpactTaskId] = React.useState<string | null>(null);
+
+    const IMPACT_CATEGORIES = ['Projeto', 'Mão de obra', 'Equipamento', 'Acesso', 'Chuva', 'Inspeção', 'Material'];
+    const canEditImpact = user && (user.role === 'Master' || user.role === 'Planejador');
 
     if (!user) return null;
 
@@ -657,7 +663,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                 </div>
                             ) : (
                                 tasks.filter(t => (t.observations || '').includes(`[${selectedImpactCategory}]`)).map(t => (
-                                    <div key={t.id} className="bg-brand-dark/40 border border-white/5 rounded-2xl p-6 hover:border-brand-accent/30 transition-all group shadow-inner">
+                                    <div key={t.id} className={`bg-brand-dark/40 border rounded-2xl p-6 transition-all group shadow-inner ${savingImpactTaskId === t.id ? 'border-yellow-500/30 opacity-70' : 'border-white/5 hover:border-brand-accent/30'}`}>
                                         <div className="flex justify-between items-start mb-4">
                                             <div>
                                                 <div className="flex items-center gap-3 mb-1">
@@ -666,9 +672,82 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                                 </div>
                                                 <h4 className="text-lg font-bold text-white group-hover:text-brand-accent transition-colors">{t.title}</h4>
                                             </div>
-                                            <div className="text-right">
-                                                <p className="text-[10px] text-brand-med-gray uppercase font-black">Avanço</p>
-                                                <p className="text-xl font-black text-white">{t.progress}%</p>
+                                            <div className="flex items-start gap-4">
+                                                <div className="text-right">
+                                                    <p className="text-[10px] text-brand-med-gray uppercase font-black">Avanço</p>
+                                                    <p className="text-xl font-black text-white">{t.progress}%</p>
+                                                </div>
+                                                {/* Ações de edição/exclusão para Master e Planejador */}
+                                                {canEditImpact && (
+                                                    <div className="flex items-center gap-2 ml-2">
+                                                        {editingImpactTaskId === t.id ? (
+                                                            <div className="flex flex-col gap-2 bg-[#0a0f18] border border-brand-accent/30 rounded-xl p-3 shadow-2xl min-w-[180px] animate-scale-in">
+                                                                <p className="text-[8px] text-brand-accent uppercase font-black">Alterar Categoria:</p>
+                                                                {IMPACT_CATEGORIES.filter(cat => cat !== selectedImpactCategory).map(cat => (
+                                                                    <button
+                                                                        key={cat}
+                                                                        disabled={savingImpactTaskId === t.id}
+                                                                        onClick={async () => {
+                                                                            setSavingImpactTaskId(t.id);
+                                                                            const newObs = (t.observations || '').replace(`[${selectedImpactCategory}]`, `[${cat}]`);
+                                                                            const result = await saveTask({ ...t, observations: newObs });
+                                                                            if (result.success) {
+                                                                                showToast(`Categoria alterada para ${cat}`, 'success');
+                                                                            } else {
+                                                                                showToast(`Erro ao alterar: ${result.error}`, 'error');
+                                                                            }
+                                                                            setSavingImpactTaskId(null);
+                                                                            setEditingImpactTaskId(null);
+                                                                        }}
+                                                                        className="text-left text-[11px] text-gray-300 hover:text-brand-accent hover:bg-brand-accent/10 px-3 py-1.5 rounded-lg transition-all font-bold uppercase tracking-tight disabled:opacity-50"
+                                                                    >
+                                                                        {cat}
+                                                                    </button>
+                                                                ))}
+                                                                <button
+                                                                    onClick={() => setEditingImpactTaskId(null)}
+                                                                    className="text-[10px] text-brand-med-gray hover:text-white mt-1 text-center transition-colors"
+                                                                >
+                                                                    Cancelar
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                <button
+                                                                    title="Alterar Categoria de Impacto"
+                                                                    onClick={() => setEditingImpactTaskId(t.id)}
+                                                                    disabled={savingImpactTaskId === t.id}
+                                                                    className="w-9 h-9 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 flex items-center justify-center text-blue-400 hover:text-blue-300 transition-all border border-blue-500/20 hover:border-blue-500/40 disabled:opacity-50"
+                                                                >
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                    </svg>
+                                                                </button>
+                                                                <button
+                                                                    title="Remover Impacto desta Tarefa"
+                                                                    disabled={savingImpactTaskId === t.id}
+                                                                    onClick={async () => {
+                                                                        if (!confirm(`Tem certeza que deseja remover o impacto "${selectedImpactCategory}" desta tarefa?`)) return;
+                                                                        setSavingImpactTaskId(t.id);
+                                                                        const newObs = (t.observations || '').replace(`[${selectedImpactCategory}]`, '').replace(/\s{2,}/g, ' ').trim();
+                                                                        const result = await saveTask({ ...t, observations: newObs });
+                                                                        if (result.success) {
+                                                                            showToast(`Impacto "${selectedImpactCategory}" removido com sucesso.`, 'success');
+                                                                        } else {
+                                                                            showToast(`Erro ao remover impacto: ${result.error}`, 'error');
+                                                                        }
+                                                                        setSavingImpactTaskId(null);
+                                                                    }}
+                                                                    className="w-9 h-9 rounded-xl bg-red-500/10 hover:bg-red-500/20 flex items-center justify-center text-red-400 hover:text-red-300 transition-all border border-red-500/20 hover:border-red-500/40 disabled:opacity-50"
+                                                                >
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                    </svg>
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                         
