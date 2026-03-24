@@ -282,7 +282,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 return `${day}/${month}`;
             };
 
-            const weekLabel = `Semana ${weekNum} (${formatDateShort(sun)} a ${formatDateShort(sat)})`;
+            const weekLabel = `${formatDateShort(sun)} a ${formatDateShort(sat)}`;
 
             if (!weekMap[weekLabel]) {
                 weekMap[weekLabel] = {
