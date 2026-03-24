@@ -73,6 +73,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
     } = useData();
     const [selectedStatuses, setSelectedStatuses] = React.useState<string[]>(['Concluída', 'Em Andamento', 'Não Iniciada', 'Atrasada']);
     const [dateFilters, setDateFilters] = React.useState({ startDate: '', endDate: '' });
+    const [impactDateFilters, setImpactDateFilters] = React.useState({ startDate: '', endDate: '' });
     const [selectedImpactCategory, setSelectedImpactCategory] = React.useState<string | null>(null);
     const [editingImpactTaskId, setEditingImpactTaskId] = React.useState<string | null>(null);
     const [savingImpactTaskId, setSavingImpactTaskId] = React.useState<string | null>(null);
@@ -216,6 +217,15 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
         };
 
         tasks.forEach(t => {
+            const tDateStr = t.dueDate || t.actualEndDate || '';
+            if (impactDateFilters.startDate || impactDateFilters.endDate) {
+                const tDate = new Date(tDateStr + 'T00:00:00');
+                const start = impactDateFilters.startDate ? new Date(impactDateFilters.startDate + 'T00:00:00') : null;
+                const end = impactDateFilters.endDate ? new Date(impactDateFilters.endDate + 'T23:59:59') : null;
+                if (start && tDate < start) return;
+                if (end && tDate > end) return;
+            }
+
             const obs = t.observations || '';
             Object.keys(counts).forEach(cat => {
                 if (obs.includes(`[${cat}]`)) {
@@ -245,13 +255,22 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 abc
             };
         });
-    }, [tasks]);
+    }, [tasks, impactDateFilters]);
 
     const weeklyImpactData = useMemo(() => {
         const weekMap: Record<string, { values: Record<string, number>, weekNum: number }> = {};
         const categories = IMPACT_CATEGORIES;
 
         tasks.forEach(t => {
+            const tDateStr = t.dueDate || t.actualEndDate || '';
+            if (impactDateFilters.startDate || impactDateFilters.endDate) {
+                const tDate = new Date(tDateStr + 'T00:00:00');
+                const start = impactDateFilters.startDate ? new Date(impactDateFilters.startDate + 'T00:00:00') : null;
+                const end = impactDateFilters.endDate ? new Date(impactDateFilters.endDate + 'T23:59:59') : null;
+                if (start && tDate < start) return;
+                if (end && tDate > end) return;
+            }
+
             const obs = t.observations || '';
             const hasImpact = categories.some(cat => obs.includes(`[${cat}]`));
             if (!hasImpact) return;
@@ -306,8 +325,8 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 week,
                 ...data.values
             }))
-            .slice(-10);
-    }, [tasks, IMPACT_CATEGORIES]);
+            .slice(-20);
+    }, [tasks, IMPACT_CATEGORIES, impactDateFilters]);
 
     // --- LÓGICA PPC SEMANAL (Semanas Fechadas) ---
     const weeklyPpcData = useMemo(() => {
@@ -391,8 +410,11 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
         lastClosedSaturday.setHours(23, 59, 59, 999);
 
         const tasksToUse = tasks.filter(t => {
-            if (!dateFilters.startDate && !dateFilters.endDate) return true;
             const tDate = new Date(t.dueDate + 'T00:00:00');
+            const projectStart = new Date('2026-02-15T00:00:00'); // Domingo da semana de 21/02
+            if (tDate < projectStart) return false;
+
+            if (!dateFilters.startDate && !dateFilters.endDate) return true;
             const start = dateFilters.startDate ? new Date(dateFilters.startDate + 'T00:00:00') : null;
             const end = dateFilters.endDate ? new Date(dateFilters.endDate + 'T23:59:59') : null;
             return (!start || tDate >= start) && (!end || tDate <= end);
@@ -453,10 +475,6 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
             }
             
             return data;
-        }).filter(week => {
-            const [d, m] = week.name.split('/').map(Number);
-            // Inicia em 21/02 (ou depois)
-            return (m > 2) || (m === 2 && d >= 21);
         });
     }, [tasks, dateFilters]);
 
@@ -636,190 +654,108 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                             </div>
                         </div>
 
-                        {/* Gráfico de Pareto de Impactos (6M) */}
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 non-printable">
-                            <div className="lg:col-span-2 bg-[#111827]/40 backdrop-blur-sm p-6 rounded-2xl border border-white/5 shadow-xl hover-shine relative overflow-hidden group">
-                                <div className="flex justify-between items-center mb-6">
-                                    <div>
-                                        <h4 className="text-xs font-black text-brand-accent uppercase tracking-widest border-b border-white/5 pb-2">Causa de não cumprimento</h4>
-                                        <p className="text-[9px] text-brand-med-gray mt-2 italic">Identificação dos principais ofensores do cronograma</p>
+                        {/* Seção Consolidada: Análise de Causas de Não Cumprimento */}
+                        <div className="bg-[#111827]/60 backdrop-blur-xl rounded-3xl border border-white/10 p-2 shadow-2xl overflow-hidden non-printable relative mb-12">
+                            {/* Brilho de destaque superior */}
+                            <div className="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-brand-accent/50 to-transparent"></div>
+                            
+                            <div className="p-6">
+                                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8 pb-6 border-b border-white/5">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 bg-brand-accent/10 rounded-2xl border border-brand-accent/20">
+                                            <AlertIcon className="w-6 h-6 text-brand-accent" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xl font-black text-white uppercase tracking-tight">Causas de Não Cumprimento</h3>
+                                            <p className="text-[10px] text-brand-med-gray font-bold uppercase tracking-widest mt-1">Análise de Impacto e Tendência Temporal</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Filtro Setorial para Impactos */}
+                                    <div className="flex items-center gap-4 bg-black/40 p-2 rounded-2xl border border-white/5">
+                                        <div className="flex items-center gap-2 group">
+                                            <span className="text-[9px] font-black text-brand-med-gray uppercase tracking-widest group-hover:text-brand-accent transition-colors">Período Análise:</span>
+                                            <input
+                                                type="date"
+                                                value={impactDateFilters.startDate}
+                                                onChange={(e) => setImpactDateFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                                                className="bg-brand-dark cursor-pointer text-[10px] font-bold text-white px-3 py-1.5 rounded-xl border border-white/5 hover:border-brand-accent/30 focus:outline-none transition-all placeholder:text-gray-600"
+                                            />
+                                            <span className="text-gray-600 font-bold text-sm">→</span>
+                                            <input
+                                                type="date"
+                                                value={impactDateFilters.endDate}
+                                                onChange={(e) => setImpactDateFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                                                className="bg-brand-dark cursor-pointer text-[10px] font-bold text-white px-3 py-1.5 rounded-xl border border-white/5 hover:border-brand-accent/30 focus:outline-none transition-all placeholder:text-gray-600"
+                                            />
+                                            {(impactDateFilters.startDate || impactDateFilters.endDate) && (
+                                                <button 
+                                                    onClick={() => setImpactDateFilters({ startDate: '', endDate: '' })}
+                                                    className="p-1.5 hover:bg-white/5 rounded-lg text-red-500 transition-colors"
+                                                    title="Limpar Filtro de Impactos"
+                                                >
+                                                    <XIcon className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="h-[350px]">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <ComposedChart data={paretoData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                                            <defs>
-                                                {/* Gradiente para Categoria A (Crítico/Laranja) */}
-                                                <linearGradient id="gradientA" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="0%" stopColor="#f97316" stopOpacity={0.9}/>
-                                                    <stop offset="100%" stopColor="#ea580c" stopOpacity={0.6}/>
-                                                </linearGradient>
-                                                {/* Gradiente para Categoria B (Intermediário/Azul) */}
-                                                <linearGradient id="gradientB" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.9}/>
-                                                    <stop offset="100%" stopColor="#2563eb" stopOpacity={0.6}/>
-                                                </linearGradient>
-                                                {/* Gradiente para Categoria C (Menor/Cinza) */}
-                                                <linearGradient id="gradientC" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="0%" stopColor="#64748b" stopOpacity={0.9}/>
-                                                    <stop offset="100%" stopColor="#475569" stopOpacity={0.6}/>
-                                                </linearGradient>
-                                                
-                                                {/* Filtro de brilho para a linha */}
-                                                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                                                    <feGaussianBlur stdDeviation="3" result="blur" />
-                                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                                                </filter>
-                                            </defs>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                                            <XAxis 
-                                                dataKey="label" 
-                                                stroke="#475569" 
-                                                fontSize={10} 
-                                                fontWeight={700}
-                                                tickLine={false}
-                                                axisLine={false}
-                                                dy={10}
-                                            />
-                                            <YAxis 
-                                                yAxisId="left"
-                                                stroke="#475569" 
-                                                fontSize={10} 
-                                                tickLine={false}
-                                                axisLine={false}
-                                                tickFormatter={(value) => `${value}`}
-                                            />
 
-                                            <Tooltip 
-                                                contentStyle={{ 
-                                                    backgroundColor: '#111827', 
-                                                    border: '1px solid #ffffff10', 
-                                                    borderRadius: '16px', 
-                                                    fontSize: '11px',
-                                                    backdropFilter: 'blur(8px)',
-                                                    boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.5)'
-                                                }}
-                                                itemStyle={{ fontWeight: 'bold' }}
-                                                cursor={{ fill: 'rgba(255,255,255,0.03)' }}
-                                            />
-                                            <Bar 
-                                                yAxisId="left" 
-                                                dataKey="count" 
-                                                radius={[6, 6, 2, 2]} 
-                                                barSize={44}
-                                                fill="url(#gradientB)"
-                                            >
-                                                <LabelList 
-                                                    dataKey="count" 
-                                                    position="top" 
-                                                    fill="#94a3b8" 
-                                                    fontSize={11} 
-                                                    fontWeight={900} 
-                                                    offset={8}
-                                                />
-                                            </Bar>
-                                        </ComposedChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-
-                            <div className="bg-[#111827]/40 backdrop-blur-sm p-6 rounded-2xl border border-white/5 shadow-xl flex flex-col">
-                                <h4 className="text-xs font-black text-brand-accent uppercase tracking-widest border-b border-white/5 pb-2 mb-6">Classificação por Impacto</h4>
-                                <div className="space-y-4 flex-1">
-                                    {paretoData.map((item, idx) => (
-                                        <button 
-                                            key={idx} 
-                                            onClick={() => setSelectedImpactCategory(item.label)}
-                                            className="w-full flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10 group hover:border-brand-accent/50 hover:bg-brand-accent/5 transition-all text-left"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className={`p-2 rounded-lg ${
-                                                    item.abc === 'A' ? 'bg-red-500/10 text-red-500' : 
-                                                    item.abc === 'B' ? 'bg-blue-500/10 text-blue-500' : 
-                                                    'bg-gray-500/10 text-gray-500'
-                                                }`}>
-                                                    {idx === 0 && <AlertIcon className="w-5 h-5" />}
-                                                    {idx > 0 && <InfoIcon className="w-5 h-5" />}
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-black text-white group-hover:text-brand-accent transition-colors uppercase tracking-tight">{item.label}</p>
-                                                    <p className="text-[10px] text-brand-med-gray font-bold">{item.count} ocorrências identificadas</p>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-xs font-black text-white">{item.cumulativePercent}%</p>
-                                                <p className="text-[8px] text-brand-med-gray uppercase font-bold">Acumulado</p>
-                                            </div>
-                                        </button>
-                                    ))}
-                                    {paretoData.reduce((acc, i) => acc + i.count, 0) === 0 && (
-                                        <div className="flex flex-col items-center justify-center h-full text-center space-y-3 opacity-30">
-                                            <AlertIcon className="w-8 h-8" />
-                                            <p className="text-[10px] font-bold uppercase tracking-widest">Sem dados de impacto registrados nas tarefas.</p>
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                    {/* Pareto de Impactos */}
+                                    <div className="lg:col-span-1 bg-black/20 p-6 rounded-2xl border border-white/5 shadow-inner">
+                                        <div className="mb-6 h-[40px] flex flex-col justify-end">
+                                            <h4 className="text-xs font-black text-brand-accent uppercase tracking-widest mb-1">Ranking de Causas</h4>
+                                            <p className="text-[9px] text-brand-med-gray italic">Identificação dos principais ofensores</p>
                                         </div>
-                                    )}
-                                </div>
-                                <div className="mt-6 pt-4 border-t border-white/5 text-[9px] text-brand-med-gray font-medium italic">
-                                    Tip: A classe A representa os 80% dos problemas que devem ser atacados prioritariamente.
-                                </div>
-                            </div>
-                        </div>
+                                        <div className="h-[300px]">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={paretoData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff03" vertical={false} />
+                                                    <XAxis dataKey="label" stroke="#475569" fontSize={8} fontWeight={700} axisLine={false} tickLine={false} />
+                                                    <YAxis stroke="#475569" fontSize={9} tickLine={false} axisLine={false} />
+                                                    <Tooltip 
+                                                        contentStyle={{ backgroundColor: '#111827', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '10px' }}
+                                                        itemStyle={{ color: '#fff' }}
+                                                    />
+                                                    <Bar dataKey="count" radius={[4, 4, 0, 0]} barSize={24} fill="url(#gradientB)">
+                                                        <LabelList dataKey="count" position="top" fill="#94a3b8" fontSize={10} fontWeight="bold" offset={6} />
+                                                    </Bar>
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
 
-                        {/* Análise de Tendência de Impactos por Semana */}
-                        <div className="bg-[#111827]/40 backdrop-blur-sm p-6 rounded-2xl border border-white/5 shadow-xl non-printable relative overflow-hidden group">
-                            <div className="flex justify-between items-center mb-6">
-                                <div>
-                                    <h4 className="text-xs font-black text-brand-accent uppercase tracking-widest border-b border-white/5 pb-2">Evolução Semanal de Impactos</h4>
-                                    <p className="text-[9px] text-brand-med-gray mt-2 italic">Distribuição temporal das causas de não cumprimento (Últimas 10 Semanas)</p>
+                                    {/* Evolução Semanal */}
+                                    <div className="lg:col-span-2 bg-black/20 p-6 rounded-2xl border border-white/5 shadow-inner">
+                                        <div className="mb-6 h-[40px] flex flex-col justify-end">
+                                            <h4 className="text-xs font-black text-brand-accent uppercase tracking-widest mb-1">Tendência Temporal</h4>
+                                            <p className="text-[9px] text-brand-med-gray italic">Distribuição dos desvios por semana</p>
+                                        </div>
+                                        <div className="h-[300px]">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={weeklyImpactData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff03" vertical={false} />
+                                                    <XAxis dataKey="week" stroke="#475569" fontSize={9} fontWeight={700} axisLine={false} tickLine={false} />
+                                                    <YAxis stroke="#475569" fontSize={9} tickLine={false} axisLine={false} />
+                                                    <Tooltip 
+                                                        contentStyle={{ backgroundColor: '#111827', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '10px' }}
+                                                    />
+                                                    <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '8px', fontWeight: 'bold', textTransform: 'uppercase', paddingBottom: '15px' }} />
+                                                    <Bar dataKey="Projeto" stackId="a" fill="#3b82f6" />
+                                                    <Bar dataKey="Mão de obra" stackId="a" fill="#10b981" />
+                                                    <Bar dataKey="Equipamento" stackId="a" fill="#f59e0b" />
+                                                    <Bar dataKey="Acesso" stackId="a" fill="#8b5cf6" />
+                                                    <Bar dataKey="Chuva" stackId="a" fill="#0ea5e9" />
+                                                    <Bar dataKey="Inspeção" stackId="a" fill="#ec4899" />
+                                                    <Bar dataKey="Material" stackId="a" fill="#f43f5e" />
+                                                    <Bar dataKey="Predecessora" stackId="a" fill="#6366f1" />
+                                                    <Bar dataKey="Interferências" stackId="a" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="h-[300px]">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={weeklyImpactData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                                        <XAxis 
-                                            dataKey="week" 
-                                            stroke="#475569" 
-                                            fontSize={10} 
-                                            fontWeight={700}
-                                            tickLine={false}
-                                            axisLine={false}
-                                            dy={10}
-                                        />
-                                        <YAxis 
-                                            stroke="#475569" 
-                                            fontSize={10} 
-                                            tickLine={false}
-                                            axisLine={false}
-                                            allowDecimals={false}
-                                        />
-                                        <Tooltip 
-                                            contentStyle={{ 
-                                                backgroundColor: '#111827', 
-                                                border: '1px solid #ffffff10', 
-                                                borderRadius: '16px', 
-                                                fontSize: '11px',
-                                                backdropFilter: 'blur(8px)',
-                                            }}
-                                            itemStyle={{ fontWeight: 'bold' }}
-                                        />
-                                        <Legend 
-                                            verticalAlign="top" 
-                                            align="right" 
-                                            iconType="circle"
-                                            wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', color: '#94a3b8', paddingBottom: '20px' }}
-                                        />
-                                        <Bar dataKey="Projeto" stackId="a" fill="#3b82f6" />
-                                        <Bar dataKey="Mão de obra" stackId="a" fill="#10b981" />
-                                        <Bar dataKey="Equipamento" stackId="a" fill="#f59e0b" />
-                                        <Bar dataKey="Acesso" stackId="a" fill="#8b5cf6" />
-                                        <Bar dataKey="Chuva" stackId="a" fill="#0ea5e9" />
-                                        <Bar dataKey="Inspeção" stackId="a" fill="#ec4899" />
-                                        <Bar dataKey="Material" stackId="a" fill="#f43f5e" />
-                                        <Bar dataKey="Predecessora" stackId="a" fill="#6366f1" />
-                                        <Bar dataKey="Interferências" stackId="a" fill="#94a3b8" radius={[4, 4, 0, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
                             </div>
                         </div>
 
