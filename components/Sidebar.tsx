@@ -75,6 +75,13 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                                 onClick={onNavigateToDashboard}
                                 isCostModule={isCostModule}
                             />
+                            <NavButton
+                                active={activeScreen === 'management'}
+                                icon={<ManagementIcon className="w-5 h-5" />}
+                                label="Painel Gerencial"
+                                onClick={onNavigateToAnalysis}
+                                isCostModule={isCostModule}
+                            />
                             {showFullMenu && (
                                 <NavButton
                                     active={activeScreen === 'checkoutSummary'}
@@ -116,13 +123,6 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                                         />
                                     )}
 
-                                    <NavButton
-                                        active={activeScreen === 'management'}
-                                        icon={<ManagementIcon className="w-5 h-5" />}
-                                        label="Painel Gerencial"
-                                        onClick={onNavigateToAnalysis}
-                                        isCostModule={isCostModule}
-                                    />
                                     <NavButton
                                         active={activeScreen === 'baseline'}
                                         icon={<BaselineIcon className="w-5 h-5" />}

@@ -184,59 +184,122 @@ const SlidePPCCombined: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
 // SLIDE 3 — DESEMPENHO POR RESPONSÁVEL
 // ==============================
 const SlidePerformance: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
+    const todayNum = new Date().setHours(0, 0, 0, 0);
+
     const data = useMemo(() => {
-        const assigneeMap: { [key: string]: { total: number; completed: number; overdue: number } } = {};
-        const todayNum = new Date().setHours(0, 0, 0, 0);
+        const assigneeMap: { [key: string]: { total: number; onTime: number; late: number; overdue: number; open: number } } = {};
 
         tasks.forEach(task => {
             const assignee = task.assignee || 'Sem Responsável';
-            if (!assigneeMap[assignee]) assigneeMap[assignee] = { total: 0, completed: 0, overdue: 0 };
+            if (!assigneeMap[assignee]) assigneeMap[assignee] = { total: 0, onTime: 0, late: 0, overdue: 0, open: 0 };
             assigneeMap[assignee].total++;
-            if (task.status === TaskStatus.Completed) assigneeMap[assignee].completed++;
-            else if (new Date(task.dueDate + 'T00:00:00').getTime() < todayNum) assigneeMap[assignee].overdue++;
+
+            if (task.status === TaskStatus.Completed) {
+                if (task.actualEndDate && task.dueDate) {
+                    const actualEnd = new Date(task.actualEndDate + 'T00:00:00').getTime();
+                    const dueLimit = new Date(task.dueDate + 'T23:59:59').getTime();
+                    if (actualEnd <= dueLimit) assigneeMap[assignee].onTime++;
+                    else assigneeMap[assignee].late++;
+                } else {
+                    assigneeMap[assignee].onTime++;
+                }
+            } else if (new Date(task.dueDate + 'T00:00:00').getTime() < todayNum) {
+                assigneeMap[assignee].overdue++;
+            } else {
+                assigneeMap[assignee].open++;
+            }
         });
 
         return Object.entries(assigneeMap)
-            .map(([name, stats]) => ({
-                name: name.length > 25 ? name.substring(0, 25) + '…' : name,
-                fullName: name,
-                concluídas: stats.completed,
-                atrasadas: stats.overdue,
-                emAberto: stats.total - stats.completed - stats.overdue,
-                total: stats.total,
-                rate: stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0,
-            }))
-            .sort((a, b) => b.total - a.total)
+            .map(([name, stats]) => {
+                const resolved = stats.onTime + stats.late + stats.overdue;
+                const onTimeRate = resolved > 0 ? Math.round((stats.onTime / resolved) * 100) : (stats.open > 0 ? 100 : 0);
+                return {
+                    name: name.length > 25 ? name.substring(0, 25) + '…' : name,
+                    fullName: name,
+                    noPrazo: stats.onTime,
+                    foraDoPrazo: stats.late,
+                    emAberto: stats.open,
+                    atrasadas: stats.overdue,
+                    total: stats.total,
+                    onTimeRate,
+                    resolved
+                };
+            })
+            .filter(item => item.resolved > 0 || item.total >= 3)
+            .sort((a, b) => b.onTimeRate - a.onTimeRate || a.atrasadas - b.atrasadas)
             .slice(0, 10);
-    }, [tasks]);
+    }, [tasks, todayNum]);
 
     return (
-        <div className="h-full flex flex-col items-center justify-center px-8">
+        <div className="h-full flex flex-col items-center justify-center px-12">
             <div className="text-center mb-8">
-                <h2 className="text-5xl font-black text-white tracking-tighter uppercase mb-2">Performance</h2>
-                <p className="text-brand-med-gray text-lg font-medium tracking-widest uppercase">Top 10 Responsáveis por Volume de Tarefas</p>
+                <h2 className="text-5xl font-black text-white tracking-tighter uppercase mb-2">Performance por Responsável</h2>
+                <p className="text-brand-med-gray text-lg font-medium tracking-widest uppercase italic">Análise de cumprimento de prazos e ranking de eficiência</p>
             </div>
 
-            <div className="w-full max-w-6xl h-[500px]">
-                {data.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={data} layout="vertical" margin={{ top: 10, right: 50, left: 10, bottom: 10 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
-                            <XAxis type="number" stroke="#9d9d9c" tick={{ fontSize: 20, fontWeight: '700' }} axisLine={false} tickLine={false} />
-                            <YAxis type="category" dataKey="name" width={220} stroke="#9d9d9c" tick={{ fontSize: 20, fontWeight: '600' }} axisLine={false} tickLine={false} />
-                            <Tooltip
-                                contentStyle={{ backgroundColor: '#0a0f18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', fontSize: '18px', fontWeight: '700' }}
-                                itemStyle={{ color: '#f3f4f6' }}
-                            />
-                            <Bar dataKey="concluídas" stackId="a" fill="#22c55e" radius={[0, 0, 0, 0]} />
-                            <Bar dataKey="emAberto" name="em aberto" stackId="a" fill="#3b82f6" />
-                            <Bar dataKey="atrasadas" stackId="a" fill="#ef4444" radius={[0, 8, 8, 0]} />
-                            <Legend iconType="circle" wrapperStyle={{ fontSize: '18px', fontWeight: '800', textTransform: 'uppercase', paddingTop: '16px' }} />
-                        </BarChart>
-                    </ResponsiveContainer>
-                ) : (
-                    <div className="flex items-center justify-center h-full text-brand-med-gray text-xl italic">Nenhum dado disponível</div>
-                )}
+            <div className="grid grid-cols-3 gap-8 w-full max-w-[95%] h-[580px]">
+                {/* Gráfico de Barras */}
+                <div className="col-span-2 bg-[#111827]/40 backdrop-blur-xl rounded-3xl border border-white/5 p-8 flex flex-col relative overflow-hidden">
+                    <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-8 text-[12px] font-black uppercase tracking-widest">
+                            <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 rounded-full bg-green-500"></div> <span className="text-green-400">No Prazo</span></div>
+                            <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 rounded-full bg-yellow-500"></div> <span className="text-yellow-400">Fora do Prazo</span></div>
+                            <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 rounded-full bg-blue-500"></div> <span className="text-blue-400">Em Aberto</span></div>
+                            <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 rounded-full bg-red-500"></div> <span className="text-red-400">Atrasadas</span></div>
+                        </div>
+                    </div>
+                    
+                    <div className="flex-1 min-h-0">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={data} layout="vertical" margin={{ top: 0, right: 40, left: 10, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                                <XAxis type="number" stroke="#64748b" tick={{ fontSize: 22, fontWeight: '700' }} axisLine={false} tickLine={false} />
+                                <YAxis type="category" dataKey="name" width={220} stroke="#f8fafc" tick={{ fontSize: 20, fontWeight: '700' }} axisLine={false} tickLine={false} />
+                                <Tooltip
+                                    cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                                    contentStyle={{ backgroundColor: '#0a0f18', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1rem', fontSize: '18px', fontWeight: 'bold' }}
+                                />
+                                <Bar dataKey="noPrazo" stackId="a" fill="#22c55e" radius={[0, 0, 0, 0]} />
+                                <Bar dataKey="foraDoPrazo" stackId="a" fill="#eab308" />
+                                <Bar dataKey="emAberto" stackId="a" fill="#3b82f6" />
+                                <Bar dataKey="atrasadas" stackId="a" fill="#ef4444" radius={[0, 8, 8, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Ranking List */}
+                <div className="bg-[#111827]/40 backdrop-blur-xl rounded-3xl border border-white/5 p-8 flex flex-col relative overflow-hidden">
+                    <h3 className="text-xl font-bold text-brand-accent uppercase tracking-wider mb-6 pb-4 border-b border-white/5">🏆 Top Performance</h3>
+                    <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-2">
+                        {data.map((item, idx) => {
+                            const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}º`;
+                            const barColor = item.onTimeRate >= 80 ? 'bg-green-500' : item.onTimeRate >= 50 ? 'bg-yellow-500' : 'bg-red-500';
+                            return (
+                                <div key={item.fullName} className="bg-white/5 rounded-2xl p-4 border border-white/5 hover:border-brand-accent/30 transition-all">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-2xl">{medal}</span>
+                                            <span className="text-sm font-black text-white truncate max-w-[150px] uppercase">{item.fullName}</span>
+                                        </div>
+                                        <span className={`text-2xl font-black ${item.onTimeRate >= 80 ? 'text-green-400' : item.onTimeRate >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>{item.onTimeRate}%</span>
+                                    </div>
+                                    <div className="w-full bg-black/40 rounded-full h-2.5 overflow-hidden mb-2">
+                                        <div className={`h-full rounded-full transition-all duration-1000 ${barColor}`} style={{ width: `${item.onTimeRate}%` }}></div>
+                                    </div>
+                                    <div className="flex justify-between text-[10px] text-brand-med-gray font-black uppercase tracking-widest">
+                                        <span>{item.noPrazo} No Prazo</span>
+                                        <span className={item.atrasadas > 0 ? 'text-red-500' : 'text-green-500'}>{item.atrasadas > 0 ? `${item.atrasadas} Atrasadas` : '0 Atrasadas'}</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-white/5 text-[11px] text-brand-med-gray/50 font-bold uppercase italic text-center">
+                        KPI: No Prazo / (Concluídas + Atrasadas)
+                    </div>
+                </div>
             </div>
         </div>
     );
