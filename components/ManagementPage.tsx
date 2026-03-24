@@ -667,14 +667,14 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                         </div>
                                         <div>
                                             <h3 className="text-xl font-black text-white uppercase tracking-tight">Causas de Não Cumprimento</h3>
-                                            <p className="text-[10px] text-brand-med-gray font-bold uppercase tracking-widest mt-1">Análise de Impacto e Tendência Temporal</p>
+                                            <p className="text-[10px] text-brand-med-gray font-bold uppercase tracking-widest mt-1">Gestão de Impactos e Root Cause Analysis</p>
                                         </div>
                                     </div>
 
                                     {/* Filtro Setorial para Impactos */}
                                     <div className="flex items-center gap-4 bg-black/40 p-2 rounded-2xl border border-white/5">
                                         <div className="flex items-center gap-2 group">
-                                            <span className="text-[9px] font-black text-brand-med-gray uppercase tracking-widest group-hover:text-brand-accent transition-colors">Período Análise:</span>
+                                            <span className="text-[9px] font-black text-brand-med-gray uppercase tracking-widest group-hover:text-brand-accent transition-colors">Período para Causas:</span>
                                             <input
                                                 type="date"
                                                 value={impactDateFilters.startDate}
@@ -701,59 +701,96 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                    {/* Pareto de Impactos */}
-                                    <div className="lg:col-span-1 bg-black/20 p-6 rounded-2xl border border-white/5 shadow-inner">
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                                    {/* Pareto de Impactos (2/3) */}
+                                    <div className="lg:col-span-2 bg-black/20 p-6 rounded-2xl border border-white/5 shadow-inner group">
                                         <div className="mb-6 h-[40px] flex flex-col justify-end">
-                                            <h4 className="text-xs font-black text-brand-accent uppercase tracking-widest mb-1">Ranking de Causas</h4>
-                                            <p className="text-[9px] text-brand-med-gray italic">Identificação dos principais ofensores</p>
+                                            <h4 className="text-xs font-black text-brand-accent uppercase tracking-widest border-b border-white/5 pb-2">Pareto de Ofensores</h4>
+                                            <p className="text-[9px] text-brand-med-gray mt-2 italic">Principais categorias que impediram o cumprimento das metas</p>
                                         </div>
-                                        <div className="h-[300px]">
+                                        <div className="h-[350px]">
                                             <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart data={paretoData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                                <BarChart data={paretoData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+                                                    <defs>
+                                                        <linearGradient id="gradientB" x1="0" y1="0" x2="0" y2="1">
+                                                            <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.9}/>
+                                                            <stop offset="100%" stopColor="#2563eb" stopOpacity={0.6}/>
+                                                        </linearGradient>
+                                                    </defs>
                                                     <CartesianGrid strokeDasharray="3 3" stroke="#ffffff03" vertical={false} />
-                                                    <XAxis dataKey="label" stroke="#475569" fontSize={8} fontWeight={700} axisLine={false} tickLine={false} />
-                                                    <YAxis stroke="#475569" fontSize={9} tickLine={false} axisLine={false} />
-                                                    <Tooltip 
-                                                        contentStyle={{ backgroundColor: '#111827', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '10px' }}
-                                                        itemStyle={{ color: '#fff' }}
-                                                    />
-                                                    <Bar dataKey="count" radius={[4, 4, 0, 0]} barSize={24} fill="url(#gradientB)">
-                                                        <LabelList dataKey="count" position="top" fill="#94a3b8" fontSize={10} fontWeight="bold" offset={6} />
+                                                    <XAxis dataKey="label" stroke="#475569" fontSize={10} fontWeight={700} axisLine={false} tickLine={false} />
+                                                    <YAxis stroke="#475569" fontSize={10} axisLine={false} tickLine={false} />
+                                                    <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #ffffff10', borderRadius: '12px' }} />
+                                                    <Bar dataKey="count" radius={[6, 6, 2, 2]} barSize={44} fill="url(#gradientB)">
+                                                        <LabelList dataKey="count" position="top" fill="#94a3b8" fontSize={11} fontWeight={900} offset={8} />
                                                     </Bar>
                                                 </BarChart>
                                             </ResponsiveContainer>
                                         </div>
                                     </div>
 
-                                    {/* Evolução Semanal */}
-                                    <div className="lg:col-span-2 bg-black/20 p-6 rounded-2xl border border-white/5 shadow-inner">
-                                        <div className="mb-6 h-[40px] flex flex-col justify-end">
-                                            <h4 className="text-xs font-black text-brand-accent uppercase tracking-widest mb-1">Tendência Temporal</h4>
-                                            <p className="text-[9px] text-brand-med-gray italic">Distribuição dos desvios por semana</p>
+                                    {/* Classificação com Drill-down (1/3) */}
+                                    <div className="lg:col-span-1 bg-black/20 p-6 rounded-2xl border border-white/5 shadow-inner">
+                                        <h4 className="text-xs font-black text-brand-accent uppercase tracking-widest border-b border-white/5 pb-2 mb-6 text-center">Detalhamento por Causa</h4>
+                                        <div className="space-y-4 max-h-[350px] overflow-y-auto custom-scrollbar pr-2">
+                                            {paretoData.map((item, idx) => (
+                                                <button 
+                                                    key={idx} 
+                                                    onClick={() => setSelectedImpactCategory(item.label === selectedImpactCategory ? null : item.label)}
+                                                    className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all text-left ${
+                                                        selectedImpactCategory === item.label ? 'bg-brand-accent/20 border-brand-accent/50 ring-1 ring-brand-accent/30' : 'bg-white/5 border-white/10 hover:border-brand-accent/50 hover:bg-brand-accent/5'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`p-2 rounded-lg ${
+                                                            item.abc === 'A' ? 'bg-red-500/10 text-red-500' : 
+                                                            item.abc === 'B' ? 'bg-blue-500/10 text-blue-500' : 
+                                                            'bg-gray-500/10 text-gray-500'
+                                                        }`}>
+                                                            {idx === 0 ? <AlertIcon className="w-5 h-5" /> : <InfoIcon className="w-5 h-5" />}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-black text-white uppercase tracking-tight">{item.label}</p>
+                                                            <p className="text-[10px] text-brand-med-gray font-bold">{item.count} ocorrências</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-xs font-black text-white">{item.cumulativePercent}%</p>
+                                                        <p className="text-[8px] text-brand-med-gray uppercase font-bold">Acum.</p>
+                                                    </div>
+                                                </button>
+                                            ))}
                                         </div>
-                                        <div className="h-[300px]">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart data={weeklyImpactData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff03" vertical={false} />
-                                                    <XAxis dataKey="week" stroke="#475569" fontSize={9} fontWeight={700} axisLine={false} tickLine={false} />
-                                                    <YAxis stroke="#475569" fontSize={9} tickLine={false} axisLine={false} />
-                                                    <Tooltip 
-                                                        contentStyle={{ backgroundColor: '#111827', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '10px' }}
-                                                    />
-                                                    <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '8px', fontWeight: 'bold', textTransform: 'uppercase', paddingBottom: '15px' }} />
-                                                    <Bar dataKey="Projeto" stackId="a" fill="#3b82f6" />
-                                                    <Bar dataKey="Mão de obra" stackId="a" fill="#10b981" />
-                                                    <Bar dataKey="Equipamento" stackId="a" fill="#f59e0b" />
-                                                    <Bar dataKey="Acesso" stackId="a" fill="#8b5cf6" />
-                                                    <Bar dataKey="Chuva" stackId="a" fill="#0ea5e9" />
-                                                    <Bar dataKey="Inspeção" stackId="a" fill="#ec4899" />
-                                                    <Bar dataKey="Material" stackId="a" fill="#f43f5e" />
-                                                    <Bar dataKey="Predecessora" stackId="a" fill="#6366f1" />
-                                                    <Bar dataKey="Interferências" stackId="a" fill="#94a3b8" radius={[4, 4, 0, 0]} />
-                                                </BarChart>
-                                            </ResponsiveContainer>
+                                    </div>
+                                </div>
+
+                                {/* Tendência Semanal (No mesmo agrupamento) */}
+                                <div className="bg-black/10 p-6 rounded-2xl border border-white/5 shadow-inner">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <div>
+                                            <h4 className="text-xs font-black text-brand-accent uppercase tracking-widest border-b border-white/5 pb-2">Evolução Semanal de Impactos</h4>
+                                            <p className="text-[9px] text-brand-med-gray mt-2 italic">Distribuição temporal das causas de não cumprimento</p>
                                         </div>
+                                    </div>
+                                    <div className="h-[250px]">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={weeklyImpactData} margin={{ top: 20, right: 30, left: 10, bottom: 0 }}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff03" vertical={false} />
+                                                <XAxis dataKey="week" stroke="#475569" fontSize={9} fontWeight={700} axisLine={false} tickLine={false} />
+                                                <YAxis stroke="#475569" fontSize={9} tickLine={false} axisLine={false} />
+                                                <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #ffffff10', borderRadius: '16px', fontSize: '10px' }} />
+                                                <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '8px', fontWeight: 'bold', textTransform: 'uppercase', paddingBottom: '15px' }} />
+                                                <Bar dataKey="Projeto" stackId="a" fill="#3b82f6" />
+                                                <Bar dataKey="Mão de obra" stackId="a" fill="#10b981" />
+                                                <Bar dataKey="Equipamento" stackId="a" fill="#f59e0b" />
+                                                <Bar dataKey="Acesso" stackId="a" fill="#8b5cf6" />
+                                                <Bar dataKey="Chuva" stackId="a" fill="#0ea5e9" />
+                                                <Bar dataKey="Inspeção" stackId="a" fill="#ec4899" />
+                                                <Bar dataKey="Material" stackId="a" fill="#f43f5e" />
+                                                <Bar dataKey="Predecessora" stackId="a" fill="#6366f1" />
+                                                <Bar dataKey="Interferências" stackId="a" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
                                     </div>
                                 </div>
                             </div>
