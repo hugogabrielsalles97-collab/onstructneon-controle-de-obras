@@ -293,12 +293,39 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     };
   }, [visibleTasks, engineerByAssigneeMap]);
 
-  const filteredAndSortedTasks = useMemo(() => {
-    const todayNum = new Date().setHours(0, 0, 0, 0);
+  const filteredTasksWithoutStatus = useMemo(() => {
     const filterStartDateNum = filters.startDate ? new Date(filters.startDate + 'T00:00:00').getTime() : null;
     const filterEndDateNum = filters.endDate ? new Date(filters.endDate + 'T00:00:00').getTime() : null;
 
-    let filtered = visibleTasks.filter(task => {
+    return visibleTasks.filter(task => {
+      const taskDueDateNum = new Date(task.dueDate + 'T00:00:00').getTime();
+
+      if (filters.assignee && !task.assignee.toLowerCase().includes(filters.assignee.toLowerCase())) return false;
+      if (filters.discipline && !task.discipline.toLowerCase().includes(filters.discipline.toLowerCase())) return false;
+      if (filters.level && !task.level.toLowerCase().includes(filters.level.toLowerCase())) return false;
+      if (filters.location && !task.location.toLowerCase().includes(filters.location.toLowerCase())) return false;
+      if (filters.corte && (!task.corte || !task.corte.toLowerCase().includes(filters.corte.toLowerCase()))) return false;
+      if (filters.support && !task.support.toLowerCase().includes(filters.support.toLowerCase())) return false;
+
+      if (filterStartDateNum) {
+        const taskStartNum = new Date(task.startDate + 'T00:00:00').getTime();
+        if (taskStartNum < filterStartDateNum) return false;
+      }
+      if (filterEndDateNum && taskDueDateNum > filterEndDateNum) return false;
+
+      if (filters.engineer) {
+        const eng = engineerByAssigneeMap.get(task.assignee);
+        if (eng !== filters.engineer) return false;
+      }
+
+      return true;
+    });
+  }, [visibleTasks, filters.assignee, filters.discipline, filters.level, filters.location, filters.corte, filters.support, filters.startDate, filters.endDate, filters.engineer, engineerByAssigneeMap]);
+
+  const filteredAndSortedTasks = useMemo(() => {
+    const todayNum = new Date().setHours(0, 0, 0, 0);
+
+    let filtered = filteredTasksWithoutStatus.filter(task => {
       const taskDueDateNum = new Date(task.dueDate + 'T00:00:00').getTime();
       const isOverdue = taskDueDateNum < todayNum && task.status !== TaskStatus.Completed;
 
@@ -309,35 +336,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
         if (filters.status === TaskStatus.Completed) {
           matchesStatus = task.status === TaskStatus.Completed;
         } else {
-          // 'Em Andamento' / 'A Iniciar': Mostrar somente as que NÃO estão atrasadas
           matchesStatus = task.status === filters.status && !isOverdue;
         }
       }
 
-      if (!matchesStatus) return false;
-
-      // Filtros de texto (Case Insensitive)
-      if (filters.assignee && !task.assignee.toLowerCase().includes(filters.assignee.toLowerCase())) return false;
-      if (filters.discipline && !task.discipline.toLowerCase().includes(filters.discipline.toLowerCase())) return false;
-      if (filters.level && !task.level.toLowerCase().includes(filters.level.toLowerCase())) return false;
-      if (filters.location && !task.location.toLowerCase().includes(filters.location.toLowerCase())) return false;
-      if (filters.corte && (!task.corte || !task.corte.toLowerCase().includes(filters.corte.toLowerCase()))) return false;
-      if (filters.support && !task.support.toLowerCase().includes(filters.support.toLowerCase())) return false;
-
-      // Filtros de Data (usando timestamps numéricos para velocidade)
-      if (filterStartDateNum) {
-        const taskStartNum = new Date(task.startDate + 'T00:00:00').getTime();
-        if (taskStartNum < filterStartDateNum) return false;
-      }
-      if (filterEndDateNum && taskDueDateNum > filterEndDateNum) return false;
-
-      // Filtro de Engenheiro
-      if (filters.engineer) {
-        const eng = engineerByAssigneeMap.get(task.assignee);
-        if (eng !== filters.engineer) return false;
-      }
-
-      return true;
+      return matchesStatus;
     });
 
     if (sortConfig.key !== 'none') {
@@ -351,7 +354,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     }
 
     return filtered;
-  }, [visibleTasks, filters, sortConfig, engineerByAssigneeMap]);
+  }, [filteredTasksWithoutStatus, filters.status, sortConfig]);
 
   const handleSort = (key: SortKey) => {
     let direction: SortDirection = 'asc';
@@ -568,7 +571,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
 
             {/* Dash Analytics Summary */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 non-printable">
-              <DashboardSummary tasks={visibleTasks} onStatusSelect={handleStatusSelect} activeStatus={filters.status} />
+              <DashboardSummary tasks={filteredTasksWithoutStatus} onStatusSelect={handleStatusSelect} activeStatus={filters.status} />
             </div>
 
             {/* Interactive Filters Glass Panel */}
