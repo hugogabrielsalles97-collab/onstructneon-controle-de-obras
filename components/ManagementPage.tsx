@@ -246,6 +246,54 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
         });
     }, [tasks]);
 
+    const weeklyImpactData = useMemo(() => {
+        const weekMap: Record<string, Record<string, number>> = {};
+        const categories = IMPACT_CATEGORIES;
+
+        tasks.forEach(t => {
+            const obs = t.observations || '';
+            const hasImpact = categories.some(cat => obs.includes(`[${cat}]`));
+            if (!hasImpact) return;
+
+            // Calcula número da semana (ISO)
+            const d = new Date(t.dueDate + 'T00:00:00');
+            const target = new Date(d.valueOf());
+            const dayNr = (d.getDay() + 6) % 7;
+            target.setDate(target.getDate() - dayNr + 3);
+            const firstThursday = target.valueOf();
+            target.setMonth(0, 1);
+            if (target.getDay() !== 4) {
+                target.setMonth(0, 1 + ((4 - target.getDay() + 7) % 7));
+            }
+            const weekNum = 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
+            const weekLabel = `Semana ${weekNum}`;
+
+            if (!weekMap[weekLabel]) {
+                weekMap[weekLabel] = {};
+                categories.forEach(c => weekMap[weekLabel][c] = 0);
+            }
+
+            categories.forEach(cat => {
+                if (obs.includes(`[${cat}]`)) {
+                    weekMap[weekLabel][cat]++;
+                }
+            });
+        });
+
+        // Ordenar semanas e pegar as últimas 10 (ou todas se for pouco)
+        return Object.entries(weekMap)
+            .sort((a, b) => {
+                const numA = parseInt(a[0].split(' ')[1]);
+                const numB = parseInt(b[0].split(' ')[1]);
+                return numA - numB;
+            })
+            .map(([week, values]) => ({
+                week,
+                ...values
+            }))
+            .slice(-10); // Mostra as últimas 10 semanas de dados
+    }, [tasks, IMPACT_CATEGORIES]);
+
     const globalStats = useMemo(() => {
         const total = analysisData.length;
         if (total === 0) return null;
@@ -496,6 +544,64 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                 <div className="mt-6 pt-4 border-t border-white/5 text-[9px] text-brand-med-gray font-medium italic">
                                     Tip: A classe A representa os 80% dos problemas que devem ser atacados prioritariamente.
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* Análise de Tendência de Impactos por Semana */}
+                        <div className="bg-[#111827]/40 backdrop-blur-sm p-6 rounded-2xl border border-white/5 shadow-xl non-printable relative overflow-hidden group">
+                            <div className="flex justify-between items-center mb-6">
+                                <div>
+                                    <h4 className="text-xs font-black text-brand-accent uppercase tracking-widest border-b border-white/5 pb-2">Evolução Semanal de Impactos</h4>
+                                    <p className="text-[9px] text-brand-med-gray mt-2 italic">Distribuição temporal das causas de não cumprimento (Últimas 10 Semanas)</p>
+                                </div>
+                            </div>
+                            <div className="h-[300px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={weeklyImpactData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                                        <XAxis 
+                                            dataKey="week" 
+                                            stroke="#475569" 
+                                            fontSize={10} 
+                                            fontWeight={700}
+                                            tickLine={false}
+                                            axisLine={false}
+                                            dy={10}
+                                        />
+                                        <YAxis 
+                                            stroke="#475569" 
+                                            fontSize={10} 
+                                            tickLine={false}
+                                            axisLine={false}
+                                            allowDecimals={false}
+                                        />
+                                        <Tooltip 
+                                            contentStyle={{ 
+                                                backgroundColor: '#111827', 
+                                                border: '1px solid #ffffff10', 
+                                                borderRadius: '16px', 
+                                                fontSize: '11px',
+                                                backdropFilter: 'blur(8px)',
+                                            }}
+                                            itemStyle={{ fontWeight: 'bold' }}
+                                        />
+                                        <Legend 
+                                            verticalAlign="top" 
+                                            align="right" 
+                                            iconType="circle"
+                                            wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', color: '#94a3b8', paddingBottom: '20px' }}
+                                        />
+                                        <Bar dataKey="Projeto" stackId="a" fill="#3b82f6" />
+                                        <Bar dataKey="Mão de obra" stackId="a" fill="#10b981" />
+                                        <Bar dataKey="Equipamento" stackId="a" fill="#f59e0b" />
+                                        <Bar dataKey="Acesso" stackId="a" fill="#8b5cf6" />
+                                        <Bar dataKey="Chuva" stackId="a" fill="#0ea5e9" />
+                                        <Bar dataKey="Inspeção" stackId="a" fill="#ec4899" />
+                                        <Bar dataKey="Material" stackId="a" fill="#f43f5e" />
+                                        <Bar dataKey="Predecessora" stackId="a" fill="#6366f1" />
+                                        <Bar dataKey="Interferências" stackId="a" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
                             </div>
                         </div>
 
