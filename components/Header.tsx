@@ -79,7 +79,7 @@ const Header: React.FC<HeaderProps> = ({
     { id: 'lean', label: 'Sistema LPS', icon: <LeanIcon className="w-5 h-5" />, onClick: onNavigateToLean, show: showFullMenu && !isOrgModule },
     { id: 'orgSummary', label: 'Resumo Organograma', icon: <BriefcaseIcon className="w-5 h-5 text-cyan-400" />, onClick: onNavigateToOrgSummary, show: isOrgModule },
     { id: 'orgChart', label: 'Árvore Organograma', icon: <ManagementIcon className="w-5 h-5 text-indigo-400" />, onClick: onNavigateToOrgChart, show: showFullMenu && isOrgModule },
-    { id: 'reports', label: 'Dashboards', icon: <ChartIcon className="w-5 h-5" />, onClick: onNavigateToReports, show: showFullMenu && !isOrgModule },
+
     { id: 'management', label: 'Painel Gerencial', icon: <ManagementIcon className="w-5 h-5" />, onClick: onNavigateToAnalysis, show: showFullMenu && !isOrgModule },
     { id: 'baseline', label: 'Linha Base', icon: <BaselineIcon className="w-5 h-5" />, onClick: onNavigateToBaseline, show: showFullMenu && !isOrgModule },
     { id: 'currentSchedule', label: 'Cronograma Corrente', icon: <ScheduleIcon className="w-5 h-5" />, onClick: onNavigateToCurrentSchedule, show: showFullMenu && !isOrgModule },

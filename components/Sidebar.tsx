@@ -115,13 +115,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                                             isCostModule={isCostModule}
                                         />
                                     )}
-                                    <NavButton
-                                        active={activeScreen === 'reports'}
-                                        icon={<ChartIcon className="w-5 h-5" />}
-                                        label="Dashboards"
-                                        onClick={onNavigateToReports}
-                                        isCostModule={isCostModule}
-                                    />
+
                                     <NavButton
                                         active={activeScreen === 'management'}
                                         icon={<ManagementIcon className="w-5 h-5" />}

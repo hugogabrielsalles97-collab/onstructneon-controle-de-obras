@@ -13,7 +13,8 @@ import { exportTasksToExcel } from '../utils/excelExport';
 import ManagementMonthlyProgress from './ManagementMonthlyProgress';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
-  ResponsiveContainer, Line, ComposedChart, Cell, LabelList 
+  ResponsiveContainer, Line, ComposedChart, Cell, LabelList,
+  AreaChart, Area, ReferenceLine
 } from 'recharts';
 import AlertIcon from './icons/AlertIcon';
 
@@ -308,6 +309,116 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
             .slice(-10);
     }, [tasks, IMPACT_CATEGORIES]);
 
+    // --- LÓGICA PPC SEMANAL ---
+    const weeklyPpcData = useMemo(() => {
+        const tasksToUse = tasks.filter(t => {
+            if (!dateFilters.startDate && !dateFilters.endDate) return true;
+            const tDate = new Date(t.dueDate + 'T00:00:00');
+            const start = dateFilters.startDate ? new Date(dateFilters.startDate + 'T00:00:00') : null;
+            const end = dateFilters.endDate ? new Date(dateFilters.endDate + 'T23:59:59') : null;
+            return (!start || tDate >= start) && (!end || tDate <= end);
+        });
+        
+        if (tasksToUse.length === 0) return [];
+
+        const start = new Date(Math.min(...tasksToUse.map(t => new Date(t.startDate).getTime())));
+        const end = new Date(Math.max(...tasksToUse.map(t => new Date(t.dueDate).getTime())));
+
+        const weeks: { [key: string]: { planned: number; completed: number; weekNum: number } } = {};
+
+        tasksToUse.forEach(task => {
+            const taskDueDate = new Date(task.dueDate + 'T23:59:59');
+            if (taskDueDate >= start && taskDueDate <= end) {
+                const d = new Date(taskDueDate);
+                d.setDate(d.getDate() - d.getDay()); // Domingo
+                const weekKey = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                
+                if (!weeks[weekKey]) {
+                    // Calcula número da semana para ordenação
+                    const target = new Date(d.valueOf());
+                    const dayNr = (d.getDay() + 6) % 7;
+                    target.setDate(target.getDate() - dayNr + 3);
+                    const firstThursday = target.valueOf();
+                    target.setMonth(0, 1);
+                    if (target.getDay() !== 4) target.setMonth(0, 1 + ((4 - target.getDay() + 7) % 7));
+                    const weekNum = 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
+                    
+                    weeks[weekKey] = { planned: 0, completed: 0, weekNum };
+                }
+                
+                weeks[weekKey].planned += 1;
+                if (task.status === TaskStatus.Completed && task.actualEndDate) {
+                    const actualEnd = new Date(task.actualEndDate + 'T00:00:00');
+                    const dueLimit = new Date(task.dueDate + 'T23:59:59');
+                    if (actualEnd <= dueLimit) {
+                        weeks[weekKey].completed += 1;
+                    }
+                }
+            }
+        });
+
+        return Object.keys(weeks).sort((a, b) => weeks[a].weekNum - weeks[b].weekNum)
+            .map(week => ({
+                name: `${week}`,
+                ppc: weeks[week].planned > 0 ? Math.round((weeks[week].completed / weeks[week].planned) * 100) : 0,
+            }));
+    }, [tasks, dateFilters]);
+
+    const averagePpc = useMemo(() => {
+        if (weeklyPpcData.length === 0) return 0;
+        return Math.round(weeklyPpcData.reduce((acc, d) => acc + d.ppc, 0) / weeklyPpcData.length);
+    }, [weeklyPpcData]);
+
+    // --- LÓGICA PPC ACUMULADO ---
+    const accumulatedPpcData = useMemo(() => {
+        const tasksToUse = tasks.filter(t => {
+            if (!dateFilters.startDate && !dateFilters.endDate) return true;
+            const tDate = new Date(t.dueDate + 'T00:00:00');
+            const start = dateFilters.startDate ? new Date(dateFilters.startDate + 'T00:00:00') : null;
+            const end = dateFilters.endDate ? new Date(dateFilters.endDate + 'T23:59:59') : null;
+            return (!start || tDate >= start) && (!end || tDate <= end);
+        });
+
+        if (tasksToUse.length === 0) return [];
+
+        const tasksByWeek: { weekStart: Date; weekEnd: Date; key: string; total: number; completed: number }[] = [];
+        const allDates = tasksToUse.flatMap(t => [new Date(t.startDate), new Date(t.dueDate)]);
+        const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
+        const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
+
+        const current = new Date(minDate);
+        current.setDate(current.getDate() - current.getDay());
+
+        while (current <= maxDate) {
+            const weekEnd = new Date(current);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+            const key = current.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+            let total = 0, completed = 0;
+            tasksToUse.forEach(task => {
+                const dueDate = new Date(task.dueDate + 'T00:00:00');
+                if (dueDate <= weekEnd) {
+                    total++;
+                    if (task.status === TaskStatus.Completed) {
+                        const actualEnd = new Date(task.actualEndDate + 'T00:00:00');
+                        const dueLimit = new Date(task.dueDate + 'T23:59:59');
+                        if (actualEnd <= dueLimit) completed++;
+                    }
+                }
+            });
+            if (total > 0) {
+                tasksByWeek.push({ weekStart: new Date(current), weekEnd: new Date(weekEnd), key, total, completed });
+            }
+            current.setDate(current.getDate() + 7);
+        }
+
+        const totalTasksCount = tasksToUse.length;
+        return tasksByWeek.map(week => ({
+            name: `${week.key}`,
+            planejado: Math.round((week.total / totalTasksCount) * 100),
+            realizado: Math.round((week.completed / totalTasksCount) * 100),
+        }));
+    }, [tasks, dateFilters]);
+
     const globalStats = useMemo(() => {
         const total = analysisData.length;
         if (total === 0) return null;
@@ -407,6 +518,74 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                 </div>
                             </div>
                         )}
+
+                        {/* Indicadores de PPC (Percentual de Plano Cumprido) */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 non-printable mb-8">
+                            <div className="bg-[#111827]/40 backdrop-blur-sm p-6 rounded-2xl border border-white/5 shadow-xl hover-shine relative overflow-hidden group">
+                                <div className="flex justify-between items-center mb-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-1.5 h-6 bg-brand-accent rounded-full shadow-[0_0_10px_rgba(227,90,16,0.3)]"></div>
+                                        <h4 className="text-sm font-black text-white uppercase tracking-widest">Curva PPC Semanal</h4>
+                                    </div>
+                                    <div className="bg-brand-accent/10 px-3 py-1 rounded-xl border border-brand-accent/20">
+                                        <span className="text-brand-accent font-black text-xl">{averagePpc}%</span>
+                                        <span className="text-[9px] text-gray-500 uppercase font-bold ml-2">Média</span>
+                                    </div>
+                                </div>
+                                <div className="h-[250px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={weeklyPpcData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+                                            <XAxis dataKey="name" stroke="#475569" fontSize={10} fontWeight={700} axisLine={false} tickLine={false} />
+                                            <YAxis stroke="#475569" fontSize={10} fontWeight={700} domain={[0, 100]} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
+                                            <Tooltip
+                                                cursor={{ fill: 'rgba(255,255,255,0.02)' }}
+                                                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '11px' }}
+                                                itemStyle={{ fontWeight: 'bold' }}
+                                            />
+                                            <ReferenceLine y={averagePpc} stroke="#e35a10" strokeDasharray="4 4" strokeWidth={1.5} />
+                                            <Bar dataKey="ppc" name="PPC %" radius={[4, 4, 0, 0]} barSize={30}>
+                                                {weeklyPpcData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.ppc >= 80 ? '#10b981' : entry.ppc >= 60 ? '#f59e0b' : '#ef4444'} />
+                                                ))}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                            <div className="bg-[#111827]/40 backdrop-blur-sm p-6 rounded-2xl border border-white/5 shadow-xl hover-shine relative overflow-hidden group">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-1.5 h-6 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.3)]"></div>
+                                    <h4 className="text-sm font-black text-white uppercase tracking-widest">PPC Acumulado</h4>
+                                </div>
+                                <div className="h-[250px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <AreaChart data={accumulatedPpcData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                            <defs>
+                                                <linearGradient id="colorPlanejado" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                                </linearGradient>
+                                                <linearGradient id="colorRealizado" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+                                            <XAxis dataKey="name" stroke="#475569" fontSize={10} fontWeight={700} axisLine={false} tickLine={false} />
+                                            <YAxis stroke="#475569" fontSize={10} fontWeight={700} domain={[0, 100]} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
+                                            <Tooltip
+                                                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '11px' }}
+                                            />
+                                            <Legend wrapperStyle={{ paddingTop: '10px', textTransform: 'uppercase', fontSize: '8px', fontWeight: '900' }} />
+                                            <Area type="monotone" dataKey="planejado" name="Planejado" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorPlanejado)" />
+                                            <Area type="monotone" dataKey="realizado" name="Realizado" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRealizado)" connectNulls={true} />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        </div>
 
                         {/* Gráfico de Pareto de Impactos (6M) */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 non-printable">
