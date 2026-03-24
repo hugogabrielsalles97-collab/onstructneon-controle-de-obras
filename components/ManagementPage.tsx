@@ -283,7 +283,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 return `${day}/${month}`;
             };
 
-            const weekLabel = `${formatDateShort(sun)} a ${formatDateShort(sat)}`;
+            const weekLabel = formatDateShort(sat);
 
             if (!weekMap[weekLabel]) {
                 weekMap[weekLabel] = {
@@ -345,7 +345,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 // SÓ ENTRA NO CÁLCULO SE A SEMANA ESTIVER FECHADA
                 if (weekEnd > lastClosedSaturday) return;
 
-                const weekKey = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                const weekKey = weekEnd.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
                 
                 if (!weeks[weekKey]) {
                     // Calcula número da semana para ordenação
@@ -413,7 +413,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
             weekEnd.setDate(weekEnd.getDate() + 6);
             weekEnd.setHours(23, 59, 59, 999);
 
-            const key = current.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+            const key = weekEnd.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
             let totalByWeekEnd = 0, completedByWeekEnd = 0;
             
             tasksToUse.forEach(task => {
