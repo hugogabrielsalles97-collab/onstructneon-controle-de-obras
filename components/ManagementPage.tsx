@@ -1120,7 +1120,14 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                 <h3 className="text-2xl font-black text-white uppercase tracking-tight flex items-center gap-3">
                                     <span className="text-brand-accent">Detalhamento:</span> {selectedImpactCategory}
                                 </h3>
-                                <p className="text-xs text-brand-med-gray mt-1">Listagem de todas as tarefas que reportaram este impacto no cronograma.</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <p className="text-xs text-brand-med-gray">Listagem de tarefas com este impacto no cronograma.</p>
+                                    {(impactDateFilters.startDate || impactDateFilters.endDate) && (
+                                        <span className="px-2 py-0.5 bg-brand-accent/20 border border-brand-accent/30 rounded text-[9px] text-brand-accent font-black uppercase animate-pulse">
+                                            Exibindo apenas período selecionado
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                             <button onClick={() => setSelectedImpactCategory(null)} className="w-12 h-12 rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white transition-all border border-white/10 group">
                                 <XIcon className="w-6 h-6 group-hover:rotate-90 transition-transform" />
@@ -1128,12 +1135,30 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                         </div>
                         
                         <div className="flex-1 overflow-y-auto p-8 space-y-4 custom-scrollbar">
-                            {tasks.filter(t => (t.observations || '').includes(`[${selectedImpactCategory}]`)).length === 0 ? (
-                                <div className="text-center py-20 opacity-30">
-                                    <p className="text-sm font-bold uppercase tracking-widest">Nenhuma tarefa encontrada com este marcador.</p>
-                                </div>
-                            ) : (
-                                tasks.filter(t => (t.observations || '').includes(`[${selectedImpactCategory}]`)).map(t => (
+                            {(() => {
+                                const list = tasks.filter(t => {
+                                    if (!(t.observations || '').includes(`[${selectedImpactCategory}]`)) return false;
+                                    
+                                    const tDateStr = t.dueDate || t.actualEndDate || '';
+                                    if (impactDateFilters.startDate || impactDateFilters.endDate) {
+                                        const tDate = new Date(tDateStr + 'T00:00:00');
+                                        const start = impactDateFilters.startDate ? new Date(impactDateFilters.startDate + 'T00:00:00') : null;
+                                        const end = impactDateFilters.endDate ? new Date(impactDateFilters.endDate + 'T23:59:59') : null;
+                                        if (start && tDate < start) return false;
+                                        if (end && tDate > end) return false;
+                                    }
+                                    return true;
+                                });
+
+                                if (list.length === 0) {
+                                    return (
+                                        <div className="text-center py-20 opacity-30">
+                                            <p className="text-sm font-bold uppercase tracking-widest text-brand-med-gray">Nenhuma tarefa encontrada neste filtro/período.</p>
+                                        </div>
+                                    );
+                                }
+
+                                return list.map(t => (
                                     <div key={t.id} className={`bg-brand-dark/40 border rounded-2xl p-6 transition-all group shadow-inner ${savingImpactTaskId === t.id ? 'border-yellow-500/30 opacity-70' : 'border-white/5 hover:border-brand-accent/30'}`}>
                                         <div className="flex justify-between items-start mb-4">
                                             <div>
@@ -1248,8 +1273,8 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                             </p>
                                         </div>
                                     </div>
-                                ))
-                            )}
+                                ));
+                            })()}
                         </div>
                         
                         <div className="p-6 bg-brand-dark/50 border-t border-white/5 text-center">
