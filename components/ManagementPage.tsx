@@ -495,18 +495,26 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                             });
 
                             const performanceData = Object.entries(assigneeMap)
-                                .map(([name, stats]) => ({
-                                    name: name.length > 20 ? name.substring(0, 20) + '…' : name,
-                                    fullName: name,
-                                    noPrazo: stats.onTime,
-                                    foraDoPrazo: stats.late,
-                                    emAberto: stats.open,
-                                    atrasadas: stats.overdue,
-                                    total: stats.total,
-                                    totalCompleted: stats.onTime + stats.late,
-                                    onTimeRate: stats.total > 0 ? Math.round((stats.onTime / stats.total) * 100) : 0,
-                                }))
-                                .sort((a, b) => b.noPrazo - a.noPrazo || b.onTimeRate - a.onTimeRate)
+                                .map(([name, stats]) => {
+                                    // Taxa baseada em tarefas que já deveriam ter resultado:
+                                    // concluídas (no prazo + fora do prazo) + atrasadas (nem concluiu)
+                                    const resolved = stats.onTime + stats.late + stats.overdue;
+                                    const onTimeRate = resolved > 0 ? Math.round((stats.onTime / resolved) * 100) : (stats.open > 0 ? 100 : 0);
+                                    return {
+                                        name: name.length > 20 ? name.substring(0, 20) + '…' : name,
+                                        fullName: name,
+                                        noPrazo: stats.onTime,
+                                        foraDoPrazo: stats.late,
+                                        emAberto: stats.open,
+                                        atrasadas: stats.overdue,
+                                        total: stats.total,
+                                        totalCompleted: stats.onTime + stats.late,
+                                        resolved,
+                                        onTimeRate,
+                                    };
+                                })
+                                .filter(item => item.resolved > 0 || item.total >= 3) // Mostra só quem tem relevância
+                                .sort((a, b) => b.onTimeRate - a.onTimeRate || a.atrasadas - b.atrasadas || b.noPrazo - a.noPrazo)
                                 .slice(0, 12);
 
                             if (performanceData.length === 0) return null;
@@ -572,15 +580,15 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                                             <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${item.onTimeRate}%` }}></div>
                                                         </div>
                                                         <div className="flex justify-between mt-1.5 text-[8px] text-brand-med-gray font-bold uppercase">
-                                                            <span>✅ {item.noPrazo} no prazo</span>
-                                                            <span>Total: {item.total}</span>
+                                                            <span>✅ {item.noPrazo}/{item.resolved} no prazo</span>
+                                                            <span>{item.atrasadas > 0 ? `🔴 ${item.atrasadas} atrasadas` : '🟢 0 atrasadas'}</span>
                                                         </div>
                                                     </div>
                                                 );
                                             })}
                                         </div>
                                         <div className="mt-4 pt-3 border-t border-white/5 text-[9px] text-brand-med-gray font-medium italic">
-                                            Critério: tarefas concluídas com data real ≤ data planejada.
+                                            Critério: entregas no prazo ÷ (concluídas + atrasadas). Tarefas em aberto não penalizam.
                                         </div>
                                     </div>
                                 </div>
