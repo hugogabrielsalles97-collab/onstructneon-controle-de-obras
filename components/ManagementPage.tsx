@@ -453,6 +453,10 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
             }
             
             return data;
+        }).filter(week => {
+            const [d, m] = week.name.split('/').map(Number);
+            // Inicia em 21/02 (ou depois)
+            return (m > 2) || (m === 2 && d >= 21);
         });
     }, [tasks, dateFilters]);
 
@@ -585,6 +589,14 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                                 {weeklyPpcData.map((entry, index) => (
                                                     <Cell key={`cell-${index}`} fill={entry.ppc >= 80 ? '#10b981' : entry.ppc >= 60 ? '#f59e0b' : '#ef4444'} />
                                                 ))}
+                                                <LabelList 
+                                                    dataKey="ppc" 
+                                                    position="top" 
+                                                    fill="#94a3b8" 
+                                                    fontSize={9} 
+                                                    fontWeight="bold" 
+                                                    formatter={(v: any) => `${v}%`} 
+                                                />
                                             </Bar>
                                         </BarChart>
                                     </ResponsiveContainer>
@@ -677,16 +689,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                                 axisLine={false}
                                                 tickFormatter={(value) => `${value}`}
                                             />
-                                            <YAxis 
-                                                yAxisId="right"
-                                                orientation="right"
-                                                stroke="#94a3b8" 
-                                                fontSize={10} 
-                                                tickLine={false}
-                                                axisLine={false}
-                                                unit="%"
-                                                domain={[0, 100]}
-                                            />
+
                                             <Tooltip 
                                                 contentStyle={{ 
                                                     backgroundColor: '#111827', 
@@ -704,13 +707,8 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                                 dataKey="count" 
                                                 radius={[6, 6, 2, 2]} 
                                                 barSize={44}
+                                                fill="url(#gradientB)"
                                             >
-                                                {paretoData.map((entry, index) => (
-                                                    <Cell 
-                                                        key={`cell-${index}`} 
-                                                        fill={entry.abc === 'A' ? 'url(#gradientA)' : entry.abc === 'B' ? 'url(#gradientB)' : 'url(#gradientC)'} 
-                                                    />
-                                                ))}
                                                 <LabelList 
                                                     dataKey="count" 
                                                     position="top" 
@@ -720,16 +718,6 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                                     offset={8}
                                                 />
                                             </Bar>
-                                            <Line 
-                                                yAxisId="right"
-                                                type="monotone" 
-                                                dataKey="cumulativePercent" 
-                                                stroke="#fb7185" 
-                                                strokeWidth={4}
-                                                dot={{ fill: '#fb7185', strokeWidth: 2, r: 5, stroke: '#111827' }}
-                                                activeDot={{ r: 8, strokeWidth: 0 }}
-                                                filter="url(#glow)"
-                                            />
                                         </ComposedChart>
                                     </ResponsiveContainer>
                                 </div>
