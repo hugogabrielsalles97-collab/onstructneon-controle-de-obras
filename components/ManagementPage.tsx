@@ -309,8 +309,14 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
             .slice(-10);
     }, [tasks, IMPACT_CATEGORIES]);
 
-    // --- LÓGICA PPC SEMANAL ---
+    // --- LÓGICA PPC SEMANAL (Semanas Fechadas) ---
     const weeklyPpcData = useMemo(() => {
+        // Data do último sábado fechado
+        const now = new Date();
+        const lastClosedSaturday = new Date(now);
+        lastClosedSaturday.setDate(now.getDate() - (now.getDay() + 1));
+        lastClosedSaturday.setHours(23, 59, 59, 999);
+
         const tasksToUse = tasks.filter(t => {
             if (!dateFilters.startDate && !dateFilters.endDate) return true;
             const tDate = new Date(t.dueDate + 'T00:00:00');
@@ -324,13 +330,21 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
         const start = new Date(Math.min(...tasksToUse.map(t => new Date(t.startDate).getTime())));
         const end = new Date(Math.max(...tasksToUse.map(t => new Date(t.dueDate).getTime())));
 
-        const weeks: { [key: string]: { planned: number; completed: number; weekNum: number } } = {};
+        const weeks: { [key: string]: { planned: number; completed: number; weekNum: number; weekEnd: Date } } = {};
 
         tasksToUse.forEach(task => {
             const taskDueDate = new Date(task.dueDate + 'T23:59:59');
             if (taskDueDate >= start && taskDueDate <= end) {
                 const d = new Date(taskDueDate);
                 d.setDate(d.getDate() - d.getDay()); // Domingo
+                
+                const weekEnd = new Date(d);
+                weekEnd.setDate(d.getDate() + 6);
+                weekEnd.setHours(23, 59, 59, 999);
+
+                // SÓ ENTRA NO CÁLCULO SE A SEMANA ESTIVER FECHADA
+                if (weekEnd > lastClosedSaturday) return;
+
                 const weekKey = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
                 
                 if (!weeks[weekKey]) {
@@ -343,7 +357,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                     if (target.getDay() !== 4) target.setMonth(0, 1 + ((4 - target.getDay() + 7) % 7));
                     const weekNum = 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
                     
-                    weeks[weekKey] = { planned: 0, completed: 0, weekNum };
+                    weeks[weekKey] = { planned: 0, completed: 0, weekNum, weekEnd };
                 }
                 
                 weeks[weekKey].planned += 1;
@@ -369,8 +383,13 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
         return Math.round(weeklyPpcData.reduce((acc, d) => acc + d.ppc, 0) / weeklyPpcData.length);
     }, [weeklyPpcData]);
 
-    // --- LÓGICA PPC ACUMULADO ---
+    // --- LÓGICA PPC ACUMULADO (Linha Realizada interrompida na última fechada) ---
     const accumulatedPpcData = useMemo(() => {
+        const now = new Date();
+        const lastClosedSaturday = new Date(now);
+        lastClosedSaturday.setDate(now.getDate() - (now.getDay() + 1));
+        lastClosedSaturday.setHours(23, 59, 59, 999);
+
         const tasksToUse = tasks.filter(t => {
             if (!dateFilters.startDate && !dateFilters.endDate) return true;
             const tDate = new Date(t.dueDate + 'T00:00:00');
@@ -392,31 +411,49 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
         while (current <= maxDate) {
             const weekEnd = new Date(current);
             weekEnd.setDate(weekEnd.getDate() + 6);
+            weekEnd.setHours(23, 59, 59, 999);
+
             const key = current.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-            let total = 0, completed = 0;
+            let totalByWeekEnd = 0, completedByWeekEnd = 0;
+            
             tasksToUse.forEach(task => {
                 const dueDate = new Date(task.dueDate + 'T00:00:00');
                 if (dueDate <= weekEnd) {
-                    total++;
+                    totalByWeekEnd++;
+                    // Para o realizado acumulado, só contamos tarefas que terminaram até o prazo planejado e cujas semanas estão fechadas
                     if (task.status === TaskStatus.Completed) {
                         const actualEnd = new Date(task.actualEndDate + 'T00:00:00');
                         const dueLimit = new Date(task.dueDate + 'T23:59:59');
-                        if (actualEnd <= dueLimit) completed++;
+                        if (actualEnd <= dueLimit) completedByWeekEnd++;
                     }
                 }
             });
-            if (total > 0) {
-                tasksByWeek.push({ weekStart: new Date(current), weekEnd: new Date(weekEnd), key, total, completed });
-            }
+
+            tasksByWeek.push({ 
+                weekStart: new Date(current), 
+                weekEnd: new Date(weekEnd), 
+                key, 
+                total: totalByWeekEnd, 
+                completed: completedByWeekEnd 
+            });
+            
             current.setDate(current.getDate() + 7);
         }
 
         const totalTasksCount = tasksToUse.length;
-        return tasksByWeek.map(week => ({
-            name: `${week.key}`,
-            planejado: Math.round((week.total / totalTasksCount) * 100),
-            realizado: Math.round((week.completed / totalTasksCount) * 100),
-        }));
+        return tasksByWeek.map(week => {
+            const data: any = {
+                name: `${week.key}`,
+                planejado: Math.round((week.total / totalTasksCount) * 100),
+            };
+            
+            // SÓ MOSTRA O REALIZADO SE A SEMANA ESTIVER FECHADA
+            if (week.weekEnd <= lastClosedSaturday) {
+                data.realizado = Math.round((week.completed / totalTasksCount) * 100);
+            }
+            
+            return data;
+        });
     }, [tasks, dateFilters]);
 
     const globalStats = useMemo(() => {
