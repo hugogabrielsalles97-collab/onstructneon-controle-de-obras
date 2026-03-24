@@ -358,60 +358,100 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                 <div className="h-[350px]">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <ComposedChart data={paretoData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                                            <defs>
+                                                {/* Gradiente para Categoria A (Crítico/Laranja) */}
+                                                <linearGradient id="gradientA" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="0%" stopColor="#f97316" stopOpacity={0.9}/>
+                                                    <stop offset="100%" stopColor="#ea580c" stopOpacity={0.6}/>
+                                                </linearGradient>
+                                                {/* Gradiente para Categoria B (Intermediário/Azul) */}
+                                                <linearGradient id="gradientB" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.9}/>
+                                                    <stop offset="100%" stopColor="#2563eb" stopOpacity={0.6}/>
+                                                </linearGradient>
+                                                {/* Gradiente para Categoria C (Menor/Cinza) */}
+                                                <linearGradient id="gradientC" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="0%" stopColor="#64748b" stopOpacity={0.9}/>
+                                                    <stop offset="100%" stopColor="#475569" stopOpacity={0.6}/>
+                                                </linearGradient>
+                                                
+                                                {/* Filtro de brilho para a linha */}
+                                                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                                                    <feGaussianBlur stdDeviation="3" result="blur" />
+                                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                                </filter>
+                                            </defs>
                                             <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
                                             <XAxis 
                                                 dataKey="label" 
-                                                stroke="#94a3b8" 
+                                                stroke="#475569" 
                                                 fontSize={10} 
-                                                fontWeight={800}
+                                                fontWeight={700}
                                                 tickLine={false}
                                                 axisLine={false}
                                                 dy={10}
                                             />
                                             <YAxis 
                                                 yAxisId="left"
-                                                stroke="#94a3b8" 
+                                                stroke="#475569" 
                                                 fontSize={10} 
                                                 tickLine={false}
                                                 axisLine={false}
-                                                label={{ value: 'Frequência (Ocorrências)', angle: -90, position: 'insideLeft', style: { fill: '#94a3b8', fontSize: 10, fontWeight: 700 } }}
+                                                tickFormatter={(value) => `${value}`}
                                             />
                                             <YAxis 
                                                 yAxisId="right"
                                                 orientation="right"
-                                                stroke="#ef4444" 
+                                                stroke="#94a3b8" 
                                                 fontSize={10} 
                                                 tickLine={false}
                                                 axisLine={false}
                                                 unit="%"
                                                 domain={[0, 100]}
-                                                label={{ value: '% Acumulada', angle: 90, position: 'insideRight', style: { fill: '#ef4444', fontSize: 10, fontWeight: 700 } }}
                                             />
                                             <Tooltip 
-                                                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '12px' }}
+                                                contentStyle={{ 
+                                                    backgroundColor: '#111827', 
+                                                    border: '1px solid #ffffff10', 
+                                                    borderRadius: '16px', 
+                                                    fontSize: '11px',
+                                                    backdropFilter: 'blur(8px)',
+                                                    boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.5)'
+                                                }}
                                                 itemStyle={{ fontWeight: 'bold' }}
+                                                cursor={{ fill: 'rgba(255,255,255,0.03)' }}
                                             />
-                                            <Bar yAxisId="left" dataKey="count" fill="url(#barGradient)" radius={[6, 6, 0, 0]} barSize={40}>
+                                            <Bar 
+                                                yAxisId="left" 
+                                                dataKey="count" 
+                                                radius={[6, 6, 2, 2]} 
+                                                barSize={44}
+                                            >
                                                 {paretoData.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={entry.abc === 'A' ? '#e35a10' : entry.abc === 'B' ? '#3b82f6' : '#64748b'} />
+                                                    <Cell 
+                                                        key={`cell-${index}`} 
+                                                        fill={entry.abc === 'A' ? 'url(#gradientA)' : entry.abc === 'B' ? 'url(#gradientB)' : 'url(#gradientC)'} 
+                                                    />
                                                 ))}
-                                                <LabelList dataKey="count" position="top" fill="#94a3b8" fontSize={10} fontWeight={900} />
+                                                <LabelList 
+                                                    dataKey="count" 
+                                                    position="top" 
+                                                    fill="#94a3b8" 
+                                                    fontSize={11} 
+                                                    fontWeight={900} 
+                                                    offset={8}
+                                                />
                                             </Bar>
                                             <Line 
                                                 yAxisId="right"
                                                 type="monotone" 
                                                 dataKey="cumulativePercent" 
-                                                stroke="#ef4444" 
-                                                strokeWidth={3}
-                                                dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
-                                                activeDot={{ r: 6, strokeWidth: 0 }}
+                                                stroke="#fb7185" 
+                                                strokeWidth={4}
+                                                dot={{ fill: '#fb7185', strokeWidth: 2, r: 5, stroke: '#111827' }}
+                                                activeDot={{ r: 8, strokeWidth: 0 }}
+                                                filter="url(#glow)"
                                             />
-                                            <defs>
-                                                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="0%" stopColor="#e35a10" stopOpacity={0.8}/>
-                                                    <stop offset="100%" stopColor="#e35a10" stopOpacity={0.3}/>
-                                                </linearGradient>
-                                            </defs>
                                         </ComposedChart>
                                     </ResponsiveContainer>
                                 </div>
