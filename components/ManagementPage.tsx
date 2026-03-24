@@ -463,6 +463,130 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                             onSave={setMonthlyPlanning}
                         />
 
+                        {/* Performance por Responsável */}
+                        {(() => {
+                            const todayNum = new Date().setHours(0, 0, 0, 0);
+                            const assigneeMap: { [key: string]: { total: number; onTime: number; late: number; overdue: number; open: number } } = {};
+
+                            tasks.forEach(task => {
+                                const assignee = task.assignee || 'Sem Responsável';
+                                if (!assigneeMap[assignee]) assigneeMap[assignee] = { total: 0, onTime: 0, late: 0, overdue: 0, open: 0 };
+                                assigneeMap[assignee].total++;
+
+                                if (task.status === TaskStatus.Completed) {
+                                    // Verificar se concluiu dentro do prazo
+                                    if (task.actualEndDate && task.dueDate) {
+                                        const actualEnd = new Date(task.actualEndDate + 'T00:00:00').getTime();
+                                        const dueLimit = new Date(task.dueDate + 'T23:59:59').getTime();
+                                        if (actualEnd <= dueLimit) {
+                                            assigneeMap[assignee].onTime++;
+                                        } else {
+                                            assigneeMap[assignee].late++;
+                                        }
+                                    } else {
+                                        // Concluída sem data real de fim — considerar no prazo
+                                        assigneeMap[assignee].onTime++;
+                                    }
+                                } else if (new Date(task.dueDate + 'T00:00:00').getTime() < todayNum) {
+                                    assigneeMap[assignee].overdue++;
+                                } else {
+                                    assigneeMap[assignee].open++;
+                                }
+                            });
+
+                            const performanceData = Object.entries(assigneeMap)
+                                .map(([name, stats]) => ({
+                                    name: name.length > 20 ? name.substring(0, 20) + '…' : name,
+                                    fullName: name,
+                                    noPrazo: stats.onTime,
+                                    foraDoPrazo: stats.late,
+                                    emAberto: stats.open,
+                                    atrasadas: stats.overdue,
+                                    total: stats.total,
+                                    totalCompleted: stats.onTime + stats.late,
+                                    onTimeRate: stats.total > 0 ? Math.round((stats.onTime / stats.total) * 100) : 0,
+                                }))
+                                .sort((a, b) => b.noPrazo - a.noPrazo || b.onTimeRate - a.onTimeRate)
+                                .slice(0, 12);
+
+                            if (performanceData.length === 0) return null;
+
+                            return (
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 non-printable">
+                                    {/* Gráfico de Barras */}
+                                    <div className="lg:col-span-2 bg-[#111827]/40 backdrop-blur-sm p-6 rounded-2xl border border-white/5 shadow-xl hover-shine relative overflow-hidden">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <div>
+                                                <h4 className="text-xs font-black text-brand-accent uppercase tracking-widest border-b border-white/5 pb-2">Performance por Responsável</h4>
+                                                <p className="text-[9px] text-brand-med-gray mt-2 italic">Ranking por atividades cumpridas dentro do prazo</p>
+                                            </div>
+                                            <div className="flex items-center gap-4 text-[9px] font-bold uppercase tracking-wider">
+                                                <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-green-500"></div><span className="text-green-400">No Prazo</span></div>
+                                                <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-yellow-500"></div><span className="text-yellow-400">Fora do Prazo</span></div>
+                                                <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div><span className="text-blue-400">Em Aberto</span></div>
+                                                <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-red-500"></div><span className="text-red-400">Atrasadas</span></div>
+                                            </div>
+                                        </div>
+                                        <div className="h-[400px]">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={performanceData} layout="vertical" margin={{ top: 5, right: 30, left: 5, bottom: 5 }}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" horizontal={false} />
+                                                    <XAxis type="number" stroke="#94a3b8" fontSize={10} fontWeight={800} axisLine={false} tickLine={false} />
+                                                    <YAxis type="category" dataKey="name" width={140} stroke="#94a3b8" fontSize={10} fontWeight={700} axisLine={false} tickLine={false} />
+                                                    <Tooltip
+                                                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '11px' }}
+                                                        itemStyle={{ fontWeight: 'bold' }}
+                                                        formatter={(value: any, name: string) => {
+                                                            const labels: Record<string, string> = { noPrazo: 'No Prazo', foraDoPrazo: 'Fora do Prazo', emAberto: 'Em Aberto', atrasadas: 'Atrasadas' };
+                                                            return [value, labels[name] || name];
+                                                        }}
+                                                    />
+                                                    <Bar dataKey="noPrazo" stackId="a" fill="#22c55e" radius={[0, 0, 0, 0]} />
+                                                    <Bar dataKey="foraDoPrazo" stackId="a" fill="#eab308" />
+                                                    <Bar dataKey="emAberto" stackId="a" fill="#3b82f6" />
+                                                    <Bar dataKey="atrasadas" stackId="a" fill="#ef4444" radius={[0, 6, 6, 0]} />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
+
+                                    {/* Ranking Tabela */}
+                                    <div className="bg-[#111827]/40 backdrop-blur-sm p-6 rounded-2xl border border-white/5 shadow-xl flex flex-col">
+                                        <h4 className="text-xs font-black text-brand-accent uppercase tracking-widest border-b border-white/5 pb-2 mb-4">🏆 Ranking — No Prazo</h4>
+                                        <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar">
+                                            {performanceData.map((item, idx) => {
+                                                const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}º`;
+                                                const barColor = item.onTimeRate >= 80 ? 'bg-green-500' : item.onTimeRate >= 50 ? 'bg-yellow-500' : 'bg-red-500';
+                                                return (
+                                                    <div key={item.fullName} className="bg-white/5 rounded-xl p-3 border border-white/5 hover:border-brand-accent/20 transition-all">
+                                                        <div className="flex items-center justify-between mb-1.5">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-base">{medal}</span>
+                                                                <span className="text-xs font-bold text-white truncate max-w-[120px]">{item.fullName}</span>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <span className={`text-lg font-black ${item.onTimeRate >= 80 ? 'text-green-400' : item.onTimeRate >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>{item.onTimeRate}%</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="w-full bg-brand-darkest rounded-full h-1.5 overflow-hidden">
+                                                            <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${item.onTimeRate}%` }}></div>
+                                                        </div>
+                                                        <div className="flex justify-between mt-1.5 text-[8px] text-brand-med-gray font-bold uppercase">
+                                                            <span>✅ {item.noPrazo} no prazo</span>
+                                                            <span>Total: {item.total}</span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="mt-4 pt-3 border-t border-white/5 text-[9px] text-brand-med-gray font-medium italic">
+                                            Critério: tarefas concluídas com data real ≤ data planejada.
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
                         <div className="grid grid-cols-1 gap-4">
                             {analysisData.length === 0 ? (
                                 <div className="bg-brand-dark/70 p-12 rounded-lg text-center text-brand-med-gray">
