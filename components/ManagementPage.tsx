@@ -17,6 +17,7 @@ import {
   AreaChart, Area, ReferenceLine
 } from 'recharts';
 import AlertIcon from './icons/AlertIcon';
+import ConfirmModal from './ConfirmModal';
 
 interface ManagementPageProps {
     onNavigateToDashboard: () => void;
@@ -77,6 +78,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
     const [selectedImpactCategory, setSelectedImpactCategory] = React.useState<string | null>(null);
     const [editingImpactTaskId, setEditingImpactTaskId] = React.useState<string | null>(null);
     const [savingImpactTaskId, setSavingImpactTaskId] = React.useState<string | null>(null);
+    const [deleteResponseConfirm, setDeleteResponseConfirm] = React.useState<{ isOpen: boolean; taskId: string | null }>({ isOpen: false, taskId: null });
 
     const IMPACT_CATEGORIES = ['Projeto', 'Mão de obra', 'Equipamento', 'Acesso', 'Chuva', 'Inspeção', 'Material', 'Predecessora', 'Interferências'];
     const canEditImpact = user && (user.role === 'Master' || user.role === 'Planejador');
@@ -1106,6 +1108,49 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 </div>
             </main>
 
+            {/* Modal de confirmação para excluir resposta */}
+            <ConfirmModal 
+                isOpen={deleteResponseConfirm.isOpen}
+                onClose={() => setDeleteResponseConfirm({ isOpen: false, taskId: null })}
+                onConfirm={async () => {
+                    const taskId = deleteResponseConfirm.taskId;
+                    if (!taskId) return;
+                    
+                    setDeleteResponseConfirm(prev => ({ ...prev, isOpen: false }));
+                    setSavingImpactTaskId(taskId);
+                    
+                    const t = tasks.find(item => item.id === taskId) || 
+                              currentScheduleTasks.find(item => item.id === taskId);
+                    
+                    if (!t) {
+                        showToast('Tarefa não encontrada.', 'error');
+                        setSavingImpactTaskId(null);
+                        return;
+                    }
+
+                    const result = await saveTask({
+                        ...t,
+                        response: null as any,
+                        response_user: null as any,
+                        response_at: null as any
+                    });
+
+                    if (result.success) {
+                        showToast('Resposta excluída!', 'success');
+                    } else {
+                        showToast(`Erro ao excluir: ${result.error}`, 'error');
+                    }
+                    setSavingImpactTaskId(null);
+                    setDeleteResponseConfirm({ isOpen: false, taskId: null });
+                }}
+                title="Excluir Resposta"
+                message="Tem certeza que deseja excluir esta resposta? Esta ação não pode ser desfeita."
+                confirmText="Excluir"
+                cancelText="Cancelar"
+                type="danger"
+                isLoading={savingImpactTaskId === deleteResponseConfirm.taskId && savingImpactTaskId !== null}
+            />
+
             {/* Modal de Detalhamento de Impactos (Drill-down) */}
             {selectedImpactCategory && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in" onClick={() => setSelectedImpactCategory(null)}>
@@ -1296,21 +1341,8 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                                                 </button>
                                                                 <button 
                                                                     disabled={savingImpactTaskId === t.id}
-                                                                    onClick={async () => {
-                                                                        if (!confirm('Deseja realmente excluir esta resposta?')) return;
-                                                                        setSavingImpactTaskId(t.id);
-                                                                        const result = await saveTask({
-                                                                            ...t,
-                                                                            response: '',
-                                                                            response_user: '',
-                                                                            response_at: ''
-                                                                        });
-                                                                        if (result.success) {
-                                                                            showToast('Resposta excluída!', 'success');
-                                                                        } else {
-                                                                            showToast(`Erro ao excluir: ${result.error}`, 'error');
-                                                                        }
-                                                                        setSavingImpactTaskId(null);
+                                                                    onClick={() => {
+                                                                        setDeleteResponseConfirm({ isOpen: true, taskId: t.id });
                                                                     }}
                                                                     className="text-[10px] text-red-400 font-bold hover:text-red-300 uppercase tracking-tighter"
                                                                 >
