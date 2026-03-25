@@ -126,7 +126,7 @@ const PodcastPage: React.FC<PodcastPageProps> = ({
         setIsGenerating(true);
         try {
             const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY, { fetch: customFetch } as any);
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
             const today = new Date();
             today.setHours(0, 0, 0, 0);

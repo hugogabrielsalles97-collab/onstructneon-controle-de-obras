@@ -1,4 +1,5 @@
 // Forçando reinicialização do server Vite para carregar nova API Key
+// Reinicialização para carregar chave nova AIzaSyAiUELGQ9Eb6LNG_tI6F8daC3ag8i9F208
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';

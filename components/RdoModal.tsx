@@ -95,7 +95,7 @@ const RdoModal: React.FC<RdoModalProps> = ({ isOpen, onClose, tasks, onUpgradeCl
             const payload = {
                 contents: [{ parts: [{ text: prompt }] }],
             };
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${import.meta.env.VITE_GOOGLE_GENAI_API_KEY}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${import.meta.env.VITE_GOOGLE_GENAI_API_KEY}`;
             
             const { supabase } = await import('../supabaseClient');
             const { data, error: rpcError } = await supabase.rpc('gemini_proxy', {
