@@ -137,28 +137,45 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                     <th className="p-4 border-b border-brand-dark">Disciplina</th>
                                     <th className="p-4 border-b border-brand-dark">Mês</th>
                                     <th className="p-4 border-b border-brand-dark">Previsto (%)</th>
+                                    <th className="p-4 border-b border-brand-dark">Previsto Acum. (%)</th>
                                     <th className="p-4 border-b border-brand-dark text-brand-accent">Realizado (%)</th>
+                                    <th className="p-4 border-b border-brand-dark text-brand-accent">Realizado Acum. (%)</th>
                                     <th className="p-4 border-b border-brand-dark"></th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-brand-darkest/50">
                                 {editingData.map((m, idx) => {
                                     const isExpanded = !!m.isExpanded;
-                                    const dateObj = new Date(parseInt(m.month.split('-')[0]), parseInt(m.month.split('-')[1]) - 1, 1);
                                     
+                                    // Cálculo de acumulados para esta disciplina até este mês
+                                    const disciplineData = editingData
+                                        .filter(item => item.discipline === m.discipline)
+                                        .sort((a, b) => a.month.localeCompare(b.month));
+                                    
+                                    const currentMonthIdx = disciplineData.findIndex(item => item.month === m.month);
+                                    const dataUntilNow = disciplineData.slice(0, currentMonthIdx + 1);
+                                    
+                                    const accPlanned = dataUntilNow.reduce((acc, item) => acc + (item.planned || 0), 0);
+                                    
+                                    const hasAnyRealInHistory = dataUntilNow.some(item => item.actual !== null && item.actual !== undefined);
+                                    const accActual = hasAnyRealInHistory ? dataUntilNow.reduce((acc, item) => acc + (item.actual || 0), 0) : null;
+
                                     return (
                                         <React.Fragment key={`${idx}-${m.discipline}-${m.month}`}>
                                             <tr className={`${isExpanded ? 'bg-brand-accent/10' : 'hover:bg-brand-accent/5'} transition-colors border-l-2 ${isExpanded ? 'border-brand-accent' : 'border-transparent'}`}>
                                                 <td className="p-2">
-                                                    <select
+                                                    <input
+                                                        list="disciplines-list"
                                                         value={m.discipline}
                                                         onChange={(e) => handleDisciplineChange(idx, e.target.value)}
-                                                        className="w-full bg-brand-darkest border border-brand-dark rounded p-2 text-white focus:ring-1 focus:ring-brand-accent outline-none font-bold"
-                                                    >
+                                                        className="w-full bg-brand-darkest border border-brand-dark rounded p-2 text-white focus:ring-1 focus:ring-brand-accent outline-none font-bold placeholder:font-normal"
+                                                        placeholder="Digite a disciplina..."
+                                                    />
+                                                    <datalist id="disciplines-list">
                                                         {availableDisciplines.map(d => (
-                                                            <option key={d} value={d}>{d}</option>
+                                                            <option key={d} value={d} />
                                                         ))}
-                                                    </select>
+                                                    </datalist>
                                                 </td>
                                                 <td className="p-4 text-white font-bold whitespace-nowrap flex items-center gap-2">
                                                     <button 
@@ -190,6 +207,9 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                         className={`w-full bg-brand-darkest border border-brand-dark rounded p-2 text-white focus:ring-1 focus:ring-brand-accent outline-none ${isExpanded ? 'opacity-50' : ''}`}
                                                     />
                                                 </td>
+                                                <td className="p-2 text-brand-med-gray font-mono text-[10px] text-center">
+                                                    {accPlanned.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                                                </td>
                                                 <td className="p-2">
                                                     <input
                                                         type="number"
@@ -200,6 +220,9 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                         placeholder="Pendente"
                                                         className={`w-full bg-brand-darkest border border-brand-accent/20 rounded p-2 text-brand-accent focus:ring-1 focus:ring-brand-accent outline-none placeholder:text-brand-accent/30 ${isExpanded ? 'opacity-50' : ''}`}
                                                     />
+                                                </td>
+                                                <td className="p-2 text-brand-accent/80 font-mono text-[10px] text-center">
+                                                    {accActual !== null ? `${accActual.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : '-'}
                                                 </td>
                                                 <td className="p-2 text-center">
                                                     <button 
@@ -241,6 +264,10 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                             className="w-full bg-brand-dark border border-brand-accent/10 rounded p-1 text-[11px] text-brand-accent focus:ring-1 focus:ring-brand-accent outline-none"
                                                         />
                                                     </td>
+                                                    <td className="p-1"></td>
+                                                    <td className="p-1 text-center"></td>
+                                                    <td className="p-1"></td>
+                                                    <td className="p-1 text-center"></td>
                                                     <td></td>
                                                 </tr>
                                             ))}
