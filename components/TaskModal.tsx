@@ -557,12 +557,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             6. Seja breve (máximo 3 frases).
             `;
 
-            const apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '';
-            const aiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-            const { data, error: rpcErr } = await supabase.rpc('gemini_proxy', { request_url: aiUrl, request_body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
-            if (rpcErr) throw new Error(rpcErr.message);
-            if (data?.error) throw new Error(data.error.message);
-            const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            const { callGeminiProxy } = await import('../utils/aiHelper');
+            const aiText = await callGeminiProxy(prompt);
 
             setFormData(prev => ({
                 ...prev,
@@ -601,12 +597,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             Responda APENAS o ID escolhido ou "null".
             `;
 
-            const apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '';
-            const aiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-            const { data, error: rpcErr } = await supabase.rpc('gemini_proxy', { request_url: aiUrl, request_body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
-            if (rpcErr) throw new Error(rpcErr.message);
-            if (data?.error) throw new Error(data.error.message);
-            const responseText = (data?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+            const { callGeminiProxy } = await import('../utils/aiHelper');
+            const responseText = (await callGeminiProxy(prompt)).trim();
             const sugeridoId = responseText.replace(/['"`]/g, '').toLowerCase() === 'null' ? '' : responseText.replace(/['"`]/g, '');
 
             if (sugeridoId) {
@@ -662,13 +654,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             Retorne JSON: {"is_safe": boolean, "findings": "descrição"}.
             `;
 
-            const apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '';
-            const aiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-            const { data: result, error: rpcErr } = await supabase.rpc('gemini_proxy', { request_url: aiUrl, request_body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inlineData: { data: imageData, mimeType } }] }] }) });
-            if (rpcErr) throw new Error(rpcErr.message);
-            if (result?.error) throw new Error(result.error.message);
-
-            const responseText = result?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+            const { callGeminiProxyMultimodal } = await import('../utils/aiHelper');
+            const responseText = await callGeminiProxyMultimodal([{ text: prompt }, { inlineData: { data: imageData, mimeType } }]);
             const jsonMatch = responseText.match(/\{[\s\S]*\}/);
             const analysis = jsonMatch ? JSON.parse(jsonMatch[0]) : { is_safe: false, findings: "Falha na análise." };
 
@@ -688,12 +675,9 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
     const fetchWeather = async (location: string, startDate: string, endDate: string, isForecast: boolean) => {
         const hardcodedLocation = "PARACAMBI-RJ";
         try {
-            const apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '';
+            const { callGeminiProxy } = await import('../utils/aiHelper');
             const prompt = `Meteorologia para ${hardcodedLocation} entre ${startDate} e ${endDate}. Resumo técnico curto.`;
-            const aiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-            const { data, error: rpcErr } = await supabase.rpc('gemini_proxy', { request_url: aiUrl, request_body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
-            if (rpcErr) throw new Error(rpcErr.message);
-            return data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Indisponível.';
+            return await callGeminiProxy(prompt) || 'Indisponível.';
         } catch (error) {
             return "Indisponível.";
         }

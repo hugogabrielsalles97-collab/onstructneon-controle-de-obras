@@ -295,12 +295,9 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                 Responda em Português do Brasil.
             `;
 
-            const { supabase } = await import('../supabaseClient');
-            const aiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-            const { data, error: rpcErr } = await supabase.rpc('gemini_proxy', { request_url: aiUrl, request_body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
-            if (rpcErr) throw new Error(rpcErr.message);
-            if (data?.error) throw new Error(data.error.message);
-            setAiInsight(data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sem resposta.');
+            const { callGeminiProxy } = await import('../utils/aiHelper');
+            const result = await callGeminiProxy(prompt);
+            setAiInsight(result || 'Sem resposta.');
         } catch (error: any) {
             console.error('Erro na IA:', error);
             setAiInsight(`Erro ao gerar insights: ${error.message}. Verifique a configuração da API Key.`);

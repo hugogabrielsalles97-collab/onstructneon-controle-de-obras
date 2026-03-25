@@ -189,13 +189,8 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
                 Use formatação Markdown com negrito para destaque. Mantenha um tom profissional, técnico mas encorajador.
             `;
 
-            const { supabase } = await import('../supabaseClient');
-            const apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '';
-            const aiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-            const { data, error: rpcErr } = await supabase.rpc('gemini_proxy', { request_url: aiUrl, request_body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
-            if (rpcErr) throw new Error(rpcErr.message);
-            if (data?.error) throw new Error(data.error.message);
-            const suggestionText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            const { callGeminiProxy } = await import('../utils/aiHelper');
+            const suggestionText = await callGeminiProxy(prompt);
 
             const newSuggestion: AISuggestion = {
                 date: new Date().toLocaleString('pt-BR'),

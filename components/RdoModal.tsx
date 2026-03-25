@@ -92,42 +92,9 @@ const RdoModal: React.FC<RdoModalProps> = ({ isOpen, onClose, tasks, onUpgradeCl
             Formate o relatório de maneira clara e profissional, utilizando tópicos e linguagem formal.
         `;
 
-            const apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '';
-            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-            const bodyStr = JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] });
-
-            // Use direct fetch to PostgREST with 120s timeout (supabase.rpc has ~8s default)
-            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-            const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 120000);
-
-            try {
-                const resp = await fetch(`${supabaseUrl}/rest/v1/rpc/gemini_proxy`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'apikey': supabaseKey,
-                        'Authorization': `Bearer ${supabaseKey}`,
-                    },
-                    body: JSON.stringify({ request_url: geminiUrl, request_body: bodyStr }),
-                    signal: controller.signal,
-                });
-                clearTimeout(timeoutId);
-
-                if (!resp.ok) {
-                    const errText = await resp.text();
-                    throw new Error(`Proxy error: ${resp.status} - ${errText}`);
-                }
-
-                const data = await resp.json();
-                if (data?.error) throw new Error(data.error.message || JSON.stringify(data.error));
-                const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sem resposta da IA.';
-                setGeneratedReport(text);
-            } catch (fetchErr) {
-                clearTimeout(timeoutId);
-                throw fetchErr;
-            }
+            const { callGeminiProxy } = await import('../utils/aiHelper');
+            const text = await callGeminiProxy(prompt);
+            setGeneratedReport(text || 'Sem resposta da IA.');
 
         } catch (err) {
             setError("Ocorreu um erro ao gerar o relatório com a IA: " + (err instanceof Error ? err.message : String(err)));

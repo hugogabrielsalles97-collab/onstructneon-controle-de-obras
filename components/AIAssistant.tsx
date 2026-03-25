@@ -70,7 +70,6 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks, activeS
     setIsLoading(true);
 
     try {
-      const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '');
 
       // TOKEN OPTIMIZATION: Send only essential data to reduce costs
       const tasksSummary = tasks.map(t => {
@@ -132,21 +131,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks, activeS
             "${userInput}"
         `;
 
-      const apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '';
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-      const bodyStr = JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] });
-
-      const { supabase } = await import('../supabaseClient');
-      const { data, error: rpcError } = await supabase.rpc('gemini_proxy', {
-        request_url: url,
-        request_body: bodyStr
-      });
-
-      if (rpcError) throw new Error("Erro de conexão: " + rpcError.message);
-      if (data?.error) throw new Error(data.error.message || JSON.stringify(data.error));
-
-      const output = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sem resposta da IA.';
-      setMessages([...newMessages, { sender: 'ai', text: output }]);
+      const { callGeminiProxy } = await import('../utils/aiHelper');
+      const output = await callGeminiProxy(prompt);
+      setMessages([...newMessages, { sender: 'ai', text: output || 'Sem resposta da IA.' }]);
     } catch (error) {
       console.error("Erro ao chamar a API Gemini:", error);
       setMessages([...newMessages, { sender: 'ai', text: "Erro: " + (error instanceof Error ? error.message : String(error)) }]);
