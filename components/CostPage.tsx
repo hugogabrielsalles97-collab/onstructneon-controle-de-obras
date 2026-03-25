@@ -131,19 +131,21 @@ const CostPage: React.FC<CostPageProps> = ({
                                 <span className="text-sm tracking-tight">Resumo Organograma</span>
                             </button>
 
-                            <button
-                                onClick={onNavigateToWarRoom}
-                                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 group text-brand-med-gray hover:bg-white/5 hover:text-white font-medium"
-                            >
-                                <div className="text-red-500/70 transition-transform duration-300 group-hover:scale-110">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                                        <line x1="8" y1="21" x2="16" y2="21" />
-                                        <line x1="12" y1="17" x2="12" y2="21" />
-                                    </svg>
-                                </div>
-                                <span className="text-sm tracking-tight">War Room (TV)</span>
-                            </button>
+                            {user?.role === 'Master' && (
+                                <button
+                                    onClick={onNavigateToWarRoom}
+                                    className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 group text-brand-med-gray hover:bg-white/5 hover:text-white font-medium"
+                                >
+                                    <div className="text-red-500/70 transition-transform duration-300 group-hover:scale-110">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                                            <line x1="8" y1="21" x2="16" y2="21" />
+                                            <line x1="12" y1="17" x2="12" y2="21" />
+                                        </svg>
+                                    </div>
+                                    <span className="text-sm tracking-tight">War Room (TV)</span>
+                                </button>
+                            )}
                         </div>
                     </nav>
                 </div>

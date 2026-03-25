@@ -156,7 +156,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                                 </>
                             )}
 
-                            {onNavigateToWarRoom && (
+                            {user.role === 'Master' && onNavigateToWarRoom && (
                                 <NavButton
                                     active={activeScreen === 'warRoomTV'}
                                     icon={

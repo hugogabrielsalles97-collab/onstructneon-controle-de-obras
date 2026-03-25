@@ -354,12 +354,17 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
           showToast={showToast}
         />
       );
-      case 'warRoomTV': return (
-        <WarRoomTVPage
-          onNavigateToHome={handleNavigateToHome}
-          showToast={showToast}
-        />
-      );
+      case 'warRoomTV': 
+        if (currentUser?.role !== 'Master') {
+          setScreen('dashboard');
+          return null;
+        }
+        return (
+          <WarRoomTVPage
+            onNavigateToHome={handleNavigateToHome}
+            showToast={showToast}
+          />
+        );
       case 'system': return (
         <SystemPage
           {...navigationProps}
