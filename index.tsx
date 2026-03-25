@@ -1,3 +1,26 @@
+import { supabase } from './supabaseClient';
+
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const urlStr = typeof input === 'string' ? input : (input instanceof Request ? input.url : input.toString());
+  if (urlStr.includes('generativelanguage.googleapis.com')) {
+    const { data, error } = await supabase.rpc('gemini_proxy', {
+      request_url: urlStr,
+      request_body: init?.body ? JSON.parse(init.body as string) : {}
+    });
+
+    if (error) {
+      console.error("Erro no Proxy Gemini:", error);
+      throw new Error("Erro via Proxy do Banco: " + error.message);
+    }
+    
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+  return originalFetch(input, init);
+};
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';

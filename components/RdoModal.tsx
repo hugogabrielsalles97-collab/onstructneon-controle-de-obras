@@ -6,22 +6,6 @@ import XIcon from './icons/XIcon';
 import SparkleIcon from './icons/SparkleIcon';
 import AIRestrictedAccess from './AIRestrictedAccess';
 
-const customFetch = async (url: RequestInfo | URL, options?: RequestInit) => {
-    // Import do supabase cliente dinâmico para garantir que tem acesso onde estiver
-    const { supabase } = await import('../supabaseClient');
-    const { data, error } = await supabase.rpc('gemini_proxy', {
-        request_url: url.toString(),
-        request_body: options?.body ? JSON.parse(options.body as string) : {}
-    });
-    if (error) {
-        console.error("Erro no Proxy:", error);
-        throw new Error(error.message);
-    }
-    return new Response(JSON.stringify(data), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-    });
-};
 
 interface RdoModalProps {
     isOpen: boolean;
@@ -71,8 +55,7 @@ const RdoModal: React.FC<RdoModalProps> = ({ isOpen, onClose, tasks, onUpgradeCl
         }
 
         try {
-            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY, { fetch: customFetch } as any);
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+
 
             const tasksDetails = activeTasks.map(task => `
 - Tarefa: ${task.title}
@@ -109,8 +92,21 @@ const RdoModal: React.FC<RdoModalProps> = ({ isOpen, onClose, tasks, onUpgradeCl
             Formate o relatório de maneira clara e profissional, utilizando tópicos e linguagem formal.
         `;
 
-            const result = await model.generateContent(prompt);
-            const text = result.response.text();
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+            };
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${import.meta.env.VITE_GOOGLE_GENAI_API_KEY}`;
+            
+            const { supabase } = await import('../supabaseClient');
+            const { data, error: rpcError } = await supabase.rpc('gemini_proxy', {
+                request_url: url,
+                request_body: payload
+            });
+
+            if (rpcError) throw new Error("Erro de conexão do Proxy: " + rpcError.message);
+            if (data?.error) throw new Error("Erro da API Suprema: " + (data.error.message || JSON.stringify(data.error)));
+
+            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
             setGeneratedReport(text);
 
         } catch (err) {
