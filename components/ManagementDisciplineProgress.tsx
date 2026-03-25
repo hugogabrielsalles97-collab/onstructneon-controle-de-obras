@@ -31,12 +31,16 @@ interface ManagementDisciplineProgressProps {
 const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> = ({ data, onSave, canEdit = false, availableDisciplines }) => {
     const [editingData, setEditingData] = useState<DisciplineMonthProgress[]>(data);
     const [isEditing, setIsEditing] = useState(false);
-    const [selectedChartDiscipline, setSelectedChartDiscipline] = useState<string>('Global');
+    const [selectedChartDiscipline, setSelectedChartDiscipline] = useState<string>('');
 
     const chartDisciplines = useMemo(() => {
         const discSet = new Set<string>();
         editingData.forEach(d => { if (d.discipline) discSet.add(d.discipline); });
-        return ['Global', ...Array.from(discSet).sort()];
+        const list = Array.from(discSet).sort();
+        if (list.length > 0 && !selectedChartDiscipline) {
+            setSelectedChartDiscipline(list[0]);
+        }
+        return list;
     }, [editingData]);
 
     const toggleExpansion = (index: number) => {
@@ -362,9 +366,7 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
 
                 {(() => {
                     // Processamento de dados para o gráfico
-                    const filteredData = selectedChartDiscipline === 'Global' 
-                        ? editingData 
-                        : editingData.filter(d => d.discipline === selectedChartDiscipline);
+                    const filteredData = editingData.filter(d => d.discipline === selectedChartDiscipline);
 
                     // Se não houver dados
                     if (filteredData.length === 0) {
@@ -444,21 +446,21 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                         <>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 <div className="bg-brand-darkest/50 p-4 rounded-xl border border-brand-darkest">
-                                    <p className="text-[9px] text-brand-med-gray font-black uppercase tracking-widest">Avanço Realizado</p>
+                                    <p className="text-[9px] text-brand-med-gray font-black uppercase tracking-widest">Realizado Acumulado</p>
                                     <p className="text-2xl font-black text-white">{totalActual.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%</p>
                                     <div className="w-full h-1.5 bg-white/5 rounded-full mt-2 overflow-hidden">
                                         <div className="h-full bg-brand-accent shadow-[0_0_10px_rgba(6,182,212,0.5)]" style={{ width: `${Math.min(100, totalActual)}%` }}></div>
                                     </div>
                                 </div>
                                 <div className="bg-brand-darkest/50 p-4 rounded-xl border border-brand-darkest">
-                                    <p className="text-[9px] text-brand-med-gray font-black uppercase tracking-widest">Avanço Previsto</p>
+                                    <p className="text-[9px] text-brand-med-gray font-black uppercase tracking-widest">Previsto Acumulado</p>
                                     <p className="text-2xl font-black text-brand-med-gray">{expectedUntilNow.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%</p>
                                     <div className="w-full h-1.5 bg-white/5 rounded-full mt-2 overflow-hidden">
                                         <div className="h-full bg-brand-med-gray/30" style={{ width: `${Math.min(100, expectedUntilNow)}%` }}></div>
                                     </div>
                                 </div>
                                 <div className="bg-brand-darkest/50 p-4 rounded-xl border border-brand-darkest">
-                                    <p className="text-[9px] text-brand-med-gray font-black uppercase tracking-widest">Desvio (Gap)</p>
+                                    <p className="text-[9px] text-brand-med-gray font-black uppercase tracking-widest">Desvio Acumulado (Gap)</p>
                                     <p className={`text-2xl font-black ${deviation >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                         {deviation > 0 ? '+' : ''}{deviation.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%
                                     </p>
@@ -511,7 +513,7 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                             <Legend verticalAlign="top" height={36} wrapperStyle={{ paddingBottom: '20px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }} />
                                             
                                             {/* Barras de Progresso Mensal/Semanal */}
-                                            <Bar yAxisId="left" name="Previsto Mês" dataKey="planned" fill="#1e293b" radius={[4, 4, 0, 0]} />
+                                            <Bar yAxisId="left" name="Previsto Mês" dataKey="planned" fill="#4b5563" radius={[4, 4, 0, 0]} />
                                             <Bar yAxisId="left" name="Realizado Mês" dataKey="actual" fill="#06b6d4" radius={[4, 4, 0, 0]} />
                                             
                                             {/* Linhas de Acumulado */}
@@ -520,9 +522,9 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                 type="monotone" 
                                                 name="Acumulado Previsto" 
                                                 dataKey="accPlanned" 
-                                                stroke="#94a3b8" 
+                                                stroke="#9ca3af" 
                                                 strokeWidth={2} 
-                                                dot={{ r: 3, fill: '#1e293b', strokeWidth: 2 }} 
+                                                dot={{ r: 3, fill: '#4b5563', strokeWidth: 2 }} 
                                                 strokeDasharray="5 5"
                                             />
                                             <Line 
