@@ -116,6 +116,11 @@ const AppContent: React.FC = () => {
           // Limpa os parâmetros da URL para não reabrir ao atualizar
           const newUrl = window.location.origin + window.location.pathname;
           window.history.replaceState({}, document.title, newUrl);
+        } else {
+            showToast('Ops! A atividade referenciada nesta notificação não foi localizada.', 'error');
+            setScreen('dashboard'); // Para tirar o usuário da tela negra de seleção
+            const newUrl = window.location.origin + window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
         }
       }
     }
