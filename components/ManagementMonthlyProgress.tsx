@@ -467,8 +467,9 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
                     Visualização Curva S (Previsto vs Realizado)
                 </h4>
 
-                <div className="h-[450px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                <div className="w-full overflow-x-auto custom-scrollbar pb-4">
+                    <div style={{ minWidth: `${Math.max(800, chartData.length * 35)}px`, height: '450px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
                         <ComposedChart
                             data={chartData}
                             margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
@@ -602,6 +603,7 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
                             })()}
                         </ComposedChart>
                     </ResponsiveContainer>
+                    </div>
                 </div>
             </div>
         </div>
