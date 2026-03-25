@@ -9,7 +9,8 @@ import {
     Tooltip,
     Legend,
     ResponsiveContainer,
-    Cell
+    Cell,
+    ReferenceLine
 } from 'recharts';
 import ExcelIcon from './icons/ExcelIcon';
 import { exportToExcel } from '../utils/excelExport';
@@ -477,6 +478,7 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
                                 dataKey="label" 
                                 tick={<CustomXAxisTick />}
                                 height={50}
+                                interval={0} // Garante que todas as semanas apareçam
                                 axisLine={false}
                                 tickLine={false}
                             />
@@ -575,6 +577,29 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
                                 connectNulls={false} // IMPORTANTE: interrompe a linha onde não há dado
                                 name="Realizado (Acum)"
                             />
+
+                            {/* Linha indicando o "hoje" ou último dado real */}
+                            {(() => {
+                                const lastReal = [...chartData].reverse().find(d => d['Real (Acum)'] !== null);
+                                if (!lastReal) return null;
+                                return (
+                                    <ReferenceLine 
+                                        x={lastReal.label} 
+                                        stroke="#06b6d4" 
+                                        strokeWidth={1}
+                                        strokeDasharray="5 5"
+                                        yAxisId="right"
+                                        label={{ 
+                                            value: 'Realizado até aqui', 
+                                            position: 'top', 
+                                            fill: '#06b6d4', 
+                                            fontSize: 8, 
+                                            fontWeight: 'bold',
+                                            textTransform: 'uppercase'
+                                        }}
+                                    />
+                                );
+                            })()}
                         </ComposedChart>
                     </ResponsiveContainer>
                 </div>
