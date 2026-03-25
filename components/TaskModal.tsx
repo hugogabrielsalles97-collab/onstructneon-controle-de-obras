@@ -777,9 +777,12 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         const finalObs = mTags ? `${mTags} ${formData.observations}`.trim() : formData.observations;
 
         if (finalObs && finalObs !== (task?.observations || '')) {
+            const actualTaskId = task?.id || new Date().toISOString();
             createNotification({
-                task_id: task?.id || new Date().toISOString(),
-                task_title: finalFormData.title || 'Nova Atividade',
+                // Supabase was throwing error for task.id failing UUID type check, so we send a dummy to the db 
+                // and pack the actual task.id inside the title
+                task_id: '00000000-0000-0000-0000-000000000000',
+                task_title: `${actualTaskId}|__|${finalFormData.title || 'Nova Atividade'}`,
                 user_name: user?.fullName || 'Usuário',
                 message: `Atualizou o resumo de impactos (Observações)`,
             });

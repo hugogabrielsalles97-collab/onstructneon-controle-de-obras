@@ -486,7 +486,18 @@ export const useNotifications = (isMaster: boolean) => {
                 console.warn('Tabela de notificações pode não existir ainda:', error.message);
                 return [];
             }
-            return data as AppNotification[];
+            
+            return data.map((n: any) => {
+                let realId = n.task_id;
+                let realTitle = n.task_title;
+                // Bypass para evitar erro de UUID no banco sem alterar RLS/DDL
+                if (realTitle && realTitle.includes('|__|')) {
+                    const parts = realTitle.split('|__|');
+                    realId = parts[0];
+                    realTitle = parts[1];
+                }
+                return { ...n, task_id: realId, task_title: realTitle };
+            }) as AppNotification[];
         },
         enabled: isMaster,
         refetchInterval: 30000,

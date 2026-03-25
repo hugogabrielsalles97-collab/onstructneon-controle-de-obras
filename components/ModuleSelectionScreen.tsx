@@ -1,7 +1,8 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useData } from '../context/DataProvider';
 import ConstructionIcon from './icons/ConstructionIcon';
+import { useNotifications, markNotificationAsRead } from '../hooks/dataHooks';
 
 interface ModuleSelectionScreenProps {
     onSelectPlanning: () => void;
@@ -16,6 +17,18 @@ const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({ onSelectP
     const handleLogout = async () => {
         const { success, error } = await signOut();
         if (!success && error) showToast(`Erro ao sair: ${error}`, 'error');
+    };
+
+    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const { data: notifications = [], refetch: refetchNotifications } = useNotifications(user ? user.role === 'Master' : false);
+    const unreadCount = notifications.filter(n => !n.is_read).length;
+
+    const handleNotificationClick = async (notifId: string, taskId: string) => {
+        await markNotificationAsRead(notifId);
+        refetchNotifications();
+        setIsNotificationsOpen(false);
+        const newUrl = window.location.origin + window.location.pathname + `?taskId=${taskId}&action=reviewObs`;
+        window.location.href = newUrl;
     };
 
     if (!user) return null;
@@ -53,12 +66,58 @@ const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({ onSelectP
                     <ConstructionIcon className="w-6 h-6 text-brand-accent" />
                     <span className="text-sm font-bold tracking-widest uppercase text-brand-med-gray">ELOS</span>
                 </div>
-                <button
-                    onClick={handleLogout}
-                    className="text-xs font-bold text-gray-500 hover:text-white uppercase tracking-widest transition-colors"
-                >
-                    Sair da Conta
-                </button>
+                
+                <div className="flex items-center gap-4">
+                    {user.role === 'Master' && (
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                                className="relative p-2 text-brand-med-gray hover:text-white hover:bg-white/5 rounded-xl transition-all"
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={unreadCount > 0 ? "text-brand-accent animate-[shake_0.5s_ease-in-out_infinite] animate-pulse" : ""}>
+                                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                                </svg>
+                                {unreadCount > 0 && (
+                                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-[#0a0f18] shadow-[0_0_5px_rgba(239,68,68,0.8)]"></span>
+                                )}
+                            </button>
+
+                            {isNotificationsOpen && (
+                            <div className="absolute top-full right-0 mt-2 w-80 bg-[#0f172a] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 animate-slide-up">
+                                <div className="p-3 bg-brand-darkest/80 border-b border-white/10 flex justify-between items-center">
+                                <span className="text-[10px] font-black tracking-widest uppercase text-white">Notificações Administrativas</span>
+                                <span className="text-[9px] font-mono text-brand-med-gray">{notifications.length} itens</span>
+                                </div>
+                                <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                                {notifications.length === 0 ? (
+                                    <div className="p-6 text-center text-brand-med-gray text-xs">Nenhuma notificação recente.</div>
+                                ) : (
+                                    notifications.map(n => (
+                                    <div 
+                                        key={n.id} 
+                                        onClick={() => handleNotificationClick(n.id, n.task_id)}
+                                        className={`p-4 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors ${!n.is_read ? 'bg-brand-accent/5 relative' : ''}`}
+                                    >
+                                        {!n.is_read && <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-accent"></div>}
+                                        <p className="text-xs text-white font-bold mb-1 truncate">{n.task_title}</p>
+                                        <p className="text-[10px] text-brand-med-gray">{n.user_name} {n.message}</p>
+                                        <p className="text-[8px] text-white/40 font-mono mt-2">{new Date(n.created_at).toLocaleString('pt-BR')}</p>
+                                    </div>
+                                    ))
+                                )}
+                                </div>
+                            </div>
+                            )}
+                        </div>
+                    )}
+                    <button
+                        onClick={handleLogout}
+                        className="text-xs font-bold text-gray-500 hover:text-white uppercase tracking-widest transition-colors flex items-center gap-2"
+                    >
+                        Sair da Conta
+                    </button>
+                </div>
             </div>
 
             {/* Main Content */}
