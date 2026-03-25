@@ -14,11 +14,19 @@ import {
 import ExcelIcon from './icons/ExcelIcon';
 import { exportToExcel } from '../utils/excelExport';
 
+export interface WeeklyProgress {
+    week: number; // 1, 2, 3, 4, 5
+    planned1: number;
+    planned2: number;
+    actual?: number | null;
+}
+
 export interface MonthlyProgress {
     month: string; // 'YYYY-MM'
-    planned1: number; // Percentual no mês
+    planned1: number; // Percentual no mês (ou soma das semanas se expandido)
     planned2: number; // Percentual no mês
     actual?: number | null; // Percentual no mês
+    weeks?: WeeklyProgress[]; // Detalhamento opcional por semanas
 }
 
 interface ManagementMonthlyProgressProps {
@@ -29,6 +37,19 @@ interface ManagementMonthlyProgressProps {
 const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ data, onSave }) => {
     const [editingData, setEditingData] = useState<MonthlyProgress[]>(data);
     const [isEditing, setIsEditing] = useState(false);
+    const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
+
+    const toggleMonthExpansion = (month: string) => {
+        setExpandedMonths(prev => {
+            const next = new Set(prev);
+            if (next.has(month)) {
+                next.delete(month);
+            } else {
+                next.add(month);
+            }
+            return next;
+        });
+    };
 
     // Sincronizar com dados do banco quando carregarem
     React.useEffect(() => {
@@ -64,59 +85,117 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
         let p2Reached100 = false;
         let realReached100 = false;
 
-        return months.map(m => {
-            const prevAccP1 = accP1;
-            const prevAccP2 = accP2;
-            const prevAccReal = accReal;
+        const flatData: any[] = [];
+        
+        months.forEach(m => {
+            if (expandedMonths.has(m.month)) {
+                // Se expandido, adiciona 4 pontos semanais
+                const weeks = m.weeks || [
+                    { week: 1, planned1: m.planned1 / 4, planned2: m.planned2 / 4, actual: m.actual !== null ? m.actual / 4 : null },
+                    { week: 2, planned1: m.planned1 / 4, planned2: m.planned2 / 4, actual: m.actual !== null ? m.actual / 4 : null },
+                    { week: 3, planned1: m.planned1 / 4, planned2: m.planned2 / 4, actual: m.actual !== null ? m.actual / 4 : null },
+                    { week: 4, planned1: m.planned1 / 4, planned2: m.planned2 / 4, actual: m.actual !== null ? m.actual / 4 : null },
+                ];
+                
+                weeks.forEach((w, wIdx) => {
+                    accP1 += w.planned1;
+                    accP2 += w.planned2;
+                    let currentAccReal: number | null = null;
+                    if (w.actual !== null && w.actual !== undefined) {
+                        accReal += w.actual;
+                        currentAccReal = accReal;
+                    }
 
-            accP1 += m.planned1;
-            accP2 += m.planned2;
-            
-            let currentAccReal: number | null = null;
-            if (m.actual !== null && m.actual !== undefined) {
-                accReal += m.actual;
-                currentAccReal = accReal;
+                    const [year, monthNum] = m.month.split('-');
+                    const dateObj = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
+                    const monthLabel = dateObj.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+                    
+                    if (accP1 >= 99.99) p1Reached100 = true;
+                    if (accP2 >= 99.99) p2Reached100 = true;
+                    if (currentAccReal !== null && currentAccReal >= 99.99) realReached100 = true;
+
+                    flatData.push({
+                        label: `${monthLabel} S${w.week}`,
+                        'LB01 (Mês)': w.planned1,
+                        'LB04 (Mês)': w.planned2,
+                        'Real (Mês)': w.actual,
+                        'LB01 (Acum)': p1Reached100 && accP1 > 100.1 ? null : accP1,
+                        'LB04 (Acum)': p2Reached100 && accP2 > 100.1 ? null : accP2,
+                        'Real (Acum)': (realReached100 && currentAccReal === null) || currentAccReal === null ? null : currentAccReal,
+                        isWeekly: true
+                    });
+                });
+            } else {
+                // Comportamento normal mensal
+                accP1 += m.planned1;
+                accP2 += m.planned2;
+                
+                let currentAccReal: number | null = null;
+                if (m.actual !== null && m.actual !== undefined) {
+                    accReal += m.actual;
+                    currentAccReal = accReal;
+                }
+
+                const [year, month] = m.month.split('-');
+                const dateObj = new Date(parseInt(year), parseInt(month) - 1, 1);
+                const label = dateObj.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).replace('.', '');
+
+                if (accP1 >= 99.99) p1Reached100 = true;
+                if (accP2 >= 99.99) p2Reached100 = true;
+                if (currentAccReal !== null && currentAccReal >= 99.99) realReached100 = true;
+
+                flatData.push({
+                    ...m,
+                    label,
+                    'LB01 (Mês)': m.planned1,
+                    'LB04 (Mês)': m.planned2,
+                    'Real (Mês)': m.actual,
+                    'LB01 (Acum)': p1Reached100 && accP1 > 100.1 ? null : accP1,
+                    'LB04 (Acum)': p2Reached100 && accP2 > 100.1 ? null : accP2,
+                    'Real (Acum)': (realReached100 && currentAccReal === null) || currentAccReal === null ? null : currentAccReal
+                });
             }
-
-            const [year, month] = m.month.split('-');
-            const dateObj = new Date(parseInt(year), parseInt(month) - 1, 1);
-            const label = dateObj.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).replace('.', '');
-
-            // Lógica de interrupção: se já atingiu 100% no mês anterior, não desenha mais
-            const chartP1 = p1Reached100 ? null : accP1;
-            const chartP2 = p2Reached100 ? null : accP2;
-            const chartReal = (realReached100 || currentAccReal === null) ? null : currentAccReal;
-
-            // Atualiza flags para o próximo mês
-            if (accP1 >= 99.99) p1Reached100 = true;
-            if (accP2 >= 99.99) p2Reached100 = true;
-            if (currentAccReal !== null && currentAccReal >= 99.99) realReached100 = true;
-
-            return {
-                ...m,
-                label,
-                'LB01 (Mês)': m.planned1,
-                'LB04 (Mês)': m.planned2,
-                'Real (Mês)': m.actual,
-                'LB01 (Acum)': chartP1,
-                'LB04 (Acum)': chartP2,
-                'Real (Acum)': chartReal
-            };
         });
-    }, [months]);
 
-    const handleInputChange = (index: number, field: keyof MonthlyProgress, value: string) => {
+        return flatData;
+    }, [months, expandedMonths]);
+
+    const handleInputChange = (index: number, field: keyof MonthlyProgress, value: string, weekIdx?: number) => {
         const newValue = value === '' ? (field === 'actual' ? null : 0) : parseFloat(value);
-        const newData = [...editingData];
-        if (newData.length === 0) {
-           // Se vazio, inicializa com os meses calculados
-           const initialData = [...months];
-           (initialData[index] as any)[field] = newValue;
-           setEditingData(initialData);
+        const newData = [...(editingData.length > 0 ? editingData : months)];
+        
+        if (weekIdx !== undefined) {
+            // Atualizar semana específica
+            const month = { ...newData[index] };
+            if (!month.weeks) {
+                month.weeks = [
+                    { week: 1, planned1: month.planned1 / 4, planned2: month.planned2 / 4, actual: month.actual !== null ? month.actual / 4 : null },
+                    { week: 2, planned1: month.planned1 / 4, planned2: month.planned2 / 4, actual: month.actual !== null ? month.actual / 4 : null },
+                    { week: 3, planned1: month.planned1 / 4, planned2: month.planned2 / 4, actual: month.actual !== null ? month.actual / 4 : null },
+                    { week: 4, planned1: month.planned1 / 4, planned2: month.planned2 / 4, actual: month.actual !== null ? month.actual / 4 : null },
+                ];
+            }
+            const updatedWeek = { ...month.weeks[weekIdx] };
+            (updatedWeek as any)[field] = newValue;
+            month.weeks = [...month.weeks];
+            month.weeks[weekIdx] = updatedWeek;
+            
+            // Recalcular total do mês baseado nas semanas
+            month.planned1 = month.weeks.reduce((acc, w) => acc + (w.planned1 || 0), 0);
+            month.planned2 = month.weeks.reduce((acc, w) => acc + (w.planned2 || 0), 0);
+            const actualSum = month.weeks.reduce((acc, w) => acc + (w.actual || 0), 0);
+            const hasAnyReal = month.weeks.some(w => w.actual !== null && w.actual !== undefined);
+            month.actual = hasAnyReal ? actualSum : null;
+            
+            newData[index] = month;
         } else {
+            // Atualizar mês e limpar semanas (ou avisar?) — por agora, mantemos semanas se existirem
             (newData[index] as any)[field] = newValue;
-            setEditingData(newData);
+            // Se o usuário mexer no total mensal MANUALMENTE, talvez queira redistribuir? 
+            // Por simplicidade, se ele mexer no total, mantemos o que ele digitou.
         }
+        
+        setEditingData(newData);
     };
 
     const handleSave = () => {
@@ -202,41 +281,98 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-brand-darkest/50">
-                                {(editingData.length > 0 ? editingData : months).map((m, idx) => (
-                                    <tr key={m.month} className="hover:bg-brand-accent/5 transition-colors">
-                                        <td className="p-4 text-white font-bold whitespace-nowrap">
-                                            {new Date(parseInt(m.month.split('-')[0]), parseInt(m.month.split('-')[1]) - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-                                        </td>
-                                        <td className="p-2">
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                value={m.planned1}
-                                                onChange={(e) => handleInputChange(idx, 'planned1', e.target.value)}
-                                                className="w-full bg-brand-darkest border border-brand-dark rounded p-2 text-white focus:ring-1 focus:ring-brand-accent outline-none"
-                                            />
-                                        </td>
-                                        <td className="p-2">
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                value={m.planned2}
-                                                onChange={(e) => handleInputChange(idx, 'planned2', e.target.value)}
-                                                className="w-full bg-brand_darkest border border-brand-dark rounded p-2 text-white focus:ring-1 focus:ring-brand-accent outline-none"
-                                            />
-                                        </td>
-                                        <td className="p-2">
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                value={m.actual === null ? '' : m.actual}
-                                                onChange={(e) => handleInputChange(idx, 'actual', e.target.value)}
-                                                placeholder="Pendente"
-                                                className="w-full bg-brand-darkest border border-brand-accent/20 rounded p-2 text-brand-accent focus:ring-1 focus:ring-brand-accent outline-none placeholder:text-brand-accent/30"
-                                            />
-                                        </td>
-                                    </tr>
-                                ))}
+                                {(editingData.length > 0 ? editingData : months).map((m, idx) => {
+                                    const isExpanded = expandedMonths.has(m.month);
+                                    const dateObj = new Date(parseInt(m.month.split('-')[0]), parseInt(m.month.split('-')[1]) - 1, 1);
+                                    
+                                    return (
+                                        <React.Fragment key={m.month}>
+                                            <tr className={`${isExpanded ? 'bg-brand-accent/10' : 'hover:bg-brand-accent/5'} transition-colors border-l-2 ${isExpanded ? 'border-brand-accent' : 'border-transparent'}`}>
+                                                <td className="p-4 text-white font-bold whitespace-nowrap flex items-center gap-3">
+                                                    <button 
+                                                        onClick={() => toggleMonthExpansion(m.month)}
+                                                        className={`w-6 h-6 rounded flex items-center justify-center transition-all ${isExpanded ? 'bg-brand-accent text-white rotate-90' : 'bg-white/5 text-brand-med-gray hover:text-white'}`}
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                                                        </svg>
+                                                    </button>
+                                                    {dateObj.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                                                </td>
+                                                <td className="p-2">
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={m.planned1}
+                                                        disabled={isExpanded} // Se expandido, o total vem das semanas
+                                                        onChange={(e) => handleInputChange(idx, 'planned1', e.target.value)}
+                                                        className={`w-full bg-brand-darkest border border-brand-dark rounded p-2 text-white focus:ring-1 focus:ring-brand-accent outline-none ${isExpanded ? 'opacity-50' : ''}`}
+                                                    />
+                                                </td>
+                                                <td className="p-2">
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={m.planned2}
+                                                        disabled={isExpanded}
+                                                        onChange={(e) => handleInputChange(idx, 'planned2', e.target.value)}
+                                                        className={`w-full bg-brand-darkest border border-brand-dark rounded p-2 text-white focus:ring-1 focus:ring-brand-accent outline-none ${isExpanded ? 'opacity-50' : ''}`}
+                                                    />
+                                                </td>
+                                                <td className="p-2">
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={m.actual === null ? '' : m.actual}
+                                                        disabled={isExpanded}
+                                                        onChange={(e) => handleInputChange(idx, 'actual', e.target.value)}
+                                                        placeholder={isExpanded ? "Calculado" : "Pendente"}
+                                                        className={`w-full bg-brand-darkest border border-brand-accent/20 rounded p-2 text-brand-accent focus:ring-1 focus:ring-brand-accent outline-none placeholder:text-brand-accent/30 ${isExpanded ? 'opacity-50' : ''}`}
+                                                    />
+                                                </td>
+                                            </tr>
+                                            {isExpanded && (m.weeks || [
+                                                { week: 1, planned1: m.planned1/4, planned2: m.planned2/4, actual: m.actual !== null ? m.actual/4 : null },
+                                                { week: 2, planned1: m.planned1/4, planned2: m.planned2/4, actual: m.actual !== null ? m.actual/4 : null },
+                                                { week: 3, planned1: m.planned1/4, planned2: m.planned2/4, actual: m.actual !== null ? m.actual/4 : null },
+                                                { week: 4, planned1: m.planned1/4, planned2: m.planned2/4, actual: m.actual !== null ? m.actual/4 : null }
+                                            ]).map((w, wIdx) => (
+                                                <tr key={`${m.month}-w${wIdx}`} className="bg-white/5 animate-fade-in">
+                                                    <td className="p-3 pl-14 text-brand-med-gray text-[10px] font-bold uppercase tracking-wider">
+                                                        Semana {w.week}
+                                                    </td>
+                                                    <td className="p-1">
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            value={w.planned1}
+                                                            onChange={(e) => handleInputChange(idx, 'planned1', e.target.value, wIdx)}
+                                                            className="w-full bg-brand-dark border border-brand-darkest rounded p-1 text-[11px] text-gray-300 focus:ring-1 focus:ring-brand-accent outline-none"
+                                                        />
+                                                    </td>
+                                                    <td className="p-1">
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            value={w.planned2}
+                                                            onChange={(e) => handleInputChange(idx, 'planned2', e.target.value, wIdx)}
+                                                            className="w-full bg-brand-dark border border-brand-darkest rounded p-1 text-[11px] text-gray-300 focus:ring-1 focus:ring-brand-accent outline-none"
+                                                        />
+                                                    </td>
+                                                    <td className="p-1">
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            value={w.actual === null ? '' : w.actual}
+                                                            onChange={(e) => handleInputChange(idx, 'actual', e.target.value, wIdx)}
+                                                            className="w-full bg-brand-dark border border-brand-accent/10 rounded p-1 text-[11px] text-brand-accent focus:ring-1 focus:ring-brand-accent outline-none"
+                                                        />
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </React.Fragment>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
