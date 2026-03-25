@@ -7,6 +7,23 @@ import SendIcon from './icons/SendIcon';
 import LightbulbIcon from './icons/LightbulbIcon';
 import AIRestrictedAccess from './AIRestrictedAccess';
 
+const customFetch = async (url: RequestInfo | URL, options?: RequestInit) => {
+    // Import do supabase cliente dinâmico para garantir que tem acesso onde estiver
+    const { supabase } = await import('../supabaseClient');
+    const { data, error } = await supabase.rpc('gemini_proxy', {
+        request_url: url.toString(),
+        request_body: options?.body ? JSON.parse(options.body as string) : {}
+    });
+    if (error) {
+        console.error("Erro no Proxy:", error);
+        throw new Error(error.message);
+    }
+    return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+    });
+};
+
 interface AIAssistantProps {
   tasks: Task[];
   baselineTasks: Task[];
@@ -69,7 +86,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks, activeS
     setIsLoading(true);
 
     try {
-      const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY);
+      const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY, { fetch: customFetch } as any);
 
       // TOKEN OPTIMIZATION: Send only essential data to reduce costs
       const tasksSummary = tasks.map(t => {

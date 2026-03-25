@@ -10,28 +10,35 @@ envFile.split('\n').forEach(line => {
 });
 
 const apiKey = envObj['VITE_GOOGLE_GENAI_API_KEY'];
+const targetUrl = encodeURIComponent(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`);
 
-async function testGemini() {
-    console.log("Using API Key:", apiKey);
-    
-    // Direct REST API fetch to bypass CORS issues from SDK
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`;
-    
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: "Hello, world!" }] }]
-            })
-        });
-        
-        const data = await response.text();
-        console.log("HTTP STATUS:", response.status);
-        console.log("RESPONSE:", data);
-    } catch(err) {
-        console.error("FATAL FETCH ERROR:", err.message);
+const proxies = [
+    `https://api.allorigins.win/raw?url=${targetUrl}`,
+    `https://thingproxy.freeboard.io/fetch/${decodeURIComponent(targetUrl)}`,
+    `https://api.codetabs.com/v1/proxy/?quest=${targetUrl}`
+];
+
+async function testProxies() {
+    for (const url of proxies) {
+        console.log("Testing:", url.substring(0, 40));
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: "Hello proxy" }] }]
+                })
+            });
+            const text = await response.text();
+            console.log("STATUS:", response.status);
+            console.log("PREVIEW:", text.substring(0, 100));
+            if (response.status === 200 && !text.includes('Acesso Restringido')) {
+                console.log("SUCCESS WITH PROXY:", url.substring(0, 40));
+                return;
+            }
+        } catch(e) {
+            console.error("fetch failed:", e.message);
+        }
     }
 }
-
-testGemini();
+testProxies();
