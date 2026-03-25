@@ -86,18 +86,30 @@ const AppContent: React.FC = () => {
       const taskId = params.get('taskId');
       const action = params.get('action');
 
-      if (taskId && action === 'checkout') {
+      if (taskId && (action === 'checkout' || action === 'reviewObs')) {
         const task = tasks.find(t => t.id === taskId);
         if (task) {
           // Garante que estamos na tela do dashboard para mostrar o modal
           setScreen('dashboard');
           handleOpenTaskModal(task);
 
-          // Rolar para a seção de checkout após o modal carregar
+          // Rolar para a seção relevante após o modal carregar
           setTimeout(() => {
-            const element = document.getElementById('checkout-section');
-            if (element) {
-              element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (action === 'reviewObs') {
+                const element = document.getElementById('resumo_causa');
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    element.focus();
+                    
+                    // Add a small visual pulse to show the user where they should verify
+                    element.classList.add('ring-2', 'ring-brand-accent', 'animate-pulse');
+                    setTimeout(() => element.classList.remove('ring-2', 'ring-brand-accent', 'animate-pulse'), 3000);
+                }
+            } else {
+                const element = document.getElementById('checkout-section');
+                if (element) {
+                  element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
             }
           }, 800);
 

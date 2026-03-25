@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Task, TaskStatus, Resource, User, OrgMember } from '../types';
-import { useOrgMembers, CatalogItem, fetchTaskHeavyData } from '../hooks/dataHooks';
+import { useOrgMembers, CatalogItem, fetchTaskHeavyData, createNotification } from '../hooks/dataHooks';
 import { useData } from '../context/DataProvider';
 import { supabase } from '../supabaseClient';
 import XIcon from './icons/XIcon';
@@ -776,6 +776,15 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         const mTags = selected6M.map(m => `[${m}]`).join(' ');
         const finalObs = mTags ? `${mTags} ${formData.observations}`.trim() : formData.observations;
 
+        if (finalObs && finalObs !== (task?.observations || '')) {
+            createNotification({
+                task_id: task?.id || new Date().toISOString(),
+                task_title: finalFormData.title || 'Nova Atividade',
+                user_name: user?.fullName || 'Usuário',
+                message: `Atualizou o resumo de impactos (Observações)`,
+            });
+        }
+
         const taskToSave: Task = {
             id: task?.id || new Date().toISOString(),
             ...finalFormData,
@@ -1360,6 +1369,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                         {(selected6M.length > 0 || (formData.observations && formData.observations.trim().length > 0)) && (
                                             <div className="animate-in fade-in slide-in-from-top-4 duration-500">
                                                 <textarea
+                                                    id="resumo_causa"
                                                     name="observations"
                                                     value={formData.observations || ''}
                                                     onChange={handleChange}

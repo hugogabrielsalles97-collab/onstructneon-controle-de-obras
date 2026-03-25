@@ -457,3 +457,54 @@ export const useOrgMutations = () => {
 
     return { saveMember, deleteMember };
 };
+
+// ==========================================
+// NOTIFICATIONS MODULE
+// ==========================================
+export interface AppNotification {
+    id: string;
+    task_id: string;
+    task_title: string;
+    user_name: string;
+    message: string;
+    created_at: string;
+    is_read: boolean;
+}
+
+export const useNotifications = (isMaster: boolean) => {
+    return useQuery<AppNotification[]>({
+        queryKey: ['notifications'],
+        queryFn: async () => {
+            if (!isMaster) return [];
+            const { data, error } = await supabase
+                .from('notifications')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(50);
+            
+            if (error) {
+                console.warn('Tabela de notificações pode não existir ainda:', error.message);
+                return [];
+            }
+            return data as AppNotification[];
+        },
+        enabled: isMaster,
+        refetchInterval: 30000,
+    });
+};
+
+export const markNotificationAsRead = async (id: string) => {
+    try {
+        await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+    } catch(err) {
+        console.error(err);
+    }
+};
+
+export const createNotification = async (notification: Omit<AppNotification, 'id' | 'created_at' | 'is_read'>) => {
+    try {
+        await supabase.from('notifications').insert([notification]);
+    } catch(err) {
+        console.error(err);
+    }
+};
