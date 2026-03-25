@@ -1,38 +1,3 @@
-import { supabase } from './supabaseClient';
-
-const originalFetch = globalThis.fetch;
-globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-  let urlStr = typeof input === 'string' ? input : (input instanceof Request ? input.url : input.toString());
-  
-  if (urlStr.includes('generativelanguage.googleapis.com')) {
-    const apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '';
-    if (!urlStr.includes('key=') && apiKey) {
-        urlStr += (urlStr.includes('?') ? '&' : '?') + 'key=' + apiKey;
-    }
-
-    const { data, error } = await supabase.rpc('gemini_proxy', {
-      request_url: urlStr,
-      request_body: typeof init?.body === 'string' ? init.body : "{}"
-    });
-
-    if (error) {
-      console.error("Erro no Protocolo Proxy Gemini:", error);
-      throw new Error("Falha no Banco: " + error.message);
-    }
-    
-    if (data?.error) {
-        console.error("Google Gemini Recusou o pacote:", data.error);
-        throw new Error(data.error.message || JSON.stringify(data.error));
-    }
-    
-    return new Response(JSON.stringify(data), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-  return originalFetch(input, init);
-};
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
