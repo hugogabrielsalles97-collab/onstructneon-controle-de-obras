@@ -90,10 +90,10 @@ const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({ onSelectP
                                 <span className="text-[9px] font-mono text-brand-med-gray">{notifications.length} itens</span>
                                 </div>
                                 <div className="max-h-80 overflow-y-auto custom-scrollbar">
-                                {notifications.length === 0 ? (
+                                {notifications.filter(n => !n.is_read).length === 0 ? (
                                     <div className="p-6 text-center text-brand-med-gray text-xs">Nenhuma notificação recente.</div>
                                 ) : (
-                                    notifications.map(n => (
+                                    notifications.filter(n => !n.is_read).map(n => (
                                     <div 
                                         key={n.id} 
                                         onClick={() => handleNotificationClick(n.id, n.task_id)}

@@ -479,6 +479,7 @@ export const useNotifications = (isMaster: boolean) => {
             const { data, error } = await supabase
                 .from('notifications')
                 .select('*')
+                .eq('is_read', false)
                 .order('created_at', { ascending: false })
                 .limit(50);
             
