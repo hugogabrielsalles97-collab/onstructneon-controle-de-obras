@@ -37,6 +37,9 @@ export interface Task {
   actualMachinery?: Resource[];
   photos?: string[];
   observations?: string;
+  response?: string;
+  response_user?: string;
+  response_at?: string;
   user_id?: string; // Foreign key to auth.users
   baseline_id?: string; // Reference to baseline_tasks.id
   rescheduleHistory?: { startDate: string; dueDate: string; rescheduledAt: string }[]; // Histórico de reprogramações

@@ -80,6 +80,10 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
 
     const IMPACT_CATEGORIES = ['Projeto', 'Mão de obra', 'Equipamento', 'Acesso', 'Chuva', 'Inspeção', 'Material', 'Predecessora', 'Interferências'];
     const canEditImpact = user && (user.role === 'Master' || user.role === 'Planejador');
+    const canRespondToImpact = user && (user.role === 'Master' || user.role === 'Planejador' || user.role === 'Gerenciador');
+    
+    const [respondingToTaskId, setRespondingToTaskId] = useState<string | null>(null);
+    const [responseText, setResponseText] = useState('');
 
     if (!user) return null;
 
@@ -1107,7 +1111,9 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in" onClick={() => setSelectedImpactCategory(null)}>
                     <div 
                         className="bg-[#0a0f18] border border-white/10 rounded-[2.5rem] w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-scale-in"
-                        onClick={e => e.stopPropagation()}
+                        onClick={e => {
+                            e.stopPropagation();
+                        }}
                     >
                         <div className="p-8 border-b border-white/5 bg-brand-accent/5 flex justify-between items-center">
                             <div>
@@ -1123,7 +1129,11 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                     )}
                                 </div>
                             </div>
-                            <button onClick={() => setSelectedImpactCategory(null)} className="w-12 h-12 rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white transition-all border border-white/10 group">
+                            <button onClick={() => {
+                                setSelectedImpactCategory(null);
+                                setRespondingToTaskId(null);
+                                setResponseText('');
+                            }} className="w-12 h-12 rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white transition-all border border-white/10 group">
                                 <XIcon className="w-6 h-6 group-hover:rotate-90 transition-transform" />
                             </button>
                         </div>
@@ -1265,6 +1275,111 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                             <p className="text-xs text-gray-300 italic leading-relaxed">
                                                 {t.observations?.replace(`[${selectedImpactCategory}]`, '').trim() || 'Sem detalhamento adicional.'}
                                             </p>
+                                        </div>
+
+                                        {/* RESPOSTA */}
+                                        <div className="mt-4 flex flex-col gap-3">
+                                            {t.response ? (
+                                                <div className="bg-green-500/10 p-4 rounded-xl border border-green-500/20 relative group">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <p className="text-[9px] text-green-400 uppercase font-black">Resposta:</p>
+                                                        {canRespondToImpact && (
+                                                            <button 
+                                                                onClick={() => {
+                                                                    setRespondingToTaskId(t.id);
+                                                                    setResponseText(t.response || '');
+                                                                }}
+                                                                className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-green-400 font-bold hover:text-green-300 uppercase tracking-tighter"
+                                                            >
+                                                                Editar Resposta
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-xs text-gray-200 leading-relaxed font-semibold">
+                                                        {t.response}
+                                                    </p>
+                                                    <div className="flex justify-between mt-3 pt-3 border-t border-green-500/10 text-[8px] text-brand-med-gray font-bold uppercase tracking-widest">
+                                                        <span className="flex items-center gap-1">
+                                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                                            {t.response_user}
+                                                        </span>
+                                                        <span className="flex items-center gap-1">
+                                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                            {t.response_at ? new Date(t.response_at).toLocaleString('pt-BR') : ''}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ) : canRespondToImpact && respondingToTaskId !== t.id && (
+                                                <button 
+                                                    onClick={() => setRespondingToTaskId(t.id)}
+                                                    className="w-full flex items-center justify-center gap-2 p-3 bg-green-500/5 hover:bg-green-500/10 border border-dashed border-green-500/20 hover:border-green-500/40 rounded-xl text-[10px] font-black text-green-400 uppercase tracking-widest transition-all"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                    Lançar Resposta
+                                                </button>
+                                            )}
+
+                                            {respondingToTaskId === t.id && (
+                                                <div className="bg-[#0a0f18] border border-green-500/30 rounded-xl p-4 shadow-2xl animate-scale-in">
+                                                    <div className="flex justify-between items-center mb-3">
+                                                        <p className="text-[9px] text-green-400 uppercase font-black">Nova Resposta:</p>
+                                                        <button 
+                                                            onClick={() => {
+                                                                setRespondingToTaskId(null);
+                                                                setResponseText('');
+                                                            }}
+                                                            className="text-gray-500 hover:text-white transition-colors"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                        </button>
+                                                    </div>
+                                                    <textarea 
+                                                        autoFocus
+                                                        value={responseText}
+                                                        onChange={(e) => setResponseText(e.target.value)}
+                                                        placeholder="Digite aqui a resposta para este impacto..."
+                                                        className="w-full h-24 bg-black/40 border border-white/5 rounded-lg p-3 text-xs text-white placeholder:text-gray-600 focus:outline-none focus:border-green-500/50 transition-all resize-none"
+                                                    />
+                                                    <div className="flex justify-end gap-2 mt-3">
+                                                        <button 
+                                                            disabled={savingImpactTaskId === t.id}
+                                                            onClick={() => {
+                                                                setRespondingToTaskId(null);
+                                                                setResponseText('');
+                                                            }}
+                                                            className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-[10px] font-bold text-gray-400 transition-all uppercase"
+                                                        >
+                                                            Cancelar
+                                                        </button>
+                                                        <button 
+                                                            disabled={savingImpactTaskId === t.id || !responseText.trim()}
+                                                            onClick={async () => {
+                                                                setSavingImpactTaskId(t.id);
+                                                                const result = await saveTask({
+                                                                    ...t,
+                                                                    response: responseText.trim(),
+                                                                    response_user: user.fullName || user.username,
+                                                                    response_at: new Date().toISOString()
+                                                                });
+                                                                if (result.success) {
+                                                                    showToast('Resposta salva com sucesso!', 'success');
+                                                                    setRespondingToTaskId(null);
+                                                                    setResponseText('');
+                                                                } else {
+                                                                    showToast(`Erro ao salvar: ${result.error}`, 'error');
+                                                                }
+                                                                setSavingImpactTaskId(null);
+                                                            }}
+                                                            className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-[10px] font-black text-white transition-all uppercase disabled:opacity-50 flex items-center gap-2"
+                                                        >
+                                                            {savingImpactTaskId === t.id ? (
+                                                                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                                            ) : null}
+                                                            Salvar Resposta
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 ));
