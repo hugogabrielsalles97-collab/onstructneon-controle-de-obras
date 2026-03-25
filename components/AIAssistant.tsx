@@ -71,34 +71,45 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks, activeS
 
     try {
 
-      // TOKEN OPTIMIZATION: Send only essential data to reduce costs
+      // Send comprehensive data so Hugo can answer any question about the project
       const tasksSummary = tasks.map(t => {
-        // Construct minimal object
         const s: any = {
-          t: t.title,
-          s: t.status,
-          p: t.progress + '%',
-          start: t.startDate,
-          due: t.dueDate
+          titulo: t.title,
+          status: t.status,
+          progresso: t.progress + '%',
+          inicio_previsto: t.startDate,
+          fim_previsto: t.dueDate,
         };
-        // Only add optional fields if they exist
-        if (t.assignee) s.resp = t.assignee;
-        if (t.actualStartDate) s.realStart = t.actualStartDate;
-        if (t.actualEndDate) s.realEnd = t.actualEndDate;
+        if (t.location) s.local = t.location; // OAE (ex: D22, S01, FT01A)
+        if (t.discipline) s.disciplina = t.discipline;
+        if (t.support) s.apoio = t.support;
+        if (t.level) s.nivel = t.level;
+        if (t.assignee) s.responsavel = t.assignee;
+        if (t.actualStartDate) s.inicio_real = t.actualStartDate;
+        if (t.actualEndDate) s.fim_real = t.actualEndDate;
+        if (t.quantity) s.quantidade = `${t.quantity} ${t.unit || ''}`.trim();
+        if (t.actualQuantity) s.qtd_realizada = `${t.actualQuantity} ${t.unit || ''}`.trim();
+        if (t.observations) s.observacoes = t.observations.substring(0, 200);
+        if (t.corte) s.corte = t.corte;
+        if (t.baseline_id) s.baseline_id = t.baseline_id;
         return s;
       });
 
       const baselineSummary = baselineTasks.map(t => ({
-        t: t.title,
-        start: t.startDate,
-        due: t.dueDate
+        titulo: t.title,
+        inicio: t.startDate,
+        fim: t.dueDate,
+        disciplina: t.discipline || '',
+        local: t.location || '',
+        nivel: t.level || '',
+        id: t.id,
       }));
 
       const prompt = isCostModule
         ? `
             Você é 'Hugo', um assistente de IA especialista em GESTÃO FINANCEIRA E CUSTOS de obras.
-            Você está no Módulo de Custos da plataforma ELOS.
-            Responda de forma concisa.
+            Você está no Módulo de Custos da plataforma ELOS (Egtc Lean Operational System).
+            Responda de forma concisa e profissional em português do Brasil.
 
             **Contexto Financeiro:**
             - Orçamento vs Realizado: ${JSON.stringify(costItems)}
@@ -116,16 +127,28 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks, activeS
             "${userInput}"
         `
         : `
-            Você é 'Hugo', um assistente de IA especialista em GESTÃO DE OBRAS (Planejamento e Execução).
-            Responda de forma concisa.
+            Você é 'Hugo', um assistente de IA especialista em GESTÃO DE OBRAS DE INFRAESTRUTURA (Planejamento e Execução).
+            Você está integrado à plataforma ELOS (Egtc Lean Operational System), um sistema de controle de obras.
             
-            **Legenda dos dados:**
-            t: Título, s: Status, p: Progresso, resp: Responsável, start: Início Previsto, due: Fim Previsto, realStart: Início Real, realEnd: Fim Real.
-
-            **Contexto do Projeto:**
-            - Tarefas: ${JSON.stringify(tasksSummary)}
-            - Planejamento (Baseline): ${JSON.stringify(baselineSummary)}
-            - Hoje: ${new Date().toLocaleDateString('pt-BR')}
+            **IMPORTANTE — Regras de comportamento:**
+            - Responda SEMPRE em português do Brasil, de forma concisa e profissional.
+            - Quando o usuário mencionar um código como "D22", "S01", "FT01A", procure no campo "local" (OAE) E também no título das tarefas.
+            - Quando o usuário perguntar "como está" uma estrutura/local, liste TODAS as tarefas daquele local com seus status e progressos.
+            - Forneça análises úteis: atrasos, riscos, tarefas concluídas, produtividade.
+            - Se o usuário perguntar algo que não está nos dados, diga que não tem essa informação disponível.
+            
+            **Campos disponíveis em cada tarefa:**
+            titulo, status, progresso, disciplina, local (OAE), apoio, nivel, responsavel, 
+            inicio_previsto, fim_previsto, inicio_real, fim_real, quantidade, qtd_realizada, observacoes, corte.
+            
+            **Dados do Projeto (Tarefas de Execução):**
+            ${JSON.stringify(tasksSummary)}
+            
+            **Dados do Planejamento (Linha de Base / Macro):**
+            ${JSON.stringify(baselineSummary)}
+            
+            **Data de Hoje:** ${new Date().toLocaleDateString('pt-BR')}
+            **Total de Tarefas:** ${tasks.length} tarefas de execução, ${baselineTasks.length} itens de baseline.
 
             **Pergunta do usuário:**
             "${userInput}"
