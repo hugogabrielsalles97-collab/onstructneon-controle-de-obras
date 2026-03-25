@@ -108,14 +108,18 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
 
                     const [year, monthNum] = m.month.split('-');
                     const dateObj = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
-                    const monthLabel = dateObj.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+                    const monthShort = dateObj.toLocaleDateString('pt-BR', { month: 'short' }).substring(0, 3);
+                    const yearShort = year.substring(2);
+                    
+                    const lastDayOfMonth = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
+                    const weekRange = w.week === 1 ? '01-07' : w.week === 2 ? '08-15' : w.week === 3 ? '16-22' : `23-${lastDayOfMonth}`;
                     
                     if (accP1 >= 99.99) p1Reached100 = true;
                     if (accP2 >= 99.99) p2Reached100 = true;
                     if (currentAccReal !== null && currentAccReal >= 99.99) realReached100 = true;
 
                     flatData.push({
-                        label: `${monthLabel} S${w.week}`,
+                        label: `${monthShort}/${yearShort} S${w.week} (${weekRange})`,
                         'LB01 (Mês)': w.planned1,
                         'LB04 (Mês)': w.planned2,
                         'Real (Mês)': w.actual,
@@ -136,9 +140,11 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
                     currentAccReal = accReal;
                 }
 
-                const [year, month] = m.month.split('-');
-                const dateObj = new Date(parseInt(year), parseInt(month) - 1, 1);
-                const label = dateObj.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).replace('.', '');
+                const [year, monthNum] = m.month.split('-');
+                const dateObj = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
+                const monthShort = dateObj.toLocaleDateString('pt-BR', { month: 'short' }).substring(0, 3);
+                const yearShort = year.substring(2);
+                const label = `${monthShort}/${yearShort}`;
 
                 if (accP1 >= 99.99) p1Reached100 = true;
                 if (accP2 >= 99.99) p2Reached100 = true;
@@ -339,7 +345,7 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
                                             ]).map((w, wIdx) => (
                                                 <tr key={`${m.month}-w${wIdx}`} className="bg-white/5 animate-fade-in">
                                                     <td className="p-3 pl-14 text-brand-med-gray text-[10px] font-bold uppercase tracking-wider">
-                                                        Semana {w.week}
+                                                        {(wIdx === 0 ? '01-07' : wIdx === 1 ? '08-15' : wIdx === 2 ? '16-22' : `23-${new Date(parseInt(m.month.split('-')[0]), parseInt(m.month.split('-')[1]), 0).getDate()}`)}
                                                     </td>
                                                     <td className="p-1">
                                                         <input
