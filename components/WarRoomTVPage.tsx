@@ -235,7 +235,7 @@ const SlidePerformance: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
         <div className="h-full flex flex-col items-center justify-center px-12">
             <div className="text-center mb-8">
                 <h2 className="text-5xl font-black text-white tracking-tighter uppercase mb-2">Performance por Responsável</h2>
-                <p className="text-brand-med-gray text-lg font-medium tracking-widest uppercase italic">Análise de cumprimento de prazos e ranking de eficiência</p>
+                <p className="text-brand-med-gray text-lg font-medium tracking-widest uppercase italic">Análise de cumprimento de prazos e ranking de eficiência por executor</p>
             </div>
 
             <div className="grid grid-cols-3 gap-8 w-full max-w-[95%] h-[580px]">

@@ -822,65 +822,38 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                             canEdit={user && (user.role === 'Master' || user.role === 'Planejador')}
                         />
 
-                        {/* Performance por Engenheiro (baseado no Controle Visual) */}
+                        {/* Performance por Responsável (Ranking de Eficiência) */}
                         {(() => {
                             const todayNum = new Date().setHours(0, 0, 0, 0);
 
-                            // Mapeamento OAE → Engenheiro (mesma lógica do Controle Visual)
-                            const OAE_ENGINEER_MAP: Record<string, string> = {
-                                'S01': 'Bruno Bastos', 'S02': 'Bruno Bastos', 'S03': 'Bruno Bastos',
-                                'S04': 'Bruno Bastos', 'S05': 'Bruno Bastos', 'S06': 'Bruno Bastos',
-                                'S07': 'Bruno Bastos', 'S08': 'Bruno Bastos', 'S09': 'Bruno Bastos',
-                                'S10': 'Matheus Ramos', 'S11': 'Matheus Ramos', 'S12': 'Matheus Ramos',
-                                'S13': 'Rafael Requiao', 'S14': 'Rafael Requiao',
-                                'D15': 'Bruno Bastos', 'D16': 'Bruno Bastos', 'D17': 'Bruno Bastos', 'D18': 'Bruno Bastos',
-                                'D19': 'Matheus Ramos', 'D20': 'Matheus Ramos', 'D21': 'Matheus Ramos',
-                                'D22': 'Rafael Requiao', 'D23': 'Rafael Requiao', 'D24': 'Rafael Requiao',
-                                'QUADRATUM': 'Bruno Bastos',
-                                'PÁTIO DE VIGAS': 'Matheus Ramos',
-                            };
-
-                            const getEngineerForTask = (location: string | undefined): string => {
-                                if (!location) return 'Sem Localização';
-                                const loc = location.toUpperCase().trim();
-                                // Procura correspondência parcial (ex: "OAE S09" contém "S09")
-                                for (const [oaeLabel, engineer] of Object.entries(OAE_ENGINEER_MAP)) {
-                                    if (loc.includes(oaeLabel)) return engineer;
-                                }
-                                return 'Outros';
-                            };
-
-                            const assigneeMap: { [key: string]: { total: number; onTime: number; late: number; overdue: number; open: number; locations: Set<string> } } = {};
+                            const assigneeMap: { [key: string]: { total: number; onTime: number; late: number; overdue: number; open: number } } = {};
 
                             tasks.forEach(task => {
-                                const engineer = getEngineerForTask(task.location);
-                                if (!assigneeMap[engineer]) assigneeMap[engineer] = { total: 0, onTime: 0, late: 0, overdue: 0, open: 0, locations: new Set() };
-                                assigneeMap[engineer].total++;
-                                if (task.location) assigneeMap[engineer].locations.add(task.location);
+                                const assignee = task.assignee || 'Sem Responsável';
+                                if (!assigneeMap[assignee]) assigneeMap[assignee] = { total: 0, onTime: 0, late: 0, overdue: 0, open: 0 };
+                                assigneeMap[assignee].total++;
 
                                 if (task.status === TaskStatus.Completed) {
                                     if (task.actualEndDate && task.dueDate) {
                                         const actualEnd = new Date(task.actualEndDate + 'T00:00:00').getTime();
                                         const dueLimit = new Date(task.dueDate + 'T23:59:59').getTime();
                                         if (actualEnd <= dueLimit) {
-                                            assigneeMap[engineer].onTime++;
+                                            assigneeMap[assignee].onTime++;
                                         } else {
-                                            assigneeMap[engineer].late++;
+                                            assigneeMap[assignee].late++;
                                         }
                                     } else {
-                                        assigneeMap[engineer].onTime++;
+                                        assigneeMap[assignee].onTime++;
                                     }
                                 } else if (new Date(task.dueDate + 'T00:00:00').getTime() < todayNum) {
-                                    assigneeMap[engineer].overdue++;
+                                    assigneeMap[assignee].overdue++;
                                 } else {
-                                    assigneeMap[engineer].open++;
+                                    assigneeMap[assignee].open++;
                                 }
                             });
 
                             const performanceData = Object.entries(assigneeMap)
                                 .map(([name, stats]) => {
-                                    // Taxa baseada em tarefas que já deveriam ter resultado:
-                                    // concluídas (no prazo + fora do prazo) + atrasadas (nem concluiu)
                                     const resolved = stats.onTime + stats.late + stats.overdue;
                                     const onTimeRate = resolved > 0 ? Math.round((stats.onTime / resolved) * 100) : (stats.open > 0 ? 100 : 0);
                                     return {
@@ -908,8 +881,8 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                     <div className="lg:col-span-2 bg-[#111827]/40 backdrop-blur-sm p-6 rounded-2xl border border-white/5 shadow-xl hover-shine relative overflow-hidden">
                                         <div className="flex justify-between items-center mb-6">
                                             <div>
-                                                <h4 className="text-xs font-black text-brand-accent uppercase tracking-widest border-b border-white/5 pb-2">Performance por Engenheiro (OAE)</h4>
-                                                <p className="text-[9px] text-brand-med-gray mt-2 italic">Ranking por atividades cumpridas dentro do prazo — agrupadas pela localização (Controle Visual)</p>
+                                                <h4 className="text-xs font-black text-brand-accent uppercase tracking-widest border-b border-white/5 pb-2">Performance por Responsável</h4>
+                                                <p className="text-[9px] text-brand-med-gray mt-2 italic">Ranking por atividades cumpridas dentro do prazo — por executor individual</p>
                                             </div>
                                             <div className="flex items-center gap-4 text-[9px] font-bold uppercase tracking-wider">
                                                 <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-green-500"></div><span className="text-green-400">No Prazo</span></div>
