@@ -101,7 +101,7 @@ const RdoModal: React.FC<RdoModalProps> = ({ isOpen, onClose, tasks, onUpgradeCl
             const { supabase } = await import('../supabaseClient');
             const { data, error: rpcError } = await supabase.rpc('gemini_proxy', {
                 request_url: url,
-                request_body: payload
+                request_body: JSON.stringify(payload)
             });
 
             if (rpcError) throw new Error("Erro de conexão do Proxy: " + rpcError.message);

@@ -5,7 +5,6 @@ globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   let urlStr = typeof input === 'string' ? input : (input instanceof Request ? input.url : input.toString());
   
   if (urlStr.includes('generativelanguage.googleapis.com')) {
-    // Garante a inserção da chave limpa sem quebra de linhas Windows (/r/n)
     const apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '';
     if (!urlStr.includes('key=') && apiKey) {
         urlStr += (urlStr.includes('?') ? '&' : '?') + 'key=' + apiKey;
@@ -13,7 +12,7 @@ globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
 
     const { data, error } = await supabase.rpc('gemini_proxy', {
       request_url: urlStr,
-      request_body: init?.body ? JSON.parse(init.body as string) : {}
+      request_body: typeof init?.body === 'string' ? init.body : "{}"
     });
 
     if (error) {
