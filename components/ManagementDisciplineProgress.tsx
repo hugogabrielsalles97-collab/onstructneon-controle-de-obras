@@ -83,6 +83,15 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
         }]);
     };
 
+    const handleAddInitialRow = () => {
+        setEditingData([...editingData, {
+            discipline: availableDisciplines[0] || '',
+            month: 'INITIAL',
+            planned: 0,
+            actual: 0
+        }]);
+    };
+
     const handleRemoveRow = (index: number) => {
         setEditingData(editingData.filter((_, i) => i !== index));
     };
@@ -146,14 +155,19 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                             <tbody className="divide-y divide-brand-darkest/50">
                                 {editingData.map((m, idx) => {
                                     const isExpanded = !!m.isExpanded;
+                                    const isInitial = m.month === 'INITIAL';
                                     
                                     // Cálculo de acumulados para esta disciplina até este mês
                                     const disciplineData = editingData
                                         .filter(item => item.discipline === m.discipline)
-                                        .sort((a, b) => a.month.localeCompare(b.month));
+                                        .sort((a, b) => {
+                                            if (a.month === 'INITIAL') return -1;
+                                            if (b.month === 'INITIAL') return 1;
+                                            return a.month.localeCompare(b.month);
+                                        });
                                     
-                                    const currentMonthIdx = disciplineData.findIndex(item => item.month === m.month);
-                                    const dataUntilNow = disciplineData.slice(0, currentMonthIdx + 1);
+                                    const currentIdxInGroup = disciplineData.findIndex(item => item.month === m.month);
+                                    const dataUntilNow = disciplineData.slice(0, currentIdxInGroup + 1);
                                     
                                     const accPlanned = dataUntilNow.reduce((acc, item) => acc + (item.planned || 0), 0);
                                     
@@ -178,24 +192,30 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                     </datalist>
                                                 </td>
                                                 <td className="p-4 text-white font-bold whitespace-nowrap flex items-center gap-2">
-                                                    <button 
-                                                        onClick={() => toggleExpansion(idx)}
-                                                        className={`w-6 h-6 rounded flex items-center justify-center transition-all ${isExpanded ? 'bg-brand-accent text-white rotate-90' : 'bg-white/5 text-brand-med-gray hover:text-white'}`}
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
-                                                            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                                                        </svg>
-                                                    </button>
-                                                    <input 
-                                                        type="month"
-                                                        value={m.month}
-                                                        onChange={(e) => {
-                                                            const newData = [...editingData];
-                                                            newData[idx] = { ...newData[idx], month: e.target.value };
-                                                            setEditingData(newData);
-                                                        }}
-                                                        className="bg-transparent border-none text-white focus:ring-0 outline-none w-32"
-                                                    />
+                                                    {!isInitial ? (
+                                                        <>
+                                                            <button 
+                                                                onClick={() => toggleExpansion(idx)}
+                                                                className={`w-6 h-6 rounded flex items-center justify-center transition-all ${isExpanded ? 'bg-brand-accent text-white rotate-90' : 'bg-white/5 text-brand-med-gray hover:text-white'}`}
+                                                            >
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                                                                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                                                                </svg>
+                                                            </button>
+                                                            <input 
+                                                                type="month"
+                                                                value={m.month}
+                                                                onChange={(e) => {
+                                                                    const newData = [...editingData];
+                                                                    newData[idx] = { ...newData[idx], month: e.target.value };
+                                                                    setEditingData(newData);
+                                                                }}
+                                                                className="bg-transparent border-none text-white focus:ring-0 outline-none w-32"
+                                                            />
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-[10px] text-brand-accent uppercase font-black tracking-widest pl-1">Saldo Anterior</span>
+                                                    )}
                                                 </td>
                                                 <td className="p-2">
                                                     <input
@@ -282,7 +302,13 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                             onClick={handleAddRow}
                             className="text-[10px] text-brand-accent font-black uppercase tracking-widest hover:underline flex items-center gap-1"
                         >
-                            <span className="text-sm">+</span> Adicionar Planejamento de Disciplina
+                            <span className="text-sm">+</span> Mês de Planejamento
+                        </button>
+                        <button
+                            onClick={handleAddInitialRow}
+                            className="text-[10px] text-brand-med-gray hover:text-white font-black uppercase tracking-widest hover:underline flex items-center gap-1"
+                        >
+                            <span className="text-sm">+</span> Saldo Anterior (Acumulado)
                         </button>
                     </div>
                 </div>
