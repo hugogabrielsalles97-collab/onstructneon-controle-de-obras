@@ -161,7 +161,7 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                     const accActual = hasAnyRealInHistory ? dataUntilNow.reduce((acc, item) => acc + (item.actual || 0), 0) : null;
 
                                     return (
-                                        <React.Fragment key={`${idx}-${m.discipline}-${m.month}`}>
+                                        <React.Fragment key={idx}>
                                             <tr className={`${isExpanded ? 'bg-brand-accent/10' : 'hover:bg-brand-accent/5'} transition-colors border-l-2 ${isExpanded ? 'border-brand-accent' : 'border-transparent'}`}>
                                                 <td className="p-2">
                                                     <input
