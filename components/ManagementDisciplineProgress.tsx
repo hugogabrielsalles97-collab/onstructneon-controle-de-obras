@@ -289,6 +289,7 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                             className="w-full bg-brand-dark border border-brand-darkest rounded p-1 text-[11px] text-gray-300 focus:ring-1 focus:ring-brand-accent outline-none"
                                                         />
                                                     </td>
+                                                    <td className="p-1"></td>
                                                     <td className="p-1">
                                                         <input
                                                             type="number"
@@ -296,13 +297,11 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                             value={w.actual === null ? '' : w.actual}
                                                             onChange={(e) => handleInputChange(idx, 'actual', e.target.value, wIdx)}
                                                             className="w-full bg-brand-dark border border-brand-accent/10 rounded p-1 text-[11px] text-brand-accent focus:ring-1 focus:ring-brand-accent outline-none"
+                                                            placeholder="Pendente"
                                                         />
                                                     </td>
-                                                    <td className="p-1"></td>
                                                     <td className="p-1 text-center"></td>
-                                                    <td className="p-1"></td>
                                                     <td className="p-1 text-center"></td>
-                                                    <td></td>
                                                 </tr>
                                             ))}
                                         </React.Fragment>
