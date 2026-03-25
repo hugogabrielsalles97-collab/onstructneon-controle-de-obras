@@ -74,7 +74,8 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
     };
 
     const handleAddRow = () => {
-        const lastMonth = editingData.length > 0 ? editingData[editingData.length - 1].month : new Date().toISOString().substring(0, 7);
+        const monthRows = editingData.filter(d => d.month !== 'INITIAL');
+        const lastMonth = monthRows.length > 0 ? monthRows[monthRows.length - 1].month : new Date().toISOString().substring(0, 7);
         // Pegar disciplinas únicas já usadas, ou as disponíveis se estiver vazio
         const activeDisciplines = editingData.length > 0 
             ? Array.from(new Set(editingData.map(d => d.discipline))) 
