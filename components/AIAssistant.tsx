@@ -132,24 +132,20 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks, activeS
             "${userInput}"
         `;
 
-      const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim()}`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        })
+      const apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '';
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      const bodyStr = JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] });
+
+      const { supabase } = await import('../supabaseClient');
+      const { data, error: rpcError } = await supabase.rpc('gemini_proxy', {
+        request_url: url,
+        request_body: bodyStr
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || response.statusText);
-      }
+      if (rpcError) throw new Error("Erro de conexão: " + rpcError.message);
+      if (data?.error) throw new Error(data.error.message || JSON.stringify(data.error));
 
-      const data = await response.json();
-      const output = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sem resposta da IA.';
+      const output = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sem resposta da IA.';
       setMessages([...newMessages, { sender: 'ai', text: output }]);
     } catch (error) {
       console.error("Erro ao chamar a API Gemini:", error);

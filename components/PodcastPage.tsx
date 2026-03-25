@@ -109,8 +109,6 @@ const PodcastPage: React.FC<PodcastPageProps> = ({
         }
         setIsGenerating(true);
         try {
-            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '');
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -174,8 +172,13 @@ const PodcastPage: React.FC<PodcastPageProps> = ({
                 Responda APENAS com o JSON válido.
             `;
 
-            const result = await model.generateContent(prompt);
-            const text = result.response.text();
+            const { supabase } = await import('../supabaseClient');
+            const apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '';
+            const aiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+            const { data, error: rpcErr } = await supabase.rpc('gemini_proxy', { request_url: aiUrl, request_body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
+            if (rpcErr) throw new Error(rpcErr.message);
+            if (data?.error) throw new Error(data.error.message);
+            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
             const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
             const items = JSON.parse(cleanJson);
             setPodcastItems(items);

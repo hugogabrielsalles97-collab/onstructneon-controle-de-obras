@@ -255,8 +255,6 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
             const apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim();
             if (!apiKey) throw new Error('API Key da IA não configurada (.env)');
 
-            const genAI = new GoogleGenerativeAI(apiKey || '');
-
             // Preparar dados para a IA
             const activeRestrictions = restrictions.filter(r => r.status !== RestrictionStatus.Resolved);
             const restrictionsData = activeRestrictions.map(r => {
@@ -297,10 +295,12 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                 Responda em Português do Brasil.
             `;
 
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            setAiInsight(response.text());
+            const { supabase } = await import('../supabaseClient');
+            const aiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+            const { data, error: rpcErr } = await supabase.rpc('gemini_proxy', { request_url: aiUrl, request_body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
+            if (rpcErr) throw new Error(rpcErr.message);
+            if (data?.error) throw new Error(data.error.message);
+            setAiInsight(data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sem resposta.');
         } catch (error: any) {
             console.error('Erro na IA:', error);
             setAiInsight(`Erro ao gerar insights: ${error.message}. Verifique a configuração da API Key.`);

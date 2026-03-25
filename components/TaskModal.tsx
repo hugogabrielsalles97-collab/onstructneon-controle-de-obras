@@ -529,7 +529,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         if (checkAIRestriction("Gerador de Observações IA", "O Gerador Assistido por IA utiliza modelos de linguagem para analisar o progresso da tarefa e sugerir observações técnicas para o RDO.")) return;
         setIsAnalyzing(true);
         try {
-            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '');
             const { progress, actualEndDate } = formData;
             const currentStatus = progress >= 100 && actualEndDate ? TaskStatus.Completed : (progress > 0 ? TaskStatus.InProgress : TaskStatus.ToDo);
 
@@ -558,9 +557,12 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             6. Seja breve (máximo 3 frases).
             `;
 
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-            const result = await model.generateContent(prompt);
-            const aiText = result.response.text();
+            const apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '';
+            const aiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+            const { data, error: rpcErr } = await supabase.rpc('gemini_proxy', { request_url: aiUrl, request_body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
+            if (rpcErr) throw new Error(rpcErr.message);
+            if (data?.error) throw new Error(data.error.message);
+            const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
             setFormData(prev => ({
                 ...prev,
@@ -584,9 +586,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
 
         setIsMappingBaseline(true);
         try {
-            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '');
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
             const baselineSummary = baselineTasks.map(t => ({
                 id: t.id,
                 title: t.title,
@@ -602,8 +601,12 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             Responda APENAS o ID escolhido ou "null".
             `;
 
-            const result = await model.generateContent(prompt);
-            const responseText = result.response.text().trim();
+            const apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '';
+            const aiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+            const { data, error: rpcErr } = await supabase.rpc('gemini_proxy', { request_url: aiUrl, request_body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
+            if (rpcErr) throw new Error(rpcErr.message);
+            if (data?.error) throw new Error(data.error.message);
+            const responseText = (data?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
             const sugeridoId = responseText.replace(/['"`]/g, '').toLowerCase() === 'null' ? '' : responseText.replace(/['"`]/g, '');
 
             if (sugeridoId) {
@@ -653,20 +656,19 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                 imageData = photoUrlOrBase64.split(',')[1];
             }
 
-            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '');
             const prompt = `
             Analise a imagem em busca de riscos de segurança na obra (EPIs, queda, organização).
             Seja direto e técnico.
             Retorne JSON: {"is_safe": boolean, "findings": "descrição"}.
             `;
 
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-            const result = await model.generateContent([
-                prompt,
-                { inlineData: { data: imageData, mimeType } }
-            ]);
+            const apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '';
+            const aiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+            const { data: result, error: rpcErr } = await supabase.rpc('gemini_proxy', { request_url: aiUrl, request_body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inlineData: { data: imageData, mimeType } }] }] }) });
+            if (rpcErr) throw new Error(rpcErr.message);
+            if (result?.error) throw new Error(result.error.message);
 
-            const responseText = result.response.text();
+            const responseText = result?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
             const jsonMatch = responseText.match(/\{[\s\S]*\}/);
             const analysis = jsonMatch ? JSON.parse(jsonMatch[0]) : { is_safe: false, findings: "Falha na análise." };
 
@@ -686,11 +688,12 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
     const fetchWeather = async (location: string, startDate: string, endDate: string, isForecast: boolean) => {
         const hardcodedLocation = "PARACAMBI-RJ";
         try {
-            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '');
+            const apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '';
             const prompt = `Meteorologia para ${hardcodedLocation} entre ${startDate} e ${endDate}. Resumo técnico curto.`;
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-            const result = await model.generateContent(prompt);
-            return result.response.text();
+            const aiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+            const { data, error: rpcErr } = await supabase.rpc('gemini_proxy', { request_url: aiUrl, request_body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
+            if (rpcErr) throw new Error(rpcErr.message);
+            return data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Indisponível.';
         } catch (error) {
             return "Indisponível.";
         }
