@@ -124,13 +124,18 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
                     if (accP2 >= 99.99) p2Reached100 = true;
                     if (currentAccReal !== null && currentAccReal >= 99.99) realReached100 = true;
 
+                    // Regra de interrupção da LB04 em Fev/27
+                    const isAfterP2Cutoff = m.month > '2027-02';
+
                     flatData.push({
                         label: `${monthShort}/${yearShort} S${w.week} (${weekRange})`,
+                        monthShort: `${monthShort}/${yearShort}`,
+                        weekLabel: `S${w.week}`,
                         'LB01 (Mês)': w.planned1,
                         'LB04 (Mês)': w.planned2,
                         'Real (Mês)': w.actual,
                         'LB01 (Acum)': p1Reached100 && accP1 > 100.1 ? null : accP1,
-                        'LB04 (Acum)': p2Reached100 && accP2 > 100.1 ? null : accP2,
+                        'LB04 (Acum)': (p2Reached100 && accP2 > 100.1) || isAfterP2Cutoff ? null : accP2,
                         'Real (Acum)': (realReached100 && currentAccReal === null) || currentAccReal === null ? null : currentAccReal,
                         isWeekly: true
                     });
@@ -156,14 +161,18 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
                 if (accP2 >= 99.99) p2Reached100 = true;
                 if (currentAccReal !== null && currentAccReal >= 99.99) realReached100 = true;
 
+                // Regra de interrupção da LB04 em Fev/27
+                const isAfterP2Cutoff = m.month > '2027-02';
+
                 flatData.push({
                     ...m,
                     label,
+                    monthShort: label,
                     'LB01 (Mês)': m.planned1,
                     'LB04 (Mês)': m.planned2,
                     'Real (Mês)': m.actual,
                     'LB01 (Acum)': p1Reached100 && accP1 > 100.1 ? null : accP1,
-                    'LB04 (Acum)': p2Reached100 && accP2 > 100.1 ? null : accP2,
+                    'LB04 (Acum)': (p2Reached100 && accP2 > 100.1) || isAfterP2Cutoff ? null : accP2,
                     'Real (Acum)': (realReached100 && currentAccReal === null) || currentAccReal === null ? null : currentAccReal
                 });
             }
@@ -244,6 +253,33 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
             const base = prev.length > 0 ? prev : months;
             return base.slice(0, -1);
         });
+    };
+
+    const CustomXAxisTick = (props: any) => {
+        const { x, y, payload } = props;
+        const dataPoint = chartData[payload.index];
+        if (!dataPoint) return null;
+
+        if (dataPoint.isWeekly) {
+            return (
+                <g transform={`translate(${x},${y})`}>
+                    <text x={0} y={0} dy={12} textAnchor="middle" fill="#6366f1" fontSize={9} fontWeight="900" textTransform="uppercase">
+                        {dataPoint.weekLabel}
+                    </text>
+                    <text x={0} y={12} dy={12} textAnchor="middle" fill="#94a3b8" fontSize={8} fontWeight="700">
+                        {dataPoint.monthShort}
+                    </text>
+                </g>
+            );
+        }
+
+        return (
+            <g transform={`translate(${x},${y})`}>
+                <text x={0} y={0} dy={14} textAnchor="middle" fill="#6366f1" fontSize={10} fontWeight="800">
+                    {payload.value}
+                </text>
+            </g>
+        );
     };
 
     return (
@@ -439,8 +475,8 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                             <XAxis 
                                 dataKey="label" 
-                                stroke="#6366f1" 
-                                tick={{ fontSize: 10, fontWeight: '700' }}
+                                tick={<CustomXAxisTick />}
+                                height={50}
                                 axisLine={false}
                                 tickLine={false}
                             />
