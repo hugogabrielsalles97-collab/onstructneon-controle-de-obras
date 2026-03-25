@@ -92,10 +92,20 @@ const RdoModal: React.FC<RdoModalProps> = ({ isOpen, onClose, tasks, onUpgradeCl
             Formate o relatório de maneira clara e profissional, utilizando tópicos e linguagem formal.
         `;
 
-            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '');
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-            const result = await model.generateContent(prompt);
-            const text = result.response.text();
+            const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim()}`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error?.message || response.statusText);
+            }
+
+            const data = await response.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sem resposta da IA.';
             setGeneratedReport(text);
 
         } catch (err) {

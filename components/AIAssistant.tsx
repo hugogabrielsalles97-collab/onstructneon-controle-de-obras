@@ -132,10 +132,24 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ tasks, baselineTasks, activeS
             "${userInput}"
         `;
 
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-      const result = await model.generateContent(prompt);
-      const output = await result.response.text();
+      const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim()}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || response.statusText);
+      }
+
+      const data = await response.json();
+      const output = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sem resposta da IA.';
       setMessages([...newMessages, { sender: 'ai', text: output }]);
     } catch (error) {
       console.error("Erro ao chamar a API Gemini:", error);
