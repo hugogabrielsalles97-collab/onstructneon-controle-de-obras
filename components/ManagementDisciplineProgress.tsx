@@ -278,7 +278,7 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                 <tr key={`${idx}-w${wIdx}`} className="bg-white/5 animate-fade-in shadow-inner">
                                                     <td className="p-2"></td>
                                                     <td className="p-3 pl-14 text-brand-med-gray text-[10px] font-bold uppercase tracking-wider">
-                                                        {(wIdx === 0 ? '01-07' : wIdx === 1 ? '08-15' : wIdx === 2 ? '16-22' : `23-${new Date(parseInt(m.month.split('-')[0]), parseInt(m.month.split('-')[1]), 0).getDate()}`)}
+                                                        S{wIdx + 1}
                                                     </td>
                                                     <td className="p-1">
                                                         <input
