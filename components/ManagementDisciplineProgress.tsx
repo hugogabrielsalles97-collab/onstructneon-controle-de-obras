@@ -408,6 +408,12 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
 
                     // Ordenar e calcular acumulados
                     const sortedPeriods = Object.keys(groupedByPeriod).sort();
+                    
+                    let lastValidPlannedIndex = -1;
+                    sortedPeriods.forEach((key, idx) => {
+                        if (groupedByPeriod[key].planned > 0) lastValidPlannedIndex = idx;
+                    });
+
                     let currentAccPlanned = startPlanned;
                     let currentAccActual = startActual;
                     let lastValidActualIndex = -1;
@@ -430,7 +436,7 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                             periodo: key,
                             planned: p.planned,
                             actual: p.actual,
-                            accPlanned: currentAccPlanned,
+                            accPlanned: idx <= lastValidPlannedIndex ? currentAccPlanned : null,
                             accActual: hasActual ? currentAccActual : null
                         };
                     });
@@ -502,8 +508,8 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                 orientation="right"
                                                 axisLine={false} 
                                                 tickLine={false} 
-                                                tick={{ fill: '#06b6d4', fontSize: 10 }}
-                                                label={{ value: 'Acumulado (%)', angle: 90, position: 'insideRight', style: { fill: '#06b6d4', fontSize: 10, fontWeight: 700 } }}
+                                                tick={{ fill: '#e35a10', fontSize: 10 }}
+                                                label={{ value: 'Acumulado (%)', angle: 90, position: 'insideRight', style: { fill: '#e35a10', fontSize: 10, fontWeight: 700 } }}
                                             />
                                             <RechartsTooltip 
                                                 contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid #1e293b', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)' }}
@@ -513,8 +519,8 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                             <Legend verticalAlign="top" height={36} wrapperStyle={{ paddingBottom: '20px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }} />
                                             
                                             {/* Barras de Progresso Mensal/Semanal */}
-                                            <Bar yAxisId="left" name="Previsto Mês" dataKey="planned" fill="#4b5563" radius={[4, 4, 0, 0]} />
-                                            <Bar yAxisId="left" name="Realizado Mês" dataKey="actual" fill="#06b6d4" radius={[4, 4, 0, 0]} />
+                                            <Bar yAxisId="left" name="Previsto Semana" dataKey="planned" fill="#4b5563" radius={[4, 4, 0, 0]} />
+                                            <Bar yAxisId="left" name="Realizado Semana" dataKey="actual" fill="#e35a10" radius={[4, 4, 0, 0]} />
                                             
                                             {/* Linhas de Acumulado */}
                                             <Line 
@@ -526,15 +532,16 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                 strokeWidth={2} 
                                                 dot={{ r: 3, fill: '#4b5563', strokeWidth: 2 }} 
                                                 strokeDasharray="5 5"
+                                                connectNulls={false}
                                             />
                                             <Line 
                                                 yAxisId="right" 
                                                 type="monotone" 
                                                 name="Acumulado Real" 
                                                 dataKey="accActual" 
-                                                stroke="#06b6d4" 
+                                                stroke="#e35a10" 
                                                 strokeWidth={3} 
-                                                dot={{ r: 4, fill: '#06b6d4' }}
+                                                dot={{ r: 4, fill: '#e35a10' }}
                                                 connectNulls={false}
                                             />
 
@@ -542,9 +549,9 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                 <ReferenceLine 
                                                     yAxisId="right"
                                                     x={chartPoints[lastValidActualIndex].name} 
-                                                    stroke="#06b6d4" 
+                                                    stroke="#e35a10" 
                                                     strokeDasharray="3 3"
-                                                    label={{ value: 'Corte', position: 'insideBottomRight', fill: '#06b6d4', fontSize: 10, fontWeight: 'bold' }}
+                                                    label={{ value: 'Corte', position: 'insideBottomRight', fill: '#e35a10', fontSize: 10, fontWeight: 'bold' }}
                                                 />
                                             )}
                                         </ComposedChart>
