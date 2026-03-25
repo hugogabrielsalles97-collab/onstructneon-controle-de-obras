@@ -514,8 +514,11 @@ export const markNotificationAsRead = async (id: string) => {
 
 export const createNotification = async (notification: Omit<AppNotification, 'id' | 'created_at' | 'is_read'>) => {
     try {
-        await supabase.from('notifications').insert([notification]);
+        const { error } = await supabase.from('notifications').insert([notification]);
+        if (error) {
+            console.error('Falha ao processar notificação no Supabase:', error.message);
+        }
     } catch(err) {
-        console.error(err);
+        console.error('Network Error ao criar notificação:', err);
     }
 };
