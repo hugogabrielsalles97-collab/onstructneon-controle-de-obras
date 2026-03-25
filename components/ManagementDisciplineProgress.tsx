@@ -3,7 +3,7 @@ import ExcelIcon from './icons/ExcelIcon';
 import { exportToExcel } from '../utils/excelExport';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, 
-  ResponsiveContainer, Line, ComposedChart, Area, ReferenceLine, Cell
+  ResponsiveContainer, Line, ComposedChart, Area, ReferenceLine, Cell, LabelList
 } from 'recharts';
 
 export interface WeeklyDisciplineProgress {
@@ -519,8 +519,22 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                             <Legend verticalAlign="top" height={36} wrapperStyle={{ paddingBottom: '20px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }} />
                                             
                                             {/* Barras de Progresso Mensal/Semanal */}
-                                            <Bar yAxisId="left" name="Previsto Semana" dataKey="planned" fill="#4b5563" radius={[4, 4, 0, 0]} />
-                                            <Bar yAxisId="left" name="Realizado Semana" dataKey="actual" fill="#e35a10" radius={[4, 4, 0, 0]} />
+                                            <Bar yAxisId="left" name="Previsto Semana" dataKey="planned" fill="#4b5563" radius={[4, 4, 0, 0]}>
+                                                <LabelList 
+                                                    dataKey="planned" 
+                                                    position="top" 
+                                                    style={{ fill: '#94a3b8', fontSize: 9, fontWeight: 'bold' }} 
+                                                    formatter={(val: number) => val > 0 ? `${val.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%` : ''} 
+                                                />
+                                            </Bar>
+                                            <Bar yAxisId="left" name="Realizado Semana" dataKey="actual" fill="#e35a10" radius={[4, 4, 0, 0]}>
+                                                <LabelList 
+                                                    dataKey="actual" 
+                                                    position="top" 
+                                                    style={{ fill: '#e35a10', fontSize: 9, fontWeight: 'bold' }} 
+                                                    formatter={(val: number) => val !== null && val !== undefined && val > 0 ? `${val.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%` : ''} 
+                                                />
+                                            </Bar>
                                             
                                             {/* Linhas de Acumulado */}
                                             <Line 
