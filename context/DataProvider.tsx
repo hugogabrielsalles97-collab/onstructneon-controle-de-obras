@@ -41,6 +41,8 @@ interface DataContextType {
     setCurrentScheduleCutOffDateStr: (date: string) => void;
     monthlyPlanning: any[];
     setMonthlyPlanning: (data: any[]) => void;
+    disciplinePlanning: any[];
+    setDisciplinePlanning: (data: any[]) => void;
     signOut: () => Promise<{ success: boolean; error?: string }>;
     upgradeRole: (newRole: User['role']) => Promise<{ success: boolean; error?: string }>;
     updateUser: (userId: string, updates: Partial<User>) => Promise<{ success: boolean; error?: string }>;
@@ -58,6 +60,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [baselineCutOffDateStr, setBaselineCutOffDateStr] = useState('2026-01-10');
     const [currentScheduleCutOffDateStr, setCurrentScheduleCutOffDateStr] = useState('2026-01-10');
     const [monthlyPlanning, setMonthlyPlanning] = useState<any[]>([]);
+    const [disciplinePlanning, setDisciplinePlanning] = useState<any[]>([]);
     const [isAuthLoading, setIsAuthLoading] = useState(true);
     const queryClient = useQueryClient();
 
@@ -152,10 +155,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setBaselineCutOffDateStr(settings.baseline_cutoff_date);
             setCurrentScheduleCutOffDateStr(settings.current_schedule_cutoff_date);
             if (settings.monthly_planning) setMonthlyPlanning(settings.monthly_planning);
+            if (settings.discipline_planning) setDisciplinePlanning(settings.discipline_planning);
         }
     }, [settings]);
 
-    const updateProjectSettings = async (updates: { baseline_cutoff_date?: string, current_schedule_cutoff_date?: string, monthly_planning?: any[] }) => {
+    const updateProjectSettings = async (updates: { baseline_cutoff_date?: string, current_schedule_cutoff_date?: string, monthly_planning?: any[], discipline_planning?: any[] }) => {
         try {
             // Utilizamos o ID fixo garantido pela migração para evitar duplicidade ou perda de dados
             const SETTINGS_ID = '00000000-0000-0000-0000-000000000001';
@@ -192,6 +196,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const handleSetMonthlyPlanning = (data: any[]) => {
         setMonthlyPlanning(data);
         updateProjectSettings({ monthly_planning: data });
+    };
+
+    const handleSetDisciplinePlanning = (data: any[]) => {
+        setDisciplinePlanning(data);
+        updateProjectSettings({ discipline_planning: data });
     };
 
     // Dados Mockados para o Módulo de Custos (Temporário)
@@ -685,6 +694,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setCurrentScheduleCutOffDateStr: handleSetCurrentScheduleCutOffDateStr,
             monthlyPlanning,
             setMonthlyPlanning: handleSetMonthlyPlanning,
+            disciplinePlanning,
+            setDisciplinePlanning: handleSetDisciplinePlanning,
             signOut, upgradeRole, updateUser, deleteUser, isDevToolsOpen, setIsDevToolsOpen,
             enableBaselineLoading: () => setEnableBaseline(true),
             enableScheduleLoading: () => setEnableSchedule(true),

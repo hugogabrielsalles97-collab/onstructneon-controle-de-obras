@@ -392,6 +392,7 @@ export interface ProjectSettings {
     baseline_cutoff_date: string;
     current_schedule_cutoff_date: string;
     monthly_planning?: any[];
+    discipline_planning?: any[];
 }
 
 export const useProjectSettings = (enabled: boolean = true) => {
@@ -400,7 +401,7 @@ export const useProjectSettings = (enabled: boolean = true) => {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('project_settings')
-                .select('baseline_cutoff_date, current_schedule_cutoff_date, monthly_planning')
+                .select('baseline_cutoff_date, current_schedule_cutoff_date, monthly_planning, discipline_planning')
                 .limit(1);
             if (error) throw error;
             return (data && data.length > 0 ? data[0] : { baseline_cutoff_date: '2026-03-17', current_schedule_cutoff_date: '2026-03-17' }) as ProjectSettings;
