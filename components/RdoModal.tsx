@@ -93,7 +93,7 @@ const RdoModal: React.FC<RdoModalProps> = ({ isOpen, onClose, tasks, onUpgradeCl
         `;
 
             const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '');
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
             const result = await model.generateContent(prompt);
             const text = result.response.text();
             setGeneratedReport(text);

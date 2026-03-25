@@ -19,22 +19,6 @@ import AIRestrictedAccess from './AIRestrictedAccess';
 import ConfirmModal from './ConfirmModal';
 import EyeIcon from './icons/EyeIcon';
 
-const customFetch = async (url: RequestInfo | URL, options?: RequestInit) => {
-    // Import do supabase cliente dinâmico para garantir que tem acesso onde estiver
-    const { supabase } = await import('../supabaseClient');
-    const { data, error } = await supabase.rpc('gemini_proxy', {
-        request_url: url.toString(),
-        request_body: options?.body ? JSON.parse(options.body as string) : {}
-    });
-    if (error) {
-        console.error("Erro no Proxy:", error);
-        throw new Error(error.message);
-    }
-    return new Response(JSON.stringify(data), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-    });
-};
 
 
 interface TaskModalProps {
@@ -545,7 +529,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         if (checkAIRestriction("Gerador de Observações IA", "O Gerador Assistido por IA utiliza modelos de linguagem para analisar o progresso da tarefa e sugerir observações técnicas para o RDO.")) return;
         setIsAnalyzing(true);
         try {
-            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY, { fetch: customFetch } as any);
+            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '');
             const { progress, actualEndDate } = formData;
             const currentStatus = progress >= 100 && actualEndDate ? TaskStatus.Completed : (progress > 0 ? TaskStatus.InProgress : TaskStatus.ToDo);
 
@@ -600,7 +584,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
 
         setIsMappingBaseline(true);
         try {
-            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY, { fetch: customFetch } as any);
+            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '');
             const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
             const baselineSummary = baselineTasks.map(t => ({
@@ -669,7 +653,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                 imageData = photoUrlOrBase64.split(',')[1];
             }
 
-            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY, { fetch: customFetch } as any);
+            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '');
             const prompt = `
             Analise a imagem em busca de riscos de segurança na obra (EPIs, queda, organização).
             Seja direto e técnico.
@@ -702,7 +686,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
     const fetchWeather = async (location: string, startDate: string, endDate: string, isForecast: boolean) => {
         const hardcodedLocation = "PARACAMBI-RJ";
         try {
-            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY, { fetch: customFetch } as any);
+            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_GENAI_API_KEY?.trim() || '');
             const prompt = `Meteorologia para ${hardcodedLocation} entre ${startDate} e ${endDate}. Resumo técnico curto.`;
             const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
             const result = await model.generateContent(prompt);
