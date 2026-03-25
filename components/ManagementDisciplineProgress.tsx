@@ -75,21 +75,34 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
 
     const handleAddRow = () => {
         const lastMonth = editingData.length > 0 ? editingData[editingData.length - 1].month : new Date().toISOString().substring(0, 7);
-        setEditingData([...editingData, {
-            discipline: availableDisciplines[0] || '',
+        // Pegar disciplinas únicas já usadas, ou as disponíveis se estiver vazio
+        const activeDisciplines = editingData.length > 0 
+            ? Array.from(new Set(editingData.map(d => d.discipline))) 
+            : availableDisciplines;
+
+        const newRows = activeDisciplines.map(disc => ({
+            discipline: disc,
             month: lastMonth,
             planned: 0,
             actual: null
-        }]);
+        }));
+        
+        setEditingData([...editingData, ...newRows]);
     };
 
     const handleAddInitialRow = () => {
-        setEditingData([...editingData, {
-            discipline: availableDisciplines[0] || '',
+        const activeDisciplines = editingData.length > 0 
+            ? Array.from(new Set(editingData.map(d => d.discipline))) 
+            : availableDisciplines;
+
+        const newRows = activeDisciplines.map(disc => ({
+            discipline: disc,
             month: 'INITIAL',
             planned: 0,
             actual: 0
-        }]);
+        }));
+        
+        setEditingData([...editingData, ...newRows]);
     };
 
     const handleRemoveRow = (index: number) => {
