@@ -1284,15 +1284,39 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                                     <div className="flex justify-between items-start mb-2">
                                                         <p className="text-[9px] text-green-400 uppercase font-black">Resposta:</p>
                                                         {canRespondToImpact && (
-                                                            <button 
-                                                                onClick={() => {
-                                                                    setRespondingToTaskId(t.id);
-                                                                    setResponseText(t.response || '');
-                                                                }}
-                                                                className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-green-400 font-bold hover:text-green-300 uppercase tracking-tighter"
-                                                            >
-                                                                Editar Resposta
-                                                            </button>
+                                                            <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <button 
+                                                                    onClick={() => {
+                                                                        setRespondingToTaskId(t.id);
+                                                                        setResponseText(t.response || '');
+                                                                    }}
+                                                                    className="text-[10px] text-green-400 font-bold hover:text-green-200 uppercase tracking-tighter"
+                                                                >
+                                                                    Editar
+                                                                </button>
+                                                                <button 
+                                                                    disabled={savingImpactTaskId === t.id}
+                                                                    onClick={async () => {
+                                                                        if (!confirm('Deseja realmente excluir esta resposta?')) return;
+                                                                        setSavingImpactTaskId(t.id);
+                                                                        const result = await saveTask({
+                                                                            ...t,
+                                                                            response: '',
+                                                                            response_user: '',
+                                                                            response_at: ''
+                                                                        });
+                                                                        if (result.success) {
+                                                                            showToast('Resposta excluída!', 'success');
+                                                                        } else {
+                                                                            showToast(`Erro ao excluir: ${result.error}`, 'error');
+                                                                        }
+                                                                        setSavingImpactTaskId(null);
+                                                                    }}
+                                                                    className="text-[10px] text-red-400 font-bold hover:text-red-300 uppercase tracking-tighter"
+                                                                >
+                                                                    Excluir
+                                                                </button>
+                                                            </div>
                                                         )}
                                                     </div>
                                                     <p className="text-xs text-gray-200 leading-relaxed font-semibold">

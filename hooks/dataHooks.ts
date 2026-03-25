@@ -19,7 +19,7 @@ const TASK_LIGHT_COLUMNS = `
     "startDate", "dueDate", "actualStartDate", "actualEndDate",
     location, support, side, corte, shift,
     quantity, unit, "actualQuantity", progress,
-    observations, baseline_id, user_id, created_at
+    observations, response, response_user, response_at, baseline_id, user_id, created_at
 `.replace(/\s+/g, ' ').trim();
 
 // Colunas pesadas (JSONB) — carregadas SOMENTE quando necessário
