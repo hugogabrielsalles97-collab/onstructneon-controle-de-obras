@@ -284,6 +284,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     changes.shift = { from: existingTask.shift, to: task.shift };
                     hasChanges = true;
                 }
+                
+                // Track response changes in logs too
+                if ((existingTask.response || '') !== (task.response || '')) {
+                    changes.response = { from: existingTask.response, to: task.response };
+                    hasChanges = true;
+                }
 
                 if (hasChanges) {
                     await supabase.from('checkout_logs').insert([{
@@ -341,9 +347,56 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
                 // Só faz o UPDATE se houver realmente mudanças estruturais
                 if (Object.keys(changedFields).length > 0) {
+                    console.log(`[DataProvider] Gravando alterações na tarefa ${id}:`, changedFields);
+                    
+                    // Se estivermos salvando uma resposta, garantir que os campos de metadados vão junto
+                    if ('response' in taskUpdates) {
+                        changedFields.response = taskUpdates.response;
+                        changedFields.response_user = taskUpdates.response_user;
+                        changedFields.response_at = taskUpdates.response_at;
+                    }
+
                     changedFields.user_id = session.user.id;
-                    const { error } = await supabase.from('tasks').update(changedFields).eq('id', id);
-                    if (error) throw error;
+                    const { error, data: updateData, status } = await supabase
+                        .from('tasks')
+                        .update(changedFields)
+                        .eq('id', id)
+                        .select();
+                        
+                    if (error) {
+                        console.error(`[DataProvider] Erro no UPDATE da tarefa ${id}:`, error);
+                        throw error;
+                    }
+                    
+                    if (!updateData || updateData.length === 0) {
+                        console.warn(`[DataProvider] UPDATE bem sucedido (status ${status}) mas 0 linhas afetadas para ID: ${id}. Verificando em outras tabelas...`);
+                        
+                        // Tentativa de salvamento em baseline_tasks ou current_schedule_tasks se não achou em tasks
+                        const tables = ['current_schedule_tasks', 'baseline_tasks'];
+                        let found = false;
+                        
+                        for (const table of tables) {
+                            const { data: altData, error: altError } = await supabase
+                                .from(table)
+                                .update(changedFields)
+                                .eq('id', id)
+                                .select();
+                                
+                            if (!altError && altData && altData.length > 0) {
+                                console.log(`[DataProvider] Sucesso ao salvar resposta na tabela alternativa: ${table}`);
+                                found = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!found) {
+                            console.error(`[DataProvider] Falha crítica: ID ${id} não encontrado em nenhuma tabela de tarefas.`);
+                        }
+                    } else {
+                        console.log(`[DataProvider] Sucesso ao atualizar tarefa ${id} em 'tasks'`);
+                    }
+                } else {
+                    console.log(`[DataProvider] Nenhuma alteração detectada para a tarefa ${id}`);
                 }
 
                 queryClient.invalidateQueries({ queryKey: ['tasks'] });
