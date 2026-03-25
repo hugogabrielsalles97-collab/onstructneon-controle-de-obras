@@ -27,28 +27,34 @@ export interface MonthlyProgress {
     planned2: number; // Percentual no mês
     actual?: number | null; // Percentual no mês
     weeks?: WeeklyProgress[]; // Detalhamento opcional por semanas
+    isExpanded?: boolean; // Novo: Persistência visual da expansão
 }
 
 interface ManagementMonthlyProgressProps {
     data: MonthlyProgress[];
     onSave: (newData: MonthlyProgress[]) => void;
+    canEdit?: boolean; // Permissão para alterar planejamento e visual
 }
 
-const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ data, onSave }) => {
+const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ data, onSave, canEdit = false }) => {
     const [editingData, setEditingData] = useState<MonthlyProgress[]>(data);
     const [isEditing, setIsEditing] = useState(false);
-    const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
 
-    const toggleMonthExpansion = (month: string) => {
-        setExpandedMonths(prev => {
-            const next = new Set(prev);
-            if (next.has(month)) {
-                next.delete(month);
-            } else {
-                next.add(month);
-            }
-            return next;
-        });
+    const toggleMonthExpansion = (index: number) => {
+        if (!canEdit) return; // Só masters/planejadores podem alterar o "visual" salvo
+        
+        const newData = [...(editingData.length > 0 ? editingData : months)];
+        newData[index] = {
+            ...newData[index],
+            isExpanded: !newData[index].isExpanded
+        };
+        setEditingData(newData);
+        
+        // Se NÃO estiver em modo de edição da planilha, salvamos o visual IMEDIATAMENTE 
+        // para persistir para todos, conforme pedido pelo usuário.
+        if (!isEditing) {
+            onSave(newData);
+        }
     };
 
     // Sincronizar com dados do banco quando carregarem
@@ -87,8 +93,8 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
 
         const flatData: any[] = [];
         
-        months.forEach(m => {
-            if (expandedMonths.has(m.month)) {
+        months.forEach((m, mIdx) => {
+            if (m.isExpanded) {
                 // Se expandido, adiciona 4 pontos semanais
                 const weeks = m.weeks || [
                     { week: 1, planned1: m.planned1 / 4, planned2: m.planned2 / 4, actual: m.actual !== null ? m.actual / 4 : null },
@@ -164,7 +170,7 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
         });
 
         return flatData;
-    }, [months, expandedMonths]);
+    }, [months]);
 
     const handleInputChange = (index: number, field: keyof MonthlyProgress, value: string, weekIdx?: number) => {
         const newValue = value === '' ? (field === 'actual' ? null : 0) : parseFloat(value);
@@ -249,12 +255,14 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
                 </div>
                 <div className="flex gap-3">
                     {!isEditing ? (
-                        <button
-                            onClick={() => setIsEditing(true)}
-                            className="px-4 py-2 bg-brand-accent/20 text-brand-accent border border-brand-accent/50 rounded-lg text-xs font-bold hover:bg-brand-accent hover:text-white transition-all"
-                        >
-                            Editar Planilha
-                        </button>
+                        canEdit && (
+                            <button
+                                onClick={() => setIsEditing(true)}
+                                className="px-4 py-2 bg-brand-accent/20 text-brand-accent border border-brand-accent/50 rounded-lg text-xs font-bold hover:bg-brand-accent hover:text-white transition-all"
+                            >
+                                Editar Planilha
+                            </button>
+                        )
                     ) : (
                         <div className="flex gap-2">
                             <button
@@ -288,7 +296,7 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
                             </thead>
                             <tbody className="divide-y divide-brand-darkest/50">
                                 {(editingData.length > 0 ? editingData : months).map((m, idx) => {
-                                    const isExpanded = expandedMonths.has(m.month);
+                                    const isExpanded = !!m.isExpanded;
                                     const dateObj = new Date(parseInt(m.month.split('-')[0]), parseInt(m.month.split('-')[1]) - 1, 1);
                                     
                                     return (
@@ -296,7 +304,8 @@ const ManagementMonthlyProgress: React.FC<ManagementMonthlyProgressProps> = ({ d
                                             <tr className={`${isExpanded ? 'bg-brand-accent/10' : 'hover:bg-brand-accent/5'} transition-colors border-l-2 ${isExpanded ? 'border-brand-accent' : 'border-transparent'}`}>
                                                 <td className="p-4 text-white font-bold whitespace-nowrap flex items-center gap-3">
                                                     <button 
-                                                        onClick={() => toggleMonthExpansion(m.month)}
+                                                        onClick={() => toggleMonthExpansion(idx)}
+                                                        disabled={!canEdit}
                                                         className={`w-6 h-6 rounded flex items-center justify-center transition-all ${isExpanded ? 'bg-brand-accent text-white rotate-90' : 'bg-white/5 text-brand-med-gray hover:text-white'}`}
                                                     >
                                                         <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">

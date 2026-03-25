@@ -800,6 +800,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                         <ManagementMonthlyProgress 
                             data={monthlyPlanning}
                             onSave={setMonthlyPlanning}
+                            canEdit={user && (user.role === 'Master' || user.role === 'Planejador')}
                         />
 
                         {/* Performance por Responsável */}
