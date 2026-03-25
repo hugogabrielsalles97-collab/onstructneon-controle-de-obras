@@ -228,37 +228,28 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     setFilters(initialFilters);
   };
 
-  // OTIMIZAÇÃO: Mapeamento de Engenheiros por Responsável (O(N) uma única vez)
-  const engineerByAssigneeMap = useMemo(() => {
-    if (!orgMembers || !allUsers) return new Map<string, string>();
+  // Mapeamento OAE → Engenheiro (mesma lógica do Controle Visual)
+  const OAE_ENGINEER_MAP: Record<string, string> = {
+    'S01': 'Bruno Bastos', 'S02': 'Bruno Bastos', 'S03': 'Bruno Bastos',
+    'S04': 'Bruno Bastos', 'S05': 'Bruno Bastos', 'S06': 'Bruno Bastos',
+    'S07': 'Bruno Bastos', 'S08': 'Bruno Bastos', 'S09': 'Bruno Bastos',
+    'S10': 'Matheus Ramos', 'S11': 'Matheus Ramos', 'S12': 'Matheus Ramos',
+    'S13': 'Rafael Requiao', 'S14': 'Rafael Requiao',
+    'D15': 'Bruno Bastos', 'D16': 'Bruno Bastos', 'D17': 'Bruno Bastos', 'D18': 'Bruno Bastos',
+    'D19': 'Matheus Ramos', 'D20': 'Matheus Ramos', 'D21': 'Matheus Ramos',
+    'D22': 'Rafael Requiao', 'D23': 'Rafael Requiao', 'D24': 'Rafael Requiao',
+    'QUADRATUM': 'Bruno Bastos',
+    'PÁTIO DE VIGAS': 'Matheus Ramos',
+  };
 
-    const map = new Map<string, string>();
-    const memberById = new Map<string, typeof orgMembers[0]>();
-    orgMembers.forEach(m => memberById.set(m.id, m));
-
-    allUsers.forEach(u => {
-      let currentMember = orgMembers.find(m => m.user_id === u.id || m.name === u.fullName);
-      if (!currentMember) return;
-
-      let parent = memberById.get(currentMember.parent_id || '');
-      let topParent = null;
-
-      while (parent) {
-        if (parent.role.toLowerCase().includes('eng')) {
-          map.set(u.fullName, parent.name);
-          return;
-        }
-        if (!parent.parent_id) {
-          topParent = parent;
-          break;
-        }
-        parent = memberById.get(parent.parent_id);
-      }
-      if (topParent) map.set(u.fullName, topParent.name);
-    });
-
-    return map;
-  }, [orgMembers, allUsers]);
+  const getEngineerForLocation = useCallback((location: string | undefined): string | null => {
+    if (!location) return null;
+    const loc = location.toUpperCase().trim();
+    for (const [oaeLabel, engineer] of Object.entries(OAE_ENGINEER_MAP)) {
+      if (loc.includes(oaeLabel)) return engineer;
+    }
+    return null;
+  }, []);
 
   const uniqueOptions = useMemo(() => {
     const assignees = new Set<string>();
@@ -270,14 +261,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     const engineers = new Set<string>();
 
     visibleTasks.forEach(task => {
-      if (task.assignee) {
-        assignees.add(task.assignee);
-        const eng = engineerByAssigneeMap.get(task.assignee);
-        if (eng) engineers.add(eng);
-      }
+      if (task.assignee) assignees.add(task.assignee);
       if (task.discipline) disciplines.add(task.discipline);
       if (task.level) levels.add(task.level);
-      if (task.location) locations.add(task.location);
+      if (task.location) {
+        locations.add(task.location);
+        const eng = getEngineerForLocation(task.location);
+        if (eng) engineers.add(eng);
+      }
       if (task.corte) cortes.add(task.corte);
       if (task.support) supports.add(task.support);
     });
@@ -291,7 +282,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
       support: Array.from(supports).sort(),
       engineer: Array.from(engineers).sort(),
     };
-  }, [visibleTasks, engineerByAssigneeMap]);
+  }, [visibleTasks, getEngineerForLocation]);
 
   const filteredTasksWithoutStatus = useMemo(() => {
     const filterStartDateNum = filters.startDate ? new Date(filters.startDate + 'T00:00:00').getTime() : null;
@@ -314,13 +305,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
       if (filterEndDateNum && taskDueDateNum > filterEndDateNum) return false;
 
       if (filters.engineer) {
-        const eng = engineerByAssigneeMap.get(task.assignee);
+        const eng = getEngineerForLocation(task.location);
         if (eng !== filters.engineer) return false;
       }
 
       return true;
     });
-  }, [visibleTasks, filters.assignee, filters.discipline, filters.level, filters.location, filters.corte, filters.support, filters.startDate, filters.endDate, filters.engineer, engineerByAssigneeMap]);
+  }, [visibleTasks, filters.assignee, filters.discipline, filters.level, filters.location, filters.corte, filters.support, filters.startDate, filters.endDate, filters.engineer, getEngineerForLocation]);
 
   const filteredAndSortedTasks = useMemo(() => {
     const todayNum = new Date().setHours(0, 0, 0, 0);
