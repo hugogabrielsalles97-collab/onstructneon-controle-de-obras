@@ -8,7 +8,7 @@ import {
 
 export interface WeeklyDisciplineProgress {
     week: number;
-    planned: number;
+    planned: number | null;
     actual?: number | null;
 }
 
@@ -19,7 +19,7 @@ export interface DisciplineMonthProgress {
     engineer: string;
     unit: string;
     month: string; // 'YYYY-MM' ou 'INITIAL'
-    planned: number; // Agora representa QUANTIDADE
+    planned: number | null; // Agora representa QUANTIDADE
     actual?: number | null; // Agora representa QUANTIDADE
     weeks?: WeeklyDisciplineProgress[];
     isExpanded?: boolean;
@@ -98,7 +98,7 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
 
     const handleInputChange = (index: number, field: keyof DisciplineMonthProgress | 'planned' | 'actual', value: any, weekIdx?: number) => {
         const isNumeric = field === 'planned' || field === 'actual';
-        const newValue = isNumeric ? (value === '' ? (field === 'actual' ? null : 0) : parseFloat(value)) : value;
+        const newValue = isNumeric ? (value === '' ? null : parseFloat(value)) : value;
         const newData = [...editingData];
         const item = { ...newData[index] };
 
@@ -131,8 +131,9 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
             item.weeks = [...item.weeks];
             item.weeks[weekIdx] = updatedWeek;
 
-            // Recalcular total do mês
-            item.planned = item.weeks.reduce((acc, w) => acc + (w.planned || 0), 0);
+            // Recalcular total do mês baseados nas semanas
+            const hasAnyPlanned = item.weeks.some(w => w.planned !== null && w.planned !== undefined);
+            item.planned = hasAnyPlanned ? item.weeks.reduce((acc, w) => acc + (w.planned || 0), 0) : null;
             const hasAnyReal = item.weeks.some(w => w.actual !== null && w.actual !== undefined);
             item.actual = hasAnyReal ? item.weeks.reduce((acc, w) => acc + (w.actual || 0), 0) : null;
         } else {
@@ -160,7 +161,7 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
             engineer: selectedChartEngineer || '',
             unit: '',
             month: lastMonth,
-            planned: 0,
+            planned: null,
             actual: null
         };
         
@@ -175,7 +176,7 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
             engineer: selectedChartEngineer || '',
             unit: '',
             month: 'INITIAL',
-            planned: 0,
+            planned: null,
             actual: 0
         };
         
@@ -189,12 +190,13 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
         const nextWeekNum = currentWeeks.length + 1;
         
         // Se for a primeira semana e o total planejado do mês for > 0, sugere esse total
-        const suggestedPlanned = currentWeeks.length === 0 && item.planned > 0 ? item.planned : 0;
+        const suggestedPlanned = currentWeeks.length === 0 && item.planned && item.planned > 0 ? item.planned : null;
         
         item.weeks = [...currentWeeks, { week: nextWeekNum, planned: suggestedPlanned, actual: null }];
         
         // Recalcular total do mês baseados nas semanas
-        item.planned = item.weeks.reduce((acc, w) => acc + (w.planned || 0), 0);
+        const hasAnyPlanned = item.weeks.some(w => w.planned !== null && w.planned !== undefined);
+        item.planned = hasAnyPlanned ? item.weeks.reduce((acc, w) => acc + (w.planned || 0), 0) : null;
         const hasAnyReal = item.weeks.some(w => w.actual !== null && w.actual !== undefined);
         item.actual = hasAnyReal ? item.weeks.reduce((acc, w) => acc + (w.actual || 0), 0) : null;
 
@@ -212,7 +214,8 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
         item.weeks = item.weeks.map((w, i) => ({ ...w, week: i + 1 }));
         
         // Recalcular totais
-        item.planned = item.weeks.reduce((acc, w) => acc + (w.planned || 0), 0);
+        const hasAnyPlanned = item.weeks.some(w => w.planned !== null && w.planned !== undefined);
+        item.planned = hasAnyPlanned ? item.weeks.reduce((acc, w) => acc + (w.planned || 0), 0) : null;
         const hasAnyReal = item.weeks.some(w => w.actual !== null && w.actual !== undefined);
         item.actual = hasAnyReal ? item.weeks.reduce((acc, w) => acc + (w.actual || 0), 0) : null;
         
@@ -402,10 +405,11 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                     <input
                                                         type="number"
                                                         step="0.01"
-                                                        value={m.planned}
+                                                        value={m.planned === null ? '' : m.planned}
                                                         disabled={isExpanded}
                                                         onChange={(e) => handleInputChange(idx, 'planned', e.target.value)}
                                                         className={`w-full bg-brand-darkest border border-brand-dark rounded p-2 text-white focus:ring-1 focus:ring-brand-accent outline-none text-[11px] ${isExpanded ? 'opacity-50' : ''}`}
+                                                        placeholder="Planejado"
                                                     />
                                                 </td>
                                                 <td className="p-2">
@@ -453,7 +457,7 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                                 <input
                                                                     type="number"
                                                                     step="0.01"
-                                                                    value={w.planned}
+                                                                    value={w.planned === null ? '' : w.planned}
                                                                     onChange={(e) => handleInputChange(idx, 'planned', e.target.value, wIdx)}
                                                                     className="w-full bg-brand-dark border border-brand-darkest rounded p-1 text-[11px] text-gray-300 focus:ring-1 focus:ring-brand-accent outline-none"
                                                                 />
