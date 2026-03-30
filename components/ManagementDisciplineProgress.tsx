@@ -328,24 +328,33 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                     </select>
                                                 </td>
                                                 <td className="p-2 space-y-1 min-w-[140px]">
-                                                    <div className="flex items-center gap-1">
+                                                    <div 
+                                                        className={`flex items-center gap-1 p-1 rounded transition-colors ${!isInitial ? 'cursor-pointer hover:bg-white/5' : ''}`}
+                                                        onClick={() => !isInitial && toggleExpansion(idx)}
+                                                        title={isExpanded ? "Clique para recolher semanas" : "Clique para detalhar semanas"}
+                                                    >
                                                         {!isInitial && (
-                                                            <button 
-                                                                onClick={() => toggleExpansion(idx)}
-                                                                className={`w-5 h-5 rounded flex items-center justify-center transition-all ${isExpanded ? 'bg-brand-accent text-white rotate-90' : 'bg-white/5 text-brand-med-gray hover:text-white'}`}
+                                                            <div 
+                                                                className={`w-4 h-4 rounded-sm flex items-center justify-center transition-all ${isExpanded ? 'bg-brand-accent text-white rotate-90' : 'bg-brand-darkest text-brand-med-gray'}`}
                                                             >
-                                                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="w-2.5 h-2.5" viewBox="0 0 20 20" fill="currentColor">
                                                                     <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                                                                 </svg>
-                                                            </button>
+                                                            </div>
                                                         )}
                                                         {!isInitial ? (
-                                                            <input 
-                                                                type="month"
-                                                                value={m.month}
-                                                                onChange={(e) => handleInputChange(idx, 'month', e.target.value)}
-                                                                className="bg-brand-darkest border-none text-white focus:ring-0 outline-none text-[10px] w-full p-1 rounded"
-                                                            />
+                                                            <div className="flex flex-col">
+                                                                <input 
+                                                                    type="month"
+                                                                    value={m.month}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    onChange={(e) => handleInputChange(idx, 'month', e.target.value)}
+                                                                    className="bg-transparent border-none text-white focus:ring-0 outline-none text-[10px] w-full p-0 h-4"
+                                                                />
+                                                                <span className="text-[7px] text-brand-med-gray uppercase font-bold leading-none -mt-0.5">
+                                                                    {isExpanded ? 'Fechar Semanas' : 'Abrir Semanas'}
+                                                                </span>
+                                                            </div>
                                                         ) : (
                                                             <span className="text-[9px] text-brand-accent uppercase font-black tracking-tighter">Saldo Ant.</span>
                                                         )}
@@ -378,7 +387,7 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                         className={`w-full bg-brand-darkest border border-brand-accent/20 rounded p-2 text-brand-accent focus:ring-1 focus:ring-brand-accent outline-none text-[11px] placeholder:text-brand-accent/30 ${isExpanded ? 'opacity-50' : ''}`}
                                                     />
                                                 </td>
-                                                <td className="p-2 text-center">
+                                                <td className="p-2 text-center border-l border-brand-dark">
                                                     <button 
                                                         onClick={() => handleRemoveRow(idx)}
                                                         className="text-red-400 hover:text-red-300 transition-colors"
@@ -397,7 +406,9 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                             ]).map((w, wIdx) => (
                                                 <tr key={`${idx}-w${wIdx}`} className="bg-white/5 animate-fade-in shadow-inner">
                                                     <td className="p-2"></td>
-                                                    <td className="p-3 pl-14 text-brand-med-gray text-[10px] font-bold uppercase tracking-wider">
+                                                    <td className="p-2"></td>
+                                                    <td className="p-3 pl-10 text-brand-med-gray text-[10px] font-bold uppercase tracking-wider flex items-center gap-2">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-brand-accent/40"></div>
                                                         S{wIdx + 1}
                                                     </td>
                                                     <td className="p-1">
@@ -409,7 +420,6 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                             className="w-full bg-brand-dark border border-brand-darkest rounded p-1 text-[11px] text-gray-300 focus:ring-1 focus:ring-brand-accent outline-none"
                                                         />
                                                     </td>
-                                                    <td className="p-1"></td>
                                                     <td className="p-1">
                                                         <input
                                                             type="number"
@@ -420,8 +430,8 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                             placeholder="Pendente"
                                                         />
                                                     </td>
-                                                    <td className="p-1 text-center"></td>
-                                                    <td className="p-1 text-center"></td>
+                                                    <td className="p-1"></td>
+                                                    <td className="p-1"></td>
                                                 </tr>
                                             ))}
                                         </React.Fragment>
