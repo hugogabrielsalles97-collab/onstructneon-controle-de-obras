@@ -64,6 +64,7 @@ interface ManagementDisciplineProgressProps {
 const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> = ({ data, onSave, canEdit = false, availableDisciplines }) => {
     const [editingData, setEditingData] = useState<DisciplineMonthProgress[]>(data);
     const [isEditing, setIsEditing] = useState(false);
+    const [selectedChartManager, setSelectedChartManager] = useState<string>('');
     const [selectedChartDiscipline, setSelectedChartDiscipline] = useState<string>('');
     const [selectedChartService, setSelectedChartService] = useState<string>('');
     const [selectedChartEngineer, setSelectedChartEngineer] = useState<string>('');
@@ -71,27 +72,35 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
 
     // Opções para os filtros do gráfico baseadas na hierarquia
     const filterOptions = useMemo(() => {
-        const disciplines = Array.from(new Set(editingData.map(d => d.discipline))).filter(Boolean).sort();
+        const managers = Array.from(new Set(editingData.map(d => d.manager))).filter(Boolean).sort();
+
+        const disciplines = Array.from(new Set(editingData
+            .filter(d => (!selectedChartManager || d.manager === selectedChartManager))
+            .map(d => d.discipline)
+        )).filter(Boolean).sort();
         
         const services = Array.from(new Set(editingData
-            .filter(d => d.discipline === selectedChartDiscipline)
+            .filter(d => (!selectedChartManager || d.manager === selectedChartManager) && 
+                         (!selectedChartDiscipline || d.discipline === selectedChartDiscipline))
             .map(d => d.service)
         )).filter(Boolean).sort();
 
         const engineers = Array.from(new Set(editingData
-            .filter(d => d.discipline === selectedChartDiscipline && (!selectedChartService || d.service === selectedChartService))
+            .filter(d => (!selectedChartManager || d.manager === selectedChartManager) &&
+                         (!selectedChartDiscipline || d.discipline === selectedChartDiscipline) && 
+                         (!selectedChartService || d.service === selectedChartService))
             .map(d => d.engineer)
         )).filter(Boolean).sort();
 
         const monthsOptions = Array.from(new Set(editingData
-            .filter(d => d.discipline === selectedChartDiscipline && d.month !== 'INITIAL')
+            .filter(d => (!selectedChartManager || d.manager === selectedChartManager) &&
+                         (!selectedChartDiscipline || d.discipline === selectedChartDiscipline) && 
+                         d.month !== 'INITIAL')
             .map(d => d.month)
         )).filter(Boolean).sort();
-
-        if (disciplines.length > 0 && !selectedChartDiscipline) setSelectedChartDiscipline(disciplines[0]);
         
-        return { disciplines, services, engineers, months: monthsOptions };
-    }, [editingData, selectedChartDiscipline, selectedChartService]);
+        return { managers, disciplines, services, engineers, months: monthsOptions };
+    }, [editingData, selectedChartManager, selectedChartDiscipline, selectedChartService]);
 
     const chartDisciplines = filterOptions.disciplines;
 
@@ -530,6 +539,21 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <select
+                            value={selectedChartManager}
+                            onChange={(e) => {
+                                setSelectedChartManager(e.target.value);
+                                setSelectedChartDiscipline('');
+                                setSelectedChartService('');
+                                setSelectedChartEngineer('');
+                                setSelectedChartMonths([]);
+                            }}
+                            className="bg-brand-darkest text-white text-[10px] font-bold py-1.5 px-3 rounded-lg border border-brand-dark outline-none focus:ring-1 focus:ring-brand-accent"
+                        >
+                            <option value="">Todos os Gerentes</option>
+                            {filterOptions.managers.map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
+
+                        <select
                             value={selectedChartDiscipline}
                             onChange={(e) => {
                                 setSelectedChartDiscipline(e.target.value);
@@ -538,8 +562,9 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                 setSelectedChartMonths([]);
                             }}
                             className="bg-brand-darkest text-white text-[10px] font-bold py-1.5 px-3 rounded-lg border border-brand-dark outline-none focus:ring-1 focus:ring-brand-accent"
+                            disabled={filterOptions.disciplines.length === 0}
                         >
-                            <option value="">Selecione a Disciplina</option>
+                            <option value="">Todas as Disciplinas</option>
                             {filterOptions.disciplines.map(d => <option key={d} value={d}>{d}</option>)}
                         </select>
 
@@ -615,11 +640,12 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                     const isAccumulated = selectedChartMonths.length !== 1;
                     
                     const filteredData = editingData.filter(d => {
-                        const matchDisc = d.discipline === selectedChartDiscipline;
+                        const matchMan = !selectedChartManager || d.manager === selectedChartManager;
+                        const matchDisc = !selectedChartDiscipline || d.discipline === selectedChartDiscipline;
                         const matchServ = !selectedChartService || d.service === selectedChartService;
                         const matchEng = !selectedChartEngineer || d.engineer === selectedChartEngineer;
                         const matchMonth = selectedChartMonths.length === 0 || selectedChartMonths.includes(d.month) || (isAccumulated && d.month === 'INITIAL');
-                        return matchDisc && matchServ && matchEng && matchMonth;
+                        return matchMan && matchDisc && matchServ && matchEng && matchMonth;
                     });
 
                     // Se não houver dados
@@ -743,7 +769,7 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                         {deviation >= 0 ? '● Status Ok' : '● Atenção Necessária'}
                                     </span>
                                     <p className="text-lg text-white font-black uppercase tracking-tighter italic">
-                                        {deviation >= 0 ? 'Meta Superada' : 'Recuperação Sugerida'}
+                                        {deviation > 0 ? 'Meta Superada' : deviation === 0 ? 'Meta Atingida' : 'Recuperação Sugerida'}
                                     </p>
                                 </div>
                             </div>
