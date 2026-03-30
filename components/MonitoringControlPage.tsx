@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, Task } from '../types';
+import { User, Task, TaskStatus } from '../types';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useData } from '../context/DataProvider';
@@ -29,17 +29,15 @@ interface MonitoringControlPageProps {
 }
 
 const TABS = [
-    "Estacas", "Blocos", "Pilares", "Travessas",
-    "Fabricação Vigas", "Montagem Vigas",
-    "Pré Laje", "Laje", "Barreira", "Laje de Aproximação"
+    "Estacas", "Blocos", "Pilares", "Travessas", "Pilar Provisório",
+    "Fabricação Vigas", "Lançamento Vigas", "Fabricação Pré-Laje", "Montagem Pré-Laje",
+    "Transversinas", "Laje", "Laje Elástica", "Laje de Aproximação"
 ];
 
 interface DailyDataMap {
     [taskId: string]: {
-        [dateKey: string]: {
-            prev: number;
-            real: number;
-        }
+        type?: string;
+        [dateKey: string]: any; // either prev/real or type
     }
 }
 
@@ -119,16 +117,27 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
         });
     };
 
+    const handleTypeChange = (taskId: string, value: string) => {
+        setDailyData(prev => {
+            const newData = { ...prev };
+            if (!newData[taskId]) newData[taskId] = {};
+            newData[taskId].type = value;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+            return newData;
+        });
+    };
+
     const addCustomRow = () => {
         const newRow: Task = {
             id: `custom_row_${Date.now()}`,
             title: `Nova Linha ${selectedTab}`,
+            description: '',
             discipline: selectedTab,
             location: 'S01',
             support: 'Apoio 1',
             assignee: user.name,
             level: 'OAE',
-            status: 'To Do',
+            status: TaskStatus.ToDo,
             progress: 0,
             quantity: 0,
             unit: 'un',
@@ -305,6 +314,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                                     <th className="p-2 border border-white/5 text-gray-300 w-32 tracking-wider">OAE</th>
                                     <th className="p-2 border border-white/5 text-gray-300 w-32 tracking-wider">APOIO</th>
                                     <th className="p-2 border border-white/5 text-gray-300 w-40 tracking-wider">ENGENHEIRO(A)</th>
+                                    <th className="p-2 border border-white/5 text-brand-accent w-28 tracking-wider">TIPO/ADICIONAL</th>
                                     <th className="p-2 border border-white/5 text-brand-med-gray w-16 text-center font-bold">P / R</th>
                                     <th className="p-2 border border-white/5 text-white w-20 text-center font-bold bg-white/5">TOTAL P/R</th>
                                     
@@ -356,6 +366,15 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                                                         ) : (
                                                             <span className="text-gray-400">{task.assignee || '-'}</span>
                                                         )}
+                                                    </td>
+                                                    <td rowSpan={2} className="p-2 border border-white/5 align-top bg-brand-dark/20 text-center">
+                                                        <input 
+                                                            type="text" 
+                                                            placeholder="Ex: Protendida"
+                                                            value={dailyData[task.id]?.type || ''} 
+                                                            onChange={(e) => handleTypeChange(task.id, e.target.value)} 
+                                                            className="w-full bg-transparent border-none text-center focus:outline-none text-brand-accent text-xs font-semibold placeholder-brand-med-gray/30"
+                                                        />
                                                     </td>
                                                     
                                                     {/* LINHA PREVISTO */}
