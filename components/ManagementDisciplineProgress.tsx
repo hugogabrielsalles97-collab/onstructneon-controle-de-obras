@@ -14,9 +14,13 @@ export interface WeeklyDisciplineProgress {
 
 export interface DisciplineMonthProgress {
     discipline: string;
-    month: string; // 'YYYY-MM'
-    planned: number; 
-    actual?: number | null;
+    service: string;
+    manager: string;
+    engineer: string;
+    unit: string;
+    month: string; // 'YYYY-MM' ou 'INITIAL'
+    planned: number; // Agora representa QUANTIDADE
+    actual?: number | null; // Agora representa QUANTIDADE
     weeks?: WeeklyDisciplineProgress[];
     isExpanded?: boolean;
 }
@@ -32,16 +36,29 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
     const [editingData, setEditingData] = useState<DisciplineMonthProgress[]>(data);
     const [isEditing, setIsEditing] = useState(false);
     const [selectedChartDiscipline, setSelectedChartDiscipline] = useState<string>('');
+    const [selectedChartService, setSelectedChartService] = useState<string>('');
+    const [selectedChartEngineer, setSelectedChartEngineer] = useState<string>('');
 
-    const chartDisciplines = useMemo(() => {
-        const discSet = new Set<string>();
-        editingData.forEach(d => { if (d.discipline) discSet.add(d.discipline); });
-        const list = Array.from(discSet).sort();
-        if (list.length > 0 && !selectedChartDiscipline) {
-            setSelectedChartDiscipline(list[0]);
-        }
-        return list;
-    }, [editingData]);
+    // Opções para os filtros do gráfico baseadas na hierarquia
+    const filterOptions = useMemo(() => {
+        const disciplines = Array.from(new Set(editingData.map(d => d.discipline))).filter(Boolean).sort();
+        
+        const services = Array.from(new Set(editingData
+            .filter(d => d.discipline === selectedChartDiscipline)
+            .map(d => d.service)
+        )).filter(Boolean).sort();
+
+        const engineers = Array.from(new Set(editingData
+            .filter(d => d.discipline === selectedChartDiscipline && (!selectedChartService || d.service === selectedChartService))
+            .map(d => d.engineer)
+        )).filter(Boolean).sort();
+
+        if (disciplines.length > 0 && !selectedChartDiscipline) setSelectedChartDiscipline(disciplines[0]);
+        
+        return { disciplines, services, engineers };
+    }, [editingData, selectedChartDiscipline, selectedChartService]);
+
+    const chartDisciplines = filterOptions.disciplines;
 
     const toggleExpansion = (index: number) => {
         if (!canEdit) return;
@@ -51,8 +68,9 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
         if (!isEditing) onSave(newData);
     };
 
-    const handleInputChange = (index: number, field: 'planned' | 'actual', value: string, weekIdx?: number) => {
-        const newValue = value === '' ? (field === 'actual' ? null : 0) : parseFloat(value);
+    const handleInputChange = (index: number, field: keyof DisciplineMonthProgress | 'planned' | 'actual', value: any, weekIdx?: number) => {
+        const isNumeric = field === 'planned' || field === 'actual';
+        const newValue = isNumeric ? (value === '' ? (field === 'actual' ? null : 0) : parseFloat(value)) : value;
         const newData = [...editingData];
         const item = { ...newData[index] };
 
@@ -91,34 +109,34 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
     const handleAddRow = () => {
         const monthRows = editingData.filter(d => d.month !== 'INITIAL');
         const lastMonth = monthRows.length > 0 ? monthRows[monthRows.length - 1].month : new Date().toISOString().substring(0, 7);
-        // Pegar disciplinas únicas já usadas, ou as disponíveis se estiver vazio
-        const activeDisciplines = editingData.length > 0 
-            ? Array.from(new Set(editingData.map(d => d.discipline))) 
-            : availableDisciplines;
-
-        const newRows = activeDisciplines.map(disc => ({
-            discipline: disc,
+        
+        const newRow: DisciplineMonthProgress = {
+            discipline: selectedChartDiscipline || '',
+            service: selectedChartService || '',
+            manager: '',
+            engineer: selectedChartEngineer || '',
+            unit: '',
             month: lastMonth,
             planned: 0,
             actual: null
-        }));
+        };
         
-        setEditingData([...editingData, ...newRows]);
+        setEditingData([...editingData, newRow]);
     };
 
     const handleAddInitialRow = () => {
-        const activeDisciplines = editingData.length > 0 
-            ? Array.from(new Set(editingData.map(d => d.discipline))) 
-            : availableDisciplines;
-
-        const newRows = activeDisciplines.map(disc => ({
-            discipline: disc,
+        const newRow: DisciplineMonthProgress = {
+            discipline: selectedChartDiscipline || '',
+            service: selectedChartService || '',
+            manager: '',
+            engineer: selectedChartEngineer || '',
+            unit: '',
             month: 'INITIAL',
             planned: 0,
             actual: 0
-        }));
+        };
         
-        setEditingData([...editingData, ...newRows]);
+        setEditingData([...editingData, newRow]);
     };
 
     const handleRemoveRow = (index: number) => {
@@ -172,12 +190,12 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                         <table className="w-full text-left text-xs">
                             <thead className="bg-brand-darkest text-brand-med-gray uppercase font-black tracking-widest">
                                 <tr>
-                                    <th className="p-4 border-b border-brand-dark">Disciplina</th>
-                                    <th className="p-4 border-b border-brand-dark">Mês</th>
-                                    <th className="p-4 border-b border-brand-dark">Previsto (%)</th>
-                                    <th className="p-4 border-b border-brand-dark">Previsto Acum. (%)</th>
-                                    <th className="p-4 border-b border-brand-dark text-brand-accent">Realizado (%)</th>
-                                    <th className="p-4 border-b border-brand-dark text-brand-accent">Realizado Acum. (%)</th>
+                                    <th className="p-4 border-b border-brand-dark">Disciplina / Serviço</th>
+                                    <th className="p-4 border-b border-brand-dark">Gerente / Engenheiro</th>
+                                    <th className="p-4 border-b border-brand-dark">Padrão (Mês/Und.)</th>
+                                    <th className="p-4 border-b border-brand-dark">Planejado (Qtd)</th>
+                                    <th className="p-4 border-b border-brand-dark text-brand-accent">Realizado (Qtd)</th>
+                                    <th className="p-4 border-b border-brand-dark"></th>
                                     <th className="p-4 border-b border-brand-dark"></th>
                                 </tr>
                             </thead>
@@ -206,45 +224,64 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                     return (
                                         <React.Fragment key={idx}>
                                             <tr className={`${isExpanded ? 'bg-brand-accent/10' : 'hover:bg-brand-accent/5'} transition-colors border-l-2 ${isExpanded ? 'border-brand-accent' : 'border-transparent'}`}>
-                                                <td className="p-2">
+                                                <td className="p-2 space-y-1">
                                                     <input
                                                         list="disciplines-list"
                                                         value={m.discipline}
-                                                        onChange={(e) => handleDisciplineChange(idx, e.target.value)}
-                                                        className="w-full bg-brand-darkest border border-brand-dark rounded p-2 text-white focus:ring-1 focus:ring-brand-accent outline-none font-bold placeholder:font-normal"
-                                                        placeholder="Digite a disciplina..."
+                                                        onChange={(e) => handleInputChange(idx, 'discipline', e.target.value)}
+                                                        className="w-full bg-brand-darkest border border-brand-dark rounded p-1.5 text-white focus:ring-1 focus:ring-brand-accent outline-none font-bold placeholder:font-normal text-[11px]"
+                                                        placeholder="Disciplina..."
                                                     />
-                                                    <datalist id="disciplines-list">
-                                                        {availableDisciplines.map(d => (
-                                                            <option key={d} value={d} />
-                                                        ))}
-                                                    </datalist>
+                                                    <input
+                                                        value={m.service}
+                                                        onChange={(e) => handleInputChange(idx, 'service', e.target.value)}
+                                                        className="w-full bg-brand-dark border border-brand-darkest rounded p-1.5 text-gray-300 focus:ring-1 focus:ring-brand-accent outline-none text-[10px]"
+                                                        placeholder="Serviço..."
+                                                    />
                                                 </td>
-                                                <td className="p-4 text-white font-bold whitespace-nowrap flex items-center gap-2">
-                                                    {!isInitial ? (
-                                                        <>
+                                                <td className="p-2 space-y-1">
+                                                    <input
+                                                        value={m.manager}
+                                                        onChange={(e) => handleInputChange(idx, 'manager', e.target.value)}
+                                                        className="w-full bg-brand-darkest border border-brand-dark rounded p-1.5 text-white focus:ring-1 focus:ring-brand-accent outline-none text-[10px]"
+                                                        placeholder="Gerente..."
+                                                    />
+                                                    <input
+                                                        value={m.engineer}
+                                                        onChange={(e) => handleInputChange(idx, 'engineer', e.target.value)}
+                                                        className="w-full bg-brand-dark border border-brand-darkest rounded p-1.5 text-gray-300 focus:ring-1 focus:ring-brand-accent outline-none text-[10px]"
+                                                        placeholder="Engenheiro..."
+                                                    />
+                                                </td>
+                                                <td className="p-2 space-y-1 min-w-[140px]">
+                                                    <div className="flex items-center gap-1">
+                                                        {!isInitial && (
                                                             <button 
                                                                 onClick={() => toggleExpansion(idx)}
-                                                                className={`w-6 h-6 rounded flex items-center justify-center transition-all ${isExpanded ? 'bg-brand-accent text-white rotate-90' : 'bg-white/5 text-brand-med-gray hover:text-white'}`}
+                                                                className={`w-5 h-5 rounded flex items-center justify-center transition-all ${isExpanded ? 'bg-brand-accent text-white rotate-90' : 'bg-white/5 text-brand-med-gray hover:text-white'}`}
                                                             >
                                                                 <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
                                                                     <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                                                                 </svg>
                                                             </button>
+                                                        )}
+                                                        {!isInitial ? (
                                                             <input 
                                                                 type="month"
                                                                 value={m.month}
-                                                                onChange={(e) => {
-                                                                    const newData = [...editingData];
-                                                                    newData[idx] = { ...newData[idx], month: e.target.value };
-                                                                    setEditingData(newData);
-                                                                }}
-                                                                className="bg-transparent border-none text-white focus:ring-0 outline-none w-32"
+                                                                onChange={(e) => handleInputChange(idx, 'month', e.target.value)}
+                                                                className="bg-brand-darkest border-none text-white focus:ring-0 outline-none text-[10px] w-full p-1 rounded"
                                                             />
-                                                        </>
-                                                    ) : (
-                                                        <span className="text-[10px] text-brand-accent uppercase font-black tracking-widest pl-1">Saldo Anterior</span>
-                                                    )}
+                                                        ) : (
+                                                            <span className="text-[9px] text-brand-accent uppercase font-black tracking-tighter">Saldo Ant.</span>
+                                                        )}
+                                                    </div>
+                                                    <input
+                                                        value={m.unit}
+                                                        onChange={(e) => handleInputChange(idx, 'unit', e.target.value)}
+                                                        className="w-full bg-brand-dark border border-brand-darkest rounded p-1.5 text-brand-med-gray focus:ring-1 focus:ring-brand-accent outline-none text-[10px]"
+                                                        placeholder="Unidade (ex: m³, ton)..."
+                                                    />
                                                 </td>
                                                 <td className="p-2">
                                                     <input
@@ -253,11 +290,8 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                         value={m.planned}
                                                         disabled={isExpanded}
                                                         onChange={(e) => handleInputChange(idx, 'planned', e.target.value)}
-                                                        className={`w-full bg-brand-darkest border border-brand-dark rounded p-2 text-white focus:ring-1 focus:ring-brand-accent outline-none ${isExpanded ? 'opacity-50' : ''}`}
+                                                        className={`w-full bg-brand-darkest border border-brand-dark rounded p-2 text-white focus:ring-1 focus:ring-brand-accent outline-none text-[11px] ${isExpanded ? 'opacity-50' : ''}`}
                                                     />
-                                                </td>
-                                                <td className="p-2 text-brand-med-gray font-mono text-[10px] text-center">
-                                                    {accPlanned.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
                                                 </td>
                                                 <td className="p-2">
                                                     <input
@@ -267,11 +301,8 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                         disabled={isExpanded}
                                                         onChange={(e) => handleInputChange(idx, 'actual', e.target.value)}
                                                         placeholder="Pendente"
-                                                        className={`w-full bg-brand-darkest border border-brand-accent/20 rounded p-2 text-brand-accent focus:ring-1 focus:ring-brand-accent outline-none placeholder:text-brand-accent/30 ${isExpanded ? 'opacity-50' : ''}`}
+                                                        className={`w-full bg-brand-darkest border border-brand-accent/20 rounded p-2 text-brand-accent focus:ring-1 focus:ring-brand-accent outline-none text-[11px] placeholder:text-brand-accent/30 ${isExpanded ? 'opacity-50' : ''}`}
                                                     />
-                                                </td>
-                                                <td className="p-2 text-brand-accent/80 font-mono text-[10px] text-center">
-                                                    {accActual !== null ? `${accActual.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : '-'}
                                                 </td>
                                                 <td className="p-2 text-center">
                                                     <button 
@@ -344,29 +375,60 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
 
             {/* Seção do Gráfico de Disciplinas */}
             <div className="bg-brand-dark/40 rounded-2xl border border-brand-darkest p-6 shadow-2xl space-y-6">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <h4 className="text-sm font-black text-white uppercase tracking-widest">
-                            Análise de Desempenho por Disciplina
+                            Análise de Desempenho Físico
                         </h4>
-                        <p className="text-[10px] text-brand-med-gray">Visualize os desvios e o progresso acumulado de forma detalhada.</p>
+                        <p className="text-[10px] text-brand-med-gray">Curva S e acompanhamento mensal por quantidade física.</p>
                     </div>
-                    <div className="flex gap-2 bg-brand-darkest p-1 rounded-lg border border-brand-dark">
-                        {chartDisciplines.map(disc => (
-                            <button
-                                key={disc}
-                                onClick={() => setSelectedChartDiscipline(disc)}
-                                className={`px-3 py-1.5 rounded-md text-[10px] font-bold transition-all ${selectedChartDiscipline === disc ? 'bg-brand-accent text-white shadow-lg' : 'text-brand-med-gray hover:text-white hover:bg-white/5'}`}
-                            >
-                                {disc}
-                            </button>
-                        ))}
+                    <div className="flex flex-wrap gap-2">
+                        <select
+                            value={selectedChartDiscipline}
+                            onChange={(e) => {
+                                setSelectedChartDiscipline(e.target.value);
+                                setSelectedChartService('');
+                                setSelectedChartEngineer('');
+                            }}
+                            className="bg-brand-darkest text-white text-[10px] font-bold py-1.5 px-3 rounded-lg border border-brand-dark outline-none focus:ring-1 focus:ring-brand-accent"
+                        >
+                            <option value="">Selecione a Disciplina</option>
+                            {filterOptions.disciplines.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+
+                        <select
+                            value={selectedChartService}
+                            onChange={(e) => {
+                                setSelectedChartService(e.target.value);
+                                setSelectedChartEngineer('');
+                            }}
+                            className="bg-brand-darkest text-white text-[10px] font-bold py-1.5 px-3 rounded-lg border border-brand-dark outline-none focus:ring-1 focus:ring-brand-accent"
+                            disabled={!selectedChartDiscipline}
+                        >
+                            <option value="">Todos os Serviços</option>
+                            {filterOptions.services.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+
+                        <select
+                            value={selectedChartEngineer}
+                            onChange={(e) => setSelectedChartEngineer(e.target.value)}
+                            className="bg-brand-darkest text-white text-[10px] font-bold py-1.5 px-3 rounded-lg border border-brand-dark outline-none focus:ring-1 focus:ring-brand-accent"
+                            disabled={!selectedChartService}
+                        >
+                            <option value="">Todos os Engenheiros</option>
+                            {filterOptions.engineers.map(eng => <option key={eng} value={eng}>{eng}</option>)}
+                        </select>
                     </div>
                 </div>
 
                 {(() => {
-                    // Processamento de dados para o gráfico
-                    const filteredData = editingData.filter(d => d.discipline === selectedChartDiscipline);
+                    // Processamento de dados para o gráfico com filtros hierárquicos
+                    const filteredData = editingData.filter(d => {
+                        const matchDisc = d.discipline === selectedChartDiscipline;
+                        const matchServ = !selectedChartService || d.service === selectedChartService;
+                        const matchEng = !selectedChartEngineer || d.engineer === selectedChartEngineer;
+                        return matchDisc && matchServ && matchEng;
+                    });
 
                     // Se não houver dados
                     if (filteredData.length === 0) {
@@ -376,6 +438,8 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                             </div>
                         );
                     }
+
+                    const unitLabel = filteredData.find(d => d.unit)?.unit || '';
 
                     // Agrupar por mês/período
                     const groupedByPeriod: { [key: string]: { planned: number, actual: number | null, isWeekly?: boolean, month?: string } } = {};
@@ -453,25 +517,25 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 <div className="bg-brand-darkest/50 p-4 rounded-xl border border-brand-darkest">
                                     <p className="text-[9px] text-brand-med-gray font-black uppercase tracking-widest">Realizado Acumulado</p>
-                                    <p className="text-2xl font-black text-white">{totalActual.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%</p>
+                                    <p className="text-2xl font-black text-white">{totalActual.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} <span className="text-[10px] text-brand-med-gray">{unitLabel}</span></p>
                                     <div className="w-full h-1.5 bg-white/5 rounded-full mt-2 overflow-hidden">
-                                        <div className="h-full bg-brand-accent shadow-[0_0_10px_rgba(6,182,212,0.5)]" style={{ width: `${Math.min(100, totalActual)}%` }}></div>
+                                        <div className="h-full bg-brand-accent shadow-[0_0_10px_rgba(6,182,212,0.5)]" style={{ width: `${Math.min(100, (totalActual / (totalPlanned || 1)) * 100)}%` }}></div>
                                     </div>
                                 </div>
                                 <div className="bg-brand-darkest/50 p-4 rounded-xl border border-brand-darkest">
                                     <p className="text-[9px] text-brand-med-gray font-black uppercase tracking-widest">Previsto Acumulado</p>
-                                    <p className="text-2xl font-black text-brand-med-gray">{expectedUntilNow.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%</p>
+                                    <p className="text-2xl font-black text-brand-med-gray">{expectedUntilNow.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} <span className="text-[10px] text-brand-med-gray">{unitLabel}</span></p>
                                     <div className="w-full h-1.5 bg-white/5 rounded-full mt-2 overflow-hidden">
-                                        <div className="h-full bg-brand-med-gray/30" style={{ width: `${Math.min(100, expectedUntilNow)}%` }}></div>
+                                        <div className="h-full bg-brand-med-gray/30" style={{ width: `${Math.min(100, (expectedUntilNow / (totalPlanned || 1)) * 100)}%` }}></div>
                                     </div>
                                 </div>
                                 <div className="bg-brand-darkest/50 p-4 rounded-xl border border-brand-darkest">
-                                    <p className="text-[9px] text-brand-med-gray font-black uppercase tracking-widest">Desvio Acumulado (Gap)</p>
+                                    <p className="text-[9px] text-brand-med-gray font-black uppercase tracking-widest">Desvio (Gap)</p>
                                     <p className={`text-2xl font-black ${deviation >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                        {deviation > 0 ? '+' : ''}{deviation.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%
+                                        {deviation > 0 ? '+' : ''}{deviation.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}
                                     </p>
                                     <p className="text-[8px] mt-1 text-brand-med-gray uppercase font-bold">
-                                        {deviation >= 0 ? 'Frente ao Planejado' : 'Em relação ao planejamento'}
+                                        {unitLabel} {deviation >= 0 ? 'Frente ao Planejado' : 'Em relação ao planejamento'}
                                     </p>
                                 </div>
                                 <div className="bg-brand-darkest/50 p-4 rounded-xl border border-brand-darkest flex flex-col justify-center">
@@ -501,7 +565,7 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                 axisLine={false} 
                                                 tickLine={false} 
                                                 tick={{ fill: '#94a3b8', fontSize: 10 }}
-                                                label={{ value: 'Avanço Mensal (%)', angle: -90, position: 'insideLeft', style: { fill: '#94a3b8', fontSize: 10, fontWeight: 700 } }}
+                                                label={{ value: `Qtd Mensal (${unitLabel})`, angle: -90, position: 'insideLeft', style: { fill: '#94a3b8', fontSize: 10, fontWeight: 700 } }}
                                             />
                                             <YAxis 
                                                 yAxisId="right"
@@ -509,7 +573,7 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                 axisLine={false} 
                                                 tickLine={false} 
                                                 tick={{ fill: '#e35a10', fontSize: 10 }}
-                                                label={{ value: 'Acumulado (%)', angle: 90, position: 'insideRight', style: { fill: '#e35a10', fontSize: 10, fontWeight: 700 } }}
+                                                label={{ value: `Acumulado (${unitLabel})`, angle: 90, position: 'insideRight', style: { fill: '#e35a10', fontSize: 10, fontWeight: 700 } }}
                                             />
                                             <RechartsTooltip 
                                                 contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid #1e293b', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)' }}
@@ -519,20 +583,20 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                             <Legend verticalAlign="top" height={36} wrapperStyle={{ paddingBottom: '20px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }} />
                                             
                                             {/* Barras de Progresso Mensal/Semanal */}
-                                            <Bar yAxisId="left" name="Previsto Semana" dataKey="planned" fill="#4b5563" radius={[4, 4, 0, 0]}>
+                                            <Bar yAxisId="left" name="Planejado Período" dataKey="planned" fill="#4b5563" radius={[4, 4, 0, 0]}>
                                                 <LabelList 
                                                     dataKey="planned" 
                                                     position="top" 
                                                     style={{ fill: '#94a3b8', fontSize: 9, fontWeight: 'bold' }} 
-                                                    formatter={(val: number) => val > 0 ? `${val.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%` : ''} 
+                                                    formatter={(val: number) => val > 0 ? `${val.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}` : ''} 
                                                 />
                                             </Bar>
-                                            <Bar yAxisId="left" name="Realizado Semana" dataKey="actual" fill="#e35a10" radius={[4, 4, 0, 0]}>
+                                            <Bar yAxisId="left" name="Realizado Período" dataKey="actual" fill="#e35a10" radius={[4, 4, 0, 0]}>
                                                 <LabelList 
                                                     dataKey="actual" 
                                                     position="top" 
                                                     style={{ fill: '#e35a10', fontSize: 9, fontWeight: 'bold' }} 
-                                                    formatter={(val: number) => val !== null && val !== undefined && val > 0 ? `${val.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%` : ''} 
+                                                    formatter={(val: number) => val !== null && val !== undefined && val > 0 ? `${val.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}` : ''} 
                                                 />
                                             </Bar>
                                             
