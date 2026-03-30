@@ -70,37 +70,74 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
     const [selectedChartEngineer, setSelectedChartEngineer] = useState<string>('');
     const [selectedChartMonths, setSelectedChartMonths] = useState<string[]>([]);
 
-    // Opções para os filtros do gráfico baseadas na hierarquia
+    // Opções para os filtros do gráfico baseadas na hierarquia e nas regras globais
     const filterOptions = useMemo(() => {
-        const managers = Array.from(new Set(editingData.map(d => d.manager))).filter(Boolean).sort();
-
-        const disciplines = Array.from(new Set(editingData
-            .filter(d => (!selectedChartManager || d.manager === selectedChartManager))
-            .map(d => d.discipline)
-        )).filter(Boolean).sort();
+        const rules = MANAGEMENT_RULES as any;
         
-        const services = Array.from(new Set(editingData
-            .filter(d => (!selectedChartManager || d.manager === selectedChartManager) && 
-                         (!selectedChartDiscipline || d.discipline === selectedChartDiscipline))
-            .map(d => d.service)
-        )).filter(Boolean).sort();
+        const managersSet = new Set<string>();
+        Object.entries(rules).forEach(([key, rule]: [string, any]) => {
+            if (key !== 'DEFAULT' && rule.manager) managersSet.add(rule.manager);
+        });
+        const managers = Array.from(managersSet).sort();
 
-        const engineers = Array.from(new Set(editingData
-            .filter(d => (!selectedChartManager || d.manager === selectedChartManager) &&
-                         (!selectedChartDiscipline || d.discipline === selectedChartDiscipline) && 
-                         (!selectedChartService || d.service === selectedChartService))
-            .map(d => d.engineer)
-        )).filter(Boolean).sort();
+        const disciplinesSet = new Set<string>();
+        Object.entries(rules).forEach(([key, rule]: [string, any]) => {
+            if (key !== 'DEFAULT') {
+                if (!selectedChartManager || rule.manager === selectedChartManager) {
+                    disciplinesSet.add(key);
+                }
+            }
+        });
+        const disciplines = Array.from(disciplinesSet).sort();
 
+        const servicesSet = new Set<string>();
+        disciplines.forEach(disc => {
+            if (selectedChartDiscipline && disc !== selectedChartDiscipline) return;
+            const rule = rules[disc];
+            if (rule && rule.services) {
+                if (Array.isArray(rule.services)) {
+                    rule.services.forEach((s: string) => servicesSet.add(s));
+                } else {
+                    Object.keys(rule.services).forEach(s => servicesSet.add(s));
+                }
+            }
+        });
+        const services = Array.from(servicesSet).sort();
+
+        const engineersSet = new Set<string>();
+        disciplines.forEach(disc => {
+            if (selectedChartDiscipline && disc !== selectedChartDiscipline) return;
+            const rule = rules[disc];
+            if (rule) {
+                if (rule.engineers) {
+                    const isServiceSelectedButNotFromThisDisc = selectedChartService && rule.services && ((Array.isArray(rule.services) && !rule.services.includes(selectedChartService)) || (!Array.isArray(rule.services) && !rule.services[selectedChartService]));
+                    if (!isServiceSelectedButNotFromThisDisc) {
+                        rule.engineers.forEach((e: string) => engineersSet.add(e));
+                    }
+                }
+                if (rule.services && !Array.isArray(rule.services)) {
+                    Object.entries(rule.services).forEach(([servName, servRule]: [string, any]) => {
+                        if (!selectedChartService || servName === selectedChartService) {
+                            if (servRule.engineer) engineersSet.add(servRule.engineer);
+                        }
+                    });
+                }
+            }
+        });
+        const engineers = Array.from(engineersSet).sort();
+
+        // Meses continuam sendo puxados dos dados reais já que dependem de preenchimento
         const monthsOptions = Array.from(new Set(editingData
             .filter(d => (!selectedChartManager || d.manager === selectedChartManager) &&
                          (!selectedChartDiscipline || d.discipline === selectedChartDiscipline) && 
+                         (!selectedChartService || d.service === selectedChartService) &&
+                         (!selectedChartEngineer || d.engineer === selectedChartEngineer) &&
                          d.month !== 'INITIAL')
             .map(d => d.month)
         )).filter(Boolean).sort();
         
         return { managers, disciplines, services, engineers, months: monthsOptions };
-    }, [editingData, selectedChartManager, selectedChartDiscipline, selectedChartService]);
+    }, [editingData, selectedChartManager, selectedChartDiscipline, selectedChartService, selectedChartEngineer]);
 
     const chartDisciplines = filterOptions.disciplines;
 
