@@ -124,14 +124,8 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
         }
 
         if (weekIdx !== undefined) {
-            if (!item.weeks) {
-                item.weeks = [
-                    { week: 1, planned: item.planned / 4, actual: item.actual !== null ? (item.actual ?? 0) / 4 : null },
-                    { week: 2, planned: item.planned / 4, actual: item.actual !== null ? (item.actual ?? 0) / 4 : null },
-                    { week: 3, planned: item.planned / 4, actual: item.actual !== null ? (item.actual ?? 0) / 4 : null },
-                    { week: 4, planned: item.planned / 4, actual: item.actual !== null ? (item.actual ?? 0) / 4 : null },
-                ];
-            }
+            if (!item.weeks) return; // Segurança: Se não tem semana, não faz nada
+            
             const updatedWeek = { ...item.weeks[weekIdx] };
             (updatedWeek as any)[field] = newValue;
             item.weeks = [...item.weeks];
@@ -186,6 +180,44 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
         };
         
         setEditingData([...editingData, newRow]);
+    };
+
+    const handleAddWeek = (idx: number) => {
+        const newData = [...editingData];
+        const item = { ...newData[idx] };
+        const currentWeeks = item.weeks || [];
+        const nextWeekNum = currentWeeks.length + 1;
+        
+        // Se for a primeira semana e o total planejado do mês for > 0, sugere esse total
+        const suggestedPlanned = currentWeeks.length === 0 && item.planned > 0 ? item.planned : 0;
+        
+        item.weeks = [...currentWeeks, { week: nextWeekNum, planned: suggestedPlanned, actual: null }];
+        
+        // Recalcular total do mês baseados nas semanas
+        item.planned = item.weeks.reduce((acc, w) => acc + (w.planned || 0), 0);
+        const hasAnyReal = item.weeks.some(w => w.actual !== null && w.actual !== undefined);
+        item.actual = hasAnyReal ? item.weeks.reduce((acc, w) => acc + (w.actual || 0), 0) : null;
+
+        newData[idx] = item;
+        setEditingData(newData);
+    };
+
+    const handleRemoveWeek = (monthIdx: number, weekIdx: number) => {
+        const newData = [...editingData];
+        const item = { ...newData[monthIdx] };
+        if (!item.weeks) return;
+        
+        item.weeks = item.weeks.filter((_, i) => i !== weekIdx);
+        // Reordenar números das semanas
+        item.weeks = item.weeks.map((w, i) => ({ ...w, week: i + 1 }));
+        
+        // Recalcular totais
+        item.planned = item.weeks.reduce((acc, w) => acc + (w.planned || 0), 0);
+        const hasAnyReal = item.weeks.some(w => w.actual !== null && w.actual !== undefined);
+        item.actual = hasAnyReal ? item.weeks.reduce((acc, w) => acc + (w.actual || 0), 0) : null;
+        
+        newData[monthIdx] = item;
+        setEditingData(newData);
     };
 
     const handleRemoveRow = (index: number) => {
@@ -398,42 +430,61 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                     </button>
                                                 </td>
                                             </tr>
-                                            {isExpanded && (m.weeks || [
-                                                { week: 1, planned: m.planned/4, actual: m.actual !== null ? (m.actual ?? 0)/4 : null },
-                                                { week: 2, planned: m.planned/4, actual: m.actual !== null ? (m.actual ?? 0)/4 : null },
-                                                { week: 3, planned: m.planned/4, actual: m.actual !== null ? (m.actual ?? 0)/4 : null },
-                                                { week: 4, planned: m.planned/4, actual: m.actual !== null ? (m.actual ?? 0)/4 : null }
-                                            ]).map((w, wIdx) => (
-                                                <tr key={`${idx}-w${wIdx}`} className="bg-white/5 animate-fade-in shadow-inner">
-                                                    <td className="p-2"></td>
-                                                    <td className="p-2"></td>
-                                                    <td className="p-3 pl-10 text-brand-med-gray text-[10px] font-bold uppercase tracking-wider flex items-center gap-2">
-                                                        <div className="w-1.5 h-1.5 rounded-full bg-brand-accent/40"></div>
-                                                        S{wIdx + 1}
-                                                    </td>
-                                                    <td className="p-1">
-                                                        <input
-                                                            type="number"
-                                                            step="0.01"
-                                                            value={w.planned}
-                                                            onChange={(e) => handleInputChange(idx, 'planned', e.target.value, wIdx)}
-                                                            className="w-full bg-brand-dark border border-brand-darkest rounded p-1 text-[11px] text-gray-300 focus:ring-1 focus:ring-brand-accent outline-none"
-                                                        />
-                                                    </td>
-                                                    <td className="p-1">
-                                                        <input
-                                                            type="number"
-                                                            step="0.01"
-                                                            value={w.actual === null ? '' : w.actual}
-                                                            onChange={(e) => handleInputChange(idx, 'actual', e.target.value, wIdx)}
-                                                            className="w-full bg-brand-dark border border-brand-accent/10 rounded p-1 text-[11px] text-brand-accent focus:ring-1 focus:ring-brand-accent outline-none"
-                                                            placeholder="Pendente"
-                                                        />
-                                                    </td>
-                                                    <td className="p-1"></td>
-                                                    <td className="p-1"></td>
-                                                </tr>
-                                            ))}
+                                            {isExpanded && (
+                                                <>
+                                                    {(m.weeks || []).map((w, wIdx) => (
+                                                        <tr key={`${idx}-w${wIdx}`} className="bg-white/5 animate-fade-in shadow-inner border-l-2 border-brand-accent/30">
+                                                            <td className="p-2"></td>
+                                                            <td className="p-2"></td>
+                                                            <td className="p-2 pl-10 text-brand-med-gray text-[10px] font-bold uppercase tracking-wider flex items-center justify-between group/week">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-1.5 h-1.5 rounded-full bg-brand-accent/40"></div>
+                                                                    S{wIdx + 1}
+                                                                </div>
+                                                                <button 
+                                                                    onClick={() => handleRemoveWeek(idx, wIdx)}
+                                                                    className="opacity-0 group-hover/week:opacity-100 p-1 text-red-400 hover:bg-red-400/10 rounded transition-all mr-2"
+                                                                    title="Remover semana"
+                                                                >
+                                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                                </button>
+                                                            </td>
+                                                            <td className="p-1">
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    value={w.planned}
+                                                                    onChange={(e) => handleInputChange(idx, 'planned', e.target.value, wIdx)}
+                                                                    className="w-full bg-brand-dark border border-brand-darkest rounded p-1 text-[11px] text-gray-300 focus:ring-1 focus:ring-brand-accent outline-none"
+                                                                />
+                                                            </td>
+                                                            <td className="p-1">
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    value={w.actual === null ? '' : w.actual}
+                                                                    onChange={(e) => handleInputChange(idx, 'actual', e.target.value, wIdx)}
+                                                                    className="w-full bg-brand-dark border border-brand-accent/10 rounded p-1 text-[11px] text-brand-accent focus:ring-1 focus:ring-brand-accent outline-none"
+                                                                    placeholder="Pendente"
+                                                                />
+                                                            </td>
+                                                            <td className="p-1"></td>
+                                                            <td className="p-1"></td>
+                                                        </tr>
+                                                    ))}
+                                                    <tr className="bg-white/5 border-l-2 border-brand-accent/30 border-b border-brand-dark/30">
+                                                        <td className="p-2" colSpan={2}></td>
+                                                        <td className="p-2 pl-10" colSpan={5}>
+                                                            <button 
+                                                                onClick={() => handleAddWeek(idx)}
+                                                                className="text-[9px] text-brand-accent/70 hover:text-brand-accent hover:bg-brand-accent/5 px-2 py-1 rounded transition-all uppercase font-black tracking-widest flex items-center gap-1"
+                                                            >
+                                                                <span>+</span> Adicionar Semana
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                </>
+                                            )}
                                         </React.Fragment>
                                     );
                                 })}
