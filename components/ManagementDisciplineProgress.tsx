@@ -67,6 +67,7 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
     const [selectedChartDiscipline, setSelectedChartDiscipline] = useState<string>('');
     const [selectedChartService, setSelectedChartService] = useState<string>('');
     const [selectedChartEngineer, setSelectedChartEngineer] = useState<string>('');
+    const [selectedChartMonths, setSelectedChartMonths] = useState<string[]>([]);
 
     // Opções para os filtros do gráfico baseadas na hierarquia
     const filterOptions = useMemo(() => {
@@ -82,9 +83,14 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
             .map(d => d.engineer)
         )).filter(Boolean).sort();
 
+        const monthsOptions = Array.from(new Set(editingData
+            .filter(d => d.discipline === selectedChartDiscipline && d.month !== 'INITIAL')
+            .map(d => d.month)
+        )).filter(Boolean).sort();
+
         if (disciplines.length > 0 && !selectedChartDiscipline) setSelectedChartDiscipline(disciplines[0]);
         
-        return { disciplines, services, engineers };
+        return { disciplines, services, engineers, months: monthsOptions };
     }, [editingData, selectedChartDiscipline, selectedChartService]);
 
     const chartDisciplines = filterOptions.disciplines;
@@ -529,6 +535,7 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                 setSelectedChartDiscipline(e.target.value);
                                 setSelectedChartService('');
                                 setSelectedChartEngineer('');
+                                setSelectedChartMonths([]);
                             }}
                             className="bg-brand-darkest text-white text-[10px] font-bold py-1.5 px-3 rounded-lg border border-brand-dark outline-none focus:ring-1 focus:ring-brand-accent"
                         >
@@ -541,6 +548,7 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                             onChange={(e) => {
                                 setSelectedChartService(e.target.value);
                                 setSelectedChartEngineer('');
+                                setSelectedChartMonths([]);
                             }}
                             className="bg-brand-darkest text-white text-[10px] font-bold py-1.5 px-3 rounded-lg border border-brand-dark outline-none focus:ring-1 focus:ring-brand-accent"
                             disabled={!selectedChartDiscipline}
@@ -551,35 +559,79 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
 
                         <select
                             value={selectedChartEngineer}
-                            onChange={(e) => setSelectedChartEngineer(e.target.value)}
+                            onChange={(e) => {
+                                setSelectedChartEngineer(e.target.value);
+                                setSelectedChartMonths([]);
+                            }}
                             className="bg-brand-darkest text-white text-[10px] font-bold py-1.5 px-3 rounded-lg border border-brand-dark outline-none focus:ring-1 focus:ring-brand-accent"
                             disabled={!selectedChartService}
                         >
                             <option value="">Todos os Engenheiros</option>
                             {filterOptions.engineers.map(eng => <option key={eng} value={eng}>{eng}</option>)}
                         </select>
+
+                        <div className="relative group/month z-50">
+                            <button className="bg-brand-darkest text-white text-[10px] font-bold py-1.5 px-3 rounded-lg border border-brand-dark flex items-center gap-2 outline-none focus:ring-1 focus:ring-brand-accent">
+                                {selectedChartMonths.length === 0 ? 'Todos os Meses' : `${selectedChartMonths.length} Mês(es) Selecionado(s)`}
+                                <svg className="w-3 h-3 text-brand-med-gray" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                            </button>
+                            <div className="absolute top-full mt-1 right-0 bg-brand-darkest border border-brand-dark rounded-lg p-2 hidden group-hover/month:flex flex-col gap-1 min-w-[150px] shadow-2xl">
+                                <label className="flex items-center gap-2 text-[10px] font-bold text-white cursor-pointer hover:bg-white/5 p-1.5 rounded border-b border-white/5 mb-1">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={selectedChartMonths.length === 0}
+                                        onChange={() => setSelectedChartMonths([])}
+                                        className="accent-brand-accent cursor-pointer"
+                                    />
+                                    Todos os Meses
+                                </label>
+                                {filterOptions.months.map(m => {
+                                    const d = new Date(parseInt(m.split('-')[0]), parseInt(m.split('-')[1]) - 1);
+                                    let label = d.toLocaleString('pt-BR', { month: 'short', year: 'numeric' }).replace('.', '');
+                                    label = label.charAt(0).toUpperCase() + label.slice(1);
+                                    
+                                    return (
+                                        <label key={m} className="flex items-center gap-2 text-[10px] text-brand-med-gray hover:text-white cursor-pointer hover:bg-white/5 p-1 rounded">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={selectedChartMonths.includes(m)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) setSelectedChartMonths([...selectedChartMonths, m]);
+                                                    else setSelectedChartMonths(selectedChartMonths.filter(x => x !== m));
+                                                }}
+                                                className="accent-brand-accent cursor-pointer"
+                                            />
+                                            {label}
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 {(() => {
                     // Processamento de dados para o gráfico com filtros hierárquicos
+                    const isAccumulated = selectedChartMonths.length !== 1;
+                    
                     const filteredData = editingData.filter(d => {
                         const matchDisc = d.discipline === selectedChartDiscipline;
                         const matchServ = !selectedChartService || d.service === selectedChartService;
                         const matchEng = !selectedChartEngineer || d.engineer === selectedChartEngineer;
-                        return matchDisc && matchServ && matchEng;
+                        const matchMonth = selectedChartMonths.length === 0 || selectedChartMonths.includes(d.month) || (isAccumulated && d.month === 'INITIAL');
+                        return matchDisc && matchServ && matchEng && matchMonth;
                     });
 
                     // Se não houver dados
                     if (filteredData.length === 0) {
                         return (
                             <div className="h-[300px] flex items-center justify-center text-brand-med-gray text-xs italic">
-                                Nenhuma informação de planejamento inserida para esta disciplina.
+                                Nenhuma informação de planejamento inserida para a seleção.
                             </div>
                         );
                     }
 
-                    const unitLabel = filteredData.find(d => d.unit)?.unit || '';
+                    const unitLabel = filteredData.find(d => d.unit && d.unit.trim() !== '')?.unit || 'un';
 
                     // Agrupar por mês/período
                     const groupedByPeriod: { [key: string]: { planned: number, actual: number | null, isWeekly?: boolean, month?: string } } = {};
@@ -587,8 +639,13 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                     filteredData.forEach(m => {
                         if (m.month === 'INITIAL') return;
                         
-                        if (m.isExpanded && m.weeks) {
-                            m.weeks.forEach((w, wIdx) => {
+                        // Utiliza semanas detalhadas caso tenham sido lançadas no S-Curve (independente se m.isExpanded tá true na UI)
+                        // ou forçar detalhamento sempre se "apenas um único mês" tiver sido filtrado
+                        const hasWeeksData = m.weeks && m.weeks.length > 0;
+                        const forceOpenToWeeks = (!isAccumulated || hasWeeksData);
+                        
+                        if (forceOpenToWeeks && hasWeeksData) {
+                            m.weeks!.forEach((w, wIdx) => {
                                 const key = `${m.month}-S${wIdx + 1}`;
                                 if (!groupedByPeriod[key]) groupedByPeriod[key] = { planned: 0, actual: null, isWeekly: true, month: m.month };
                                 groupedByPeriod[key].planned += w.planned || 0;
@@ -605,10 +662,10 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                         }
                     });
 
-                    // Obter saldo inicial global para a seleção
+                    // Obter saldo inicial global para a seleção (desconsidera no cenário restrito de 1 único Mês)
                     const initialItems = filteredData.filter(d => d.month === 'INITIAL');
-                    const startPlanned = initialItems.reduce((acc, d) => acc + (d.planned || 0), 0);
-                    const startActual = initialItems.reduce((acc, d) => acc + (d.actual || 0), 0);
+                    const startPlanned = isAccumulated ? initialItems.reduce((acc, d) => acc + (d.planned || 0), 0) : 0;
+                    const startActual = isAccumulated ? initialItems.reduce((acc, d) => acc + (d.actual || 0), 0) : 0;
 
                     // Ordenar e calcular acumulados
                     const sortedPeriods = Object.keys(groupedByPeriod).sort();
@@ -645,28 +702,31 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                         };
                     });
 
-                    // Cálculo de KPIs
+                    // Cálculo de KPIs fidedigno às métricas solicitadas
                     const totalPlanned = chartPoints.reduce((acc, p) => acc + p.planned, 0) + startPlanned;
-                    const totalActual = (lastValidActualIndex >= 0 ? chartPoints[lastValidActualIndex].accActual : startActual) || 0;
-                    const expectedUntilNow = (lastValidActualIndex >= 0 ? chartPoints[lastValidActualIndex].accPlanned : startPlanned) || 0;
-                    const deviation = totalActual - expectedUntilNow;
+                    const totalActual = chartPoints.reduce((acc, p) => acc + (p.actual || 0), 0) + startActual;
+                    const deviation = totalActual - totalPlanned;
                     const status = deviation >= 0 ? 'ADiantada' : 'Atrasada';
                     
                     return (
                         <>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 <div className="bg-brand-darkest/60 p-6 rounded-2xl border border-brand-accent/10 shadow-lg group hover:border-brand-accent/30 transition-all">
-                                    <p className="text-[11px] text-brand-med-gray font-black uppercase tracking-widest mb-1 group-hover:text-brand-accent transition-colors">Realizado Acumulado</p>
+                                    <p className="text-[11px] text-brand-med-gray font-black uppercase tracking-widest mb-1 group-hover:text-brand-accent transition-colors">
+                                        {isAccumulated ? 'Realizado Acumulado' : 'Realizado no Mês'}
+                                    </p>
                                     <p className="text-4xl font-black text-white">{totalActual.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} <span className="text-xs text-brand-med-gray font-normal">{unitLabel}</span></p>
                                     <div className="w-full h-2 bg-white/5 rounded-full mt-4 overflow-hidden">
                                         <div className="h-full bg-brand-accent shadow-[0_0_15px_rgba(6,182,212,0.6)] animate-pulse" style={{ width: `${Math.min(100, (totalActual / (totalPlanned || 1)) * 100)}%` }}></div>
                                     </div>
                                 </div>
                                 <div className="bg-brand-darkest/60 p-6 rounded-2xl border border-brand-darkest shadow-lg group">
-                                    <p className="text-[11px] text-brand-med-gray font-black uppercase tracking-widest mb-1">Previsto Acumulado</p>
-                                    <p className="text-4xl font-black text-brand-med-gray group-hover:text-white transition-colors">{expectedUntilNow.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} <span className="text-xs text-brand-med-gray font-normal">{unitLabel}</span></p>
+                                    <p className="text-[11px] text-brand-med-gray font-black uppercase tracking-widest mb-1">
+                                        {isAccumulated ? 'Previsto Acumulado' : 'Previsto no Mês'}
+                                    </p>
+                                    <p className="text-4xl font-black text-brand-med-gray group-hover:text-white transition-colors">{totalPlanned.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} <span className="text-xs text-brand-med-gray font-normal">{unitLabel}</span></p>
                                     <div className="w-full h-2 bg-white/5 rounded-full mt-4 overflow-hidden">
-                                        <div className="h-full bg-brand-med-gray/30" style={{ width: `${Math.min(100, (expectedUntilNow / (totalPlanned || 1)) * 100)}%` }}></div>
+                                        <div className="h-full bg-brand-med-gray/30" style={{ width: `${Math.min(100, (totalPlanned / (totalPlanned || 1)) * 100)}%` }}></div>
                                     </div>
                                 </div>
                                 <div className="bg-brand-darkest/60 p-6 rounded-2xl border border-brand-darkest shadow-lg">
