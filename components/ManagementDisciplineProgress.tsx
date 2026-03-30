@@ -677,7 +677,8 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                     const isAccumulated = selectedChartMonths.length !== 1;
                     
                     const filteredData = editingData.filter(d => {
-                        const matchMan = !selectedChartManager || d.manager === selectedChartManager;
+                        const itemManager = d.manager || (MANAGEMENT_RULES as any)[d.discipline]?.manager || '';
+                        const matchMan = !selectedChartManager || itemManager === selectedChartManager;
                         const matchDisc = !selectedChartDiscipline || d.discipline === selectedChartDiscipline;
                         const matchServ = !selectedChartService || d.service === selectedChartService;
                         const matchEng = !selectedChartEngineer || d.engineer === selectedChartEngineer;
