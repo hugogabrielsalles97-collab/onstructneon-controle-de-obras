@@ -25,6 +25,34 @@ export interface DisciplineMonthProgress {
     isExpanded?: boolean;
 }
 
+const MANAGEMENT_RULES = {
+    'OAE': {
+        manager: 'Eduardo Meira',
+        engineers: ['Matheus Ramos', 'Bruno Bastos', 'Rafael Arouca'],
+        services: ['Estaca', 'Bloco', 'Pilar', 'Travessa', 'Lançamento de viga', 'Transversina', 'Prelaje', 'Laje']
+    },
+    'Pavimentação': {
+        manager: 'Antonio Maia',
+        engineers: ['Igor Maia'],
+        services: ['BGTC', 'BGMC', 'CBUQ']
+    },
+    'Terraplenagem': {
+        manager: 'Antonio Maia',
+        services: {
+            'Corte 1ª e 2ª Cat': { engineer: 'Igor Maia' },
+            'Corte 3ª Cat': { engineer: 'João Lucas' }
+        }
+    },
+    'Contenção': {
+        manager: 'Antonio Maia',
+        engineers: ['João Lucas'],
+        services: ['Solo grampeado', 'Cortina atirantada']
+    },
+    'DEFAULT': {
+        manager: 'Antonio Maia'
+    }
+};
+
 interface ManagementDisciplineProgressProps {
     data: DisciplineMonthProgress[];
     onSave: (newData: DisciplineMonthProgress[]) => void;
@@ -73,6 +101,25 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
         const newValue = isNumeric ? (value === '' ? (field === 'actual' ? null : 0) : parseFloat(value)) : value;
         const newData = [...editingData];
         const item = { ...newData[index] };
+
+        // Inteligência de preenchimento automático
+        if (field === 'discipline') {
+            const rule = (MANAGEMENT_RULES as any)[value] || MANAGEMENT_RULES.DEFAULT;
+            item.manager = rule.manager || item.manager;
+            if (rule.engineers && rule.engineers.length === 1) {
+                item.engineer = rule.engineers[0];
+            } else if (value === 'Terraplenagem') {
+                // Deixa vazio para selecionar com base no serviço
+                item.engineer = '';
+            }
+        }
+
+        if (field === 'service') {
+            if (item.discipline === 'Terraplenagem') {
+                const servRule = (MANAGEMENT_RULES.Terraplenagem.services as any)[value];
+                if (servRule) item.engineer = servRule.engineer;
+            }
+        }
 
         if (weekIdx !== undefined) {
             if (!item.weeks) {
@@ -233,25 +280,57 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                         placeholder="Disciplina..."
                                                     />
                                                     <input
+                                                        list={`services-${m.discipline}`}
                                                         value={m.service}
                                                         onChange={(e) => handleInputChange(idx, 'service', e.target.value)}
                                                         className="w-full bg-brand-dark border border-brand-darkest rounded p-1.5 text-gray-300 focus:ring-1 focus:ring-brand-accent outline-none text-[10px]"
                                                         placeholder="Serviço..."
                                                     />
+                                                    <datalist id="services-OAE">
+                                                        {MANAGEMENT_RULES.OAE.services.map(s => <option key={s} value={s} />)}
+                                                    </datalist>
+                                                    <datalist id="services-Pavimentação">
+                                                        {MANAGEMENT_RULES.Pavimentação.services.map(s => <option key={s} value={s} />)}
+                                                    </datalist>
+                                                    <datalist id="services-Terraplenagem">
+                                                        {Object.keys(MANAGEMENT_RULES.Terraplenagem.services).map(s => <option key={s} value={s} />)}
+                                                    </datalist>
+                                                    <datalist id="services-Contenção">
+                                                        {MANAGEMENT_RULES.Contenção.services.map(s => <option key={s} value={s} />)}
+                                                    </datalist>
                                                 </td>
                                                 <td className="p-2 space-y-1">
                                                     <input
+                                                        list="managers-list"
                                                         value={m.manager}
                                                         onChange={(e) => handleInputChange(idx, 'manager', e.target.value)}
                                                         className="w-full bg-brand-darkest border border-brand-dark rounded p-1.5 text-white focus:ring-1 focus:ring-brand-accent outline-none text-[10px]"
                                                         placeholder="Gerente..."
                                                     />
+                                                    <datalist id="managers-list">
+                                                        <option value="Eduardo Meira" />
+                                                        <option value="Antonio Maia" />
+                                                    </datalist>
                                                     <input
+                                                        list={`engineers-${m.discipline}`}
                                                         value={m.engineer}
                                                         onChange={(e) => handleInputChange(idx, 'engineer', e.target.value)}
                                                         className="w-full bg-brand-dark border border-brand-darkest rounded p-1.5 text-gray-300 focus:ring-1 focus:ring-brand-accent outline-none text-[10px]"
                                                         placeholder="Engenheiro..."
                                                     />
+                                                    <datalist id="engineers-OAE">
+                                                        {MANAGEMENT_RULES.OAE.engineers.map(e => <option key={e} value={e} />)}
+                                                    </datalist>
+                                                    <datalist id="engineers-Pavimentação">
+                                                        {MANAGEMENT_RULES.Pavimentação.engineers.map(e => <option key={e} value={e} />)}
+                                                    </datalist>
+                                                    <datalist id="engineers-Terraplenagem">
+                                                        <option value="Igor Maia" />
+                                                        <option value="João Lucas" />
+                                                    </datalist>
+                                                    <datalist id="engineers-Contenção">
+                                                        {MANAGEMENT_RULES.Contenção.engineers.map(e => <option key={e} value={e} />)}
+                                                    </datalist>
                                                 </td>
                                                 <td className="p-2 space-y-1 min-w-[140px]">
                                                     <div className="flex items-center gap-1">
