@@ -513,6 +513,14 @@ export const markNotificationAsRead = async (id: string) => {
     }
 };
 
+export const clearAllNotifications = async () => {
+    try {
+        await supabase.from('notifications').update({ is_read: true }).eq('is_read', false);
+    } catch(err) {
+        console.error('Erro ao limpar todas as notificações:', err);
+    }
+};
+
 export const createNotification = async (notification: Omit<AppNotification, 'id' | 'created_at' | 'is_read'>) => {
     try {
         const { error } = await supabase.from('notifications').insert([notification]);

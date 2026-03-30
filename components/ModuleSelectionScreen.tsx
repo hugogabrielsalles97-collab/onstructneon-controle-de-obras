@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useData } from '../context/DataProvider';
 import ConstructionIcon from './icons/ConstructionIcon';
-import { useNotifications, markNotificationAsRead } from '../hooks/dataHooks';
+import { useNotifications, markNotificationAsRead, clearAllNotifications } from '../hooks/dataHooks';
 
 interface ModuleSelectionScreenProps {
     onSelectPlanning: () => void;
@@ -29,6 +29,11 @@ const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({ onSelectP
         setIsNotificationsOpen(false);
         const newUrl = window.location.origin + window.location.pathname + `?taskId=${taskId}&action=reviewObs`;
         window.location.href = newUrl;
+    };
+
+    const handleClearAllNotifications = async () => {
+        await clearAllNotifications();
+        refetchNotifications();
     };
 
     if (!user) return null;
@@ -87,7 +92,17 @@ const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({ onSelectP
                             <div className="absolute top-full right-0 mt-2 w-80 bg-[#0f172a] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 animate-slide-up">
                                 <div className="p-3 bg-brand-darkest/80 border-b border-white/10 flex justify-between items-center">
                                 <span className="text-[10px] font-black tracking-widest uppercase text-white">Notificações Administrativas</span>
-                                <span className="text-[9px] font-mono text-brand-med-gray">{notifications.length} itens</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[9px] font-mono text-brand-med-gray">{notifications.length} itens</span>
+                                    {notifications.filter(n => !n.is_read).length > 0 && (
+                                        <button
+                                            onClick={handleClearAllNotifications}
+                                            className="text-[9px] font-bold uppercase tracking-wider text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 px-2 py-0.5 rounded-md border border-red-500/20 transition-all duration-200"
+                                        >
+                                            Limpar Tudo
+                                        </button>
+                                    )}
+                                </div>
                                 </div>
                                 <div className="max-h-80 overflow-y-auto custom-scrollbar">
                                 {notifications.filter(n => !n.is_read).length === 0 ? (
