@@ -40,7 +40,8 @@ const MANAGEMENT_RULES = {
         manager: 'Antonio Maia',
         services: {
             'Corte 1ª e 2ª Cat': { engineer: 'Igor Maia' },
-            'Corte 3ª Cat': { engineer: 'João Lucas' }
+            'Corte 3ª Cat': { engineer: 'João Lucas' },
+            'Aterro': { engineer: 'Igor Maia' }
         }
     },
     'Contenções': {
