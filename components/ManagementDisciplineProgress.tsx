@@ -128,11 +128,14 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
 
         // Meses continuam sendo puxados dos dados reais já que dependem de preenchimento
         const monthsOptions = Array.from(new Set(editingData
-            .filter(d => (!selectedChartManager || d.manager === selectedChartManager) &&
-                         (!selectedChartDiscipline || d.discipline === selectedChartDiscipline) && 
-                         (!selectedChartService || d.service === selectedChartService) &&
-                         (!selectedChartEngineer || d.engineer === selectedChartEngineer) &&
-                         d.month !== 'INITIAL')
+            .filter(d => {
+                const itemManager = d.manager || (MANAGEMENT_RULES as any)[d.discipline]?.manager || '';
+                return (!selectedChartManager || itemManager === selectedChartManager) &&
+                       (!selectedChartDiscipline || d.discipline === selectedChartDiscipline) && 
+                       (!selectedChartService || d.service === selectedChartService) &&
+                       (!selectedChartEngineer || d.engineer === selectedChartEngineer) &&
+                       d.month !== 'INITIAL';
+            })
             .map(d => d.month)
         )).filter(Boolean).sort();
         
