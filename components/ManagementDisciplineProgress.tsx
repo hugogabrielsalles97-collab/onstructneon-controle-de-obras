@@ -654,34 +654,34 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                     return (
                         <>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                <div className="bg-brand-darkest/50 p-4 rounded-xl border border-brand-darkest">
-                                    <p className="text-[9px] text-brand-med-gray font-black uppercase tracking-widest">Realizado Acumulado</p>
-                                    <p className="text-2xl font-black text-white">{totalActual.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} <span className="text-[10px] text-brand-med-gray">{unitLabel}</span></p>
-                                    <div className="w-full h-1.5 bg-white/5 rounded-full mt-2 overflow-hidden">
-                                        <div className="h-full bg-brand-accent shadow-[0_0_10px_rgba(6,182,212,0.5)]" style={{ width: `${Math.min(100, (totalActual / (totalPlanned || 1)) * 100)}%` }}></div>
+                                <div className="bg-brand-darkest/60 p-6 rounded-2xl border border-brand-accent/10 shadow-lg group hover:border-brand-accent/30 transition-all">
+                                    <p className="text-[11px] text-brand-med-gray font-black uppercase tracking-widest mb-1 group-hover:text-brand-accent transition-colors">Realizado Acumulado</p>
+                                    <p className="text-4xl font-black text-white">{totalActual.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} <span className="text-xs text-brand-med-gray font-normal">{unitLabel}</span></p>
+                                    <div className="w-full h-2 bg-white/5 rounded-full mt-4 overflow-hidden">
+                                        <div className="h-full bg-brand-accent shadow-[0_0_15px_rgba(6,182,212,0.6)] animate-pulse" style={{ width: `${Math.min(100, (totalActual / (totalPlanned || 1)) * 100)}%` }}></div>
                                     </div>
                                 </div>
-                                <div className="bg-brand-darkest/50 p-4 rounded-xl border border-brand-darkest">
-                                    <p className="text-[9px] text-brand-med-gray font-black uppercase tracking-widest">Previsto Acumulado</p>
-                                    <p className="text-2xl font-black text-brand-med-gray">{expectedUntilNow.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} <span className="text-[10px] text-brand-med-gray">{unitLabel}</span></p>
-                                    <div className="w-full h-1.5 bg-white/5 rounded-full mt-2 overflow-hidden">
+                                <div className="bg-brand-darkest/60 p-6 rounded-2xl border border-brand-darkest shadow-lg group">
+                                    <p className="text-[11px] text-brand-med-gray font-black uppercase tracking-widest mb-1">Previsto Acumulado</p>
+                                    <p className="text-4xl font-black text-brand-med-gray group-hover:text-white transition-colors">{expectedUntilNow.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} <span className="text-xs text-brand-med-gray font-normal">{unitLabel}</span></p>
+                                    <div className="w-full h-2 bg-white/5 rounded-full mt-4 overflow-hidden">
                                         <div className="h-full bg-brand-med-gray/30" style={{ width: `${Math.min(100, (expectedUntilNow / (totalPlanned || 1)) * 100)}%` }}></div>
                                     </div>
                                 </div>
-                                <div className="bg-brand-darkest/50 p-4 rounded-xl border border-brand-darkest">
-                                    <p className="text-[9px] text-brand-med-gray font-black uppercase tracking-widest">Desvio (Gap)</p>
-                                    <p className={`text-2xl font-black ${deviation >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                <div className="bg-brand-darkest/60 p-6 rounded-2xl border border-brand-darkest shadow-lg">
+                                    <p className="text-[11px] text-brand-med-gray font-black uppercase tracking-widest mb-1">Desvio (Gap)</p>
+                                    <p className={`text-4xl font-black ${deviation >= 0 ? 'text-green-500' : 'text-red-500 hover:animate-pulse'}`}>
                                         {deviation > 0 ? '+' : ''}{deviation.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}
                                     </p>
-                                    <p className="text-[8px] mt-1 text-brand-med-gray uppercase font-bold">
-                                        {unitLabel} {deviation >= 0 ? 'Frente ao Planejado' : 'Em relação ao planejamento'}
+                                    <p className="text-[10px] mt-2 text-brand-med-gray uppercase font-bold flex items-center gap-1">
+                                        <span className="opacity-50">{unitLabel}</span> {deviation >= 0 ? 'Frente ao Planejado' : 'Em relação ao planejamento'}
                                     </p>
                                 </div>
-                                <div className="bg-brand-darkest/50 p-4 rounded-xl border border-brand-darkest flex flex-col justify-center">
-                                    <span className={`px-2 py-1 rounded text-[10px] font-black uppercase w-fit tracking-wider ${deviation >= 0 ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                                        {deviation >= 0 ? 'Status Ok' : 'Atenção Necessária'}
+                                <div className="bg-brand-darkest/60 p-6 rounded-2xl border border-brand-darkest shadow-lg flex flex-col justify-center items-start">
+                                    <span className={`px-3 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider mb-2 ${deviation >= 0 ? 'bg-green-500/20 text-green-500 border border-green-500/20' : 'bg-red-500/20 text-red-500 border border-red-500/20'}`}>
+                                        {deviation >= 0 ? '● Status Ok' : '● Atenção Necessária'}
                                     </span>
-                                    <p className="text-xs text-white mt-1 font-bold">
+                                    <p className="text-lg text-white font-black uppercase tracking-tighter italic">
                                         {deviation >= 0 ? 'Meta Superada' : 'Recuperação Sugerida'}
                                     </p>
                                 </div>
@@ -696,45 +696,45 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                                 dataKey="name" 
                                                 axisLine={false} 
                                                 tickLine={false} 
-                                                tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 700 }} 
+                                                tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} 
                                             />
                                             <YAxis 
                                                 yAxisId="left"
                                                 orientation="left"
                                                 axisLine={false} 
                                                 tickLine={false} 
-                                                tick={{ fill: '#94a3b8', fontSize: 10 }}
-                                                label={{ value: `Qtd Mensal (${unitLabel})`, angle: -90, position: 'insideLeft', style: { fill: '#94a3b8', fontSize: 10, fontWeight: 700 } }}
+                                                tick={{ fill: '#94a3b8', fontSize: 11 }}
+                                                label={{ value: `Qtd Mensal (${unitLabel})`, angle: -90, position: 'insideLeft', style: { fill: '#94a3b8', fontSize: 11, fontWeight: 700 } }}
                                             />
                                             <YAxis 
                                                 yAxisId="right"
                                                 orientation="right"
                                                 axisLine={false} 
                                                 tickLine={false} 
-                                                tick={{ fill: '#e35a10', fontSize: 10 }}
-                                                label={{ value: `Acumulado (${unitLabel})`, angle: 90, position: 'insideRight', style: { fill: '#e35a10', fontSize: 10, fontWeight: 700 } }}
+                                                tick={{ fill: '#f97316', fontSize: 11 }}
+                                                label={{ value: `Acumulado (${unitLabel})`, angle: 90, position: 'insideRight', style: { fill: '#f97316', fontSize: 11, fontWeight: 700 } }}
                                             />
                                             <RechartsTooltip 
                                                 contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid #1e293b', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)' }}
-                                                itemStyle={{ fontSize: '11px', fontWeight: 'bold' }}
-                                                labelStyle={{ color: '#fff', fontWeight: 'black', marginBottom: '8px', textTransform: 'uppercase', fontSize: '10px' }}
+                                                itemStyle={{ fontSize: '13px', fontWeight: 'bold' }}
+                                                labelStyle={{ color: '#fff', fontWeight: 'black', marginBottom: '8px', textTransform: 'uppercase', fontSize: '11px' }}
                                             />
-                                            <Legend verticalAlign="top" height={36} wrapperStyle={{ paddingBottom: '20px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }} />
+                                            <Legend verticalAlign="top" height={48} wrapperStyle={{ paddingBottom: '30px', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase' }} />
                                             
                                             {/* Barras de Progresso Mensal/Semanal */}
-                                            <Bar yAxisId="left" name="Planejado Período" dataKey="planned" fill="#4b5563" radius={[4, 4, 0, 0]}>
+                                            <Bar yAxisId="left" name="Planejado Período" dataKey="planned" fill="#475569" radius={[4, 4, 0, 0]}>
                                                 <LabelList 
                                                     dataKey="planned" 
                                                     position="top" 
-                                                    style={{ fill: '#94a3b8', fontSize: 9, fontWeight: 'bold' }} 
+                                                    style={{ fill: '#94a3b8', fontSize: 11, fontWeight: '900' }} 
                                                     formatter={(val: number) => val > 0 ? `${val.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}` : ''} 
                                                 />
                                             </Bar>
-                                            <Bar yAxisId="left" name="Realizado Período" dataKey="actual" fill="#e35a10" radius={[4, 4, 0, 0]}>
+                                            <Bar yAxisId="left" name="Realizado Período" dataKey="actual" fill="#f97316" radius={[4, 4, 0, 0]}>
                                                 <LabelList 
                                                     dataKey="actual" 
                                                     position="top" 
-                                                    style={{ fill: '#e35a10', fontSize: 9, fontWeight: 'bold' }} 
+                                                    style={{ fill: '#f97316', fontSize: 12, fontWeight: '900' }} 
                                                     formatter={(val: number) => val !== null && val !== undefined && val > 0 ? `${val.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}` : ''} 
                                                 />
                                             </Bar>
