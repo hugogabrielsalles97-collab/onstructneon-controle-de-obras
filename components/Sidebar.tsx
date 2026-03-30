@@ -83,7 +83,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                                 onClick={onNavigateToAnalysis}
                                 isCostModule={isCostModule}
                             />
-                            {onNavigateToMonitoringControl && (
+                            {(user.role === 'Master' || user.role === 'Gerenciador' || user.role === 'Planejador') && onNavigateToMonitoringControl && (
                                 <NavButton
                                     active={activeScreen === 'monitoringControl'}
                                     icon={

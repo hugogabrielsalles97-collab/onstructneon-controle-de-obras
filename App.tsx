@@ -291,7 +291,12 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
       case 'currentSchedule': return <CurrentSchedulePage {...navigationProps} showToast={showToast} />;
       case 'management': return <ManagementPage {...navigationProps} showToast={showToast} />;
       case 'leanConstruction': return <LeanConstructionPage {...navigationProps} showToast={showToast} />;
-      case 'monitoringControl': return <MonitoringControlPage {...navigationProps} showToast={showToast} />;
+      case 'monitoringControl':
+        if (currentUser?.role !== 'Master' && currentUser?.role !== 'Gerenciador' && currentUser?.role !== 'Planejador') {
+          setScreen('dashboard');
+          return null;
+        }
+        return <MonitoringControlPage {...navigationProps} showToast={showToast} />;
       case 'podcast': return <PodcastPage {...navigationProps} user={currentUser} showToast={showToast} signOut={signOut} />;
       case 'cost': return (
         <CostPage
