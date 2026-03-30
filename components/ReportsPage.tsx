@@ -17,6 +17,7 @@ interface ReportsPageProps {
   onNavigateToAnalysis: () => void;
   onNavigateToLean: () => void;
   onNavigateToLeanConstruction: () => void;
+  onNavigateToMonitoringControl?: () => void;
   onNavigateToWarRoom: () => void;
   onNavigateToPodcast: () => void;
   onNavigateToCost: () => void;
@@ -45,7 +46,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
   onNavigateToCurrentSchedule,
   onNavigateToAnalysis,
   onNavigateToLean,
-  onNavigateToLeanConstruction,
+  onNavigateToLeanConstruction, onNavigateToMonitoringControl,
   onNavigateToWarRoom,
   onNavigateToPodcast,
   onNavigateToCost,
@@ -230,6 +231,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
         onNavigateToAnalysis={onNavigateToAnalysis}
         onNavigateToLean={onNavigateToLean}
         onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToMonitoringControl={onNavigateToMonitoringControl}
         onNavigateToWarRoom={onNavigateToWarRoom}
         onNavigateToPodcast={onNavigateToPodcast}
         onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
@@ -253,6 +255,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
           onNavigateToAnalysis={onNavigateToAnalysis}
           onNavigateToLean={onNavigateToLean}
           onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToMonitoringControl={onNavigateToMonitoringControl}
           onNavigateToWarRoom={onNavigateToWarRoom}
           onNavigateToPodcast={onNavigateToPodcast}
           onNavigateToCost={onNavigateToCost}

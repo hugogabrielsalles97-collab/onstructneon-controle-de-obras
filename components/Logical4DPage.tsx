@@ -17,6 +17,7 @@ interface Logical4DPageProps {
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
     onNavigateToLeanConstruction: () => void;
+  onNavigateToMonitoringControl?: () => void;
     onNavigateToCost: () => void;
     onUpgradeClick: () => void;
     onAddTask?: () => void;
@@ -32,7 +33,7 @@ const Logical4DPage: React.FC<Logical4DPageProps> = ({
     onNavigateToCurrentSchedule,
     onNavigateToAnalysis,
     onNavigateToLean,
-    onNavigateToLeanConstruction,
+    onNavigateToLeanConstruction, onNavigateToMonitoringControl,
     onNavigateToCost,
     onUpgradeClick,
     onAddTask
@@ -139,6 +140,7 @@ const Logical4DPage: React.FC<Logical4DPageProps> = ({
                 onNavigateToAnalysis={onNavigateToAnalysis}
                 onNavigateToLean={onNavigateToLean}
                 onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToMonitoringControl={onNavigateToMonitoringControl}
                 onNavigateToCost={onNavigateToCost}
                 onUpgradeClick={onUpgradeClick}
                 onAddTask={onAddTask}
@@ -157,6 +159,7 @@ const Logical4DPage: React.FC<Logical4DPageProps> = ({
                     onNavigateToAnalysis={onNavigateToAnalysis}
                     onNavigateToLean={onNavigateToLean}
                     onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToMonitoringControl={onNavigateToMonitoringControl}
                     onNavigateToCost={onNavigateToCost}
                     onUpgradeClick={onUpgradeClick}
                 />
@@ -320,3 +323,4 @@ const Logical4DPage: React.FC<Logical4DPageProps> = ({
 };
 
 export default Logical4DPage;
+

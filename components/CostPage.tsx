@@ -16,6 +16,7 @@ interface CostPageProps {
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
     onNavigateToLeanConstruction: () => void;
+  onNavigateToMonitoringControl?: () => void;
     onNavigateToWarRoom: () => void;
     onNavigateToPodcast: () => void;
     onNavigateToCost: () => void;
@@ -36,7 +37,7 @@ const CostPage: React.FC<CostPageProps> = ({
     onNavigateToCurrentSchedule,
     onNavigateToAnalysis,
     onNavigateToLean,
-    onNavigateToLeanConstruction,
+    onNavigateToLeanConstruction, onNavigateToMonitoringControl,
     onNavigateToWarRoom,
     onNavigateToPodcast,
     onNavigateToCost,
@@ -184,6 +185,7 @@ const CostPage: React.FC<CostPageProps> = ({
                     onNavigateToAnalysis={onNavigateToAnalysis}
                     onNavigateToLean={onNavigateToLean}
                     onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToMonitoringControl={onNavigateToMonitoringControl}
                     onNavigateToPodcast={onNavigateToPodcast}
                     onNavigateToCost={onNavigateToCost}
                     onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
@@ -324,3 +326,4 @@ const CostPage: React.FC<CostPageProps> = ({
 };
 
 export default CostPage;
+

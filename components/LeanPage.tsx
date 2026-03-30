@@ -17,6 +17,7 @@ interface LeanPageProps {
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
     onNavigateToLeanConstruction: () => void;
+  onNavigateToMonitoringControl?: () => void;
     onNavigateToWarRoom: () => void;
     onNavigateToPodcast: () => void;
     onNavigateToCost: () => void;
@@ -45,7 +46,7 @@ const LeanPage: React.FC<LeanPageProps> = ({
     onNavigateToCurrentSchedule,
     onNavigateToAnalysis,
     onNavigateToLean,
-    onNavigateToLeanConstruction,
+    onNavigateToLeanConstruction, onNavigateToMonitoringControl,
     onNavigateToWarRoom,
     onNavigateToPodcast,
     onNavigateToCost,
@@ -251,6 +252,7 @@ const LeanPage: React.FC<LeanPageProps> = ({
                 onNavigateToAnalysis={onNavigateToAnalysis}
                 onNavigateToLean={() => { }}
                 onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToMonitoringControl={onNavigateToMonitoringControl}
                 onNavigateToWarRoom={onNavigateToWarRoom}
                 onNavigateToPodcast={onNavigateToPodcast}
                 onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
@@ -274,6 +276,7 @@ const LeanPage: React.FC<LeanPageProps> = ({
                     onNavigateToAnalysis={onNavigateToAnalysis}
                     onNavigateToLean={() => { }}
                     onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToMonitoringControl={onNavigateToMonitoringControl}
                     onNavigateToWarRoom={onNavigateToWarRoom}
                     onNavigateToPodcast={onNavigateToPodcast}
                     onNavigateToCost={onNavigateToCost}
@@ -794,3 +797,4 @@ const LeanPage: React.FC<LeanPageProps> = ({
 };
 
 export default LeanPage;
+

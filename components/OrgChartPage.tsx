@@ -19,6 +19,7 @@ interface OrgChartPageProps {
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
     onNavigateToLeanConstruction: () => void;
+  onNavigateToMonitoringControl?: () => void;
     onNavigateToWarRoom: () => void;
     onNavigateToCost: () => void;
     onNavigateToPodcast: () => void;
@@ -455,3 +456,4 @@ const OrgChartPage: React.FC<OrgChartPageProps> = (props) => {
 };
 
 export default OrgChartPage;
+

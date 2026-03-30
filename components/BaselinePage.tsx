@@ -19,6 +19,7 @@ interface BaselinePageProps {
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
     onNavigateToLeanConstruction: () => void;
+  onNavigateToMonitoringControl?: () => void;
     onNavigateToWarRoom: () => void;
     onNavigateToPodcast: () => void;
     onNavigateToCost: () => void;
@@ -65,7 +66,7 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
     onNavigateToCurrentSchedule,
     onNavigateToAnalysis,
     onNavigateToLean,
-    onNavigateToLeanConstruction,
+    onNavigateToLeanConstruction, onNavigateToMonitoringControl,
     onNavigateToWarRoom,
     onNavigateToPodcast,
     onNavigateToCost,
@@ -483,6 +484,7 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
                 onNavigateToAnalysis={onNavigateToAnalysis}
                 onNavigateToLean={onNavigateToLean}
                 onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToMonitoringControl={onNavigateToMonitoringControl}
                 onNavigateToWarRoom={onNavigateToWarRoom}
                 onNavigateToPodcast={onNavigateToPodcast}
                 onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
@@ -505,6 +507,7 @@ const BaselinePage: React.FC<BaselinePageProps> = ({
                     onNavigateToAnalysis={onNavigateToAnalysis}
                     onNavigateToLean={onNavigateToLean}
                     onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToMonitoringControl={onNavigateToMonitoringControl}
                     onNavigateToWarRoom={onNavigateToWarRoom}
                     onNavigateToPodcast={onNavigateToPodcast}
                     onNavigateToCost={onNavigateToCost}

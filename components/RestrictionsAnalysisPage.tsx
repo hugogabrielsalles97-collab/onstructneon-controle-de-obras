@@ -25,6 +25,7 @@ interface RestrictionsAnalysisPageProps {
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
     onNavigateToLeanConstruction: () => void;
+  onNavigateToMonitoringControl?: () => void;
     onNavigateToWarRoom: () => void;
     onNavigateToPodcast: () => void;
     onNavigateToCost: () => void;
@@ -51,7 +52,7 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
     onNavigateToCurrentSchedule,
     onNavigateToAnalysis,
     onNavigateToLean,
-    onNavigateToLeanConstruction,
+    onNavigateToLeanConstruction, onNavigateToMonitoringControl,
     onNavigateToWarRoom,
     onNavigateToPodcast,
     onNavigateToCost,
@@ -341,6 +342,7 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                 onNavigateToAnalysis={() => { }}
                 onNavigateToLean={onNavigateToLean}
                 onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToMonitoringControl={onNavigateToMonitoringControl}
                 onNavigateToWarRoom={onNavigateToWarRoom}
                 onNavigateToPodcast={onNavigateToPodcast}
                 onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
@@ -364,6 +366,7 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
                     onNavigateToAnalysis={onNavigateToAnalysis}
                     onNavigateToLean={onNavigateToLean}
                     onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToMonitoringControl={onNavigateToMonitoringControl}
                     onNavigateToWarRoom={onNavigateToWarRoom}
                     onNavigateToPodcast={onNavigateToPodcast}
                     onNavigateToCost={onNavigateToCost}
@@ -1020,3 +1023,4 @@ const RestrictionsAnalysisPage: React.FC<RestrictionsAnalysisPageProps> = ({
 };
 
 export default RestrictionsAnalysisPage;
+

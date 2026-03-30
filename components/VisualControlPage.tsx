@@ -70,6 +70,7 @@ interface VisualControlPageProps {
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
     onNavigateToLeanConstruction: () => void;
+  onNavigateToMonitoringControl?: () => void;
     onNavigateToWarRoom: () => void;
     onNavigateToCost: () => void;
     onNavigateToPodcast: () => void;
@@ -1170,3 +1171,4 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
 };
 
 export default VisualControlPage;
+

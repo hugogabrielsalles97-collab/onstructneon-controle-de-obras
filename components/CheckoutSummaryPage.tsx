@@ -24,6 +24,7 @@ interface CheckoutSummaryPageProps {
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
     onNavigateToLeanConstruction: () => void;
+  onNavigateToMonitoringControl?: () => void;
     onNavigateToWarRoom: () => void;
     onNavigateToPodcast: () => void;
     onNavigateToCost: () => void;
@@ -88,7 +89,7 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
     onNavigateToCurrentSchedule,
     onNavigateToAnalysis,
     onNavigateToLean,
-    onNavigateToLeanConstruction,
+    onNavigateToLeanConstruction, onNavigateToMonitoringControl,
     onNavigateToWarRoom,
     onNavigateToPodcast,
     onNavigateToCost,
@@ -314,6 +315,7 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                 onNavigateToAnalysis={onNavigateToAnalysis}
                 onNavigateToLean={onNavigateToLean}
                 onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToMonitoringControl={onNavigateToMonitoringControl}
                 onNavigateToWarRoom={onNavigateToWarRoom}
                 onNavigateToPodcast={onNavigateToPodcast}
                 onNavigateToCost={onNavigateToCost}
@@ -337,6 +339,7 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
                     onNavigateToAnalysis={onNavigateToAnalysis}
                     onNavigateToLean={onNavigateToLean}
                     onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToMonitoringControl={onNavigateToMonitoringControl}
                     onNavigateToWarRoom={onNavigateToWarRoom}
                     onNavigateToPodcast={onNavigateToPodcast}
                     onNavigateToCost={onNavigateToCost}
@@ -981,3 +984,4 @@ const CheckoutSummaryPage: React.FC<CheckoutSummaryPageProps> = ({
 };
 
 export default CheckoutSummaryPage;
+

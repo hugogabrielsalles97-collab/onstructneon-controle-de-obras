@@ -20,6 +20,7 @@ interface SystemPageProps {
     onNavigateToAnalysis: () => void;
     onNavigateToLean?: () => void;
     onNavigateToLeanConstruction?: () => void;
+  onNavigateToMonitoringControl?: () => void;
     onNavigateToWarRoom?: () => void;
     onNavigateToCost?: () => void;
     onNavigateToPodcast?: () => void;
@@ -461,3 +462,4 @@ const SystemPage: React.FC<SystemPageProps> = ({
 };
 
 export default SystemPage;
+

@@ -21,6 +21,7 @@ interface LeanConstructionPageProps {
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
     onNavigateToLeanConstruction: () => void;
+  onNavigateToMonitoringControl?: () => void;
     onNavigateToWarRoom: () => void;
     onNavigateToPodcast: () => void;
     onNavigateToCost: () => void;
@@ -46,7 +47,7 @@ const formatBR = (value: number | string | undefined, decimals: number = 2) => {
 };
 
 const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
-    onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToHome, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToVisualControl, onNavigateToCheckoutSummary, onNavigateToTeams, onUpgradeClick, onAddTask, showToast
+    onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToMonitoringControl, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToHome, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToVisualControl, onNavigateToCheckoutSummary, onNavigateToTeams, onUpgradeClick, onAddTask, showToast
 }) => {
     const { currentUser: user, signOut, leanTasks, saveLeanTask, deleteLeanTask, checkoutLogs, tasks } = useData();
     const [selectedTask, setSelectedTask] = useState<LeanTask | null>(null);
@@ -1291,3 +1292,4 @@ const LeanConstructionPage: React.FC<LeanConstructionPageProps> = ({
 };
 
 export default LeanConstructionPage;
+

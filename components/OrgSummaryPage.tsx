@@ -15,6 +15,7 @@ interface OrgSummaryPageProps {
     onNavigateToAnalysis: () => void;
     onNavigateToLean: () => void;
     onNavigateToLeanConstruction: () => void;
+  onNavigateToMonitoringControl?: () => void;
     onNavigateToWarRoom: () => void;
     onNavigateToCost: () => void;
     onNavigateToPodcast: () => void;
@@ -208,3 +209,4 @@ const OrgSummaryPage: React.FC<OrgSummaryPageProps> = (props) => {
 };
 
 export default OrgSummaryPage;
+

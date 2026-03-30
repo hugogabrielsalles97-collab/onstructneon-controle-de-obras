@@ -37,6 +37,7 @@ interface DashboardProps {
   onNavigateToAnalysis: () => void;
   onNavigateToLean: () => void;
   onNavigateToLeanConstruction: () => void;
+  onNavigateToMonitoringControl?: () => void;
   onNavigateToWarRoom: () => void;
   onNavigateToCost: () => void;
   onNavigateToPodcast: () => void;
@@ -64,7 +65,7 @@ const initialFilters = {
   engineer: '',
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToHome, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToSystem, onUpgradeClick, onAddTask, showToast }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToHome, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToMonitoringControl, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToSystem, onUpgradeClick, onAddTask, showToast }) => {
   const { currentUser: user, tasks, allUsers, baselineTasks, signOut, deleteTask, isLoadingTasks } = useData();
   const { data: orgMembers } = useOrgMembers();
   const [filters, setFilters] = useState(initialFilters);
@@ -373,6 +374,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
         onNavigateToAnalysis={onNavigateToAnalysis}
         onNavigateToLean={onNavigateToLean}
         onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToMonitoringControl={onNavigateToMonitoringControl}
         onNavigateToWarRoom={onNavigateToWarRoom}
         onNavigateToPodcast={onNavigateToPodcast}
         onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
@@ -398,6 +400,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
           onNavigateToAnalysis={onNavigateToAnalysis}
           onNavigateToLean={onNavigateToLean}
           onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToMonitoringControl={onNavigateToMonitoringControl}
           onNavigateToWarRoom={onNavigateToWarRoom}
           onNavigateToPodcast={onNavigateToPodcast}
           onNavigateToCost={onNavigateToCost}

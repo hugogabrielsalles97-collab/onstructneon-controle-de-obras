@@ -19,6 +19,7 @@ interface CurrentSchedulePageProps {
     onNavigateToLean: () => void;
     onNavigateToCurrentSchedule: () => void;
     onNavigateToLeanConstruction: () => void;
+  onNavigateToMonitoringControl?: () => void;
     onNavigateToWarRoom: () => void;
     onNavigateToPodcast: () => void;
     onNavigateToCost: () => void;
@@ -65,7 +66,7 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
     onNavigateToAnalysis,
     onNavigateToLean,
     onNavigateToCurrentSchedule,
-    onNavigateToLeanConstruction,
+    onNavigateToLeanConstruction, onNavigateToMonitoringControl,
     onNavigateToWarRoom,
     onNavigateToPodcast,
     onNavigateToCost,
@@ -483,6 +484,7 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
                 onNavigateToAnalysis={onNavigateToAnalysis}
                 onNavigateToLean={onNavigateToLean}
                 onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToMonitoringControl={onNavigateToMonitoringControl}
                 onNavigateToWarRoom={onNavigateToWarRoom}
                 onNavigateToPodcast={onNavigateToPodcast}
                 onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
@@ -505,6 +507,7 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
                     onNavigateToAnalysis={onNavigateToAnalysis}
                     onNavigateToLean={onNavigateToLean}
                     onNavigateToLeanConstruction={onNavigateToLeanConstruction}
+                onNavigateToMonitoringControl={onNavigateToMonitoringControl}
                     onNavigateToWarRoom={onNavigateToWarRoom}
                     onNavigateToPodcast={onNavigateToPodcast}
                     onNavigateToCost={onNavigateToCost}
@@ -547,3 +550,4 @@ const CurrentSchedulePage: React.FC<CurrentSchedulePageProps> = ({
 };
 
 export default CurrentSchedulePage;
+
