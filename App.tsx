@@ -21,6 +21,7 @@ const CurrentSchedulePage = lazy(() => import('./components/CurrentSchedulePage'
 const ManagementPage = lazy(() => import('./components/ManagementPage'));
 const LeanPage = lazy(() => import('./components/LeanPage'));
 const LeanConstructionPage = lazy(() => import('./components/LeanConstructionPage'));
+const MonitoringControlPage = lazy(() => import('./components/MonitoringControlPage'));
 const RestrictionsAnalysisPage = lazy(() => import('./components/RestrictionsAnalysisPage'));
 const CostPage = lazy(() => import('./components/CostPage'));
 const CheckoutSummaryPage = lazy(() => import('./components/CheckoutSummaryPage'));
@@ -33,7 +34,7 @@ const SystemPage = lazy(() => import('./components/SystemPage'));
 const WarRoomTVPage = lazy(() => import('./components/WarRoomTVPage'));
 
 
-type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'restrictions' | 'cost' | 'podcast' | 'checkoutSummary' | 'orgChart' | 'orgSummary' | 'visualControl' | 'system' | 'warRoomTV';
+type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'monitoringControl' | 'restrictions' | 'cost' | 'podcast' | 'checkoutSummary' | 'orgChart' | 'orgSummary' | 'visualControl' | 'system' | 'warRoomTV';
 
 const AppContent: React.FC = () => {
   const {
@@ -259,6 +260,7 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
       onNavigateToAnalysis: () => setScreen('management'),
       onNavigateToLean: () => setScreen('lean'),
       onNavigateToLeanConstruction: () => setScreen('leanConstruction'),
+      onNavigateToMonitoringControl: () => setScreen('monitoringControl'),
       onNavigateToWarRoom: () => setScreen('warRoomTV'),
       onNavigateToPodcast: () => setScreen('podcast'),
       onNavigateToCost: () => setScreen('cost'),
@@ -289,6 +291,7 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
       case 'currentSchedule': return <CurrentSchedulePage {...navigationProps} showToast={showToast} />;
       case 'management': return <ManagementPage {...navigationProps} showToast={showToast} />;
       case 'leanConstruction': return <LeanConstructionPage {...navigationProps} showToast={showToast} />;
+      case 'monitoringControl': return <MonitoringControlPage {...navigationProps} showToast={showToast} />;
       case 'podcast': return <PodcastPage {...navigationProps} user={currentUser} showToast={showToast} signOut={signOut} />;
       case 'cost': return (
         <CostPage

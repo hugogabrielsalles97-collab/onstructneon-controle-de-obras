@@ -22,6 +22,7 @@ interface SidebarProps {
     onNavigateToAnalysis: () => void;
     onNavigateToLean?: () => void;
     onNavigateToLeanConstruction?: () => void;
+    onNavigateToMonitoringControl?: () => void;
     onNavigateToCost?: () => void;
     onNavigateToPodcast?: () => void;
     onNavigateToCheckoutSummary: () => void;
@@ -35,7 +36,7 @@ interface SidebarProps {
     onAddTask?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome, onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToPodcast, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToWarRoom, onNavigateToSystem, onUpgradeClick, onAddTask }) => {
+const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome, onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToMonitoringControl, onNavigateToPodcast, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToWarRoom, onNavigateToSystem, onUpgradeClick, onAddTask }) => {
     const showFullMenu = user.role !== 'Executor';
     const isCostModule = activeScreen === 'cost';
     const isOrgModule = activeScreen === 'orgSummary' || activeScreen === 'orgChart';
@@ -82,6 +83,19 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                                 onClick={onNavigateToAnalysis}
                                 isCostModule={isCostModule}
                             />
+                            {onNavigateToMonitoringControl && (
+                                <NavButton
+                                    active={activeScreen === 'monitoringControl'}
+                                    icon={
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-indigo-400">
+                                            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                                        </svg>
+                                    }
+                                    label="Monitoramento e Controle"
+                                    onClick={onNavigateToMonitoringControl}
+                                    isCostModule={isCostModule}
+                                />
+                            )}
                             {showFullMenu && (
                                 <NavButton
                                     active={activeScreen === 'checkoutSummary'}

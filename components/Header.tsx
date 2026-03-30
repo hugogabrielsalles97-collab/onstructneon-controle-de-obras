@@ -29,6 +29,7 @@ interface HeaderProps {
   onNavigateToAnalysis?: () => void;
   onNavigateToLean?: () => void;
   onNavigateToLeanConstruction?: () => void;
+  onNavigateToMonitoringControl?: () => void;
   onNavigateToPodcast?: () => void;
   onNavigateToCost?: () => void;
   onNavigateToCheckoutSummary?: () => void;
@@ -49,6 +50,7 @@ const Header: React.FC<HeaderProps> = ({
   onNavigateToAnalysis,
   onNavigateToLean,
   onNavigateToLeanConstruction,
+  onNavigateToMonitoringControl,
   onNavigateToPodcast,
   onNavigateToCost,
   onNavigateToCheckoutSummary,
