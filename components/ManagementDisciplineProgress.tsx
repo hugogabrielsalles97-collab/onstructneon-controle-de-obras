@@ -43,7 +43,7 @@ const MANAGEMENT_RULES = {
             'Corte 3ª Cat': { engineer: 'João Lucas' }
         }
     },
-    'Contenção': {
+    'Contenções': {
         manager: 'Antonio Maia',
         engineers: ['João Lucas'],
         services: ['Solo grampeado', 'Cortina atirantada']
@@ -108,10 +108,12 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
             item.manager = rule.manager || item.manager;
             if (rule.engineers && rule.engineers.length === 1) {
                 item.engineer = rule.engineers[0];
-            } else if (value === 'Terraplenagem') {
-                // Deixa vazio para selecionar com base no serviço
+            } else {
+                // Limpa o engenheiro para que o usuário escolha na lista específica da nova disciplina
                 item.engineer = '';
             }
+            // Limpa o serviço também para forçar a nova escolha
+            item.service = '';
         }
 
         if (field === 'service') {
@@ -272,65 +274,58 @@ const ManagementDisciplineProgress: React.FC<ManagementDisciplineProgressProps> 
                                         <React.Fragment key={idx}>
                                             <tr className={`${isExpanded ? 'bg-brand-accent/10' : 'hover:bg-brand-accent/5'} transition-colors border-l-2 ${isExpanded ? 'border-brand-accent' : 'border-transparent'}`}>
                                                 <td className="p-2 space-y-1">
-                                                    <input
-                                                        list="disciplines-list"
+                                                    <select
                                                         value={m.discipline}
                                                         onChange={(e) => handleInputChange(idx, 'discipline', e.target.value)}
-                                                        className="w-full bg-brand-darkest border border-brand-dark rounded p-1.5 text-white focus:ring-1 focus:ring-brand-accent outline-none font-bold placeholder:font-normal text-[11px]"
-                                                        placeholder="Disciplina..."
-                                                    />
-                                                    <input
-                                                        list={`services-${m.discipline}`}
+                                                        className="w-full bg-brand-darkest border border-brand-dark rounded p-1.5 text-white focus:ring-1 focus:ring-brand-accent outline-none font-bold text-[11px]"
+                                                    >
+                                                        <option value="">Selecione Disciplina</option>
+                                                        <option value="Terraplenagem">Terraplenagem</option>
+                                                        <option value="Contenções">Contenções</option>
+                                                        <option value="OAE">OAE</option>
+                                                        <option value="Pavimentação">Pavimentação</option>
+                                                    </select>
+                                                    
+                                                    <select
                                                         value={m.service}
                                                         onChange={(e) => handleInputChange(idx, 'service', e.target.value)}
                                                         className="w-full bg-brand-dark border border-brand-darkest rounded p-1.5 text-gray-300 focus:ring-1 focus:ring-brand-accent outline-none text-[10px]"
-                                                        placeholder="Serviço..."
-                                                    />
-                                                    <datalist id="services-OAE">
-                                                        {MANAGEMENT_RULES.OAE.services.map(s => <option key={s} value={s} />)}
-                                                    </datalist>
-                                                    <datalist id="services-Pavimentação">
-                                                        {MANAGEMENT_RULES.Pavimentação.services.map(s => <option key={s} value={s} />)}
-                                                    </datalist>
-                                                    <datalist id="services-Terraplenagem">
-                                                        {Object.keys(MANAGEMENT_RULES.Terraplenagem.services).map(s => <option key={s} value={s} />)}
-                                                    </datalist>
-                                                    <datalist id="services-Contenção">
-                                                        {MANAGEMENT_RULES.Contenção.services.map(s => <option key={s} value={s} />)}
-                                                    </datalist>
+                                                        disabled={!m.discipline}
+                                                    >
+                                                        <option value="">Selecione Serviço</option>
+                                                        {m.discipline === 'OAE' && MANAGEMENT_RULES.OAE.services.map(s => <option key={s} value={s}>{s}</option>)}
+                                                        {m.discipline === 'Pavimentação' && MANAGEMENT_RULES.Pavimentação.services.map(s => <option key={s} value={s}>{s}</option>)}
+                                                        {m.discipline === 'Terraplenagem' && Object.keys(MANAGEMENT_RULES.Terraplenagem.services).map(s => <option key={s} value={s}>{s}</option>)}
+                                                        {m.discipline === 'Contenções' && MANAGEMENT_RULES.Contenções.services.map(s => <option key={s} value={s}>{s}</option>)}
+                                                    </select>
                                                 </td>
                                                 <td className="p-2 space-y-1">
-                                                    <input
-                                                        list="managers-list"
+                                                    <select
                                                         value={m.manager}
                                                         onChange={(e) => handleInputChange(idx, 'manager', e.target.value)}
                                                         className="w-full bg-brand-darkest border border-brand-dark rounded p-1.5 text-white focus:ring-1 focus:ring-brand-accent outline-none text-[10px]"
-                                                        placeholder="Gerente..."
-                                                    />
-                                                    <datalist id="managers-list">
-                                                        <option value="Eduardo Meira" />
-                                                        <option value="Antonio Maia" />
-                                                    </datalist>
-                                                    <input
-                                                        list={`engineers-${m.discipline}`}
+                                                    >
+                                                        <option value="Eduardo Meira">Eduardo Meira</option>
+                                                        <option value="Antonio Maia">Antonio Maia</option>
+                                                    </select>
+                                                    
+                                                    <select
                                                         value={m.engineer}
                                                         onChange={(e) => handleInputChange(idx, 'engineer', e.target.value)}
                                                         className="w-full bg-brand-dark border border-brand-darkest rounded p-1.5 text-gray-300 focus:ring-1 focus:ring-brand-accent outline-none text-[10px]"
-                                                        placeholder="Engenheiro..."
-                                                    />
-                                                    <datalist id="engineers-OAE">
-                                                        {MANAGEMENT_RULES.OAE.engineers.map(e => <option key={e} value={e} />)}
-                                                    </datalist>
-                                                    <datalist id="engineers-Pavimentação">
-                                                        {MANAGEMENT_RULES.Pavimentação.engineers.map(e => <option key={e} value={e} />)}
-                                                    </datalist>
-                                                    <datalist id="engineers-Terraplenagem">
-                                                        <option value="Igor Maia" />
-                                                        <option value="João Lucas" />
-                                                    </datalist>
-                                                    <datalist id="engineers-Contenção">
-                                                        {MANAGEMENT_RULES.Contenção.engineers.map(e => <option key={e} value={e} />)}
-                                                    </datalist>
+                                                        disabled={!m.discipline}
+                                                    >
+                                                        <option value="">Selecione Engenheiro</option>
+                                                        {m.discipline === 'OAE' && MANAGEMENT_RULES.OAE.engineers.map(e => <option key={e} value={e}>{e}</option>)}
+                                                        {m.discipline === 'Pavimentação' && <option value="Igor Maia">Igor Maia</option>}
+                                                        {m.discipline === 'Terraplenagem' && (
+                                                            <>
+                                                                <option value="Igor Maia">Igor Maia</option>
+                                                                <option value="João Lucas">João Lucas</option>
+                                                            </>
+                                                        )}
+                                                        {m.discipline === 'Contenções' && <option value="João Lucas">João Lucas</option>}
+                                                    </select>
                                                 </td>
                                                 <td className="p-2 space-y-1 min-w-[140px]">
                                                     <div className="flex items-center gap-1">
