@@ -49,68 +49,84 @@ async function fullSync() {
     const workbook = XLSX.readFile(filePath);
     const availableSheetNames = workbook.SheetNames;
     
-    // Target keywords without accents for easier matching
     const targets = ["ESTACA", "BLOCO", "PILAR", "TRAVESSA", "VIGAS", "PRELAJE", "TRANSVERSINA", "LAJE"];
 
     const dailyDataByRow = {};
 
     availableSheetNames.forEach(sheetName => {
-      // Clean sheet name for matching
       const cleanSn = sheetName.trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      
       const isRelevant = targets.some(t => cleanSn.includes(t)) && !cleanSn.includes('DATA') && !cleanSn.includes('PIVOT');
       
       if (!isRelevant) return;
 
       const sheet = workbook.Sheets[sheetName];
-      // Start from range 4 (index 4)
-      const data = XLSX.utils.sheet_to_json(sheet, { header: 1, range: 4, defval: null });
-      if (data.length < 2) {
-          console.log(`Sheet "${sheetName}" seems empty or has no data rows.`);
-          return;
+      const dataFull = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+      if (dataFull.length < 5) return;
+
+      console.log(`Processing sheet: "${sheetName}" (${dataFull.length} rows)`);
+
+      const dateColumns = [];
+      const seenIndices = new Set();
+      for (let r = 0; r <= 5; r++) {
+          const row = dataFull[r] || [];
+          row.forEach((val, idx) => {
+              if (typeof val === 'number' && val > 40000 && !seenIndices.has(idx)) {
+                  dateColumns.push({ index: idx, dateKey: excelDateToISODate(val) });
+                  seenIndices.add(idx);
+              }
+          });
       }
 
-      console.log(`Processing sheet: "${sheetName}" with ${data.length} rows...`);
+      let lastResp = '', lastOAE = '', lastApoio = '';
 
-      const header = data[0];
-      const dateColumns = [];
-      header.forEach((val, idx) => {
-        if (typeof val === 'number' && val > 40000) {
-          dateColumns.push({ index: idx, dateKey: excelDateToISODate(val) });
-        }
-      });
+      for (let r = 4; r < dataFull.length; r++) {
+        const row = dataFull[r];
+        if (!row || row.length < 3) continue;
 
-      let lastResp = '';
-      let lastOAE = '';
-      let lastApoio = '';
-
-      for (let r = 1; r < data.length; r++) {
-        const row = data[r];
-        if (!row || row.length < 4) continue;
-
-        let resp = row[0];
-        let oae = row[1];
-        let apoio = row[2];
-        const statusVal = String(row[3] || '').trim().toUpperCase();
-
-        if (resp) lastResp = String(resp).trim();
-        if (oae) lastOAE = String(oae).trim();
-        if (apoio) lastApoio = String(apoio).trim();
+        if (row[0]) lastResp = String(row[0]).trim();
+        if (row[1]) lastOAE = String(row[1]).trim();
+        if (row[2]) lastApoio = String(row[2]).trim();
 
         if (!lastOAE && !lastApoio) continue;
-        if (statusVal === 'TOTAL' || statusVal === 'SOMATÓRIO') continue;
 
-        const cleanService = sheetName.trim().replace(/\s+/g, '_').toUpperCase();
-        const cleanOAE = String(lastOAE).trim().replace(/\s+/g, '_').toUpperCase();
-        const cleanApoio = String(lastApoio).trim().replace(/\s+/g, '_').toUpperCase();
-        
-        // RowKey per Service, OAE, Apoio
-        const rowKey = `${cleanService}_${cleanOAE}_${cleanApoio}`;
+        let isPrev = false;
+        let isReal = false;
+        let statusColIndex = -1;
+
+        for (let i = 0; i < 15; i++) {
+          const val = String(row[i] || '').trim().toUpperCase();
+          if (val && (val.includes('PREV') || val.includes('P:') || val.includes('PLANEJAD'))) {
+            isPrev = true;
+            statusColIndex = i;
+            break;
+          }
+          if (val && (val.includes('REAL') || val.includes('R:') || val.includes('REALIZAD'))) {
+            isReal = true;
+            statusColIndex = i;
+            break;
+          }
+        }
+
+        if (!isPrev && !isReal && (row[1] || row[2])) {
+           isPrev = true;
+        }
+
+        if (!isPrev && !isReal) continue;
+
+        // Normalizing service name to singular always for app consistency
+        let finalService = sheetName.trim().toUpperCase();
+        if (finalService === 'TRANSVERSINAS') finalService = 'TRANSVERSINA';
+        if (finalService === 'ESTACAS') finalService = 'ESTACA';
+        if (finalService === 'BLOCOS') finalService = 'BLOCO';
+        if (finalService === 'PILARES') finalService = 'PILAR';
+        if (finalService === 'TRAVESSAS') finalService = 'TRAVESSA';
+
+        const rowKey = `${finalService.replace(/\s+/g, '_')}_${String(lastOAE).trim().replace(/\s+/g, '_').toUpperCase()}_${String(lastApoio).trim().replace(/\s+/g, '_').toUpperCase()}`;
 
         if (!dailyDataByRow[rowKey]) {
           dailyDataByRow[rowKey] = {
              id: rowKey,
-             service: sheetName.trim().toUpperCase(),
+             service: finalService,
              oae: String(lastOAE).trim().toUpperCase(),
              apoio: String(lastApoio).trim().toUpperCase(),
              responsible: String(lastResp).trim(),
@@ -118,52 +134,37 @@ async function fullSync() {
           };
         }
 
-        const isPrev = statusVal.includes('PREV') || statusVal.includes('P:') || statusVal.includes('PLANEJAD');
-        const isReal = statusVal.includes('REAL') || statusVal.includes('R:') || statusVal.includes('REALIZAD');
-
-        if (isPrev || isReal) {
-            dateColumns.forEach(dc => {
-              const val = row[dc.index];
-              if (val !== null && val !== undefined && val !== '-' && val !== '') {
-                 const numVal = Number(String(val).replace(',', '.'));
-                 if (!isNaN(numVal)) {
-                     if (!dailyDataByRow[rowKey].daily_data[dc.dateKey]) {
-                       dailyDataByRow[rowKey].daily_data[dc.dateKey] = { prev: 0, real: 0 };
-                     }
-                     if (isPrev) dailyDataByRow[rowKey].daily_data[dc.dateKey].prev = numVal;
-                     else dailyDataByRow[rowKey].daily_data[dc.dateKey].real = numVal;
+        dateColumns.forEach(dc => {
+          const val = row[dc.index];
+          if (val !== null && val !== undefined && val !== '-' && val !== '') {
+             const numVal = Number(String(val).replace(',', '.'));
+             if (!isNaN(numVal)) {
+                 if (!dailyDataByRow[rowKey].daily_data[dc.dateKey]) {
+                   dailyDataByRow[rowKey].daily_data[dc.dateKey] = { prev: 0, real: 0 };
                  }
-              }
-            });
-        }
+                 if (isPrev) dailyDataByRow[rowKey].daily_data[dc.dateKey].prev += numVal;
+                 else dailyDataByRow[rowKey].daily_data[dc.dateKey].real += numVal;
+             }
+          }
+        });
       }
     });
 
     const finalRows = Object.values(dailyDataByRow);
     console.log(`Total prepared rows: ${finalRows.length}`);
 
-    // 1. DELETE
     console.log("Clearing DB...");
-    await sbFetch('/rest/v1/monitoring_rows?id=neq._CONFIG_', { 
-        method: 'DELETE',
-        headers: { 'Prefer': 'return=minimal' }
-    });
+    await sbFetch('/rest/v1/monitoring_rows?id=neq._CONFIG_', { method: 'DELETE', headers: { 'Prefer': 'return=minimal' } });
     console.log("DB cleared.");
 
-    // 2. INSERT
     const chunkSize = 50;
     for (let i = 0; i < finalRows.length; i += chunkSize) {
       const chunk = finalRows.slice(i, i + chunkSize);
-      await sbFetch('/rest/v1/monitoring_rows', {
-        method: 'POST',
-        headers: { 'Prefer': 'return=minimal' },
-        body: JSON.stringify(chunk)
-      });
+      await sbFetch('/rest/v1/monitoring_rows', { method: 'POST', headers: { 'Prefer': 'return=minimal' }, body: JSON.stringify(chunk) });
       process.stdout.write(`(${i + chunk.length})`);
     }
     console.log("\nUpload Done.");
 
-    // 3. SEED
     const seedResult = {
         rows: finalRows.map(r => ({ id: r.id, service: r.service, oae: r.oae, apoio: r.apoio, responsible: r.responsible })),
         dailyData: finalRows.reduce((acc, r) => { acc[r.id] = r.daily_data; return acc; }, {})
