@@ -174,17 +174,18 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
 
     const services = Array.from(new Set(monitoringRows.map(r => r.service))).sort();
 
-    // DEFINIÇÃO DE LARGURAS PARA STICKY (OAE, APOIO, RESP, INFO, TOTAL)
+    // DEFINIÇÃO DE LARGURAS PARA STICKY
     const W_OAE = 110;
     const W_APOIO = 100;
     const W_RESP = 130;
     const W_INFO = 45;
     const W_TOTAL = 75;
 
-    // DEFINIÇÃO DE CORES SÓLIDAS PARA ELIMINAR TRANSPARÊNCIA
+    // DEFINIÇÃO DE CORES SÓLIDAS
     const BG_STICKY_HDR = "#0a0f18";
     const BG_STICKY_PREV = "#0c121d";
     const BG_STICKY_REAL = "#111827";
+    const BG_TOTAL_HDR = "#1a1f2c"; // Fundo para a linha de soma total
 
     return (
         <div className="flex h-screen bg-[#060a12] overflow-hidden text-gray-100">
@@ -229,7 +230,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                         <th style={{width: W_APOIO, left: W_OAE}} className={`sticky z-50 p-3 border-b border-r border-white/20 text-left`} rowSpan={2} bgcolor={BG_STICKY_HDR}>Apoio</th>
                                         <th style={{width: W_RESP, left: W_OAE + W_APOIO}} className={`sticky z-50 p-3 border-b border-r border-white/20 text-left`} rowSpan={2} bgcolor={BG_STICKY_HDR}>Resp.</th>
                                         <th style={{width: W_INFO, left: W_OAE + W_APOIO + W_RESP}} className={`sticky z-50 p-3 border-b border-r border-white/20 text-center`} rowSpan={2} bgcolor={BG_STICKY_HDR}>Info</th>
-                                        <th style={{width: W_TOTAL, left: W_OAE + W_APOIO + W_RESP + W_INFO}} className={`sticky z-50 p-3 border-b border-r border-brand-accent/50 text-center font-black text-brand-accent`} rowSpan={2} bgcolor={BG_STICKY_HDR}>Total</th>
+                                        <th style={{width: W_TOTAL, left: W_OAE + W_APOIO + W_RESP + W_INFO}} className={`sticky z-50 p-3 border-b border-r border-brand-accent/30 text-center font-black text-brand-accent`} rowSpan={2} bgcolor={BG_STICKY_HDR}>Total</th>
                                         
                                         {availableMonths.map(m => {
                                             const exp = expandedMonths.has(m);
@@ -255,6 +256,52 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                 </thead>
 
                                 <tbody className="divide-y divide-white/5">
+                                    {/* SUMMATION ROW AT THE TOP */}
+                                    <tr className="bg-brand-dark/80 font-black text-xs border-b-2 border-brand-accent/20 sticky top-[64px] z-40">
+                                        <td style={{left: 0}} rowSpan={2} className="sticky z-30 p-2 border-r border-white/10 text-brand-accent text-center uppercase" bgcolor={BG_TOTAL_HDR}>Total Geral</td>
+                                        <td style={{left: W_OAE}} rowSpan={2} className="sticky z-30 p-2 border-r border-white/10" bgcolor={BG_TOTAL_HDR}></td>
+                                        <td style={{left: W_OAE + W_APOIO}} rowSpan={2} className="sticky z-30 p-2 border-r border-white/10" bgcolor={BG_TOTAL_HDR}></td>
+                                        
+                                        <td style={{left: W_OAE + W_APOIO + W_RESP}} className="sticky z-30 p-1 border-r border-white/10 text-center text-[8px] font-black text-gray-400 uppercase" bgcolor={BG_TOTAL_HDR}>Prev</td>
+                                        <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO}} className="sticky z-30 p-1 border-r border-white/20 text-center text-gray-400 font-black" bgcolor={BG_TOTAL_HDR}>
+                                            {filteredRows.reduce((a, r) => a + getGrandTotal(r, 'prev'), 0).toLocaleString()}
+                                        </td>
+
+                                        {availableMonths.map(m => {
+                                            const exp = expandedMonths.has(m);
+                                            const monthSum = filteredRows.reduce((a, r) => a + getMonthTotal(r, m, 'prev'), 0);
+                                            if (!exp) return <td key={`t-p-${m}`} className="p-1 border-r border-white/10 text-center bg-[#1a1f2c] text-gray-400 font-bold">{monthSum.toLocaleString()}</td>;
+                                            return <React.Fragment key={`t-p-exp-${m}`}>
+                                                <td className="p-1 border-r border-white/10 text-center bg-cyan-900/30 text-cyan-400 font-bold">{monthSum.toLocaleString()}</td>
+                                                {getMonthDays(m).map(d => (
+                                                    <td key={`t-p-d-${d}`} className="p-1 border-r border-white/5 text-center bg-[#1a1f2c] text-gray-500 font-bold">
+                                                        {filteredRows.reduce((a, r) => a + (r.daily_data?.[d]?.prev || 0), 0)}
+                                                    </td>
+                                                ))}
+                                            </React.Fragment>;
+                                        })}
+                                    </tr>
+                                    <tr className="bg-brand-dark font-black text-xs border-b-2 border-brand-accent/40 sticky top-[92px] z-40">
+                                        <td style={{left: W_OAE + W_APOIO + W_RESP}} className="sticky z-30 p-1 border-r border-white/10 text-center text-[8px] font-black text-brand-accent uppercase" bgcolor={BG_TOTAL_HDR}>Real</td>
+                                        <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO}} className="sticky z-30 p-1 border-r border-white/20 text-center text-brand-accent font-black" bgcolor={BG_TOTAL_HDR}>
+                                            {filteredRows.reduce((a, r) => a + getGrandTotal(r, 'real'), 0).toLocaleString()}
+                                        </td>
+                                        {availableMonths.map(m => {
+                                            const exp = expandedMonths.has(m);
+                                            const monthSum = filteredRows.reduce((a, r) => a + getMonthTotal(r, m, 'real'), 0);
+                                            if (!exp) return <td key={`t-r-${m}`} className="p-1 border-r border-white/10 text-center bg-[#1a1f2c] text-brand-accent font-black">{monthSum.toLocaleString()}</td>;
+                                            return <React.Fragment key={`t-r-exp-${m}`}>
+                                                <td className="p-1 border-r border-white/10 text-center bg-brand-accent/20 text-brand-accent font-black">{monthSum.toLocaleString()}</td>
+                                                {getMonthDays(m).map(d => (
+                                                    <td key={`t-r-d-${d}`} className="p-1 border-r border-white/5 text-center bg-[#1a1f2c] text-brand-accent font-black">
+                                                        {filteredRows.reduce((a, r) => a + (r.daily_data?.[d]?.real || 0), 0)}
+                                                    </td>
+                                                ))}
+                                            </React.Fragment>;
+                                        })}
+                                    </tr>
+
+                                    {/* DATA ROWS */}
                                     {filteredRows.map(row => (
                                         <React.Fragment key={row.id}>
                                             <tr className="hover:bg-[#141b26] group transition-colors">
@@ -293,7 +340,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                                         {getMonthDays(m).map(d => (
                                                             <td key={d} className="p-0 border-r border-white/5 w-[28px] bg-brand-accent/5">
                                                                 <input type="text" value={row.daily_data?.[d]?.real || ''} onChange={(e) => handleCellChange(row.id, d, 'real', e.target.value)}
-                                                                    className="w-full h-8 text-center bg-transparent border-none outline-none text-brand-accent font-black text-[10px] focus:bg-brand-accent/20" />
+                                                                    className="w-full h-8 text-center bg-transparent border-none outline-none text-white font-bold text-[10px] focus:bg-brand-accent/20" />
                                                             </td>
                                                         ))}
                                                     </React.Fragment>;
