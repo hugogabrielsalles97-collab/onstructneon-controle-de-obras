@@ -1,0 +1,54 @@
+[
+  {
+    "name": "ESTACAS",
+    "headerRow": 4
+  },
+  {
+    "name": "BLOCOS",
+    "headerRow": 4
+  },
+  {
+    "name": "PILARES",
+    "headerRow": 4
+  },
+  {
+    "name": "TRAVESSAS",
+    "headerRow": 4
+  },
+  {
+    "name": "PILAR PROVISORIO",
+    "headerRow": 4
+  },
+  {
+    "name": "FABRICAÇÃO VIGAS",
+    "headerRow": 4
+  },
+  {
+    "name": "LANÇAMENTO VIGAS",
+    "headerRow": 4
+  },
+  {
+    "name": "FABRICAÇÃO PRELAJE",
+    "headerRow": 4
+  },
+  {
+    "name": "MONTAGEM PRELAJE",
+    "headerRow": 4
+  },
+  {
+    "name": "TRANSVERSINAS",
+    "headerRow": 4
+  },
+  {
+    "name": " LAJE",
+    "headerRow": 4
+  },
+  {
+    "name": "LAJE ELÁSTICA",
+    "headerRow": 4
+  },
+  {
+    "name": "LAJE DE APROXIMAÇÃO ",
+    "headerRow": 4
+  }
+]

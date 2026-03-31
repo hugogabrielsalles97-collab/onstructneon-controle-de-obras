@@ -1,8 +1,24 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, Task, TaskStatus } from '../types';
+import { User } from '../types';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useData } from '../context/DataProvider';
+import { supabase } from '../supabaseClient';
+
+interface MonitoringRow {
+    id: string;
+    service: string;
+    oae: string;
+    apoio: string;
+    responsible: string;
+    type_info?: string;
+    daily_data: {
+        [dateKey: string]: {
+            prev: number;
+            real: number;
+        }
+    }
+}
 
 interface MonitoringControlPageProps {
     onNavigateToDashboard: () => void;
@@ -28,18 +44,7 @@ interface MonitoringControlPageProps {
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
-// TABS will be derived dynamically from data
-interface DailyDataMap {
-    [taskId: string]: {
-        type?: string;
-        [dateKey: string]: any; 
-    }
-}
-
-const STORAGE_KEY = '@elos_monitoring_daily_data';
-const CUSTOM_ROWS_KEY = '@elos_monitoring_custom_rows';
-
-const getDaysInMonth = (month: number, year: number) => new Date(year, month + 1, 0).getDate();
+const STORAGE_KEY = '@elos_monitoring_data_v2';
 
 const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
     onNavigateToDashboard,
@@ -64,174 +69,156 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
     onAddTask,
     showToast
 }) => {
-    const { currentUser: user, tasks, signOut } = useData();
+    const { currentUser: user, signOut } = useData();
 
     const [isLoadingData, setIsLoadingData] = useState(true);
+    const [monitoringRows, setMonitoringRows] = useState<MonitoringRow[]>([]);
+    
+    // UI States
+    const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
+    const [selectedService, setSelectedService] = useState("");
+    const [searchTerm, setSearchTerm] = useState("");
 
-    const today = new Date();
-    const [currentMonth, setCurrentMonth] = useState(today.getMonth());
-    const [currentYear, setCurrentYear] = useState(today.getFullYear());
-
-    const [dailyData, setDailyData] = useState<DailyDataMap>({});
-    const [customRows, setCustomRows] = useState<Task[]>([]);
-
-    const dynamicTabs = useMemo(() => {
-        const tabsSet = new Set<string>();
-        customRows.forEach(r => { if (r.discipline) tabsSet.add(r.discipline); });
-        tasks.forEach(t => { if (t.discipline) tabsSet.add(t.discipline); });
-        
-        const sorted = Array.from(tabsSet).sort();
-        return sorted.length > 0 ? sorted : ["Geral"];
-    }, [customRows, tasks]);
-
-    const [selectedTab, setSelectedTab] = useState("");
+    const services = useMemo(() => {
+        const s = new Set<string>();
+        monitoringRows.forEach(r => s.add(r.service));
+        return Array.from(s).sort();
+    }, [monitoringRows]);
 
     useEffect(() => {
-        if (!selectedTab && dynamicTabs.length > 0) {
-            setSelectedTab(dynamicTabs[0]);
+        if (!selectedService && services.length > 0) {
+            setSelectedService(services[0]);
         }
-    }, [dynamicTabs, selectedTab]);
+    }, [services, selectedService]);
 
     useEffect(() => {
-        const loadInitialData = async () => {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            let hasLoaded = false;
-            if (stored) {
-                try { 
-                    setDailyData(JSON.parse(stored)); 
-                    hasLoaded = true;
-                } catch { }
-            }
-            const storedCustom = localStorage.getItem(CUSTOM_ROWS_KEY);
-            if (storedCustom) {
-                try { 
-                    setCustomRows(JSON.parse(storedCustom)); 
-                    hasLoaded = true;
-                } catch { }
-            }
+        const loadData = async () => {
+            setIsLoadingData(true);
+            try {
+                // 1. Try Supabase
+                const { data: dbData, error } = await supabase
+                    .from('monitoring_rows')
+                    .select('*')
+                    .order('oae', { ascending: true });
 
-            // Se não tiver localmente, puxa da seed convertida do Excel original
-            if (!hasLoaded) {
-                try {
+                if (dbData && dbData.length > 0) {
+                    setMonitoringRows(dbData);
+                } else {
+                    // 2. Fallback to Local Seed
                     const res = await fetch('/monitoring_seed.json');
                     if (res.ok) {
-                        const seedData = await res.json();
-                        setDailyData(seedData.dailyData || {});
-                        setCustomRows(seedData.customRows || []);
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify(seedData.dailyData || {}));
-                        localStorage.setItem(CUSTOM_ROWS_KEY, JSON.stringify(seedData.customRows || []));
+                        const seed = await res.json();
+                        // monitoring_seed.json has { rows, dailyData }
+                        // Convert to MonitoringRow[]
+                        const merged = seed.rows.map((r: any) => ({
+                            ...r,
+                            daily_data: seed.dailyData[r.id] || {}
+                        }));
+                        setMonitoringRows(merged);
                     }
-                } catch (e) {
-                    console.error("Failed to fetch monitoring seed data", e);
                 }
+            } catch (err) {
+                console.error("Error loading monitoring data", err);
+                showToast("Erro ao carregar dados de monitoramento.", "error");
+            } finally {
+                setIsLoadingData(false);
             }
-            setIsLoadingData(false);
         };
-        loadInitialData();
+        loadData();
     }, []);
 
-    if (!user) return null;
+    const toggleMonth = (monthKey: string) => {
+        const newSet = new Set(expandedMonths);
+        if (newSet.has(monthKey)) newSet.delete(monthKey);
+        else newSet.add(monthKey);
+        setExpandedMonths(newSet);
+    };
+
+    const handleCellChange = async (rowId: string, dateKey: string, type: 'prev' | 'real', value: string) => {
+        const numValue = value === '' ? 0 : parseFloat(value.replace(',', '.'));
+        if (isNaN(numValue)) return;
+
+        const updatedRows = monitoringRows.map(r => {
+            if (r.id === rowId) {
+                const newData = { ...r.daily_data };
+                if (!newData[dateKey]) newData[dateKey] = { prev: 0, real: 0 };
+                newData[dateKey] = { ...newData[dateKey], [type]: numValue };
+                
+                // Update in DB (debounce or background)
+                const updateDb = async () => {
+                    await supabase
+                        .from('monitoring_rows')
+                        .update({ daily_data: newData })
+                        .eq('id', rowId);
+                };
+                updateDb();
+
+                return { ...r, daily_data: newData };
+            }
+            return r;
+        });
+        setMonitoringRows(updatedRows);
+    };
 
     const handleLogout = async () => {
         const { success, error } = await signOut();
         if (!success && error) showToast(`Erro ao sair: ${error}`, 'error');
     };
 
-    const handleDataChange = (taskId: string, dateKey: string, type: 'prev' | 'real', value: string) => {
-        const numValue = value === '' ? 0 : parseFloat(value.replace(',', '.'));
-        setDailyData(prev => {
-            const newData = { ...prev };
-            if (!newData[taskId]) newData[taskId] = {};
-            if (!newData[taskId][dateKey]) newData[taskId][dateKey] = { prev: 0, real: 0 };
-            
-            newData[taskId][dateKey] = {
-                ...newData[taskId][dateKey],
-                [type]: numValue
-            };
-            
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
-            return newData;
+    // Calculate Month Columns
+    const availableMonths = useMemo(() => {
+        const monthSet = new Set<string>();
+        monitoringRows.forEach(r => {
+            Object.keys(r.daily_data).forEach(dk => {
+                monthSet.add(dk.substring(0, 7)); // YYYY-MM
+            });
         });
-    };
+        return Array.from(monthSet).sort();
+    }, [monitoringRows]);
 
-    const handleTypeChange = (taskId: string, value: string) => {
-        setDailyData(prev => {
-            const newData = { ...prev };
-            if (!newData[taskId]) newData[taskId] = {};
-            newData[taskId].type = value;
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
-            return newData;
-        });
-    };
-
-    const addCustomRow = () => {
-        const newRow: Task = {
-            id: `custom_row_${Date.now()}`,
-            title: `Nova Linha ${selectedTab}`,
-            description: '',
-            discipline: selectedTab,
-            location: 'S01',
-            support: 'Apoio 1',
-            assignee: user.name,
-            level: 'OAE',
-            status: TaskStatus.ToDo,
-            progress: 0,
-            quantity: 0,
-            unit: 'un',
-            startDate: new Date().toISOString().split('T')[0],
-            dueDate: new Date().toISOString().split('T')[0],
-            plannedMachinery: [],
-            plannedManpower: []
-        };
-        
-        const updated = [...customRows, newRow];
-        setCustomRows(updated);
-        localStorage.setItem(CUSTOM_ROWS_KEY, JSON.stringify(updated));
-        showToast('Linha de controle adicionada.', 'success');
-    };
-
-    const updateCustomRow = (taskId: string, field: keyof Task, val: string) => {
-        const updated = customRows.map(r => r.id === taskId ? { ...r, [field]: val } : r);
-        setCustomRows(updated);
-        localStorage.setItem(CUSTOM_ROWS_KEY, JSON.stringify(updated));
-    };
-
-    const deleteCustomRow = (taskId: string) => {
-        if (!window.confirm("Deseja remover esta linha manual?")) return;
-        const updated = customRows.filter(r => r.id !== taskId);
-        setCustomRows(updated);
-        localStorage.setItem(CUSTOM_ROWS_KEY, JSON.stringify(updated));
-    }
-
-    const daysInMonth = getDaysInMonth(currentMonth, currentYear);
-    const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-
-    // Merge system tasks and custom rows
-    const allRelevantTasks = useMemo(() => {
-        const sysTasks = tasks.filter(t => 
-            t.discipline?.toLowerCase() === selectedTab.toLowerCase() || 
-            t.title?.toLowerCase().includes(selectedTab.toLowerCase())
+    const filteredRows = useMemo(() => {
+        return monitoringRows.filter(r => 
+            r.service === selectedService && 
+            (r.oae.toLowerCase().includes(searchTerm.toLowerCase()) || 
+             r.apoio.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             (r.responsible || '').toLowerCase().includes(searchTerm.toLowerCase()))
         );
-        const custTasks = customRows.filter(t => t.discipline === selectedTab);
-        return [...sysTasks, ...custTasks].sort((a, b) => (a.location || '').localeCompare(b.location || ''));
-    }, [tasks, customRows, selectedTab]);
+    }, [monitoringRows, selectedService, searchTerm]);
 
-    const calculateTotals = (taskId: string, type: 'prev' | 'real', onlyMonth?: boolean) => {
-        const taskData = dailyData[taskId] || {};
+    const getMonthTotal = (row: MonitoringRow, monthKey: string, type: 'prev' | 'real') => {
         let sum = 0;
-        Object.keys(taskData).forEach(dateKey => {
-            const hasValue = taskData[dateKey][type] !== undefined;
-            if (onlyMonth) {
-                const [y, m] = dateKey.split('-').map(Number);
-                if (y === currentYear && (m - 1) === currentMonth) {
-                    sum += taskData[dateKey][type] || 0;
-                }
-            } else {
-                sum += taskData[dateKey][type] || 0;
+        Object.entries(row.daily_data).forEach(([date, vals]) => {
+            if (date.startsWith(monthKey)) {
+                sum += vals[type] || 0;
             }
         });
         return sum;
     };
+
+    const getGrandTotal = (row: MonitoringRow, type: 'prev' | 'real') => {
+        let sum = 0;
+        Object.values(row.daily_data).forEach(vals => {
+            sum += vals[type] || 0;
+        });
+        return sum;
+    };
+
+    const getMonthDays = (monthKey: string) => {
+        const [year, month] = monthKey.split('-').map(Number);
+        const days = new Date(year, month, 0).getDate();
+        return Array.from({ length: days }, (_, i) => {
+            const d = i + 1;
+            return `${monthKey}-${String(d).padStart(2, '0')}`;
+        });
+    };
+
+    const formatMonthName = (monthKey: string) => {
+        const [y, m] = monthKey.split('-');
+        const names = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+        return `${names[parseInt(m) - 1]} ${y}`;
+    };
+
+    if (!user) return null;
 
     return (
         <div className="flex h-screen bg-[#060a12] overflow-hidden">
@@ -284,208 +271,175 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                     activeScreen="monitoringControl"
                 />
 
-                <div className="flex-1 overflow-y-auto p-4 lg:p-6 animate-slide-up">
+                <div className="flex-1 flex flex-col overflow-hidden p-4 lg:p-6 animate-slide-up">
                     <header className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
                             <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Monitoramento e Controle</h1>
-                            <p className="text-brand-med-gray text-sm mt-1">Acompanhamento diário Realizado x Previsto</p>
+                            <p className="text-brand-med-gray text-sm mt-1">Base de Dados Independente - OAEs & Serviços</p>
                         </div>
-                        
-                        <div className="flex items-center gap-4 bg-brand-dark/50 p-2 rounded-lg border border-white/5">
-                            <select 
-                                value={currentMonth} 
-                                onChange={(e) => setCurrentMonth(Number(e.target.value))}
-                                className="bg-transparent text-white border-none font-bold outline-none cursor-pointer focus:ring-0"
-                            >
-                                {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((m, i) => (
-                                    <option key={i} value={i} className="bg-brand-dark text-white">{m}</option>
-                                ))}
-                            </select>
-                            <input 
-                                type="number" 
-                                value={currentYear}
-                                min={2020}
-                                max={2030}
-                                onChange={(e) => setCurrentYear(Number(e.target.value))}
-                                className="bg-transparent border-none text-white w-20 font-bold outline-none focus:ring-0"
-                            />
+
+                        <div className="flex items-center gap-3">
+                             <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                </span>
+                                <input 
+                                    type="text" 
+                                    placeholder="Buscar por OAE, Apoio..." 
+                                    className="bg-brand-dark/40 border border-white/10 rounded-lg py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-brand-accent transition-all w-64"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                             </div>
                         </div>
                     </header>
 
-                    {/* TABS */}
+                    {/* TABS (SERVICES) */}
                     <div className="flex overflow-x-auto gap-2 pb-2 mb-4 scrollbar-thin">
-                        {dynamicTabs.map(tab => (
+                        {services.map(s => (
                             <button
-                                key={tab}
-                                onClick={() => setSelectedTab(tab)}
+                                key={s}
+                                onClick={() => setSelectedService(s)}
                                 className={`px-4 py-2 whitespace-nowrap rounded-md text-sm font-bold transition-all ${
-                                    selectedTab === tab 
+                                    selectedService === s 
                                     ? 'bg-brand-accent text-white shadow-[0_0_15px_rgba(255,107,0,0.4)]' 
                                     : 'bg-brand-dark/40 text-brand-med-gray hover:bg-brand-dark hover:text-white border border-white/5'
                                 }`}
                             >
-                                {tab}
+                                {s}
                             </button>
                         ))}
                     </div>
 
-                    {/* TABLE CONTROLS */}
-                    <div className="flex justify-between items-center mb-4">
-                        <div className="text-sm text-brand-med-gray font-semibold bg-brand-dark/30 px-3 py-1.5 rounded border border-white/5 border-l-brand-accent border-l-2">
-                            {allRelevantTasks.length} Registros ({selectedTab})
-                        </div>
-                        <div className="flex gap-3">
-                            <button 
-                                onClick={addCustomRow}
-                                className="flex items-center gap-2 bg-brand-dark/80 text-white text-xs font-bold px-3 py-1.5 rounded border border-white/10 hover:border-brand-accent transition-colors"
-                            >
-                                + Linha Manual
-                            </button>
-                            <button 
-                                onClick={() => onAddTask && onAddTask()}
-                                className="flex items-center gap-2 bg-brand-accent text-white text-xs font-bold px-3 py-1.5 rounded shadow-[0_4px_15px_rgba(255,107,0,0.3)] hover:brightness-110 transition-colors"
-                            >
-                                + Nova Tarefa Real
-                            </button>
-                        </div>
-                    </div>
-
                     {isLoadingData ? (
-                        <div className="flex justify-center items-center h-64 flex-col text-brand-med-gray">
-                            <div className="w-10 h-10 border-4 border-brand-accent/20 border-t-brand-accent rounded-full animate-spin mb-4"></div>
-                            Importando base histórica de ~4 anos ({allRelevantTasks.length} Registros)...
+                        <div className="flex-1 flex flex-col items-center justify-center text-brand-med-gray">
+                            <div className="w-12 h-12 border-4 border-brand-accent/20 border-t-brand-accent rounded-full animate-spin mb-4"></div>
+                            <p className="font-bold tracking-widest text-xs uppercase">Carregando base de monitoramento...</p>
                         </div>
                     ) : (
-                    <div className="bg-[#0a0f18] border border-white/5 rounded-xl shadow-2xl relative overflow-x-auto max-h-[60vh] custom-scrollbar">
-                        <table className="w-full text-left border-collapse min-w-max text-[11px] font-medium">
-                            <thead className="sticky top-0 z-10 bg-[#121824] shadow-md">
-                                <tr>
-                                    <th className="p-2 border border-white/5 text-gray-300 w-32 tracking-wider">OAE</th>
-                                    <th className="p-2 border border-white/5 text-gray-300 w-32 tracking-wider">APOIO</th>
-                                    <th className="p-2 border border-white/5 text-gray-300 w-40 tracking-wider">ENGENHEIRO(A)</th>
-                                    <th className="p-2 border border-white/5 text-brand-accent w-28 tracking-wider">TIPO/ADICIONAL</th>
-                                    <th className="p-2 border border-white/5 text-brand-med-gray w-16 text-center font-bold">P / R</th>
-                                    <th className="p-2 border border-white/5 text-white w-20 text-center font-bold bg-white/5">TOTAL MÊS</th>
-                                    <th className="p-2 border border-white/5 text-white w-20 text-center font-bold bg-white/10">TOTAL GERAL</th>
-                                    
-                                    {daysArray.map(day => (
-                                        <th key={day} className="p-2 border border-white/5 text-gray-400 w-12 text-center">
-                                            {String(day).padStart(2, '0')}/{String(currentMonth + 1).padStart(2, '0')}
-                                        </th>
-                                    ))}
-                                    <th className="p-2 border border-white/5 w-10"></th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/5">
-                                {allRelevantTasks.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={daysInMonth + 6} className="text-center py-12 text-brand-med-gray">
-                                            <div className="flex flex-col items-center justify-center opacity-70">
-                                                <svg className="w-12 h-12 mb-3 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                </svg>
-                                                Nenhum serviço de "{selectedTab}" encontrado para exibir. <br/> Importe tarefas ou adicione linhas manuais.
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    allRelevantTasks.map((task) => {
-                                        const isCustom = task.id.startsWith('custom_row_');
-
-                                        return (
-                                            <React.Fragment key={task.id}>
-                                                <tr className="bg-[#0c121d] hover:bg-[#111825] transition-colors group">
-                                                    <td rowSpan={2} className="p-2 border border-white/5 align-top">
-                                                        {isCustom ? (
-                                                            <input type="text" value={task.location} onChange={(e) => updateCustomRow(task.id, 'location', e.target.value)} className="w-full bg-transparent border-b border-white/20 focus:border-brand-accent outline-none text-white text-xs"/>
-                                                        ) : (
-                                                            <span className="text-white font-semibold">{task.location || '-'}</span>
-                                                        )}
-                                                        {!isCustom && <div className="text-[9px] text-gray-500 mt-1 truncate max-w-[120px]" title={task.title}>{task.title}</div>}
-                                                    </td>
-                                                    <td rowSpan={2} className="p-2 border border-white/5 align-top">
-                                                        {isCustom ? (
-                                                            <input type="text" value={task.support} onChange={(e) => updateCustomRow(task.id, 'support', e.target.value)} className="w-full bg-transparent border-b border-white/20 focus:border-brand-accent outline-none text-gray-300 text-xs"/>
-                                                        ) : (
-                                                            <span className="text-gray-300">{task.support || '-'}</span>
-                                                        )}
-                                                    </td>
-                                                    <td rowSpan={2} className="p-2 border border-white/5 align-top">
-                                                        {isCustom ? (
-                                                            <input type="text" value={task.assignee} onChange={(e) => updateCustomRow(task.id, 'assignee', e.target.value)} className="w-full bg-transparent border-b border-white/20 focus:border-brand-accent outline-none text-gray-400 text-xs"/>
-                                                        ) : (
-                                                            <span className="text-gray-400">{task.assignee || '-'}</span>
-                                                        )}
-                                                    </td>
-                                                    <td rowSpan={2} className="p-2 border border-white/5 align-top bg-brand-dark/20 text-center">
-                                                        <input 
-                                                            type="text" 
-                                                            placeholder="Ex: Protendida"
-                                                            value={dailyData[task.id]?.type || ''} 
-                                                            onChange={(e) => handleTypeChange(task.id, e.target.value)} 
-                                                            className="w-full bg-transparent border-none text-center focus:outline-none text-brand-accent text-xs font-semibold placeholder-brand-med-gray/30"
-                                                        />
-                                                    </td>
-                                                    
-                                                    {/* LINHA PREVISTO */}
-                                                    <td className="p-1 border border-white/5 text-center font-bold tracking-widest text-[#4f5b70] bg-[#080d15] text-[10px]">PREV</td>
-                                                    <td className="p-2 border border-white/5 text-center font-bold text-[#64748b] bg-[#0c121d] opacity-80">{calculateTotals(task.id, 'prev', true)}</td>
-                                                    <td className="p-2 border border-white/5 text-center font-bold text-[#64748b] bg-[#0c121d] border-r-2 border-r-white/10">{calculateTotals(task.id, 'prev')}</td>
-                                                    
-                                                    {daysArray.map(day => {
-                                                        const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                                                        const val = dailyData[task.id]?.[dateKey]?.prev || '';
-                                                        return (
-                                                            <td key={`prev-${day}`} className="p-0 border border-white/5 bg-[#0a0f18]">
-                                                                <input 
-                                                                    type="number" 
-                                                                    min="0"
-                                                                    value={val}
-                                                                    onChange={(e) => handleDataChange(task.id, dateKey, 'prev', e.target.value)}
-                                                                    className="w-full h-8 text-center bg-transparent text-gray-300 border-none outline-none focus:bg-white/5 focus:text-brand-accent"
-                                                                />
-                                                            </td>
-                                                        );
-                                                    })}
-                                                    <td rowSpan={2} className="p-1 border border-white/5 text-center align-middle">
-                                                        {isCustom && (
-                                                            <button onClick={() => deleteCustomRow(task.id)} className="text-red-500/50 hover:text-red-500 transition-colors" title="Deletar linha">
-                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        <div className="flex-1 bg-[#0a0f18] border border-white/5 rounded-xl shadow-2xl overflow-hidden flex flex-col">
+                            <div className="flex-1 overflow-auto custom-scrollbar relative">
+                                <table className="w-full text-left border-collapse min-w-max text-[10px]">
+                                    <thead className="sticky top-0 z-20 bg-[#121824] shadow-md border-b border-white/10 text-white uppercase tracking-tighter font-black">
+                                        <tr className="h-10">
+                                            <th className="p-2 border border-white/5 w-24 sticky left-0 z-30 bg-[#121824]">OAE</th>
+                                            <th className="p-2 border border-white/5 w-24 sticky left-24 z-30 bg-[#121824]">APOIO</th>
+                                            <th className="p-2 border border-white/5 w-32 sticky left-48 z-30 bg-[#121824]">ENGENHEIRO</th>
+                                            <th className="p-2 border border-white/5 w-16 text-center text-brand-med-gray">P/R</th>
+                                            <th className="p-2 border border-white/5 w-24 text-center bg-brand-accent/10 text-brand-accent">TOTAL GERAL</th>
+                                            
+                                            {availableMonths.map(m => {
+                                                const isExpanded = expandedMonths.has(m);
+                                                const days = getMonthDays(m);
+                                                return (
+                                                    <th 
+                                                        key={m} 
+                                                        colSpan={isExpanded ? days.length + 1 : 1}
+                                                        className={`p-1 border border-white/5 text-center transition-all ${isExpanded ? 'bg-brand-accent/5' : ''}`}
+                                                    >
+                                                        <div className="flex items-center justify-center gap-2">
+                                                            <span>{formatMonthName(m)}</span>
+                                                            <button 
+                                                                onClick={() => toggleMonth(m)}
+                                                                className="hover:text-brand-accent transition-colors"
+                                                            >
+                                                                {isExpanded ? (
+                                                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd"/></svg>
+                                                                ) : (
+                                                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/></svg>
+                                                                )}
                                                             </button>
+                                                        </div>
+                                                        {isExpanded && (
+                                                            <div className="grid grid-flow-col auto-cols-[30px] border-t border-white/5 mt-1 font-medium text-[9px] text-gray-500">
+                                                                <div className="border-r border-white/5 bg-brand-accent/10 text-brand-accent font-black">TOTAL</div>
+                                                                {days.map(d => (
+                                                                    <div key={d} className="border-r border-white/5">{d.split('-')[2]}</div>
+                                                                ))}
+                                                            </div>
                                                         )}
-                                                    </td>
-                                                </tr>
-                                                
-                                                {/* LINHA REALIZADO */}
-                                                <tr className="bg-[#121a28] group-hover:bg-[#161f30] transition-colors">
-                                                    <td className="p-1 border border-white/5 text-center font-bold tracking-widest text-brand-accent/80 bg-[#0c121e] text-[10px]">REAL</td>
-                                                    <td className="p-2 border border-white/5 text-center font-black text-brand-accent bg-[#111825] opacity-80">{calculateTotals(task.id, 'real', true)}</td>
-                                                    <td className="p-2 border border-white/5 text-center font-black text-brand-accent bg-[#111825] border-r-2 border-r-brand-accent/20">{calculateTotals(task.id, 'real')}</td>
-                                                    
-                                                    {daysArray.map(day => {
-                                                        const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                                                        const val = dailyData[task.id]?.[dateKey]?.real || '';
-                                                        return (
-                                                            <td key={`real-${day}`} className="p-0 border border-white/5 bg-[#121a28]">
-                                                                <input 
-                                                                    type="number" 
-                                                                    min="0"
-                                                                    value={val}
-                                                                    onChange={(e) => handleDataChange(task.id, dateKey, 'real', e.target.value)}
-                                                                    className="w-full h-8 text-center bg-transparent font-bold text-white border-none outline-none focus:bg-brand-accent/10 focus:text-brand-accent"
-                                                                />
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                            </React.Fragment>
-                                        );
-                                    })
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+                                                    </th>
+                                                );
+                                            })}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5 font-medium">
+                                        {filteredRows.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={100} className="py-20 text-center text-brand-med-gray italic">
+                                                    Nenhum registro encontrado para "{searchTerm}" em {selectedService}.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            filteredRows.map(row => (
+                                                <React.Fragment key={row.id}>
+                                                    {/* ROW PREV */}
+                                                    <tr className="bg-[#0c121d] hover:bg-white/5 transition-colors group">
+                                                        <td rowSpan={2} className="p-2 border border-white/5 text-white font-bold sticky left-0 z-10 bg-[#0c121d] group-hover:bg-[#121824]">{row.oae}</td>
+                                                        <td rowSpan={2} className="p-2 border border-white/5 text-gray-400 sticky left-24 z-10 bg-[#0c121d] group-hover:bg-[#121824]">{row.apoio}</td>
+                                                        <td rowSpan={2} className="p-2 border border-white/5 text-gray-500 text-[9px] truncate sticky left-48 z-10 bg-[#0c121d] group-hover:bg-[#121824]">{row.responsible}</td>
+                                                        <td className="p-1 border border-white/5 text-center text-[9px] font-black text-gray-600 bg-black/20">PREV</td>
+                                                        <td className="p-2 border border-white/5 text-center font-bold text-gray-400 bg-brand-dark/20">{getGrandTotal(row, 'prev')}</td>
+                                                        
+                                                        {availableMonths.map(m => {
+                                                            const isExpanded = expandedMonths.has(m);
+                                                            const days = getMonthDays(m);
+                                                            const monthTotal = getMonthTotal(row, m, 'prev');
+                                                            return isExpanded ? (
+                                                                <React.Fragment key={`prev-${m}`}>
+                                                                    <td className="p-1 border border-white/5 text-center bg-brand-accent/5 text-brand-accent/60 font-black">{monthTotal}</td>
+                                                                    {days.map(d => (
+                                                                        <td key={d} className="p-0 border border-white/5 bg-[#080d15] w-[30px]">
+                                                                            <input 
+                                                                                type="text"
+                                                                                className="w-full h-8 text-center bg-transparent border-none outline-none text-gray-500 focus:bg-white/5 focus:text-white"
+                                                                                value={row.daily_data[d]?.prev || ''}
+                                                                                onChange={(e) => handleCellChange(row.id, d, 'prev', e.target.value)}
+                                                                            />
+                                                                        </td>
+                                                                    ))}
+                                                                </React.Fragment>
+                                                            ) : (
+                                                                <td key={`prev-${m}`} className="p-1 border border-white/5 text-center text-gray-600 bg-[#0a0f18]">{monthTotal}</td>
+                                                            );
+                                                        })}
+                                                    </tr>
+                                                    {/* ROW REAL */}
+                                                    <tr className="bg-[#121a28] hover:bg-white/5 transition-colors group">
+                                                        <td className="p-1 border border-white/5 text-center text-[9px] font-black text-brand-accent bg-black/20">REAL</td>
+                                                        <td className="p-2 border border-white/5 text-center font-black text-brand-accent bg-brand-accent/5">{getGrandTotal(row, 'real')}</td>
+                                                        
+                                                        {availableMonths.map(m => {
+                                                            const isExpanded = expandedMonths.has(m);
+                                                            const days = getMonthDays(m);
+                                                            const monthTotal = getMonthTotal(row, m, 'real');
+                                                            return isExpanded ? (
+                                                                <React.Fragment key={`real-${m}`}>
+                                                                    <td className="p-1 border border-white/5 text-center bg-brand-accent/10 text-brand-accent font-black">{monthTotal}</td>
+                                                                    {days.map(d => (
+                                                                        <td key={d} className="p-0 border border-white/5 bg-[#121a28] w-[30px]">
+                                                                            <input 
+                                                                                type="text"
+                                                                                className="w-full h-8 text-center bg-transparent border-none outline-none text-white font-bold focus:bg-brand-accent/20 focus:text-brand-accent"
+                                                                                value={row.daily_data[d]?.real || ''}
+                                                                                onChange={(e) => handleCellChange(row.id, d, 'real', e.target.value)}
+                                                                            />
+                                                                        </td>
+                                                                    ))}
+                                                                </React.Fragment>
+                                                            ) : (
+                                                                <td key={`real-${m}`} className="p-1 border border-white/5 text-center text-brand-accent/60 bg-[#121a28] font-bold">{monthTotal}</td>
+                                                            );
+                                                        })}
+                                                    </tr>
+                                                </React.Fragment>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </main>
         </div>
