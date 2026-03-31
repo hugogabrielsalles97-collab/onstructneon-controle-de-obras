@@ -142,7 +142,6 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
     const weeklyData = useMemo(() => {
         let cumPrev = 0, cumReal = 0;
         const weekMap: Record<string, { prev: number, real: number }> = {};
-
         const getSunday = (dStr: string) => {
             const d = new Date(dStr + 'T12:00:00');
             const day = d.getDay();
@@ -150,7 +149,6 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
             const sun = new Date(d.setDate(diff));
             return sun.toISOString().split('T')[0];
         };
-
         uniqueDates.filter(d => d >= startDate && d <= endDate).forEach(date => {
             const sun = getSunday(date);
             if (!weekMap[sun]) weekMap[sun] = { prev: 0, real: 0 };
@@ -162,7 +160,6 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                 }
             });
         });
-
         return Object.keys(weekMap).sort().map(sunKey => {
             const w = weekMap[sunKey];
             cumPrev += w.prev;
@@ -234,55 +231,97 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                     </div>
 
                     <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl mb-8">
-                        <h4 className="text-xs font-black uppercase tracking-widest text-white mb-8 flex items-center gap-2"><TrendingUp size={16} className="text-brand-accent" /> Evolução Acumulada Semana a Semana (Dom - Sáb)</h4>
+                        <h4 className="text-xs font-black uppercase tracking-widest text-white mb-8 flex items-center gap-2"><TrendingUp size={16} className="text-brand-accent" /> Evolução Semanal vs Acumulado</h4>
                         <div className="h-[450px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <ComposedChart data={weeklyData}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
                                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#4b5563', fontSize: 10}} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#4b5563', fontSize: 10}} />
+                                    
+                                    {/* Dual Y-Axis */}
+                                    <YAxis yAxisId="left" orientation="left" axisLine={false} tickLine={false} tick={{fill: '#4b5563', fontSize: 10}} label={{ value: 'Produção Semanal', angle: -90, position: 'insideLeft', style: {fontSize: 10, fill: '#6b7280', fontWeight: 'bold'}}} />
+                                    <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{fill: '#e35a10', fontSize: 10}} label={{ value: 'Acumulado Total', angle: 90, position: 'insideRight', style: {fontSize: 10, fill: '#e35a10', fontWeight: 'bold'}}} />
+                                    
                                     <Tooltip contentStyle={{backgroundColor: '#0a0f18', border: '1px solid #ffffff10', borderRadius: '16px'}} />
                                     <Legend verticalAlign="top" height={36}/>
-                                    <Bar dataKey="prev" name="Previsto Semana" fill="#1f2937" radius={[4, 4, 0, 0]} barSize={30} />
-                                    <Bar dataKey="real" name="Realizado Semana" fill="#e35a10" radius={[4, 4, 0, 0]} barSize={30} />
-                                    <Area type="monotone" dataKey="cumPrev" name="Previsto Acum." stroke="#4b5563" strokeWidth={2} strokeDasharray="5 5" fill="transparent" dot={false} />
-                                    <Area type="monotone" dataKey="cumReal" name="Realizado Acum." stroke="#e35a10" strokeWidth={4} fill="transparent" dot={false} />
+                                    
+                                    {/* Weekly Bars (Left Axis) */}
+                                    <Bar yAxisId="left" dataKey="prev" name="Previsto Semanal" fill="#374151" radius={[4, 4, 0, 0]} barSize={25} />
+                                    <Bar yAxisId="left" dataKey="real" name="Realizado Semanal" fill="#ea580c" radius={[4, 4, 0, 0]} barSize={25} />
+                                    
+                                    {/* Cumulative Lines (Right Axis) */}
+                                    <Area yAxisId="right" type="monotone" dataKey="cumPrev" name="Previsto Acum." stroke="#6b7280" strokeWidth={2} strokeDasharray="5 5" fill="transparent" dot={false} />
+                                    <Area yAxisId="right" type="monotone" dataKey="cumReal" name="Realizado Acum." stroke="#e35a10" strokeWidth={4} fill="transparent" dot={{fill: '#e35a10', r: 4}} />
                                 </ComposedChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
 
-                    <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl overflow-hidden mb-8">
-                         <h4 className="text-xs font-black uppercase tracking-widest text-white mb-8">Top Performance por Obra (OAE)</h4>
-                         <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5">
-                                        <th className="pb-4">OAE / Apoio</th>
-                                        <th className="pb-4">Engenheiro</th>
-                                        <th className="pb-4 text-center text-gray-400">Previsto Total</th>
-                                        <th className="pb-4 text-center text-brand-accent">Realizado Total</th>
-                                        <th className="pb-4 text-right">%</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-white/5">
-                                    {filteredRows.slice(0, 20).map(r => {
-                                        const p = getGrandTotal(r, 'prev');
-                                        const rv = getGrandTotal(r, 'real');
-                                        const perc = p > 0 ? (rv / p) * 100 : 0;
-                                        return (
-                                            <tr key={r.id} className="hover:bg-white/5 group">
-                                                <td className="py-4 font-bold text-sm">{r.oae} <span className="text-[10px] text-gray-500 font-normal">({r.apoio})</span></td>
-                                                <td className="py-4 text-xs font-semibold text-gray-400">{r.responsible}</td>
-                                                <td className="py-4 text-center font-bold text-gray-500">{p.toLocaleString()}</td>
-                                                <td className="py-4 text-center font-black text-brand-accent">{rv.toLocaleString()}</td>
-                                                <td className={`py-4 text-right font-black text-xs ${perc >= 100 ? 'text-green-500' : 'text-orange-500'}`}>{perc.toFixed(0)}%</td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                         </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                        {/* Table column */}
+                        <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl overflow-hidden">
+                             <h4 className="text-xs font-black uppercase tracking-widest text-white mb-6">Performance por Obra (OAE)</h4>
+                             <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5">
+                                            <th className="pb-4">OAE / Apoio</th>
+                                            <th className="pb-4 text-center">Prev.</th>
+                                            <th className="pb-4 text-center">Real.</th>
+                                            <th className="pb-4 text-right">Ader.</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5">
+                                        {filteredRows.slice(0, 10).map(r => {
+                                            const p = getGrandTotal(r, 'prev');
+                                            const rv = getGrandTotal(r, 'real');
+                                            const perc = p > 0 ? (rv / p) * 100 : 0;
+                                            return (
+                                                <tr key={r.id} className="hover:bg-white/5 group">
+                                                    <td className="py-3 font-bold text-xs truncate max-w-[120px]">{r.oae} <span className="text-[9px] text-gray-500 font-normal">({r.apoio})</span></td>
+                                                    <td className="py-3 text-center text-xs font-semibold text-gray-400">{p}</td>
+                                                    <td className="py-3 text-center text-xs font-black text-brand-accent">{rv}</td>
+                                                    <td className={`py-3 text-right font-black text-xs ${perc >= 100 ? 'text-green-500' : 'text-orange-500'}`}>{perc.toFixed(0)}%</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                             </div>
+                        </div>
+
+                        {/* New Index column: Performance por Engenheiro */}
+                        <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl overflow-hidden">
+                             <h4 className="text-xs font-black uppercase tracking-widest text-white mb-6">Performance por Engenheiro</h4>
+                             <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5">
+                                            <th className="pb-4">Engenheiro</th>
+                                            <th className="pb-4 text-center">Prev.</th>
+                                            <th className="pb-4 text-center">Real.</th>
+                                            <th className="pb-4 text-right">%</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5">
+                                        {Array.from(new Set(filteredRows.map(r => r.responsible))).map(eng => {
+                                            const engRows = filteredRows.filter(r => r.responsible === eng);
+                                            const p = engRows.reduce((acc, r) => acc + getGrandTotal(r, 'prev'), 0);
+                                            const rv = engRows.reduce((acc, r) => acc + getGrandTotal(r, 'real'), 0);
+                                            const perc = p > 0 ? (rv / p) * 100 : 0;
+                                            return (
+                                                <tr key={eng} className="hover:bg-white/5 group">
+                                                    <td className="py-3 font-bold text-xs truncate max-w-[150px] text-gray-300">{eng || 'N/A'}</td>
+                                                    <td className="py-3 text-center text-xs font-semibold text-gray-400">{p}</td>
+                                                    <td className="py-3 text-center text-xs font-black text-brand-accent">{rv}</td>
+                                                    <td className={`py-3 text-right font-black text-xs ${perc >= 100 ? 'text-green-500' : 'text-orange-500'}`}>{perc.toFixed(0)}%</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                             </div>
+                        </div>
                     </div>
                 </div>
                 <div className="fixed bottom-0 right-0 w-[600px] h-[600px] bg-brand-accent/5 rounded-full blur-[150px] -z-10 pointer-events-none opacity-30"></div>
