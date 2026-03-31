@@ -277,7 +277,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                                     <Bar yAxisId="left" dataKey="prev" name="Previsto Semanal" fill="#374151" radius={[4, 4, 0, 0]} barSize={25}>
                                         <LabelList dataKey="prev" position="top" content={(props: any) => {
                                             const { x, y, width, value, index } = props;
-                                            if (value === 0 || value === weeklyData[index].real) return null;
+                                            if (index === undefined || !weeklyData[index] || value === 0 || value === weeklyData[index].real) return null;
                                             return <text x={x + width / 2} y={y - 5} fill="#4b5563" fontSize={9} fontWeight="bold" textAnchor="middle">{value}</text>;
                                         }} />
                                     </Bar>
@@ -321,7 +321,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                                 <table className="w-full text-left border-collapse">
                                     <thead><tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5"><th className="pb-4">Engenheiro</th><th className="pb-4 text-center">Prev.</th><th className="pb-4 text-center">Real.</th><th className="pb-4 text-right">%</th></tr></thead>
                                     <tbody className="divide-y divide-white/5">
-                                        {Array.from(new Set(filteredRows.map(r => r.responsible))).map(eng => {
+                                        {Array.from(new Set(filteredRows.map(r => r.responsible))).filter(Boolean).map(eng => {
                                             const engRows = filteredRows.filter(r => r.responsible === eng);
                                             const p = engRows.reduce((acc, r) => acc + getPeriodTotal(r, 'prev'), 0);
                                             const rv = engRows.reduce((acc, r) => acc + getPeriodTotal(r, 'real'), 0);
@@ -329,13 +329,13 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                                             const perc = p > 0 ? (rv / p) * 100 : (rv > 0 ? 100 : 0);
                                             return (
                                                 <tr key={eng} className="hover:bg-white/5 group">
-                                                    <td className="py-3 font-bold text-xs truncate max-w-[150px] text-gray-300">{eng || 'N/A'}</td>
+                                                    <td className="py-3 font-bold text-xs truncate max-w-[150px] text-gray-300">{eng}</td>
                                                     <td className="py-3 text-center text-xs font-semibold text-gray-400">{p}</td>
                                                     <td className="py-3 text-center text-xs font-black text-brand-accent">{rv}</td>
                                                     <td className={`py-3 text-right font-black text-xs ${perc >= 100 ? 'text-green-500' : 'text-orange-500'}`}>{perc.toFixed(0)}%</td>
                                                 </tr>
                                             );
-                                        }).filter(Boolean)}
+                                        })}
                                     </tbody>
                                 </table>
                              </div>
