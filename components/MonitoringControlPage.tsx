@@ -91,41 +91,74 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
         }
     }, [services, selectedService]);
 
+    const [isSaving, setIsSaving] = useState(false);
+
     useEffect(() => {
         const loadData = async () => {
             setIsLoadingData(true);
             try {
-                // 1. Try Supabase
-                const { data: dbData, error } = await supabase
+                // 1. First check LocalStorage (most recent edits)
+                const stored = localStorage.getItem(STORAGE_KEY);
+                if (stored) {
+                    setMonitoringRows(JSON.parse(stored));
+                    setIsLoadingData(false);
+                    return;
+                }
+
+                // 2. Try Supabase
+                const { data: dbData } = await supabase
                     .from('monitoring_rows')
                     .select('*')
                     .order('oae', { ascending: true });
 
                 if (dbData && dbData.length > 0) {
                     setMonitoringRows(dbData);
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(dbData));
                 } else {
-                    // 2. Fallback to Local Seed
+                    // 3. Fallback to Local Seed
                     const res = await fetch('/monitoring_seed.json');
                     if (res.ok) {
                         const seed = await res.json();
-                        // monitoring_seed.json has { rows, dailyData }
-                        // Convert to MonitoringRow[]
                         const merged = seed.rows.map((r: any) => ({
                             ...r,
                             daily_data: seed.dailyData[r.id] || {}
                         }));
                         setMonitoringRows(merged);
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
                     }
                 }
             } catch (err) {
                 console.error("Error loading monitoring data", err);
-                showToast("Erro ao carregar dados de monitoramento.", "error");
+                showToast("Erro ao carregar dados. Usando base local.", "error");
             } finally {
                 setIsLoadingData(false);
             }
         };
         loadData();
     }, []);
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            // Save to LocalStorage
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(monitoringRows));
+
+            // Sync to Supabase in chunks
+            const chunkSize = 50;
+            for (let i = 0; i < monitoringRows.length; i += chunkSize) {
+                const chunk = monitoringRows.slice(i, i + chunkSize);
+                const { error } = await supabase.from('monitoring_rows').upsert(chunk);
+                if (error) console.warn("Supabase sync error:", error);
+            }
+            
+            showToast("Alterações salvas com sucesso!", "success");
+        } catch (err) {
+            console.error("Save error:", err);
+            showToast("Erro ao salvar no servidor. Salvo localmente.", "error");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const toggleMonth = (monthKey: string) => {
         const newSet = new Set(expandedMonths);
@@ -134,30 +167,24 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
         setExpandedMonths(newSet);
     };
 
-    const handleCellChange = async (rowId: string, dateKey: string, type: 'prev' | 'real', value: string) => {
+    const handleCellChange = (rowId: string, dateKey: string, type: 'prev' | 'real', value: string) => {
         const numValue = value === '' ? 0 : parseFloat(value.replace(',', '.'));
         if (isNaN(numValue)) return;
 
-        const updatedRows = monitoringRows.map(r => {
-            if (r.id === rowId) {
-                const newData = { ...r.daily_data };
-                if (!newData[dateKey]) newData[dateKey] = { prev: 0, real: 0 };
-                newData[dateKey] = { ...newData[dateKey], [type]: numValue };
-                
-                // Update in DB (debounce or background)
-                const updateDb = async () => {
-                    await supabase
-                        .from('monitoring_rows')
-                        .update({ daily_data: newData })
-                        .eq('id', rowId);
-                };
-                updateDb();
-
-                return { ...r, daily_data: newData };
-            }
-            return r;
+        setMonitoringRows(prev => {
+            const updated = prev.map(r => {
+                if (r.id === rowId) {
+                    const newData = { ...r.daily_data };
+                    if (!newData[dateKey]) newData[dateKey] = { prev: 0, real: 0 };
+                    newData[dateKey] = { ...newData[dateKey], [type]: numValue };
+                    return { ...r, daily_data: newData };
+                }
+                return r;
+            });
+            // Auto-save to localStorage on every keystroke/blur
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+            return updated;
         });
-        setMonitoringRows(updatedRows);
     };
 
     const handleLogout = async () => {
@@ -286,7 +313,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                         <div className="flex items-center gap-3">
                              <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                                 </span>
                                 <input 
                                     type="text" 
@@ -296,6 +323,28 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
                              </div>
+
+                             <button 
+                                onClick={handleSave}
+                                disabled={isSaving}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+                                    isSaving 
+                                    ? 'bg-brand-dark cursor-wait opacity-50' 
+                                    : 'bg-brand-accent text-white shadow-[0_4px_15px_rgba(255,107,0,0.3)] hover:brightness-110 active:scale-95'
+                                }`}
+                             >
+                                {isSaving ? (
+                                    <>
+                                        <div className="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                                        Salvando...
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+                                        Salvar Alterações
+                                    </>
+                                )}
+                             </button>
                         </div>
                     </header>
 
