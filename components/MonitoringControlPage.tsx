@@ -260,9 +260,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                 <tbody className="divide-y divide-white/5">
                                     {/* TOTAL GERAL ROWS (SOLID OPACITY AND HIGH Z-INDEX) */}
                                     <tr className="sticky top-[60px] z-[110] bg-[#1a1f2c] h-8">
-                                        <td style={{left: 0}} className="sticky z-[120] p-2 border-r border-b border-brand-accent/30 text-brand-accent text-center font-black uppercase text-[11px] bg-[#1a1f2c]">TOTAL GERAL</td>
-                                        <td style={{left: W_OAE}} className="sticky z-[120] border-r border-b border-brand-accent/30 bg-[#1a1f2c]"></td>
-                                        <td style={{left: W_OAE + W_APOIO}} className="sticky z-[120] border-r border-b border-brand-accent/30 bg-[#1a1f2c]"></td>
+                                        <td colSpan={3} rowSpan={2} style={{left: 0}} className="sticky z-[120] p-2 border-r border-b-2 border-brand-accent/30 text-brand-accent text-center font-black uppercase text-[11px] bg-[#1a1f2c] align-middle">TOTAL GERAL</td>
                                         
                                         <td style={{left: W_OAE + W_APOIO + W_RESP}} className="sticky z-[120] p-1 border-r border-b border-white/10 text-center text-[9px] font-black text-gray-200 uppercase bg-[#1a1f2c]">PREV</td>
                                         <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO}} className="sticky z-[120] p-1 border-r border-b border-brand-accent/30 text-center text-gray-100 font-black text-[11px] bg-[#1a1f2c]">
@@ -279,11 +277,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                         })}
                                     </tr>
                                     <tr className="sticky top-[92px] z-[110] bg-[#1a1f2c] h-8">
-                                        <td style={{left: 0}} className="sticky z-[120] p-2 border-r border-b-2 border-brand-accent/30 bg-[#1a1f2c]"></td>
-                                        <td style={{left: W_OAE}} className="sticky z-[120] border-r border-b-2 border-brand-accent/30 bg-[#1a1f2c]"></td>
-                                        <td style={{left: W_OAE + W_APOIO}} className="sticky z-[120] border-r border-b-2 border-brand-accent/30 bg-[#1a1f2c]"></td>
-                                        
-                                        <td style={{left: W_OAE + W_APOIO + W_RESP}} className="sticky z-[120] p-1 border-r border-b-2 border-brand-accent/30 text-center text-[9px] font-black text-brand-accent uppercase bg-[#1a1f2c]">REAL</td>
+                                        <td style={{left: W_OAE + W_APOIO + W_RESP}} className="sticky z-[120] p-1 border-r border-b-2 border-brand-accent/30 text-center text-[8px] font-black text-brand-accent uppercase bg-[#1a1f2c]">REAL</td>
                                         <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO}} className="sticky z-[120] p-1 border-r border-b-2 border-brand-accent/30 text-center text-brand-accent font-black text-[11px] bg-[#1a1f2c]">
                                             {filteredRows.reduce((a, r) => a + getGrandTotal(r, 'real'), 0).toLocaleString()}
                                         </td>
@@ -297,6 +291,8 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                             </React.Fragment>;
                                         })}
                                     </tr>
+
+
 
 
 
