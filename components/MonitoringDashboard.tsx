@@ -132,11 +132,11 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
         return rows.filter(r => {
             if (selectedService !== 'ALL' && r.service !== selectedService) return false;
             if (selectedOAE !== 'ALL' && r.oae !== selectedOAE) return false;
-            if (selectedEng !== 'ALL' && (r.responsible === selectedEng)) return false; // Fixed logical error in previous draft
             if (selectedEng !== 'ALL' && r.responsible !== selectedEng) return false;
             return true;
         });
     }, [rows, selectedService, selectedOAE, selectedEng]);
+
 
     // Metrics Calculation
     const metrics = useMemo(() => {
