@@ -97,9 +97,6 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
         load();
     }, []);
 
-    const services = useMemo(() => ['ALL', ...Array.from(new Set(rows.map(r => r.service))).sort()], [rows]);
-    const oaes = useMemo(() => ['ALL', ...Array.from(new Set(rows.map(r => r.oae))).sort()], [rows]);
-    const engineers = useMemo(() => ['ALL', ...Array.from(new Set(rows.map(r => r.responsible || 'N/A'))).sort()], [rows]);
     const uniqueDates = useMemo(() => {
         const dateSet = new Set<string>();
         rows.forEach(r => Object.keys(r.daily_data || {}).forEach(d => dateSet.add(d)));
@@ -126,6 +123,10 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
         }
     };
 
+    const services = useMemo(() => ['ALL', ...Array.from(new Set(rows.map(r => r.service))).sort()], [rows]);
+    const oaes = useMemo(() => ['ALL', ...Array.from(new Set(rows.map(r => r.oae))).sort()], [rows]);
+    const engineers = useMemo(() => ['ALL', ...Array.from(new Set(rows.map(r => r.responsible || 'N/A'))).sort()], [rows]);
+
     const filteredRows = useMemo(() => {
         return rows.filter(r => {
             if (selectedService !== 'ALL' && r.service !== selectedService) return false;
@@ -147,8 +148,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
             });
         });
         const progress = totalPrev > 0 ? (totalReal / totalPrev) * 100 : (totalReal > 0 ? 100 : 0);
-        const gap = totalReal - totalPrev;
-        return { totalPrev, totalReal, progress, gap };
+        return { totalPrev, totalReal, progress, gap: totalReal - totalPrev };
     }, [filteredRows, startDate, endDate]);
 
     const getPeriodTotal = (row: MonitoringRow, type: 'prev' | 'real') => {
@@ -184,29 +184,20 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
         });
         return Object.keys(weekMap).sort().map(sunKey => {
             const w = weekMap[sunKey];
-            cumPrev += w.prev;
-            cumReal += w.real;
-            return {
-                name: sunKey.split('-').reverse().slice(0, 2).join('/'),
-                prev: w.prev,
-                real: w.real,
-                cumPrev,
-                cumReal
-            };
+            cumPrev += w.prev; cumReal += w.real;
+            return { name: sunKey.split('-').reverse().slice(0, 2).join('/'), prev: w.prev, real: w.real, cumPrev, cumReal };
         });
     }, [filteredRows, startDate, endDate, uniqueDates]);
 
+    const rankingRows = useMemo(() => {
+        return filteredRows
+            .map(r => ({ ...r, pTotal: getPeriodTotal(r, 'prev'), rTotal: getPeriodTotal(r, 'real') }))
+            .filter(r => r.pTotal > 0 || r.rTotal > 0)
+            .sort((a, b) => b.rTotal - a.rTotal);
+    }, [filteredRows, startDate, endDate]);
+
     if (!user) return null;
     if (isLoading) return <div className="flex bg-[#060a12] h-screen items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-brand-accent"></div></div>;
-
-    const rankingRows = filteredRows
-        .map(r => ({
-            ...r,
-            pTotal: getPeriodTotal(r, 'prev'),
-            rTotal: getPeriodTotal(r, 'real')
-        }))
-        .filter(r => r.pTotal > 0 || r.rTotal > 0)
-        .sort((a, b) => b.rTotal - a.rTotal);
 
     return (
         <div className="flex h-screen bg-[#060a12] overflow-hidden text-gray-100 font-sans">
@@ -227,31 +218,12 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-5 bg-[#0a0f18]/80 backdrop-blur-3xl border border-white/5 rounded-3xl mb-8 shadow-2xl">
-                        <div className="flex flex-col gap-1.5"><label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1"><Building2 size={10} /> Serviço</label>
-                            <select value={selectedService} onChange={(e) => setSelectedService(e.target.value)} className="bg-black/40 border border-white/10 rounded-xl p-2.5 text-xs font-bold text-white outline-none focus:border-brand-accent transition-all">
-                                {services.map(s => <option key={s} value={s}>{s === 'ALL' ? 'Todos os Serviços' : s}</option>)}
-                            </select>
-                        </div>
-                        <div className="flex flex-col gap-1.5"><label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1"><Target size={10} /> Obra de Arte (OAE)</label>
-                            <select value={selectedOAE} onChange={(e) => setSelectedOAE(e.target.value)} className="bg-black/40 border border-white/10 rounded-xl p-2.5 text-xs font-bold text-white outline-none focus:border-brand-accent transition-all">
-                                {oaes.map(o => <option key={o} value={o}>{o === 'ALL' ? 'Todas as OAEs' : o}</option>)}
-                            </select>
-                        </div>
-                        <div className="flex flex-col gap-1.5"><label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1"><User size={10} /> Engenheiro</label>
-                            <select value={selectedEng} onChange={(e) => setSelectedEng(e.target.value)} className="bg-black/40 border border-white/10 rounded-xl p-2.5 text-xs font-bold text-white outline-none focus:border-brand-accent transition-all">
-                                {engineers.map(r => <option key={r} value={r}>{r === 'ALL' ? 'Todos os Engenheiros' : r}</option>)}
-                            </select>
-                        </div>
+                        <div className="flex flex-col gap-1.5"><label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1"><Building2 size={10} /> Serviço</label><select value={selectedService} onChange={(e) => setSelectedService(e.target.value)} className="bg-black/40 border border-white/10 rounded-xl p-2.5 text-xs font-bold text-white outline-none focus:border-brand-accent transition-all">{services.map(s => <option key={s} value={s}>{s === 'ALL' ? 'Todos os Serviços' : s}</option>)}</select></div>
+                        <div className="flex flex-col gap-1.5"><label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1"><Target size={10} /> Obra de Arte (OAE)</label><select value={selectedOAE} onChange={(e) => setSelectedOAE(e.target.value)} className="bg-black/40 border border-white/10 rounded-xl p-2.5 text-xs font-bold text-white outline-none focus:border-brand-accent transition-all">{oaes.map(o => <option key={o} value={o}>{o === 'ALL' ? 'Todas as OAEs' : o}</option>)}</select></div>
+                        <div className="flex flex-col gap-1.5"><label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1"><User size={10} /> Engenheiro</label><select value={selectedEng} onChange={(e) => setSelectedEng(e.target.value)} className="bg-black/40 border border-white/10 rounded-xl p-2.5 text-xs font-bold text-white outline-none focus:border-brand-accent transition-all">{engineers.map(r => <option key={r} value={r}>{r === 'ALL' ? 'Todos os Engenheiros' : r}</option>)}</select></div>
                         <div className="flex flex-col gap-1.5"><label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1"><Calendar size={10} /> Linha do Tempo</label>
-                            <div className="flex items-center gap-2 mb-2">
-                                <input type="date" value={startDate || ''} onChange={(e) => handleDateInputChange(e.target.value, 0)} className="bg-black/40 border border-white/10 rounded-lg p-1 text-[10px] text-brand-accent outline-none font-bold" />
-                                <span className="text-gray-500 text-[10px]">-</span>
-                                <input type="date" value={endDate || ''} onChange={(e) => handleDateInputChange(e.target.value, 1)} className="bg-black/40 border border-white/10 rounded-lg p-1 text-[10px] text-white outline-none font-bold" />
-                            </div>
-                            <div className="flex items-center gap-2 px-2 py-1">
-                                <input type="range" min={0} max={uniqueDates.length > 0 ? uniqueDates.length - 1 : 0} value={dateRange[0]} onChange={(e) => setDateRange([parseInt(e.target.value), dateRange[1]])} className="flex-1 accent-brand-accent h-1.5 bg-white/5 rounded-full" />
-                                <input type="range" min={0} max={uniqueDates.length > 0 ? uniqueDates.length - 1 : 0} value={dateRange[1]} onChange={(e) => setDateRange([dateRange[0], parseInt(e.target.value)])} className="flex-1 accent-white h-1.5 bg-white/5 rounded-full" />
-                            </div>
+                            <div className="flex items-center gap-2 mb-2"><input type="date" value={startDate || ''} onChange={(e) => handleDateInputChange(e.target.value, 0)} className="bg-black/40 border border-white/10 rounded-lg p-1 text-[10px] text-brand-accent outline-none font-bold" /><span className="text-gray-500 text-[10px]">-</span><input type="date" value={endDate || ''} onChange={(e) => handleDateInputChange(e.target.value, 1)} className="bg-black/40 border border-white/10 rounded-lg p-1 text-[10px] text-white outline-none font-bold" /></div>
+                            <div className="flex items-center gap-2 px-2 py-1"><input type="range" min={0} max={uniqueDates.length > 0 ? uniqueDates.length - 1 : 0} value={dateRange[0]} onChange={(e) => setDateRange([parseInt(e.target.value), dateRange[1]])} className="flex-1 accent-brand-accent h-1.5 bg-white/5 rounded-full" /><input type="range" min={0} max={uniqueDates.length > 0 ? uniqueDates.length - 1 : 0} value={dateRange[1]} onChange={(e) => setDateRange([dateRange[0], parseInt(e.target.value)])} className="flex-1 accent-white h-1.5 bg-white/5 rounded-full" /></div>
                         </div>
                     </div>
 
@@ -273,32 +245,22 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                                     <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{fill: '#e35a10', fontSize: 10}} />
                                     <Tooltip contentStyle={{backgroundColor: '#0a0f18', border: '1px solid #ffffff10', borderRadius: '16px'}} />
                                     <Legend verticalAlign="top" height={36}/>
-                                    
-                                    <Bar yAxisId="left" dataKey="prev" name="Previsto Semanal" fill="#374151" radius={[4, 4, 0, 0]} barSize={25}>
-                                        <LabelList dataKey="prev" position="top" content={(props: any) => {
-                                            const { x, y, width, value, index } = props;
-                                            if (index === undefined || !weeklyData[index] || value === 0 || value === weeklyData[index].real) return null;
-                                            return <text x={x + width / 2} y={y - 5} fill="#4b5563" fontSize={9} fontWeight="bold" textAnchor="middle">{value}</text>;
-                                        }} />
-                                    </Bar>
-                                    <Bar yAxisId="left" dataKey="real" name="Realizado Semanal" fill="#ea580c" radius={[4, 4, 0, 0]} barSize={25}>
-                                        <LabelList dataKey="real" position="top" style={{fontSize: 9, fill: '#ea580c', fontWeight: 'bold'}} />
-                                    </Bar>
-                                    <Area yAxisId="right" type="monotone" dataKey="cumPrev" stroke="#6b7280" strokeWidth={1} strokeDasharray="4 4" fill="transparent" dot={false} />
-                                    <Area yAxisId="right" type="monotone" dataKey="cumReal" stroke="#e35a10" strokeWidth={2} fill="transparent" dot={false} />
+                                    <Bar yAxisId="left" dataKey="prev" name="Previsto Semanal" fill="#374151" radius={[4, 4, 0, 0]} barSize={25}><LabelList dataKey="prev" position="top" content={(props: any) => {const { x, y, width, value, index } = props; if (index === undefined || !weeklyData[index] || value === 0 || value === weeklyData[index].real) return null; return <text x={x + width / 2} y={y - 5} fill="#4b5563" fontSize={9} fontWeight="bold" textAnchor="middle">{value}</text>; }} /></Bar>
+                                    <Bar yAxisId="left" dataKey="real" name="Realizado Semanal" fill="#ea580c" radius={[4, 4, 0, 0]} barSize={25}><LabelList dataKey="real" position="top" style={{fontSize: 9, fill: '#ea580c', fontWeight: 'bold'}} /></Bar>
+                                    <Area yAxisId="right" type="monotone" dataKey="cumPrev" stroke="#6b7280" strokeWidth={1} strokeDasharray="4 4" fill="transparent" dot={false} /><Area yAxisId="right" type="monotone" dataKey="cumReal" stroke="#e35a10" strokeWidth={2} fill="transparent" dot={false} />
                                 </ComposedChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                        <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl overflow-hidden">
+                        <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[500px]">
                              <h4 className="text-xs font-black uppercase tracking-widest text-white mb-6">Performance por Obra (OAE)</h4>
-                             <div className="overflow-x-auto">
+                             <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                                 <table className="w-full text-left border-collapse">
-                                    <thead><tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5"><th className="pb-4">OAE / Apoio</th><th className="pb-4 text-center">Prev.</th><th className="pb-4 text-center">Real.</th><th className="pb-4 text-right">Ader.</th></tr></thead>
+                                    <thead className="sticky top-0 bg-[#0a0f18] z-10 shadow-[0_1px_0_0_rgba(255,255,255,0.05)]"><tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5"><th className="pb-4">OAE / Apoio</th><th className="pb-4 text-center">Prev.</th><th className="pb-4 text-center">Real.</th><th className="pb-4 text-right">Ader.</th></tr></thead>
                                     <tbody className="divide-y divide-white/5">
-                                        {rankingRows.slice(0, 30).map(r => {
+                                        {rankingRows.map(r => {
                                             const p = r.pTotal; const rv = r.rTotal;
                                             const perc = p > 0 ? (rv / p) * 100 : (rv > 0 ? 100 : 0);
                                             return (
@@ -315,24 +277,19 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                              </div>
                         </div>
 
-                        <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl overflow-hidden">
+                        <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[500px]">
                              <h4 className="text-xs font-black uppercase tracking-widest text-white mb-6">Performance por Engenheiro</h4>
-                             <div className="overflow-x-auto">
+                             <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                                 <table className="w-full text-left border-collapse">
-                                    <thead><tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5"><th className="pb-4">Engenheiro</th><th className="pb-4 text-center">Prev.</th><th className="pb-4 text-center">Real.</th><th className="pb-4 text-right">%</th></tr></thead>
+                                    <thead className="sticky top-0 bg-[#0a0f18] z-10 shadow-[0_1px_0_0_rgba(255,255,255,0.05)]"><tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5"><th className="pb-4">Engenheiro</th><th className="pb-4 text-center">Prev.</th><th className="pb-4 text-center">Real.</th><th className="pb-4 text-right">%</th></tr></thead>
                                     <tbody className="divide-y divide-white/5">
                                         {Array.from(new Set(filteredRows.map(r => r.responsible))).filter(Boolean).map(eng => {
                                             const engRows = filteredRows.filter(r => r.responsible === eng);
-                                            const p = engRows.reduce((acc, r) => acc + getPeriodTotal(r, 'prev'), 0);
-                                            const rv = engRows.reduce((acc, r) => acc + getPeriodTotal(r, 'real'), 0);
-                                            if (p === 0 && rv === 0) return null;
-                                            const perc = p > 0 ? (rv / p) * 100 : (rv > 0 ? 100 : 0);
+                                            const p = engRows.reduce((acc, r) => acc + getPeriodTotal(r, 'prev'), 0);const rv = engRows.reduce((acc, r) => acc + getPeriodTotal(r, 'real'), 0);
+                                            if (p === 0 && rv === 0) return null; const perc = p > 0 ? (rv / p) * 100 : (rv > 0 ? 100 : 0);
                                             return (
                                                 <tr key={eng} className="hover:bg-white/5 group">
-                                                    <td className="py-3 font-bold text-xs truncate max-w-[150px] text-gray-300">{eng}</td>
-                                                    <td className="py-3 text-center text-xs font-semibold text-gray-400">{p}</td>
-                                                    <td className="py-3 text-center text-xs font-black text-brand-accent">{rv}</td>
-                                                    <td className={`py-3 text-right font-black text-xs ${perc >= 100 ? 'text-green-500' : 'text-orange-500'}`}>{perc.toFixed(0)}%</td>
+                                                    <td className="py-3 font-bold text-xs truncate max-w-[150px] text-gray-300">{eng}</td><td className="py-3 text-center text-xs font-semibold text-gray-400">{p}</td><td className="py-3 text-center text-xs font-black text-brand-accent">{rv}</td><td className={`py-3 text-right font-black text-xs ${perc >= 100 ? 'text-green-500' : 'text-orange-500'}`}>{perc.toFixed(0)}%</td>
                                                 </tr>
                                             );
                                         })}
@@ -342,7 +299,6 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                         </div>
                     </div>
                 </div>
-                <div className="fixed bottom-0 right-0 w-[600px] h-[600px] bg-brand-accent/5 rounded-full blur-[150px] -z-10 pointer-events-none opacity-30"></div>
             </main>
         </div>
     );
