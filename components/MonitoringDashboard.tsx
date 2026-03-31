@@ -19,7 +19,8 @@ import {
     CartesianGrid, 
     Tooltip, 
     ResponsiveContainer,
-    Legend
+    Legend,
+    LabelList
 } from 'recharts';
 import Sidebar from './Sidebar';
 import { useData } from '../context/DataProvider';
@@ -106,13 +107,29 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
     }, [rows]);
 
     useEffect(() => {
-        if (uniqueDates.length > 0 && dateRange[1] === 0) {
+        if (uniqueDates.length > 0 && (dateRange[1] === 0 || dateRange[1] >= uniqueDates.length)) {
             setDateRange([0, uniqueDates.length - 1]);
         }
     }, [uniqueDates]);
 
     const startDate = uniqueDates[dateRange[0]];
     const endDate = uniqueDates[dateRange[1]];
+
+    const handleDateInputChange = (val: string, index: 0 | 1) => {
+        const targetDate = val;
+        let bestIndex = -1;
+        
+        // Find exact or closest index
+        uniqueDates.forEach((d, i) => {
+            if (d <= targetDate) bestIndex = i;
+        });
+
+        if (bestIndex !== -1) {
+            const newRange: [number, number] = [...dateRange];
+            newRange[index] = bestIndex;
+            setDateRange(newRange);
+        }
+    };
 
     const filteredRows = useMemo(() => {
         return rows.filter(r => {
@@ -134,7 +151,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                 }
             });
         });
-        const progress = totalPrev > 0 ? (totalReal / totalPrev) * 100 : 0;
+        const progress = totalPrev > 0 ? (totalReal / totalPrev) * 100 : (totalReal > 0 ? 100 : 0);
         const gap = totalReal - totalPrev;
         return { totalPrev, totalReal, progress, gap };
     }, [filteredRows, startDate, endDate]);
@@ -215,7 +232,12 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                             </select>
                         </div>
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1"><Calendar size={10} /> Linha do Tempo <span className="text-brand-accent ml-auto">{startDate?.split('-').reverse().join('/')} - {endDate?.split('-').reverse().join('/')}</span></label>
+                            <label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1"><Calendar size={10} /> Linha do Tempo</label>
+                            <div className="flex items-center gap-2 mb-2">
+                                <input type="date" value={startDate || ''} onChange={(e) => handleDateInputChange(e.target.value, 0)} className="bg-black/40 border border-white/10 rounded-lg p-1 text-[10px] text-brand-accent outline-none font-bold" />
+                                <span className="text-gray-500 text-[10px]">-</span>
+                                <input type="date" value={endDate || ''} onChange={(e) => handleDateInputChange(e.target.value, 1)} className="bg-black/40 border border-white/10 rounded-lg p-1 text-[10px] text-white outline-none font-bold" />
+                            </div>
                             <div className="flex items-center gap-2 px-2 py-1">
                                 <input type="range" min={0} max={uniqueDates.length > 0 ? uniqueDates.length - 1 : 0} value={dateRange[0]} onChange={(e) => setDateRange([parseInt(e.target.value), dateRange[1]])} className="flex-1 accent-brand-accent h-1.5 bg-white/5 rounded-full" />
                                 <input type="range" min={0} max={uniqueDates.length > 0 ? uniqueDates.length - 1 : 0} value={dateRange[1]} onChange={(e) => setDateRange([dateRange[0], parseInt(e.target.value)])} className="flex-1 accent-white h-1.5 bg-white/5 rounded-full" />
@@ -237,28 +259,24 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                                 <ComposedChart data={weeklyData}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
                                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#4b5563', fontSize: 10}} />
-                                    
-                                    {/* Dual Y-Axis */}
                                     <YAxis yAxisId="left" orientation="left" axisLine={false} tickLine={false} tick={{fill: '#4b5563', fontSize: 10}} label={{ value: 'Produção Semanal', angle: -90, position: 'insideLeft', style: {fontSize: 10, fill: '#6b7280', fontWeight: 'bold'}}} />
                                     <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{fill: '#e35a10', fontSize: 10}} label={{ value: 'Acumulado Total', angle: 90, position: 'insideRight', style: {fontSize: 10, fill: '#e35a10', fontWeight: 'bold'}}} />
-                                    
                                     <Tooltip contentStyle={{backgroundColor: '#0a0f18', border: '1px solid #ffffff10', borderRadius: '16px'}} />
                                     <Legend verticalAlign="top" height={36}/>
                                     
-                                    {/* Weekly Bars (Left Axis) */}
                                     <Bar yAxisId="left" dataKey="prev" name="Previsto Semanal" fill="#374151" radius={[4, 4, 0, 0]} barSize={25} />
-                                    <Bar yAxisId="left" dataKey="real" name="Realizado Semanal" fill="#ea580c" radius={[4, 4, 0, 0]} barSize={25} />
+                                    <Bar yAxisId="left" dataKey="real" name="Realizado Semanal" fill="#ea580c" radius={[4, 4, 0, 0]} barSize={25}>
+                                        <LabelList dataKey="real" position="top" style={{fontSize: 9, fill: '#ea580c', fontWeight: 'bold'}} />
+                                    </Bar>
                                     
-                                    {/* Cumulative Lines (Right Axis) */}
-                                    <Area yAxisId="right" type="monotone" dataKey="cumPrev" name="Previsto Acum." stroke="#6b7280" strokeWidth={2} strokeDasharray="5 5" fill="transparent" dot={false} />
-                                    <Area yAxisId="right" type="monotone" dataKey="cumReal" name="Realizado Acum." stroke="#e35a10" strokeWidth={4} fill="transparent" dot={{fill: '#e35a10', r: 4}} />
+                                    <Area yAxisId="right" type="monotone" dataKey="cumPrev" name="Previsto Acum." stroke="#6b7280" strokeWidth={1} strokeDasharray="4 4" fill="transparent" dot={false} />
+                                    <Area yAxisId="right" type="monotone" dataKey="cumReal" name="Realizado Acum." stroke="#e35a10" strokeWidth={2} fill="transparent" dot={false} />
                                 </ComposedChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                        {/* Table column */}
                         <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl overflow-hidden">
                              <h4 className="text-xs font-black uppercase tracking-widest text-white mb-6">Performance por Obra (OAE)</h4>
                              <div className="overflow-x-auto">
@@ -275,7 +293,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                                         {filteredRows.slice(0, 10).map(r => {
                                             const p = getGrandTotal(r, 'prev');
                                             const rv = getGrandTotal(r, 'real');
-                                            const perc = p > 0 ? (rv / p) * 100 : 0;
+                                            const perc = p > 0 ? (rv / p) * 100 : (rv > 0 ? 100 : 0);
                                             return (
                                                 <tr key={r.id} className="hover:bg-white/5 group">
                                                     <td className="py-3 font-bold text-xs truncate max-w-[120px]">{r.oae} <span className="text-[9px] text-gray-500 font-normal">({r.apoio})</span></td>
@@ -290,7 +308,6 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                              </div>
                         </div>
 
-                        {/* New Index column: Performance por Engenheiro */}
                         <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl overflow-hidden">
                              <h4 className="text-xs font-black uppercase tracking-widest text-white mb-6">Performance por Engenheiro</h4>
                              <div className="overflow-x-auto">
@@ -308,7 +325,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                                             const engRows = filteredRows.filter(r => r.responsible === eng);
                                             const p = engRows.reduce((acc, r) => acc + getGrandTotal(r, 'prev'), 0);
                                             const rv = engRows.reduce((acc, r) => acc + getGrandTotal(r, 'real'), 0);
-                                            const perc = p > 0 ? (rv / p) * 100 : 0;
+                                            const perc = p > 0 ? (rv / p) * 100 : (rv > 0 ? 100 : 0);
                                             return (
                                                 <tr key={eng} className="hover:bg-white/5 group">
                                                     <td className="py-3 font-bold text-xs truncate max-w-[150px] text-gray-300">{eng || 'N/A'}</td>
