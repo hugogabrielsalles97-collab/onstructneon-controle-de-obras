@@ -128,6 +128,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                     .from('monitoring_rows')
                     .select('*')
                     .neq('id', '_CONFIG_')
+                    .range(0, 4999)
                     .order('oae', { ascending: true });
 
                 if (dbData && dbData.length > 0) {
