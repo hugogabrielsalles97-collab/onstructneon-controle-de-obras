@@ -116,15 +116,8 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                     }
                 }
 
-                // 2. Load Rows
-                const storedRows = localStorage.getItem(STORAGE_KEY);
-                if (storedRows) {
-                    setMonitoringRows(JSON.parse(storedRows).filter((r: any) => r.id !== '_CONFIG_'));
-                    setIsLoadingData(false);
-                    return;
-                }
-
-                const { data: dbData } = await supabase
+                // 2. Load Rows from DB (Priority)
+                const { data: dbData, error: dbErr } = await supabase
                     .from('monitoring_rows')
                     .select('*')
                     .neq('id', '_CONFIG_')
@@ -135,15 +128,22 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                     setMonitoringRows(dbData);
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(dbData));
                 } else {
-                    const res = await fetch('/monitoring_seed.json');
-                    if (res.ok) {
-                        const seed = await res.json();
-                        const merged = seed.rows.map((r: any) => ({
-                            ...r,
-                            daily_data: seed.dailyData[r.id] || {}
-                        }));
-                        setMonitoringRows(merged);
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+                    // Try Local Cache
+                    const storedRows = localStorage.getItem(STORAGE_KEY);
+                    if (storedRows) {
+                        setMonitoringRows(JSON.parse(storedRows).filter((r: any) => r.id !== '_CONFIG_'));
+                    } else {
+                        // Final Fallback: Local Seed
+                        const res = await fetch('/monitoring_seed.json');
+                        if (res.ok) {
+                            const seed = await res.json();
+                            const merged = seed.rows.map((r: any) => ({
+                                ...r,
+                                daily_data: seed.dailyData[r.id] || {}
+                            }));
+                            setMonitoringRows(merged);
+                            localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+                        }
                     }
                 }
             } catch (err) {
