@@ -92,30 +92,40 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
     }, [services, selectedService]);
 
     const [isSaving, setIsSaving] = useState(false);
+    const [statusDate, setStatusDate] = useState('30/03/2026');
 
     useEffect(() => {
         const loadData = async () => {
             setIsLoadingData(true);
             try {
-                // 1. First check LocalStorage (most recent edits)
+                // 1. Load Status Date & Config
+                const { data: configData } = await supabase
+                    .from('monitoring_rows')
+                    .select('daily_data')
+                    .eq('id', '_CONFIG_')
+                    .single();
+                if (configData) {
+                    setStatusDate(configData.daily_data?.status_date || '30/03/2026');
+                }
+
+                // 2. Load Rows
                 const stored = localStorage.getItem(STORAGE_KEY);
                 if (stored) {
-                    setMonitoringRows(JSON.parse(stored));
+                    setMonitoringRows(JSON.parse(stored).filter((r: any) => r.id !== '_CONFIG_'));
                     setIsLoadingData(false);
                     return;
                 }
 
-                // 2. Try Supabase
                 const { data: dbData } = await supabase
                     .from('monitoring_rows')
                     .select('*')
+                    .neq('id', '_CONFIG_')
                     .order('oae', { ascending: true });
 
                 if (dbData && dbData.length > 0) {
                     setMonitoringRows(dbData);
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(dbData));
                 } else {
-                    // 3. Fallback to Local Seed
                     const res = await fetch('/monitoring_seed.json');
                     if (res.ok) {
                         const seed = await res.json();
@@ -140,10 +150,20 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            // Save to LocalStorage
+            // Save Rows to LocalStorage
             localStorage.setItem(STORAGE_KEY, JSON.stringify(monitoringRows));
 
-            // Sync to Supabase in chunks
+            // 1. Sync Config (Status Date)
+            await supabase.from('monitoring_rows').upsert([{ 
+                id: '_CONFIG_', 
+                service: 'SYSTEM', 
+                oae: 'SYSTEM', 
+                apoio: 'SYSTEM', 
+                responsible: 'ADMIN',
+                daily_data: { status_date: statusDate }
+            }]);
+
+            // 2. Sync Rows in chunks
             const chunkSize = 50;
             for (let i = 0; i < monitoringRows.length; i += chunkSize) {
                 const chunk = monitoringRows.slice(i, i + chunkSize);
@@ -302,11 +322,18 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                     <header className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
                             <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Monitoramento e Controle</h1>
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="flex flex-col md:flex-row md:items-center gap-2 mt-1">
                                 <p className="text-brand-med-gray text-sm">Base de Dados Independente - OAEs & Serviços</p>
-                                <span className="text-[10px] bg-brand-accent/20 text-brand-accent px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border border-brand-accent/20">
-                                    Status: 30/03/2026
-                                </span>
+                                <div className="flex items-center gap-2 bg-brand-dark/50 px-2 py-1 rounded-md border border-white/5">
+                                    <span className="text-[10px] text-brand-accent font-bold uppercase tracking-wider">Status:</span>
+                                    <input 
+                                        type="text"
+                                        value={statusDate}
+                                        onChange={(e) => setStatusDate(e.target.value)}
+                                        className="bg-transparent border-none text-[11px] text-white font-bold focus:ring-0 w-24 p-0"
+                                        placeholder="dd/mm/aaaa"
+                                    />
+                                </div>
                             </div>
                         </div>
 
