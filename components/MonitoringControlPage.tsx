@@ -275,7 +275,12 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                     <header className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
                             <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Monitoramento e Controle</h1>
-                            <p className="text-brand-med-gray text-sm mt-1">Base de Dados Independente - OAEs & Serviços</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <p className="text-brand-med-gray text-sm">Base de Dados Independente - OAEs & Serviços</p>
+                                <span className="text-[10px] bg-brand-accent/20 text-brand-accent px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border border-brand-accent/20">
+                                    Status: 30/03/2026
+                                </span>
+                            </div>
                         </div>
 
                         <div className="flex items-center gap-3">

@@ -31,7 +31,6 @@ async function upload() {
       "LAJE DE APROXIMAÇÃO "
     ];
 
-    const allRows = [];
     const dailyDataByRow = {};
 
     relevantSheets.forEach(sheetName => {
@@ -49,26 +48,36 @@ async function upload() {
         }
       });
 
+      let lastResp = '';
+      let lastOAE = '';
+      let lastApoio = '';
+
       for (let r = 1; r < data.length; r++) {
         const row = data[r];
         if (!row || row.length < 4) continue;
 
-        const resp = row[0];
-        const oae = row[1];
-        const apoio = row[2];
+        let resp = row[0];
+        let oae = row[1];
+        let apoio = row[2];
         const pOrR = String(row[3]).trim().toUpperCase();
 
-        if (!oae && !apoio) continue;
+        // Update context if not null
+        if (resp) lastResp = resp;
+        if (oae) lastOAE = oae;
+        if (apoio) lastApoio = apoio;
 
-        const rowKey = `${sheetName.trim().replace(/\s+/g, '_')}_${String(oae).trim().replace(/\s+/g, '_')}_${String(apoio).trim().replace(/\s+/g, '_')}`;
+        // Skip rows that are clearly totals (no OAE even in context)
+        if (!lastOAE && !lastApoio) continue;
+
+        const rowKey = `${sheetName.trim().replace(/\s+/g, '_')}_${String(lastOAE).trim().replace(/\s+/g, '_')}_${String(lastApoio).trim().replace(/\s+/g, '_')}`;
 
         if (!dailyDataByRow[rowKey]) {
           dailyDataByRow[rowKey] = {
              id: rowKey,
              service: sheetName.trim(),
-             oae: String(oae || '').trim(),
-             apoio: String(apoio || '').trim(),
-             responsible: String(resp || '').trim(),
+             oae: String(lastOAE || '').trim(),
+             apoio: String(lastApoio || '').trim(),
+             responsible: String(lastResp || '').trim(),
              daily_data: {}
           };
         }
@@ -106,7 +115,14 @@ async function upload() {
       }
     }
 
-    console.log("Upload completed!");
+    // ALSO update the JSON seed
+    const seedResult = {
+        rows: finalRows.map(r => ({ id: r.id, service: r.service, oae: r.oae, apoio: r.apoio, responsible: r.responsible })),
+        dailyData: finalRows.reduce((acc, r) => { acc[r.id] = r.daily_data; return acc; }, {})
+    };
+    fs.writeFileSync('public/monitoring_seed.json', JSON.stringify(seedResult, null, 2));
+
+    console.log("Upload & Seed update completed!");
   } catch (error) {
     console.error("Fatal error:", error);
   }
