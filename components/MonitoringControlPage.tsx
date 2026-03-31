@@ -527,6 +527,44 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                                                 </React.Fragment>
                                             ))
                                         )}
+                                        {/* Footer Totals Row */}
+                                        <tr className="bg-brand-dark/80 font-black text-brand-accent border-t-2 border-brand-accent/30 sticky bottom-0 z-10">
+                                            <td colSpan={3} className="px-3 py-3 text-right uppercase tracking-tighter text-xs">Total do Serviço</td>
+                                            <td className="px-3 py-3 border-x border-white/5 text-[10px]">
+                                                <div className="flex flex-col gap-1.5 font-bold">
+                                                    <span className="text-gray-400">PREV</span>
+                                                    <span className="text-brand-accent">REAL</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-3 py-3 bg-brand-accent/10 border-r border-white/10 text-center">
+                                                <div className="flex flex-col gap-1.5 font-bold">
+                                                    <span>{filteredRows.reduce((acc, r) => acc + getGrandTotal(r, 'prev'), 0).toLocaleString()}</span>
+                                                    <span>{filteredRows.reduce((acc, r) => acc + getGrandTotal(r, 'real'), 0).toLocaleString()}</span>
+                                                </div>
+                                            </td>
+
+                                            {availableMonths.map(m => (
+                                                <React.Fragment key={`total-${m}`}>
+                                                    <td className="px-3 py-3 bg-brand-dark border-r border-white/5 text-center min-w-[70px]">
+                                                        <div className="flex flex-col gap-1.5 font-bold">
+                                                            <span className="text-gray-400">{filteredRows.reduce((acc, r) => acc + getMonthTotal(r, m, 'prev'), 0).toLocaleString()}</span>
+                                                            <span className="text-brand-accent">{filteredRows.reduce((acc, r) => acc + getMonthTotal(r, m, 'real'), 0).toLocaleString()}</span>
+                                                        </div>
+                                                    </td>
+
+                                                    {expandedMonths.has(m) && getMonthDays(m).map(dayKey => {
+                                                        return (
+                                                            <td key={`total-day-${dayKey}`} className="px-2 py-3 border-r border-white/5 text-center min-w-[50px] bg-brand-dark/40">
+                                                                <div className="flex flex-col gap-1.5 font-bold text-[10px]">
+                                                                    <span className="text-gray-500">{filteredRows.reduce((acc, r) => acc + (Number(r.daily_data[dayKey]?.prev) || 0), 0)}</span>
+                                                                    <span className="text-brand-accent/80">{filteredRows.reduce((acc, r) => acc + (Number(r.daily_data[dayKey]?.real) || 0), 0)}</span>
+                                                                </div>
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </React.Fragment>
+                                            ))}
+                                        </tr>
                                     </tbody>
                                 </table>
                             </div>
