@@ -259,28 +259,32 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
 
                                 <tbody className="divide-y divide-white/5">
                                     {/* TOTAL GERAL ROWS (SOLID OPACITY AND HIGH Z-INDEX) */}
-                                    <tr className="sticky top-[64px] z-[90]">
-                                        <td style={{left: 0}} rowSpan={2} className="sticky z-[95] p-2 border-r border-b-2 border-brand-accent/30 text-brand-accent text-center font-black uppercase text-[11px] bg-[#1a1f2c]">TOTAL GERAL</td>
-                                        <td style={{left: W_OAE}} rowSpan={2} className="sticky z-[95] border-r border-b-2 border-brand-accent/30 bg-[#1a1f2c]"></td>
-                                        <td style={{left: W_OAE + W_APOIO}} rowSpan={2} className="sticky z-[95] border-r border-b-2 border-brand-accent/30 bg-[#1a1f2c]"></td>
+                                    <tr className="sticky top-[64px] z-[110] bg-[#1a1f2c]">
+                                        <td style={{left: 0}} className="sticky z-[120] p-2 border-r border-b border-brand-accent/30 text-brand-accent text-center font-black uppercase text-[11px] bg-[#1a1f2c]">TOTAL GERAL</td>
+                                        <td style={{left: W_OAE}} className="sticky z-[120] border-r border-b border-brand-accent/30 bg-[#1a1f2c]"></td>
+                                        <td style={{left: W_OAE + W_APOIO}} className="sticky z-[120] border-r border-b border-brand-accent/30 bg-[#1a1f2c]"></td>
                                         
-                                        <td style={{left: W_OAE + W_APOIO + W_RESP}} className="sticky z-[95] p-1 border-r border-b border-white/10 text-center text-[9px] font-black text-gray-200 uppercase bg-[#1a1f2c]">PREV</td>
-                                        <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO}} className="sticky z-[95] p-1 border-r border-b-2 border-brand-accent/30 text-center text-gray-100 font-black text-[11px] bg-[#1a1f2c]">
+                                        <td style={{left: W_OAE + W_APOIO + W_RESP}} className="sticky z-[120] p-1 border-r border-b border-white/10 text-center text-[9px] font-black text-gray-200 uppercase bg-[#1a1f2c]">PREV</td>
+                                        <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO}} className="sticky z-[120] p-1 border-r border-b border-brand-accent/30 text-center text-gray-100 font-black text-[11px] bg-[#1a1f2c]">
                                             {filteredRows.reduce((a, r) => a + getGrandTotal(r, 'prev'), 0).toLocaleString()}
                                         </td>
                                         {availableMonths.map(m => {
                                             const exp = expandedMonths.has(m);
                                             const monthSum = filteredRows.reduce((a, r) => a + getMonthTotal(r, m, 'prev'), 0);
-                                            if (!exp) return <td key={`GP-${m}`} className="p-1 border-r border-b-2 border-brand-accent/20 text-center font-black bg-[#1a1f2c] text-gray-300 text-[11px]">{monthSum.toLocaleString()}</td>;
+                                            if (!exp) return <td key={`GP-${m}`} className="p-1 border-r border-b border-brand-accent/20 text-center font-black bg-[#1a1f2c] text-gray-300 text-[11px]">{monthSum.toLocaleString()}</td>;
                                             return <React.Fragment key={`GP-exp-${m}`}>
-                                                <td className="p-1 border-r border-b-2 border-cyan-500/30 text-center bg-cyan-900/40 text-cyan-400 font-black text-[11px]">{monthSum.toLocaleString()}</td>
-                                                {getMonthDays(m).map(d => <td key={`GP-d-${d}`} className="p-1 border-r border-b-2 border-white/10 text-center bg-[#1a1f2c] text-gray-400 font-bold">{filteredRows.reduce((a, r) => a + (r.daily_data?.[d]?.prev || 0), 0)}</td>)}
+                                                <td className="p-1 border-r border-b border-cyan-500/30 text-center bg-cyan-900/40 text-cyan-400 font-black text-[11px]">{monthSum.toLocaleString()}</td>
+                                                {getMonthDays(m).map(d => <td key={`GP-d-${d}`} className="p-1 border-r border-b border-white/10 text-center bg-[#1a1f2c] text-gray-400 font-bold">{filteredRows.reduce((a, r) => a + (r.daily_data?.[d]?.prev || 0), 0)}</td>)}
                                             </React.Fragment>;
                                         })}
                                     </tr>
-                                    <tr className="sticky top-[92px] z-[90]">
-                                        <td style={{left: W_OAE + W_APOIO + W_RESP}} className="sticky z-[95] p-1 border-r border-b-2 border-brand-accent/30 text-center text-[9px] font-black text-brand-accent uppercase bg-[#1a1f2c]">REAL</td>
-                                        <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO}} className="sticky z-[95] p-1 border-r border-b-2 border-brand-accent/30 text-center text-brand-accent font-black text-[11px] bg-[#1a1f2c]">
+                                    <tr className="sticky top-[92px] z-[110] bg-[#1a1f2c]">
+                                        <td style={{left: 0}} className="sticky z-[120] p-2 border-r border-b-2 border-brand-accent/30 bg-[#1a1f2c]"></td>
+                                        <td style={{left: W_OAE}} className="sticky z-[120] border-r border-b-2 border-brand-accent/30 bg-[#1a1f2c]"></td>
+                                        <td style={{left: W_OAE + W_APOIO}} className="sticky z-[120] border-r border-b-2 border-brand-accent/30 bg-[#1a1f2c]"></td>
+                                        
+                                        <td style={{left: W_OAE + W_APOIO + W_RESP}} className="sticky z-[120] p-1 border-r border-b-2 border-brand-accent/30 text-center text-[9px] font-black text-brand-accent uppercase bg-[#1a1f2c]">REAL</td>
+                                        <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO}} className="sticky z-[120] p-1 border-r border-b-2 border-brand-accent/30 text-center text-brand-accent font-black text-[11px] bg-[#1a1f2c]">
                                             {filteredRows.reduce((a, r) => a + getGrandTotal(r, 'real'), 0).toLocaleString()}
                                         </td>
                                         {availableMonths.map(m => {
@@ -293,6 +297,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                             </React.Fragment>;
                                         })}
                                     </tr>
+
 
                                     {/* DATA ROWS WITH ZEBRA STRIPING */}
                                     {filteredRows.map((row, idx) => (
