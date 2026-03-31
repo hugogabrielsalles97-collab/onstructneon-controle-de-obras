@@ -92,26 +92,34 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
     }, [services, selectedService]);
 
     const [isSaving, setIsSaving] = useState(false);
-    const [statusDate, setStatusDate] = useState('30/03/2026');
+    const [statusDate, setStatusDate] = useState(() => {
+        return localStorage.getItem(`${STORAGE_KEY}_STATUS_DATE`) || '30/03/2026';
+    });
 
     useEffect(() => {
         const loadData = async () => {
             setIsLoadingData(true);
             try {
-                // 1. Load Status Date & Config
-                const { data: configData } = await supabase
+                // 1. Load Status Date from DB
+                const { data: configData, error: configErr } = await supabase
                     .from('monitoring_rows')
                     .select('daily_data')
                     .eq('id', '_CONFIG_')
-                    .single();
+                    .limit(1)
+                    .maybeSingle();
+
                 if (configData) {
-                    setStatusDate(configData.daily_data?.status_date || '30/03/2026');
+                    const dbDate = configData.daily_data?.status_date;
+                    if (dbDate) {
+                        setStatusDate(dbDate);
+                        localStorage.setItem(`${STORAGE_KEY}_STATUS_DATE`, dbDate);
+                    }
                 }
 
                 // 2. Load Rows
-                const stored = localStorage.getItem(STORAGE_KEY);
-                if (stored) {
-                    setMonitoringRows(JSON.parse(stored).filter((r: any) => r.id !== '_CONFIG_'));
+                const storedRows = localStorage.getItem(STORAGE_KEY);
+                if (storedRows) {
+                    setMonitoringRows(JSON.parse(storedRows).filter((r: any) => r.id !== '_CONFIG_'));
                     setIsLoadingData(false);
                     return;
                 }
@@ -139,7 +147,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                 }
             } catch (err) {
                 console.error("Error loading monitoring data", err);
-                showToast("Erro ao carregar dados. Usando base local.", "error");
+                showToast("Erro ao carregar dados. Usando cache local.", "error");
             } finally {
                 setIsLoadingData(false);
             }
@@ -150,31 +158,34 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            // Save Rows to LocalStorage
+            // Save Local State
             localStorage.setItem(STORAGE_KEY, JSON.stringify(monitoringRows));
+            localStorage.setItem(`${STORAGE_KEY}_STATUS_DATE`, statusDate);
 
             // 1. Sync Config (Status Date)
-            await supabase.from('monitoring_rows').upsert([{ 
+            const { error: confErr } = await supabase.from('monitoring_rows').upsert([{ 
                 id: '_CONFIG_', 
                 service: 'SYSTEM', 
                 oae: 'SYSTEM', 
                 apoio: 'SYSTEM', 
                 responsible: 'ADMIN',
                 daily_data: { status_date: statusDate }
-            }]);
+            }], { onConflict: 'id' });
+            
+            if (confErr) throw confErr;
 
             // 2. Sync Rows in chunks
             const chunkSize = 50;
             for (let i = 0; i < monitoringRows.length; i += chunkSize) {
                 const chunk = monitoringRows.slice(i, i + chunkSize);
-                const { error } = await supabase.from('monitoring_rows').upsert(chunk);
-                if (error) console.warn("Supabase sync error:", error);
+                const { error } = await supabase.from('monitoring_rows').upsert(chunk, { onConflict: 'id' });
+                if (error) console.warn("Supabase row sync error:", error);
             }
             
-            showToast("Alterações salvas com sucesso!", "success");
-        } catch (err) {
+            showToast("Banco de dados atualizado com sucesso!", "success");
+        } catch (err: any) {
             console.error("Save error:", err);
-            showToast("Erro ao salvar no servidor. Salvo localmente.", "error");
+            showToast(`Erro ao sincronizar: ${err.message || "Servidor offline"}`, "error");
         } finally {
             setIsSaving(false);
         }
