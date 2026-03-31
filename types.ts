@@ -190,3 +190,13 @@ export interface OrgMember {
   user_id?: string | null;
   created_at?: string;
 }
+
+export interface MonitoringRow {
+  id: string;
+  service: string;
+  oae: string;
+  apoio: string;
+  responsible?: string;
+  daily_data: Record<string, { prev: number; real: number }>;
+  updated_at?: string;
+}

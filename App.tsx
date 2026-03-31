@@ -32,9 +32,10 @@ const TeamsPage = lazy(() => import('./components/TeamsPage'));
 const VisualControlPage = lazy(() => import('./components/VisualControlPage'));
 const SystemPage = lazy(() => import('./components/SystemPage'));
 const WarRoomTVPage = lazy(() => import('./components/WarRoomTVPage'));
+const MonitoringDashboard = lazy(() => import('./components/MonitoringDashboard'));
 
 
-type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'monitoringControl' | 'restrictions' | 'cost' | 'podcast' | 'checkoutSummary' | 'orgChart' | 'orgSummary' | 'visualControl' | 'system' | 'warRoomTV';
+type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'monitoringControl' | 'monitoringDashboard' | 'restrictions' | 'cost' | 'podcast' | 'checkoutSummary' | 'orgChart' | 'orgSummary' | 'visualControl' | 'system' | 'warRoomTV';
 
 const AppContent: React.FC = () => {
   const {
@@ -261,6 +262,7 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
       onNavigateToLean: () => setScreen('lean'),
       onNavigateToLeanConstruction: () => setScreen('leanConstruction'),
       onNavigateToMonitoringControl: () => setScreen('monitoringControl'),
+      onNavigateToMonitoringDashboard: () => setScreen('monitoringDashboard'),
       onNavigateToWarRoom: () => setScreen('warRoomTV'),
       onNavigateToPodcast: () => setScreen('podcast'),
       onNavigateToCost: () => setScreen('cost'),
@@ -297,6 +299,8 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
           return null;
         }
         return <MonitoringControlPage {...navigationProps} showToast={showToast} />;
+      case 'monitoringDashboard':
+        return <MonitoringDashboard {...navigationProps} showToast={showToast} />;
       case 'podcast': return <PodcastPage {...navigationProps} user={currentUser} showToast={showToast} signOut={signOut} />;
       case 'cost': return (
         <CostPage

@@ -1,24 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { User } from '../types';
+import { User, MonitoringRow } from '../types';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useData } from '../context/DataProvider';
 import { supabase } from '../supabaseClient';
-
-interface MonitoringRow {
-    id: string;
-    service: string;
-    oae: string;
-    apoio: string;
-    responsible: string;
-    type_info?: string;
-    daily_data: {
-        [dateKey: string]: {
-            prev: number;
-            real: number;
-        }
-    }
-}
+import { LayoutDashboard, Save, Search, Calendar } from 'lucide-react';
 
 interface MonitoringControlPageProps {
     onNavigateToDashboard: () => void;
@@ -41,6 +27,7 @@ interface MonitoringControlPageProps {
     onNavigateToSystem?: () => void;
     onUpgradeClick: () => void;
     onAddTask?: () => void;
+    onNavigateToMonitoringDashboard: () => void;
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
@@ -67,6 +54,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
     onNavigateToTeams,
     onNavigateToSystem,
     onAddTask,
+    onNavigateToMonitoringDashboard,
     showToast
 }) => {
     const { currentUser: user, signOut } = useData();
@@ -78,41 +66,25 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
     const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
     const [selectedService, setSelectedService] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
-
-    const services = useMemo(() => {
-        const s = new Set<string>();
-        monitoringRows.forEach(r => s.add(r.service));
-        return Array.from(s).sort();
-    }, [monitoringRows]);
-
-    useEffect(() => {
-        if (!selectedService && services.length > 0) {
-            setSelectedService(services[0]);
-        }
-    }, [services, selectedService]);
-
     const [isSaving, setIsSaving] = useState(false);
-    const [statusDate, setStatusDate] = useState(() => {
-        return localStorage.getItem(`${STORAGE_KEY}_STATUS_DATE`) || '30/03/2026';
-    });
+    const [statusDate, setStatusDate] = useState("31/03/2026");
 
+    // Load Data
     useEffect(() => {
         const loadData = async () => {
             setIsLoadingData(true);
             try {
-                // 1. Load Status Date from DB
-                const { data: configData, error: configErr } = await supabase
-                    .from('monitoring_rows')
-                    .select('daily_data')
-                    .eq('id', '_CONFIG_')
-                    .limit(1)
-                    .maybeSingle();
-
-                if (configData) {
-                    const dbDate = configData.daily_data?.status_date;
-                    if (dbDate) {
-                        setStatusDate(dbDate);
-                        localStorage.setItem(`${STORAGE_KEY}_STATUS_DATE`, dbDate);
+                // 1. Try Seed (as background check, optional)
+                const seedRes = await fetch('/monitoring_seed.json');
+                if (seedRes.ok) {
+                    const seed = await seedRes.json();
+                    if (seed.rows && seed.rows.length > 0) {
+                        const formattedRows = seed.rows.map((r: any) => ({
+                            ...r,
+                            daily_data: seed.dailyData[r.id] || {}
+                        }));
+                        setMonitoringRows(formattedRows);
+                        if (!selectedService) setSelectedService(formattedRows[0]?.service || "");
                     }
                 }
 
@@ -151,112 +123,44 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                 if (allRows.length > 0) {
                     setMonitoringRows(allRows);
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(allRows));
+                    if (!selectedService) setSelectedService(allRows[0]?.service || "");
                 } else {
                     // Try Local Cache
                     const storedRows = localStorage.getItem(STORAGE_KEY);
                     if (storedRows) {
-                        setMonitoringRows(JSON.parse(storedRows).filter((r: any) => r.id !== '_CONFIG_'));
-                    } else {
-                        // Final Fallback: Local Seed
-                        const res = await fetch('/monitoring_seed.json');
-                        if (res.ok) {
-                            const seed = await res.json();
-                            const merged = seed.rows.map((r: any) => ({
-                                ...r,
-                                daily_data: seed.dailyData[r.id] || {}
-                            }));
-                            setMonitoringRows(merged);
-                            localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-                        }
+                        const parsed = JSON.parse(storedRows);
+                        setMonitoringRows(parsed);
+                        if (!selectedService) setSelectedService(parsed[0]?.service || "");
                     }
                 }
-            } catch (err) {
-                console.error("Error loading monitoring data", err);
-                showToast("Erro ao carregar dados. Usando cache local.", "error");
+
+                // 3. Status Date
+                const { data: config } = await supabase
+                    .from('monitoring_rows')
+                    .select('daily_data')
+                    .eq('id', '_CONFIG_')
+                    .single();
+                
+                if (config?.daily_data?.status_date) {
+                    setStatusDate(config.daily_data.status_date);
+                }
+
+            } catch (error) {
+                console.error("Error loading monitoring data:", error);
+                showToast("Erro ao carregar dados do servidor.", "error");
             } finally {
                 setIsLoadingData(false);
             }
         };
+
         loadData();
     }, []);
 
-    const handleSave = async () => {
-        setIsSaving(true);
-        try {
-            // Save Local State
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(monitoringRows));
-            localStorage.setItem(`${STORAGE_KEY}_STATUS_DATE`, statusDate);
-
-            // 1. Sync Config (Status Date)
-            const { error: confErr } = await supabase.from('monitoring_rows').upsert([{ 
-                id: '_CONFIG_', 
-                service: 'SYSTEM', 
-                oae: 'SYSTEM', 
-                apoio: 'SYSTEM', 
-                responsible: 'ADMIN',
-                daily_data: { status_date: statusDate }
-            }], { onConflict: 'id' });
-            
-            if (confErr) throw confErr;
-
-            // 2. Sync Rows in chunks
-            const chunkSize = 50;
-            for (let i = 0; i < monitoringRows.length; i += chunkSize) {
-                const chunk = monitoringRows.slice(i, i + chunkSize);
-                const { error } = await supabase.from('monitoring_rows').upsert(chunk, { onConflict: 'id' });
-                if (error) console.warn("Supabase row sync error:", error);
-            }
-            
-            showToast("Banco de dados atualizado com sucesso!", "success");
-        } catch (err: any) {
-            console.error("Save error:", err);
-            showToast(`Erro ao sincronizar: ${err.message || "Servidor offline"}`, "error");
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const toggleMonth = (monthKey: string) => {
-        const newSet = new Set(expandedMonths);
-        if (newSet.has(monthKey)) newSet.delete(monthKey);
-        else newSet.add(monthKey);
-        setExpandedMonths(newSet);
-    };
-
-    const handleCellChange = (rowId: string, dateKey: string, type: 'prev' | 'real', value: string) => {
-        const numValue = value === '' ? 0 : parseFloat(value.replace(',', '.'));
-        if (isNaN(numValue)) return;
-
-        setMonitoringRows(prev => {
-            const updated = prev.map(r => {
-                if (r.id === rowId) {
-                    const newData = { ...r.daily_data };
-                    if (!newData[dateKey]) newData[dateKey] = { prev: 0, real: 0 };
-                    newData[dateKey] = { ...newData[dateKey], [type]: numValue };
-                    return { ...r, daily_data: newData };
-                }
-                return r;
-            });
-            // Auto-save to localStorage on every keystroke/blur
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-            return updated;
-        });
-    };
-
-    const handleLogout = async () => {
-        const { success, error } = await signOut();
-        if (!success && error) showToast(`Erro ao sair: ${error}`, 'error');
-    };
-
-    // Calculate Month Columns
-    const availableMonths = useMemo(() => {
-        const monthSet = new Set<string>();
-        monitoringRows.forEach(r => {
-            Object.keys(r.daily_data).forEach(dk => {
-                monthSet.add(dk.substring(0, 7)); // YYYY-MM
-            });
-        });
-        return Array.from(monthSet).sort();
+    // Filter Logic
+    const services = useMemo(() => {
+        const s = new Set<string>();
+        monitoringRows.forEach(r => s.add(r.service));
+        return Array.from(s).sort();
     }, [monitoringRows]);
 
     const filteredRows = useMemo(() => {
@@ -268,12 +172,35 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
         );
     }, [monitoringRows, selectedService, searchTerm]);
 
+    // Calendar logic
+    const availableMonths = useMemo(() => {
+        const months = new Set<string>();
+        monitoringRows.forEach(r => {
+            Object.keys(r.daily_data).forEach(dateStr => {
+                const parts = dateStr.split('-');
+                if (parts.length === 3) {
+                    months.add(`${parts[0]}-${parts[1]}`);
+                }
+            });
+        });
+        return Array.from(months).sort();
+    }, [monitoringRows]);
+
+    const getMonthDays = (monthKey: string) => {
+        const [year, month] = monthKey.split('-');
+        const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+        const days = [];
+        for (let i = 1; i <= lastDay; i++) {
+            days.push(`${year}-${month}-${String(i).padStart(2, '0')}`);
+        }
+        return days;
+    };
+
     const getMonthTotal = (row: MonitoringRow, monthKey: string, type: 'prev' | 'real') => {
         let sum = 0;
-        Object.entries(row.daily_data).forEach(([date, vals]) => {
-            if (date.startsWith(monthKey)) {
-                sum += vals[type] || 0;
-            }
+        const days = getMonthDays(monthKey);
+        days.forEach(d => {
+            sum += row.daily_data[d]?.[type] || 0;
         });
         return sum;
     };
@@ -286,74 +213,73 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
         return sum;
     };
 
-    const getMonthDays = (monthKey: string) => {
-        const [year, month] = monthKey.split('-').map(Number);
-        const days = new Date(year, month, 0).getDate();
-        return Array.from({ length: days }, (_, i) => {
-            const d = i + 1;
-            return `${monthKey}-${String(d).padStart(2, '0')}`;
-        });
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            // Save modified rows to Supabase
+            // Note: Currently we save the entire state. For better performance we could track dirty rows.
+            const { error } = await supabase
+                .from('monitoring_rows')
+                .upsert(monitoringRows, { onConflict: 'id' });
+
+            if (error) throw error;
+
+            // Save status date
+            await supabase
+                .from('monitoring_rows')
+                .upsert({ id: '_CONFIG_', daily_data: { status_date: statusDate } });
+
+            showToast("Alterações salvas com sucesso!", "success");
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(monitoringRows));
+        } catch (error) {
+            console.error("Save error:", error);
+            showToast("Erro ao salvar alterações.", "error");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
-    const formatMonthName = (monthKey: string) => {
-        const [y, m] = monthKey.split('-');
-        const names = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-        return `${names[parseInt(m) - 1]} ${y}`;
+    const handleCellChange = (rowId: string, dateKey: string, type: 'prev' | 'real', value: string) => {
+        const numValue = Number(value.replace(',', '.'));
+        if (isNaN(numValue) && value !== "") return;
+
+        setMonitoringRows(prev => prev.map(r => {
+            if (r.id === rowId) {
+                const newData = { ...r.daily_data };
+                if (!newData[dateKey]) newData[dateKey] = { prev: 0, real: 0 };
+                newData[dateKey] = { ...newData[dateKey], [type]: numValue || 0 };
+                return { ...r, daily_data: newData };
+            }
+            return r;
+        }));
     };
 
-    if (!user) return null;
+    if (isLoadingData) {
+        return (
+            <div className="flex bg-[#060a12] h-screen items-center justify-center">
+                <div className="animate-pulse flex flex-col items-center">
+                    <div className="w-12 h-12 border-4 border-brand-accent border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <span className="text-brand-accent font-black tracking-widest uppercase">Carregando Planilha...</span>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="flex h-screen bg-[#060a12] overflow-hidden">
-            <Sidebar
-                user={user}
-                activeScreen="monitoringControl"
-                onNavigateToHome={onNavigateToHome}
-                onNavigateToDashboard={onNavigateToDashboard}
-                onNavigateToReports={onNavigateToReports}
-                onNavigateToBaseline={onNavigateToBaseline}
-                onNavigateToCurrentSchedule={onNavigateToCurrentSchedule}
-                onNavigateToAnalysis={onNavigateToAnalysis}
-                onNavigateToLean={onNavigateToLean}
-                onNavigateToLeanConstruction={onNavigateToLeanConstruction}
-                onNavigateToMonitoringControl={onNavigateToMonitoringControl}
-                onNavigateToWarRoom={onNavigateToWarRoom}
-                onNavigateToPodcast={onNavigateToPodcast}
-                onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
-                onNavigateToOrgChart={onNavigateToOrgChart}
-                onNavigateToOrgSummary={onNavigateToOrgSummary}
-                onNavigateToVisualControl={onNavigateToVisualControl}
-                onNavigateToTeams={onNavigateToTeams}
-                onNavigateToSystem={onNavigateToSystem}
-                onUpgradeClick={onUpgradeClick}
-                onAddTask={onAddTask}
-            />
+        <div className="flex h-screen bg-[#060a12] overflow-hidden text-gray-100 font-sans">
+            <Sidebar user={user!} activeScreen="monitoringControl" {...({
+                onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline,
+                onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean,
+                onNavigateToLeanConstruction, onNavigateToMonitoringControl,
+                onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost,
+                onNavigateToHome, onUpgradeClick, onNavigateToOrgChart,
+                onNavigateToOrgSummary, onNavigateToVisualControl, 
+                onNavigateToCheckoutSummary, onNavigateToTeams, onNavigateToSystem, onAddTask
+            } as any)} />
 
-            <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-brand-darkest/50 relative">
-                <Header
-                    user={user}
-                    onLogout={handleLogout}
-                    onNavigateToHome={onNavigateToHome}
-                    onNavigateToDashboard={onNavigateToDashboard}
-                    onNavigateToReports={onNavigateToReports}
-                    onNavigateToBaseline={onNavigateToBaseline}
-                    onNavigateToCurrentSchedule={onNavigateToCurrentSchedule}
-                    onNavigateToAnalysis={onNavigateToAnalysis}
-                    onNavigateToLean={onNavigateToLean}
-                    onNavigateToLeanConstruction={onNavigateToLeanConstruction}
-                    onNavigateToMonitoringControl={onNavigateToMonitoringControl}
-                    onNavigateToWarRoom={onNavigateToWarRoom}
-                    onNavigateToPodcast={onNavigateToPodcast}
-                    onNavigateToCost={onNavigateToCost}
-                    onNavigateToCheckoutSummary={onNavigateToCheckoutSummary}
-                    onNavigateToOrgChart={onNavigateToOrgChart}
-                    onNavigateToOrgSummary={onNavigateToOrgSummary}
-                    onNavigateToVisualControl={onNavigateToVisualControl}
-                    onNavigateToTeams={onNavigateToTeams}
-                    onUpgradeClick={onUpgradeClick}
-                    activeScreen="monitoringControl"
-                />
-
+            <main className="flex-1 flex flex-col overflow-hidden relative">
+                <Header title="Monitoramento e Controle" user={user!} onLogout={signOut} />
+                
                 <div className="flex-1 flex flex-col overflow-hidden p-4 lg:p-6 animate-slide-up">
                     <header className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
@@ -376,7 +302,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                         <div className="flex items-center gap-3">
                              <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                     <Search size={16} />
                                 </span>
                                 <input 
                                     type="text" 
@@ -387,27 +313,33 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                                 />
                              </div>
 
-                             <button 
-                                onClick={handleSave}
-                                disabled={isSaving}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all ${
-                                    isSaving 
-                                    ? 'bg-brand-dark cursor-wait opacity-50' 
-                                    : 'bg-brand-accent text-white shadow-[0_4px_15px_rgba(255,107,0,0.3)] hover:brightness-110 active:scale-95'
-                                }`}
-                             >
-                                {isSaving ? (
-                                    <>
-                                        <div className="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                                        Salvando...
-                                    </>
-                                ) : (
-                                    <>
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
-                                        Salvar Alterações
-                                    </>
-                                )}
-                             </button>
+                             <div className="flex items-center gap-3">
+                                <button 
+                                    onClick={onNavigateToMonitoringDashboard}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl shadow-lg shadow-blue-500/10 transition-all font-black text-xs uppercase tracking-tighter"
+                                >
+                                    <LayoutDashboard size={14} />
+                                    Dashboard Analítico
+                                </button>
+                                <button 
+                                    onClick={handleSave}
+                                    disabled={isSaving}
+                                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-black text-xs uppercase tracking-tighter shadow-lg ${
+                                        isSaving 
+                                        ? 'bg-gray-800 text-gray-500 cursor-not-allowed' 
+                                        : 'bg-gradient-to-r from-brand-accent to-orange-500 hover:from-brand-accent/90 hover:to-orange-500/90 text-white shadow-brand-accent/20 active:scale-95'
+                                    }`}
+                                >
+                                    {isSaving ? (
+                                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <>
+                                            <Save size={14} />
+                                            Salvar Alterações
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </header>
 
@@ -428,22 +360,24 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                         ))}
                     </div>
 
-                    {isLoadingData ? (
-                        <div className="flex-1 flex flex-col items-center justify-center text-brand-med-gray">
-                            <div className="w-12 h-12 border-4 border-brand-accent/20 border-t-brand-accent rounded-full animate-spin mb-4"></div>
-                            <p className="font-bold tracking-widest text-xs uppercase">Carregando base de monitoramento...</p>
+                    {filteredRows.length === 0 ? (
+                        <div className="flex-1 flex flex-col items-center justify-center bg-brand-dark/20 rounded-2xl border border-white/5 border-dashed">
+                             <div className="p-4 bg-white/5 rounded-full mb-4">
+                                <Search size={32} className="text-gray-600" />
+                             </div>
+                             <p className="text-brand-med-gray font-bold italic">Nenhum registro encontrado para "{searchTerm}" em {selectedService}.</p>
                         </div>
                     ) : (
-                        <div className="flex-1 bg-[#0a0f18] border border-white/5 rounded-xl shadow-2xl overflow-hidden flex flex-col">
-                            <div className="flex-1 overflow-auto custom-scrollbar relative">
-                                <table className="w-full text-left border-collapse min-w-max text-[10px]">
-                                    <thead className="sticky top-0 z-20 bg-[#121824] shadow-md border-b border-white/10 text-white uppercase tracking-tighter font-black">
-                                        <tr className="h-10">
-                                            <th className="p-2 border border-white/5 w-24 sticky left-0 z-30 bg-[#121824]">OAE</th>
-                                            <th className="p-2 border border-white/5 w-24 sticky left-24 z-30 bg-[#121824]">APOIO</th>
-                                            <th className="p-2 border border-white/5 w-32 sticky left-48 z-30 bg-[#121824]">ENGENHEIRO</th>
-                                            <th className="p-2 border border-white/5 w-16 text-center text-brand-med-gray">P/R</th>
-                                            <th className="p-2 border border-white/5 w-24 text-center bg-brand-accent/10 text-brand-accent">TOTAL GERAL</th>
+                        <div className="flex-1 overflow-hidden bg-brand-dark/30 rounded-2xl border border-white/5 shadow-2xl flex flex-col">
+                            <div className="overflow-auto custom-scrollbar flex-1">
+                                <table className="w-full border-collapse text-left text-[11px]">
+                                    <thead className="sticky top-0 z-20 bg-[#0a0f18] text-gray-500 font-black uppercase tracking-tighter shadow-xl">
+                                        <tr>
+                                            <th className="p-3 border-b border-white/10 w-[120px] sticky left-0 z-30 bg-[#0a0f18]">OAE</th>
+                                            <th className="p-3 border-b border-white/10 w-[80px] sticky left-[120px] z-30 bg-[#0a0f18]">Apoio</th>
+                                            <th className="p-3 border-b border-white/10 w-[100px] sticky left-[200px] z-30 bg-[#0a0f18]">Resp.</th>
+                                            <th className="p-3 border-b border-white/10 w-[40px] text-center">Info</th>
+                                            <th className="p-3 border-b border-white/10 w-[60px] text-center bg-brand-accent/5">Total</th>
                                             
                                             {availableMonths.map(m => {
                                                 const isExpanded = expandedMonths.has(m);
@@ -451,25 +385,21 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                                                 return (
                                                     <th 
                                                         key={m} 
-                                                        colSpan={isExpanded ? days.length + 1 : 1}
-                                                        className={`p-1 border border-white/5 text-center transition-all ${isExpanded ? 'bg-brand-accent/5' : ''}`}
+                                                        onClick={() => {
+                                                            const newSet = new Set(expandedMonths);
+                                                            if (newSet.has(m)) newSet.delete(m);
+                                                            else newSet.add(m);
+                                                            setExpandedMonths(newSet);
+                                                        }}
+                                                        className={`p-3 border-b border-l border-white/10 cursor-pointer hover:bg-white/5 transition-all text-center ${isExpanded ? 'min-w-[1000px]' : 'min-w-[80px]'}`}
                                                     >
                                                         <div className="flex items-center justify-center gap-2">
-                                                            <span>{formatMonthName(m)}</span>
-                                                            <button 
-                                                                onClick={() => toggleMonth(m)}
-                                                                className="hover:text-brand-accent transition-colors"
-                                                            >
-                                                                {isExpanded ? (
-                                                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd"/></svg>
-                                                                ) : (
-                                                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/></svg>
-                                                                )}
-                                                            </button>
+                                                            <Calendar size={12} className={isExpanded ? 'text-brand-accent' : ''} />
+                                                            <span>{new Date(parseInt(m.split('-')[0]), parseInt(m.split('-')[1]) - 1).toLocaleString('pt-BR', {month: 'short', year: '2-digit'}).toUpperCase()}</span>
                                                         </div>
                                                         {isExpanded && (
-                                                            <div className="grid grid-flow-col auto-cols-[30px] border-t border-white/5 mt-1 font-medium text-[9px] text-gray-500">
-                                                                <div className="border-r border-white/5 bg-brand-accent/10 text-brand-accent font-black">TOTAL</div>
+                                                            <div className="grid grid-cols-[80px_repeat(auto-fill,30px)] mt-2 border-t border-white/5 pt-2 font-medium">
+                                                                <div className="border-r border-white/5 text-[9px]">RESUMO</div>
                                                                 {days.map(d => (
                                                                     <div key={d} className="border-r border-white/5">{d.split('-')[2]}</div>
                                                                 ))}
@@ -481,77 +411,71 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-white/5 font-medium">
-                                        {filteredRows.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={100} className="py-20 text-center text-brand-med-gray italic">
-                                                    Nenhum registro encontrado para "{searchTerm}" em {selectedService}.
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            filteredRows.map(row => (
-                                                <React.Fragment key={row.id}>
-                                                    {/* ROW PREV */}
-                                                    <tr className="bg-[#0c121d] hover:bg-white/5 transition-colors group">
-                                                        <td rowSpan={2} className="p-2 border border-white/5 text-white font-bold sticky left-0 z-10 bg-[#0c121d] group-hover:bg-[#121824]">{row.oae}</td>
-                                                        <td rowSpan={2} className="p-2 border border-white/5 text-gray-400 sticky left-24 z-10 bg-[#0c121d] group-hover:bg-[#121824]">{row.apoio}</td>
-                                                        <td rowSpan={2} className="p-2 border border-white/5 text-gray-500 text-[9px] truncate sticky left-48 z-10 bg-[#0c121d] group-hover:bg-[#121824]">{row.responsible}</td>
-                                                        <td className="p-1 border border-white/5 text-center text-[9px] font-black text-gray-600 bg-black/20">PREV</td>
-                                                        <td className="p-2 border border-white/5 text-center font-bold text-gray-400 bg-brand-dark/20">{getGrandTotal(row, 'prev')}</td>
-                                                        
-                                                        {availableMonths.map(m => {
-                                                            const isExpanded = expandedMonths.has(m);
-                                                            const days = getMonthDays(m);
-                                                            const monthTotal = getMonthTotal(row, m, 'prev');
-                                                            return isExpanded ? (
-                                                                <React.Fragment key={`prev-${m}`}>
-                                                                    <td className="p-1 border border-white/5 text-center bg-brand-accent/5 text-brand-accent/60 font-black">{monthTotal}</td>
-                                                                    {days.map(d => (
-                                                                        <td key={d} className="p-0 border border-white/5 bg-[#080d15] w-[30px]">
-                                                                            <input 
-                                                                                type="text"
-                                                                                className="w-full h-8 text-center bg-transparent border-none outline-none text-gray-500 focus:bg-white/5 focus:text-white"
-                                                                                value={row.daily_data[d]?.prev || ''}
-                                                                                onChange={(e) => handleCellChange(row.id, d, 'prev', e.target.value)}
-                                                                            />
-                                                                        </td>
-                                                                    ))}
-                                                                </React.Fragment>
-                                                            ) : (
-                                                                <td key={`prev-${m}`} className="p-1 border border-white/5 text-center text-gray-600 bg-[#0a0f18]">{monthTotal}</td>
-                                                            );
-                                                        })}
-                                                    </tr>
-                                                    {/* ROW REAL */}
-                                                    <tr className="bg-[#121a28] hover:bg-white/5 transition-colors group">
-                                                        <td className="p-1 border border-white/5 text-center text-[9px] font-black text-brand-accent bg-black/20">REAL</td>
-                                                        <td className="p-2 border border-white/5 text-center font-black text-brand-accent bg-brand-accent/5">{getGrandTotal(row, 'real')}</td>
-                                                        
-                                                        {availableMonths.map(m => {
-                                                            const isExpanded = expandedMonths.has(m);
-                                                            const days = getMonthDays(m);
-                                                            const monthTotal = getMonthTotal(row, m, 'real');
-                                                            return isExpanded ? (
-                                                                <React.Fragment key={`real-${m}`}>
-                                                                    <td className="p-1 border border-white/5 text-center bg-brand-accent/10 text-brand-accent font-black">{monthTotal}</td>
-                                                                    {days.map(d => (
-                                                                        <td key={d} className="p-0 border border-white/5 bg-[#121a28] w-[30px]">
-                                                                            <input 
-                                                                                type="text"
-                                                                                className="w-full h-8 text-center bg-transparent border-none outline-none text-white font-bold focus:bg-brand-accent/20 focus:text-brand-accent"
-                                                                                value={row.daily_data[d]?.real || ''}
-                                                                                onChange={(e) => handleCellChange(row.id, d, 'real', e.target.value)}
-                                                                            />
-                                                                        </td>
-                                                                    ))}
-                                                                </React.Fragment>
-                                                            ) : (
-                                                                <td key={`real-${m}`} className="p-1 border border-white/5 text-center text-brand-accent/60 bg-[#121a28] font-bold">{monthTotal}</td>
-                                                            );
-                                                        })}
-                                                    </tr>
-                                                </React.Fragment>
-                                            ))
-                                        )}
+                                        {filteredRows.map(row => (
+                                            <React.Fragment key={row.id}>
+                                                {/* ROW PREV */}
+                                                <tr className="bg-[#0c121d] hover:bg-white/5 transition-colors group">
+                                                    <td rowSpan={2} className="p-2 border border-white/5 text-white font-bold sticky left-0 z-10 bg-[#0c121d] group-hover:bg-[#121824]">{row.oae}</td>
+                                                    <td rowSpan={2} className="p-2 border border-white/5 text-gray-400 sticky left-[120px] z-10 bg-[#0c121d] group-hover:bg-[#121824]">{row.apoio}</td>
+                                                    <td rowSpan={2} className="p-2 border border-white/5 text-gray-500 text-[9px] truncate sticky left-[200px] z-10 bg-[#0c121d] group-hover:bg-[#121824]">{row.responsible}</td>
+                                                    <td className="p-1 border border-white/5 text-center text-[9px] font-black text-gray-600 bg-black/20">PREV</td>
+                                                    <td className="p-2 border border-white/5 text-center font-bold text-gray-400 bg-brand-dark/20">{getGrandTotal(row, 'prev')}</td>
+                                                    
+                                                    {availableMonths.map(m => {
+                                                        const isExpanded = expandedMonths.has(m);
+                                                        const days = getMonthDays(m);
+                                                        const monthTotal = getMonthTotal(row, m, 'prev');
+                                                        return isExpanded ? (
+                                                            <React.Fragment key={`prev-${m}`}>
+                                                                <td className="p-1 border border-white/5 text-center bg-brand-accent/5 text-brand-accent/60 font-black">{monthTotal}</td>
+                                                                {days.map(d => (
+                                                                    <td key={d} className="p-0 border border-white/5 bg-[#080d15] w-[30px]">
+                                                                        <input 
+                                                                            type="text"
+                                                                            className="w-full h-8 text-center bg-transparent border-none outline-none text-gray-500 focus:bg-white/5 focus:text-white"
+                                                                            value={row.daily_data[d]?.prev || ''}
+                                                                            onChange={(e) => handleCellChange(row.id, d, 'prev', e.target.value)}
+                                                                        />
+                                                                    </td>
+                                                                ))}
+                                                            </React.Fragment>
+                                                        ) : (
+                                                            <td key={`prev-${m}`} className="p-1 border border-white/5 text-center text-gray-600 bg-[#0a0f18]">{monthTotal}</td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                                
+                                                {/* ROW REAL */}
+                                                <tr className="bg-[#121a28] hover:bg-white/5 transition-colors group">
+                                                    <td className="p-1 border border-white/5 text-center text-[9px] font-black text-brand-accent bg-black/20">REAL</td>
+                                                    <td className="p-2 border border-white/5 text-center font-black text-brand-accent bg-brand-accent/5">{getGrandTotal(row, 'real')}</td>
+                                                    
+                                                    {availableMonths.map(m => {
+                                                        const isExpanded = expandedMonths.has(m);
+                                                        const days = getMonthDays(m);
+                                                        const monthTotal = getMonthTotal(row, m, 'real');
+                                                        return isExpanded ? (
+                                                            <React.Fragment key={`real-${m}`}>
+                                                                <td className="p-1 border border-white/5 text-center bg-brand-accent/10 text-brand-accent font-black">{monthTotal}</td>
+                                                                {days.map(d => (
+                                                                    <td key={d} className="p-0 border border-white/5 bg-[#121a28] w-[30px]">
+                                                                        <input 
+                                                                            type="text"
+                                                                            className="w-full h-8 text-center bg-transparent border-none outline-none text-white font-bold focus:bg-brand-accent/20 focus:text-brand-accent"
+                                                                            value={row.daily_data[d]?.real || ''}
+                                                                            onChange={(e) => handleCellChange(row.id, d, 'real', e.target.value)}
+                                                                        />
+                                                                    </td>
+                                                                ))}
+                                                            </React.Fragment>
+                                                        ) : (
+                                                            <td key={`real-${m}`} className="p-1 border border-white/5 text-center text-brand-accent/60 bg-[#121a28] font-bold">{monthTotal}</td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            </React.Fragment>
+                                        ))}
+                                        
                                         {/* Footer Totals Row */}
                                         <tr className="bg-brand-dark/80 font-black text-brand-accent border-t-2 border-brand-accent/30 sticky bottom-0 z-10">
                                             <td colSpan={3} className="px-3 py-3 text-right uppercase tracking-tighter text-xs">Total do Serviço</td>
