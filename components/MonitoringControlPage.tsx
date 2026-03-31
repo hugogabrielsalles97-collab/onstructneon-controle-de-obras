@@ -40,19 +40,16 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [monitoringRows, setMonitoringRows] = useState<MonitoringRow[]>([]);
     
-    // UI States
     const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
     const [selectedService, setSelectedService] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
     const [isSaving, setIsSaving] = useState(false);
     const [statusDate, setStatusDate] = useState("31/03/2026");
 
-    // Load Data (Consolidated logic)
     useEffect(() => {
         const load = async () => {
             setIsLoadingData(true);
             try {
-                // 1. Check DB first (Priority)
                 let allRows: any[] = [];
                 let from = 0;
                 let hasMore = true;
@@ -77,24 +74,13 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(allRows));
                     if (!selectedService) setSelectedService(allRows[0]?.service || "");
                 } else {
-                    // Fallback to cache/seed
                     const cached = localStorage.getItem(STORAGE_KEY);
                     if (cached) {
                         const parsed = JSON.parse(cached);
                         setMonitoringRows(parsed);
                         if (!selectedService) setSelectedService(parsed[0]?.service || "");
-                    } else {
-                        const seedRes = await fetch('/monitoring_seed.json');
-                        if (seedRes.ok) {
-                            const seed = await seedRes.json();
-                            const formatted = seed.rows.map((r: any) => ({ ...r, daily_data: seed.dailyData[r.id] || {} }));
-                            setMonitoringRows(formatted);
-                            if (!selectedService) setSelectedService(formatted[0]?.service || "");
-                        }
                     }
                 }
-
-                // Status Date
                 const { data: config } = await supabase.from('monitoring_rows').select('daily_data').eq('id', '_CONFIG_').single();
                 if (config?.daily_data?.status_date) setStatusDate(config.daily_data.status_date);
             } catch (e) {
@@ -105,13 +91,6 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
         };
         load();
     }, []);
-
-    // Derived Lists
-    const services = useMemo(() => {
-        const s = new Set<string>();
-        monitoringRows.forEach(r => s.add(r.service));
-        return Array.from(s).sort();
-    }, [monitoringRows]);
 
     const filteredRows = useMemo(() => {
         return monitoringRows.filter(r => 
@@ -146,23 +125,19 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
     const getMonthTotal = (row: MonitoringRow, monthKey: string, type: 'prev' | 'real') => {
         let sum = 0;
         const days = getMonthDays(monthKey);
-        days.forEach(d => {
-            sum += row.daily_data?.[d]?.[type] || 0;
-        });
+        days.forEach(d => sum += row.daily_data?.[d]?.[type] || 0);
         return sum;
     };
 
     const getGrandTotal = (row: MonitoringRow, type: 'prev' | 'real') => {
         let sum = 0;
-        Object.values(row.daily_data || {}).forEach(vals => {
-            sum += (vals as any)[type] || 0;
-        });
+        Object.values(row.daily_data || {}).forEach(vals => sum += (vals as any)[type] || 0);
         return sum;
     };
 
     const handleCellChange = (rowId: string, dateKey: string, type: 'prev' | 'real', value: string) => {
-        const text = value.replace(',', '.');
-        const num = parseFloat(text);
+        const val = value.replace(',', '.');
+        const num = parseFloat(val);
         setMonitoringRows(prev => prev.map(r => {
             if (r.id === rowId) {
                 const newData = { ...r.daily_data };
@@ -174,12 +149,18 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
         }));
     };
 
+    const toggleMonth = (m: string) => {
+        const n = new Set(expandedMonths);
+        if (n.has(m)) n.delete(m); else n.add(m);
+        setExpandedMonths(n);
+    };
+
     const handleSave = async () => {
         setIsSaving(true);
         try {
             await supabase.from('monitoring_rows').upsert(monitoringRows, { onConflict: 'id' });
             await supabase.from('monitoring_rows').upsert({ id: '_CONFIG_', daily_data: { status_date: statusDate } });
-            showToast("Mudanças salvas!", "success");
+            showToast("Alterações salvas!", "success");
             localStorage.setItem(STORAGE_KEY, JSON.stringify(monitoringRows));
         } catch (e) {
             showToast("Erro ao salvar.", "error");
@@ -188,13 +169,16 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
         }
     };
 
-    if (isLoadingData) {
-        return (
-            <div className="flex bg-[#060a12] h-screen items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-brand-accent"></div>
-            </div>
-        );
-    }
+    if (isLoadingData) return <div className="flex bg-[#060a12] h-screen items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-brand-accent"></div></div>;
+
+    const services = Array.from(new Set(monitoringRows.map(r => r.service))).sort();
+
+    // DEFINIÇÃO DE LARGURAS PARA STICKY
+    const W_OAE = 120;
+    const W_APOIO = 100;
+    const W_RESP = 140;
+    const W_INFO = 40;
+    const W_TOTAL = 60;
 
     return (
         <div className="flex h-screen bg-[#060a12] overflow-hidden text-gray-100">
@@ -206,92 +190,58 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                 <div className="flex-1 flex flex-col p-4 lg:p-6 overflow-hidden">
                     <header className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
-                            <h1 className="text-2xl font-black text-white uppercase tracking-tighter italic">Monitoramento e Controle</h1>
+                            <h1 className="text-2xl font-black text-white uppercase italic tracking-tighter">Monitoramento e Controle</h1>
                             <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[10px] text-brand-accent font-bold uppercase">Data de Status:</span>
-                                <input 
-                                    type="text" value={statusDate} onChange={(e) => setStatusDate(e.target.value)}
-                                    className="bg-brand-dark/50 border border-white/5 rounded px-2 py-0.5 text-xs font-bold text-white w-28 focus:border-brand-accent outline-none"
-                                />
+                                <span className="text-[10px] text-brand-accent font-bold uppercase">Status:</span>
+                                <input type="text" value={statusDate} onChange={(e) => setStatusDate(e.target.value)} className="bg-brand-dark/50 border border-white/5 rounded px-2 py-0.5 text-xs font-bold text-white w-28 outline-none" />
                             </div>
                         </div>
-
                         <div className="flex items-center gap-3">
                             <div className="relative">
                                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                                <input 
-                                    type="text" placeholder="Filtrar OAE..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="bg-brand-dark/40 border border-white/10 rounded-lg py-2 pl-9 pr-4 text-sm focus:border-brand-accent outline-none w-64"
-                                />
+                                <input type="text" placeholder="Filtrar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="bg-brand-dark/40 border border-white/10 rounded-lg py-2 pl-9 pr-4 text-sm w-64 outline-none" />
                             </div>
-                            <button onClick={onNavigateToMonitoringDashboard} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-xs uppercase">
-                                <LayoutDashboard size={14} /> Dashboard
-                            </button>
-                            <button onClick={handleSave} disabled={isSaving} className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs uppercase ${isSaving ? 'bg-gray-800' : 'bg-brand-accent hover:bg-brand-accent/90'}`}>
-                                {isSaving ? <div className="animate-spin h-3 w-3 border-2 border-white/30 border-t-white rounded-full" /> : <Save size={14} />}
-                                {isSaving ? 'Salvando...' : 'Salvar'}
-                            </button>
+                            <button onClick={onNavigateToMonitoringDashboard} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-xs uppercase"><LayoutDashboard size={14} /> Dashboard</button>
+                            <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 px-4 py-2 bg-brand-accent hover:bg-brand-accent/90 rounded-xl font-bold text-xs uppercase">{isSaving ? 'Salvando...' : 'Salvar'}</button>
                         </div>
                     </header>
 
                     <div className="flex overflow-x-auto gap-2 mb-4 scrollbar-hide">
                         {services.map(s => (
-                            <button
-                                key={s} onClick={() => setSelectedService(s)}
-                                className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${selectedService === s ? 'bg-brand-accent text-white shadow-lg shadow-brand-accent/20' : 'bg-brand-dark/40 text-gray-500 border border-white/5'}`}
-                            >
-                                {s}
-                            </button>
+                            <button key={s} onClick={() => setSelectedService(s)} className={`px-4 py-2 rounded-lg text-xs font-black uppercase ${selectedService === s ? 'bg-brand-accent text-white' : 'bg-brand-dark/40 text-gray-500 border border-white/5'}`}>{s}</button>
                         ))}
                     </div>
 
-                    <div className="flex-1 overflow-hidden bg-[#0a0f18] rounded-2xl border border-white/5 flex flex-col">
-                        <div className="overflow-auto custom-scrollbar flex-1 relative">
-                            <table className="w-full border-separate border-spacing-0 text-[10px]">
-                                <thead className="sticky top-0 z-40 bg-[#0a0f18]">
-                                    {/* Row 1: Months */}
-                                    <tr>
-                                        <th rowSpan={2} className="sticky left-0 z-50 bg-[#0a0f18] p-3 border-b border-r border-white/10 w-[120px] text-left text-white first:rounded-tl-2xl">OAE</th>
-                                        <th rowSpan={2} className="sticky left-[120px] z-50 bg-[#0a0f18] p-3 border-b border-r border-white/10 w-[80px] text-left">Apoio</th>
-                                        <th rowSpan={2} className="sticky left-[200px] z-50 bg-[#0a0f18] p-3 border-b border-r border-white/10 w-[100px] text-left">Resp.</th>
-                                        <th rowSpan={2} className="p-3 border-b border-r border-white/10 w-[40px] text-center">Info</th>
-                                        <th rowSpan={2} className="p-3 border-b border-r border-white/10 w-[60px] text-center bg-brand-accent/5 font-black text-brand-accent">TOTAL</th>
+                    <div className="flex-1 overflow-hidden bg-[#0a0f18] rounded-2xl border border-white/5 flex flex-col shadow-2xl relative">
+                        <div className="overflow-auto custom-scrollbar flex-1">
+                            <table className="w-full border-separate border-spacing-0 text-[10px] min-w-max">
+                                <thead className="sticky top-0 z-50">
+                                    <tr className="bg-[#0a0f18] text-gray-500 font-black uppercase border-b border-white/10">
+                                        <th style={{width: W_OAE, left: 0}} className="sticky z-50 bg-[#0a0f18] p-3 border-b border-r border-white/10 text-left" rowSpan={2}>OAE</th>
+                                        <th style={{width: W_APOIO, left: W_OAE}} className="sticky z-50 bg-[#0a0f18] p-3 border-b border-r border-white/10 text-left" rowSpan={2}>Apoio</th>
+                                        <th style={{width: W_RESP, left: W_OAE + W_APOIO}} className="sticky z-50 bg-[#0a0f18] p-3 border-b border-r border-white/10 text-left" rowSpan={2}>Responsável</th>
+                                        <th style={{width: W_INFO, left: W_OAE + W_APOIO + W_RESP}} className="sticky z-50 bg-[#0a0f18] p-3 border-b border-r border-white/10 text-center" rowSpan={2}>Info</th>
+                                        <th style={{width: W_TOTAL, left: W_OAE + W_APOIO + W_RESP + W_INFO}} className="sticky z-50 bg-[#0a0f18] p-3 border-b border-r border-white/10 text-center bg-brand-accent/5 text-brand-accent" rowSpan={2}>Total</th>
                                         
                                         {availableMonths.map(m => {
                                             const exp = expandedMonths.has(m);
-                                            const days = getMonthDays(m);
-                                            return (
-                                                <th 
-                                                    key={m} colSpan={exp ? days.length + 1 : 1}
-                                                    onClick={() => {
-                                                        const n = new Set(expandedMonths);
-                                                        if (n.has(m)) n.delete(m); else n.add(m);
-                                                        setExpandedMonths(n);
-                                                    }}
-                                                    className="p-2 border-b border-r border-white/10 text-center cursor-pointer hover:bg-white/5 transition-colors"
-                                                >
-                                                    <div className="flex items-center justify-center gap-1">
-                                                        {exp ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
-                                                        <span className="uppercase">{new Date(parseInt(m.split('-')[0]), parseInt(m.split('-')[1])-1).toLocaleString('pt-BR', {month: 'short', year: '2-digit'})}</span>
-                                                    </div>
-                                                </th>
-                                            );
+                                            const colSpan = exp ? getMonthDays(m).length + 1 : 1;
+                                            return <th key={m} colSpan={colSpan} onClick={() => toggleMonth(m)} className="p-2 border-b border-r border-white/10 text-center cursor-pointer hover:bg-white/5 border-t border-t-white/5">
+                                                <div className="flex items-center justify-center gap-1 uppercase">
+                                                    {exp ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+                                                    {new Date(parseInt(m.split('-')[0]), parseInt(m.split('-')[1])-1).toLocaleString('pt-BR', {month: 'short', year: '2-digit'})}
+                                                </div>
+                                            </th>;
                                         })}
                                     </tr>
-                                    {/* Row 2: Sub-headers */}
-                                    <tr className="bg-black/20">
+                                    <tr className="bg-[#0a0f18] text-[8px] text-gray-600">
                                         {availableMonths.map(m => {
                                             const exp = expandedMonths.has(m);
-                                            if (!exp) return <th key={`sub-${m}`} className="p-1 border-b border-r border-white/5 text-[8px] text-center text-gray-600">RESUMO</th>;
-                                            const days = getMonthDays(m);
-                                            return (
-                                                <React.Fragment key={`sub-exp-${m}`}>
-                                                    <th className="p-1 border-b border-r border-white/5 text-[9px] text-center bg-brand-accent/10 text-brand-accent">SUM</th>
-                                                    {days.map(d => (
-                                                        <th key={d} className="p-1 border-b border-r border-white/5 text-[8px] text-center font-medium w-[28px]">{d.split('-')[2]}</th>
-                                                    ))}
-                                                </React.Fragment>
-                                            );
+                                            if (!exp) return <th key={`sub-${m}`} className="p-1 border-b border-r border-white/10 text-center">RESUMO</th>;
+                                            return <React.Fragment key={`sub-exp-${m}`}>
+                                                <th className="p-1 border-b border-r border-cyan-500/30 text-center bg-cyan-900/20 text-cyan-400">SUM</th>
+                                                {getMonthDays(m).map(d => <th key={d} className="p-1 border-b border-r border-white/5 text-center font-medium w-[28px]">{d.split('-')[2]}</th>)}
+                                            </React.Fragment>;
                                         })}
                                     </tr>
                                 </thead>
@@ -300,60 +250,49 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                     {filteredRows.map(row => (
                                         <React.Fragment key={row.id}>
                                             {/* PREV ROW */}
-                                            <tr className="bg-[#0c121d] hover:bg-white/5 group transition-colors">
-                                                <td rowSpan={2} className="sticky left-0 z-30 bg-[#0c121d] group-hover:bg-[#141b26] p-2 border-r border-white/5 text-white font-bold truncate">{row.oae}</td>
-                                                <td rowSpan={2} className="sticky left-[120px] z-30 bg-[#0c121d] group-hover:bg-[#141b26] p-2 border-r border-white/5 text-gray-400 truncate">{row.apoio}</td>
-                                                <td rowSpan={2} className="sticky left-[200px] z-30 bg-[#0c121d] group-hover:bg-[#141b26] p-2 border-r border-white/5 text-[9px] text-gray-500 truncate">{row.responsible}</td>
-                                                <td className="p-1 border-r border-white/5 text-center text-[8px] font-black text-gray-600 bg-black/20">PREV</td>
-                                                <td className="p-1 border-r border-white/5 text-center font-bold text-gray-500 bg-brand-dark/20">{getGrandTotal(row, 'prev')}</td>
+                                            <tr className="bg-[#0c121d] hover:bg-[#141b26] group transition-colors">
+                                                <td style={{left: 0}} rowSpan={2} className="sticky z-30 bg-[#0c121d] group-hover:bg-[#141b26] p-2 border-r border-white/5 text-white font-bold truncate">{row.oae}</td>
+                                                <td style={{left: W_OAE}} rowSpan={2} className="sticky z-30 bg-[#0c121d] group-hover:bg-[#141b26] p-2 border-r border-white/5 text-gray-400 truncate">{row.apoio}</td>
+                                                <td style={{left: W_OAE + W_APOIO}} rowSpan={2} className="sticky z-30 bg-[#0c121d] group-hover:bg-[#141b26] p-2 border-r border-white/5 text-[9px] text-gray-300 truncate font-semibold">{row.responsible}</td>
+                                                
+                                                <td style={{left: W_OAE + W_APOIO + W_RESP}} className="sticky z-30 bg-[#0c121d] group-hover:bg-[#141b26] p-1 border-r border-white/5 text-center text-[8px] font-black text-gray-500 uppercase">Prev</td>
+                                                <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO}} className="sticky z-30 bg-brand-dark/40 p-1 border-r border-white/10 text-center font-bold text-gray-400">{getGrandTotal(row, 'prev')}</td>
                                                 
                                                 {availableMonths.map(m => {
                                                     const exp = expandedMonths.has(m);
                                                     const total = getMonthTotal(row, m, 'prev');
-                                                    if (!exp) return <td key={`p-${m}`} className="p-1 border-r border-white/5 text-center text-gray-600 bg-[#0a0f18]">{total}</td>;
-                                                    
-                                                    const days = getMonthDays(m);
-                                                    return (
-                                                        <React.Fragment key={`p-exp-${m}`}>
-                                                            <td className="p-1 border-r border-white/5 text-center bg-brand-accent/5 text-brand-accent/40 font-black">{total}</td>
-                                                            {days.map(d => (
-                                                                <td key={d} className="p-0 border-r border-white/5 w-[28px] bg-black/5">
-                                                                    <input 
-                                                                        type="text" value={row.daily_data?.[d]?.prev || ''} 
-                                                                        onChange={(e) => handleCellChange(row.id, d, 'prev', e.target.value)}
-                                                                        className="w-full h-8 text-center bg-transparent border-none outline-none text-gray-500 focus:bg-white/5 focus:text-white"
-                                                                    />
-                                                                </td>
-                                                            ))}
-                                                        </React.Fragment>
-                                                    );
+                                                    if (!exp) return <td key={`p-${m}`} className="p-1 border-r border-white/5 text-center text-gray-600 bg-black/5">{total}</td>;
+                                                    return <React.Fragment key={`p-exp-${m}`}>
+                                                        <td className="p-1 border-r border-white/5 text-center bg-brand-accent/5 text-brand-accent/40 font-black">{total}</td>
+                                                        {getMonthDays(m).map(d => (
+                                                            <td key={d} className="p-0 border-r border-white/5 w-[28px] bg-black/5">
+                                                                <input type="text" value={row.daily_data?.[d]?.prev || ''} onChange={(e) => handleCellChange(row.id, d, 'prev', e.target.value)}
+                                                                    className="w-full h-8 text-center bg-transparent border-none outline-none text-gray-500 text-[10px] focus:bg-white/5 focus:text-white" />
+                                                            </td>
+                                                        ))}
+                                                    </React.Fragment>;
                                                 })}
                                             </tr>
                                             {/* REAL ROW */}
-                                            <tr className="bg-[#111827] hover:bg-white/5 group transition-colors">
-                                                <td className="p-1 border-r border-white/5 text-center text-[8px] font-black text-brand-accent bg-black/20">REAL</td>
-                                                <td className="p-1 border-r border-white/5 text-center font-black text-brand-accent bg-brand-accent/5">{getGrandTotal(row, 'real')}</td>
+                                            <tr className="bg-[#111827] hover:bg-[#182133] group transition-colors">
+                                                {/* Sticky fixed are rowspanned, no cells here */}
+                                                
+                                                <td style={{left: W_OAE + W_APOIO + W_RESP}} className="sticky z-30 bg-[#111827] group-hover:bg-[#182133] p-1 border-r border-white/5 text-center text-[8px] font-black text-brand-accent uppercase">Real</td>
+                                                <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO}} className="sticky z-30 bg-brand-accent/5 p-1 border-r border-white/10 text-center font-black text-brand-accent">{getGrandTotal(row, 'real')}</td>
                                                 
                                                 {availableMonths.map(m => {
                                                     const exp = expandedMonths.has(m);
                                                     const total = getMonthTotal(row, m, 'real');
-                                                    if (!exp) return <td key={`r-${m}`} className="p-1 border-r border-white/5 text-center text-brand-accent/60 bg-[#121c2e] font-bold">{total}</td>;
-                                                    
-                                                    const days = getMonthDays(m);
-                                                    return (
-                                                        <React.Fragment key={`r-exp-${m}`}>
-                                                            <td className="p-1 border-r border-white/5 text-center bg-brand-accent/10 text-brand-accent font-black">{total}</td>
-                                                            {days.map(d => (
-                                                                <td key={d} className="p-0 border-r border-white/5 w-[28px] bg-[#121a28]">
-                                                                    <input 
-                                                                        type="text" value={row.daily_data?.[d]?.real || ''} 
-                                                                        onChange={(e) => handleCellChange(row.id, d, 'real', e.target.value)}
-                                                                        className="w-full h-8 text-center bg-transparent border-none outline-none text-white font-bold focus:bg-brand-accent/20 focus:text-brand-accent"
-                                                                    />
-                                                                </td>
-                                                            ))}
-                                                        </React.Fragment>
-                                                    );
+                                                    if (!exp) return <td key={`r-${m}`} className="p-1 border-r border-white/5 text-center text-brand-accent/60 bg-brand-accent/5 font-bold">{total}</td>;
+                                                    return <React.Fragment key={`r-exp-${m}`}>
+                                                        <td className="p-1 border-r border-white/5 text-center bg-brand-accent/10 text-brand-accent font-black">{total}</td>
+                                                        {getMonthDays(m).map(d => (
+                                                            <td key={d} className="p-0 border-r border-white/5 w-[28px] bg-brand-accent/5">
+                                                                <input type="text" value={row.daily_data?.[d]?.real || ''} onChange={(e) => handleCellChange(row.id, d, 'real', e.target.value)}
+                                                                    className="w-full h-8 text-center bg-transparent border-none outline-none text-white font-bold text-[10px] focus:bg-brand-accent/20" />
+                                                            </td>
+                                                        ))}
+                                                    </React.Fragment>;
                                                 })}
                                             </tr>
                                         </React.Fragment>
