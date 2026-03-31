@@ -82,15 +82,44 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
     // Suporte para "linhas manuais" (mocked tasks) se a pessoa quiser adicionar livremente sem criar task real
     const [customRows, setCustomRows] = useState<Task[]>([]);
 
+    const [isLoadingData, setIsLoadingData] = useState(true);
+
     useEffect(() => {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            try { setDailyData(JSON.parse(stored)); } catch { }
-        }
-        const storedCustom = localStorage.getItem(CUSTOM_ROWS_KEY);
-        if (storedCustom) {
-            try { setCustomRows(JSON.parse(storedCustom)); } catch { }
-        }
+        const loadInitialData = async () => {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            let hasLoaded = false;
+            if (stored) {
+                try { 
+                    setDailyData(JSON.parse(stored)); 
+                    hasLoaded = true;
+                } catch { }
+            }
+            const storedCustom = localStorage.getItem(CUSTOM_ROWS_KEY);
+            if (storedCustom) {
+                try { 
+                    setCustomRows(JSON.parse(storedCustom)); 
+                    hasLoaded = true;
+                } catch { }
+            }
+
+            // Se não tiver localmente, puxa da seed convertida do Excel original
+            if (!hasLoaded) {
+                try {
+                    const res = await fetch('/monitoring_seed.json');
+                    if (res.ok) {
+                        const seedData = await res.json();
+                        setDailyData(seedData.dailyData || {});
+                        setCustomRows(seedData.customRows || []);
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(seedData.dailyData || {}));
+                        localStorage.setItem(CUSTOM_ROWS_KEY, JSON.stringify(seedData.customRows || []));
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch monitoring seed data", e);
+                }
+            }
+            setIsLoadingData(false);
+        };
+        loadInitialData();
     }, []);
 
     if (!user) return null;
@@ -306,7 +335,12 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                         </div>
                     </div>
 
-                    {/* SPREADSHEET TABLE */}
+                    {isLoadingData ? (
+                        <div className="flex justify-center items-center h-64 flex-col text-brand-med-gray">
+                            <div className="w-10 h-10 border-4 border-brand-accent/20 border-t-brand-accent rounded-full animate-spin mb-4"></div>
+                            Importando base histórica de ~4 anos ({allRelevantTasks.length} Registros)...
+                        </div>
+                    ) : (
                     <div className="bg-[#0a0f18] border border-white/5 rounded-xl shadow-2xl relative overflow-x-auto max-h-[60vh] custom-scrollbar">
                         <table className="w-full text-left border-collapse min-w-max text-[11px] font-medium">
                             <thead className="sticky top-0 z-10 bg-[#121824] shadow-md">
@@ -433,6 +467,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                             </tbody>
                         </table>
                     </div>
+                )}
                 </div>
             </main>
         </div>
