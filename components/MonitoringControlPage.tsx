@@ -116,17 +116,41 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                     }
                 }
 
-                // 2. Load Rows from DB (Priority)
-                const { data: dbData, error: dbErr } = await supabase
-                    .from('monitoring_rows')
-                    .select('*')
-                    .neq('id', '_CONFIG_')
-                    .range(0, 4999)
-                    .order('oae', { ascending: true });
+                // 2. Load Rows from DB (Handling potential 1000-row limit)
+                let allRows: any[] = [];
+                let from = 0;
+                let to = 999;
+                let hasMore = true;
 
-                if (dbData && dbData.length > 0) {
-                    setMonitoringRows(dbData);
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(dbData));
+                while (hasMore) {
+                    const { data: dbData, error: dbErr } = await supabase
+                        .from('monitoring_rows')
+                        .select('*')
+                        .neq('id', '_CONFIG_')
+                        .range(from, to)
+                        .order('oae', { ascending: true });
+
+                    if (dbData && dbData.length > 0) {
+                        allRows = [...allRows, ...dbData];
+                        if (dbData.length < 1000) {
+                            hasMore = false;
+                        } else {
+                            from += 1000;
+                            to += 1000;
+                        }
+                    } else {
+                        hasMore = false;
+                    }
+
+                    if (dbErr) {
+                        console.error("Fetch range error:", dbErr);
+                        hasMore = false;
+                    }
+                }
+
+                if (allRows.length > 0) {
+                    setMonitoringRows(allRows);
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(allRows));
                 } else {
                     // Try Local Cache
                     const storedRows = localStorage.getItem(STORAGE_KEY);

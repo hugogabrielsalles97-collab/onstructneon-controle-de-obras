@@ -14,7 +14,6 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 async function sbFetch(subpath, options = {}) {
-    // subpath: e.g. /rest/v1/monitoring_rows
     const res = await fetch(`${SUPABASE_URL}${subpath}`, {
         ...options,
         headers: {
@@ -28,7 +27,6 @@ async function sbFetch(subpath, options = {}) {
         const text = await res.text();
         throw new Error(`Fetch [${options.method || 'GET'} ${subpath}] Error: ${res.status} ${res.statusText} - ${text}`);
     }
-    // Minimal or No Content responses
     if (res.status === 204 || res.status === 201) return null;
     try {
         return await res.json();
@@ -49,21 +47,30 @@ async function fullSync() {
   try {
     console.log("Reading Excel...");
     const workbook = XLSX.readFile(filePath);
-    const relevantSheets = [
-      "ESTACAS", "BLOCOS", "PILARES", "TRAVESSAS", "PILAR PROVISORIO",
-      "FABRICAÇÃO VIGAS", "LANÇAMENTO VIGAS", "FABRICAÇÃO PRELAJE",
-      "MONTAGEM PRELAJE", "TRANSVERSINAS", " LAJE", "LAJE ELÁSTICA",
-      "LAJE DE APROXIMAÇÃO "
-    ];
+    const availableSheetNames = workbook.SheetNames;
+    
+    // Target keywords without accents for easier matching
+    const targets = ["ESTACA", "BLOCO", "PILAR", "TRAVESSA", "VIGAS", "PRELAJE", "TRANSVERSINA", "LAJE"];
 
     const dailyDataByRow = {};
 
-    relevantSheets.forEach(sheetName => {
-      const sheet = workbook.Sheets[sheetName];
-      if (!sheet) return;
+    availableSheetNames.forEach(sheetName => {
+      // Clean sheet name for matching
+      const cleanSn = sheetName.trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      
+      const isRelevant = targets.some(t => cleanSn.includes(t)) && !cleanSn.includes('DATA') && !cleanSn.includes('PIVOT');
+      
+      if (!isRelevant) return;
 
+      const sheet = workbook.Sheets[sheetName];
+      // Start from range 4 (index 4)
       const data = XLSX.utils.sheet_to_json(sheet, { header: 1, range: 4, defval: null });
-      if (data.length < 2) return;
+      if (data.length < 2) {
+          console.log(`Sheet "${sheetName}" seems empty or has no data rows.`);
+          return;
+      }
+
+      console.log(`Processing sheet: "${sheetName}" with ${data.length} rows...`);
 
       const header = data[0];
       const dateColumns = [];
@@ -93,18 +100,20 @@ async function fullSync() {
         if (!lastOAE && !lastApoio) continue;
         if (statusVal === 'TOTAL' || statusVal === 'SOMATÓRIO') continue;
 
-        const cleanService = sheetName.trim().replace(/\s+/g, '_');
-        const cleanOAE = String(lastOAE).replace(/\s+/g, '_');
-        const cleanApoio = String(lastApoio).replace(/\s+/g, '_');
+        const cleanService = sheetName.trim().replace(/\s+/g, '_').toUpperCase();
+        const cleanOAE = String(lastOAE).trim().replace(/\s+/g, '_').toUpperCase();
+        const cleanApoio = String(lastApoio).trim().replace(/\s+/g, '_').toUpperCase();
+        
+        // RowKey per Service, OAE, Apoio
         const rowKey = `${cleanService}_${cleanOAE}_${cleanApoio}`;
 
         if (!dailyDataByRow[rowKey]) {
           dailyDataByRow[rowKey] = {
              id: rowKey,
-             service: sheetName.trim(),
-             oae: String(lastOAE),
-             apoio: String(lastApoio),
-             responsible: String(lastResp),
+             service: sheetName.trim().toUpperCase(),
+             oae: String(lastOAE).trim().toUpperCase(),
+             apoio: String(lastApoio).trim().toUpperCase(),
+             responsible: String(lastResp).trim(),
              daily_data: {}
           };
         }
@@ -117,7 +126,7 @@ async function fullSync() {
               const val = row[dc.index];
               if (val !== null && val !== undefined && val !== '-' && val !== '') {
                  const numVal = Number(String(val).replace(',', '.'));
-                 if (!isNaN(numVal) && numVal !== 0) {
+                 if (!isNaN(numVal)) {
                      if (!dailyDataByRow[rowKey].daily_data[dc.dateKey]) {
                        dailyDataByRow[rowKey].daily_data[dc.dateKey] = { prev: 0, real: 0 };
                      }
@@ -131,7 +140,7 @@ async function fullSync() {
     });
 
     const finalRows = Object.values(dailyDataByRow);
-    console.log(`Parsed ${finalRows.length} rows.`);
+    console.log(`Total prepared rows: ${finalRows.length}`);
 
     // 1. DELETE
     console.log("Clearing DB...");
@@ -143,20 +152,14 @@ async function fullSync() {
 
     // 2. INSERT
     const chunkSize = 50;
-    console.log(`Starting upload of ${finalRows.length} rows...`);
     for (let i = 0; i < finalRows.length; i += chunkSize) {
       const chunk = finalRows.slice(i, i + chunkSize);
-      try {
-          await sbFetch('/rest/v1/monitoring_rows', {
-            method: 'POST',
-            headers: { 'Prefer': 'return=minimal' },
-            body: JSON.stringify(chunk)
-          });
-          process.stdout.write(`(${i + chunk.length})`);
-      } catch (err) {
-          console.error(`\nBATCH ERROR AT INDEX ${i}:`, err.message);
-          throw err;
-      }
+      await sbFetch('/rest/v1/monitoring_rows', {
+        method: 'POST',
+        headers: { 'Prefer': 'return=minimal' },
+        body: JSON.stringify(chunk)
+      });
+      process.stdout.write(`(${i + chunk.length})`);
     }
     console.log("\nUpload Done.");
 
