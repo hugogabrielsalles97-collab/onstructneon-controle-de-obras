@@ -40,6 +40,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [monitoringRows, setMonitoringRows] = useState<MonitoringRow[]>([]);
     
+    // UI States
     const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
     const [selectedService, setSelectedService] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
@@ -66,7 +67,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                         if (data.length < 1000) hasMore = false;
                         else from += 1000;
                     } else hasMore = false;
-                    if (error) { hasMore = false; }
+                    if (error) hasMore = false;
                 }
 
                 if (allRows.length > 0) {
@@ -173,12 +174,12 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
 
     const services = Array.from(new Set(monitoringRows.map(r => r.service))).sort();
 
-    // DEFINIÇÃO DE LARGURAS PARA STICKY
-    const W_OAE = 120;
+    // DEFINIÇÃO DE LARGURAS PARA STICKY (OAE, APOIO, RESP, TOTAL, INFO)
+    const W_OAE = 100;
     const W_APOIO = 100;
-    const W_RESP = 140;
-    const W_INFO = 40;
-    const W_TOTAL = 60;
+    const W_RESP = 120;
+    const W_TOTAL = 70;
+    const W_INFO = 45;
 
     return (
         <div className="flex h-screen bg-[#060a12] overflow-hidden text-gray-100">
@@ -192,23 +193,23 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                         <div>
                             <h1 className="text-2xl font-black text-white uppercase italic tracking-tighter">Monitoramento e Controle</h1>
                             <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[10px] text-brand-accent font-bold uppercase">Status:</span>
-                                <input type="text" value={statusDate} onChange={(e) => setStatusDate(e.target.value)} className="bg-brand-dark/50 border border-white/5 rounded px-2 py-0.5 text-xs font-bold text-white w-28 outline-none" />
+                                <span className="text-[10px] text-brand-accent font-bold uppercase transition-all">Status:</span>
+                                <input type="text" value={statusDate} onChange={(e) => setStatusDate(e.target.value)} className="bg-brand-dark/50 border border-white/5 rounded px-2 py-0.5 text-xs font-bold text-white w-28 outline-none focus:border-brand-accent/50" />
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="relative">
                                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                                <input type="text" placeholder="Filtrar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="bg-brand-dark/40 border border-white/10 rounded-lg py-2 pl-9 pr-4 text-sm w-64 outline-none" />
+                                <input type="text" placeholder="Filtrar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="bg-brand-dark/40 border border-white/10 rounded-lg py-2 pl-9 pr-4 text-sm w-64 outline-none focus:border-brand-accent" />
                             </div>
-                            <button onClick={onNavigateToMonitoringDashboard} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-xs uppercase"><LayoutDashboard size={14} /> Dashboard</button>
-                            <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 px-4 py-2 bg-brand-accent hover:bg-brand-accent/90 rounded-xl font-bold text-xs uppercase">{isSaving ? 'Salvando...' : 'Salvar'}</button>
+                            <button onClick={onNavigateToMonitoringDashboard} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-xs uppercase shadow-xl transition-all"><LayoutDashboard size={14} /> Dashboard</button>
+                            <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 px-4 py-2 bg-brand-accent hover:bg-brand-accent/90 rounded-xl font-bold text-xs uppercase shadow-xl transition-all">{isSaving ? '...' : <Save size={14} />}{isSaving ? 'Salvando' : 'Salvar'}</button>
                         </div>
                     </header>
 
                     <div className="flex overflow-x-auto gap-2 mb-4 scrollbar-hide">
                         {services.map(s => (
-                            <button key={s} onClick={() => setSelectedService(s)} className={`px-4 py-2 rounded-lg text-xs font-black uppercase ${selectedService === s ? 'bg-brand-accent text-white' : 'bg-brand-dark/40 text-gray-500 border border-white/5'}`}>{s}</button>
+                            <button key={s} onClick={() => setSelectedService(s)} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${selectedService === s ? 'bg-brand-accent text-white shadow-lg shadow-brand-accent/20' : 'bg-brand-dark/40 text-gray-500 border border-white/5 hover:border-white/20'}`}>{s}</button>
                         ))}
                     </div>
 
@@ -216,18 +217,18 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                         <div className="overflow-auto custom-scrollbar flex-1">
                             <table className="w-full border-separate border-spacing-0 text-[10px] min-w-max">
                                 <thead className="sticky top-0 z-50">
-                                    <tr className="bg-[#0a0f18] text-gray-500 font-black uppercase border-b border-white/10">
+                                    <tr className="bg-[#0a0f18] text-gray-500 font-bold uppercase">
                                         <th style={{width: W_OAE, left: 0}} className="sticky z-50 bg-[#0a0f18] p-3 border-b border-r border-white/10 text-left" rowSpan={2}>OAE</th>
                                         <th style={{width: W_APOIO, left: W_OAE}} className="sticky z-50 bg-[#0a0f18] p-3 border-b border-r border-white/10 text-left" rowSpan={2}>Apoio</th>
-                                        <th style={{width: W_RESP, left: W_OAE + W_APOIO}} className="sticky z-50 bg-[#0a0f18] p-3 border-b border-r border-white/10 text-left" rowSpan={2}>Responsável</th>
-                                        <th style={{width: W_INFO, left: W_OAE + W_APOIO + W_RESP}} className="sticky z-50 bg-[#0a0f18] p-3 border-b border-r border-white/10 text-center" rowSpan={2}>Info</th>
-                                        <th style={{width: W_TOTAL, left: W_OAE + W_APOIO + W_RESP + W_INFO}} className="sticky z-50 bg-[#0a0f18] p-3 border-b border-r border-white/10 text-center bg-brand-accent/5 text-brand-accent" rowSpan={2}>Total</th>
+                                        <th style={{width: W_RESP, left: W_OAE + W_APOIO}} className="sticky z-50 bg-[#0a0f18] p-3 border-b border-r border-white/10 text-left" rowSpan={2}>Resp.</th>
+                                        <th style={{width: W_TOTAL, left: W_OAE + W_APOIO + W_RESP}} className="sticky z-50 bg-[#0a0f18] p-3 border-b border-r border-white/10 text-center font-black text-brand-accent bg-[#0d1421]" rowSpan={2}>TOTAL</th>
+                                        <th style={{width: W_INFO, left: W_OAE + W_APOIO + W_RESP + W_TOTAL}} className="sticky z-50 bg-[#0a0f18] p-3 border-b border-r border-white/10 text-center" rowSpan={2}>Info</th>
                                         
                                         {availableMonths.map(m => {
                                             const exp = expandedMonths.has(m);
                                             const colSpan = exp ? getMonthDays(m).length + 1 : 1;
-                                            return <th key={m} colSpan={colSpan} onClick={() => toggleMonth(m)} className="p-2 border-b border-r border-white/10 text-center cursor-pointer hover:bg-white/5 border-t border-t-white/5">
-                                                <div className="flex items-center justify-center gap-1 uppercase">
+                                            return <th key={m} colSpan={colSpan} onClick={() => toggleMonth(m)} className="p-2 border-b border-r border-white/10 text-center cursor-pointer hover:bg-white/5 transition-all">
+                                                <div className="flex items-center justify-center gap-1 uppercase select-none">
                                                     {exp ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
                                                     {new Date(parseInt(m.split('-')[0]), parseInt(m.split('-')[1])-1).toLocaleString('pt-BR', {month: 'short', year: '2-digit'})}
                                                 </div>
@@ -237,9 +238,9 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                     <tr className="bg-[#0a0f18] text-[8px] text-gray-600">
                                         {availableMonths.map(m => {
                                             const exp = expandedMonths.has(m);
-                                            if (!exp) return <th key={`sub-${m}`} className="p-1 border-b border-r border-white/10 text-center">RESUMO</th>;
+                                            if (!exp) return <th key={`sub-${m}`} className="p-1 border-b border-r border-white/10 text-center bg-black/10">RESUMO</th>;
                                             return <React.Fragment key={`sub-exp-${m}`}>
-                                                <th className="p-1 border-b border-r border-cyan-500/30 text-center bg-cyan-900/20 text-cyan-400">SUM</th>
+                                                <th className="p-1 border-b border-r border-cyan-500/30 text-center bg-cyan-900/20 text-cyan-400">RESUMO</th>
                                                 {getMonthDays(m).map(d => <th key={d} className="p-1 border-b border-r border-white/5 text-center font-medium w-[28px]">{d.split('-')[2]}</th>)}
                                             </React.Fragment>;
                                         })}
@@ -253,10 +254,10 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                             <tr className="bg-[#0c121d] hover:bg-[#141b26] group transition-colors">
                                                 <td style={{left: 0}} rowSpan={2} className="sticky z-30 bg-[#0c121d] group-hover:bg-[#141b26] p-2 border-r border-white/5 text-white font-bold truncate">{row.oae}</td>
                                                 <td style={{left: W_OAE}} rowSpan={2} className="sticky z-30 bg-[#0c121d] group-hover:bg-[#141b26] p-2 border-r border-white/5 text-gray-400 truncate">{row.apoio}</td>
-                                                <td style={{left: W_OAE + W_APOIO}} rowSpan={2} className="sticky z-30 bg-[#0c121d] group-hover:bg-[#141b26] p-2 border-r border-white/5 text-[9px] text-gray-300 truncate font-semibold">{row.responsible}</td>
+                                                <td style={{left: W_OAE + W_APOIO}} rowSpan={2} className="sticky z-30 bg-[#0c121d] group-hover:bg-[#141b26] p-2 border-r border-white/5 text-[9px] text-gray-300 font-semibold truncate transition-all">{row.responsible}</td>
                                                 
-                                                <td style={{left: W_OAE + W_APOIO + W_RESP}} className="sticky z-30 bg-[#0c121d] group-hover:bg-[#141b26] p-1 border-r border-white/5 text-center text-[8px] font-black text-gray-500 uppercase">Prev</td>
-                                                <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO}} className="sticky z-30 bg-brand-dark/40 p-1 border-r border-white/10 text-center font-bold text-gray-400">{getGrandTotal(row, 'prev')}</td>
+                                                <td style={{left: W_OAE + W_APOIO + W_RESP}} className="sticky z-30 bg-[#0d1421] group-hover:bg-[#141b26] p-1 border-r border-white/5 text-center font-bold text-gray-500">{getGrandTotal(row, 'prev')}</td>
+                                                <td style={{left: W_OAE + W_APOIO + W_RESP + W_TOTAL}} className="sticky z-30 bg-[#0a0f18] group-hover:bg-[#141b26] p-1 border-r border-white/5 text-center text-[8px] font-black text-gray-600 uppercase">Prev</td>
                                                 
                                                 {availableMonths.map(m => {
                                                     const exp = expandedMonths.has(m);
@@ -275,10 +276,8 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                             </tr>
                                             {/* REAL ROW */}
                                             <tr className="bg-[#111827] hover:bg-[#182133] group transition-colors">
-                                                {/* Sticky fixed are rowspanned, no cells here */}
-                                                
-                                                <td style={{left: W_OAE + W_APOIO + W_RESP}} className="sticky z-30 bg-[#111827] group-hover:bg-[#182133] p-1 border-r border-white/5 text-center text-[8px] font-black text-brand-accent uppercase">Real</td>
-                                                <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO}} className="sticky z-30 bg-brand-accent/5 p-1 border-r border-white/10 text-center font-black text-brand-accent">{getGrandTotal(row, 'real')}</td>
+                                                <td style={{left: W_OAE + W_APOIO + W_RESP}} className="sticky z-30 bg-brand-accent/5 group-hover:bg-[#182133] p-1 border-r border-white/10 text-center font-black text-brand-accent">{getGrandTotal(row, 'real')}</td>
+                                                <td style={{left: W_OAE + W_APOIO + W_RESP + W_TOTAL}} className="sticky z-30 bg-[#0c121d] group-hover:bg-[#182133] p-1 border-r border-white/5 text-center text-[8px] font-black text-brand-accent uppercase">Real</td>
                                                 
                                                 {availableMonths.map(m => {
                                                     const exp = expandedMonths.has(m);
