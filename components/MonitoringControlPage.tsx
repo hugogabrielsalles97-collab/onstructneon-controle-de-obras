@@ -228,7 +228,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                         <div className="overflow-auto custom-scrollbar flex-1 relative">
                             <table className="w-full border-separate border-spacing-0 text-[10px] min-w-max">
                                 <thead className="sticky top-0 z-[100] bg-[#0a0f18]">
-                                    <tr className="text-gray-500 font-extrabold uppercase tracking-widest text-[9px]">
+                                    <tr className="text-gray-500 font-extrabold uppercase tracking-widest text-[9px] h-8 bg-[#0a0f18] sticky top-0 z-[150]">
                                         <th style={{width: W_OAE, left: 0}} className="sticky z-50 p-3 border-b border-r border-white/20 text-left bg-[#0a0f18]" rowSpan={2}>OAE</th>
                                         <th style={{width: W_APOIO, left: W_OAE}} className="sticky z-50 p-3 border-b border-r border-white/20 text-left bg-[#0a0f18]" rowSpan={2}>Apoio</th>
                                         <th style={{width: W_RESP, left: W_OAE + W_APOIO}} className="sticky z-50 p-3 border-b border-r border-white/20 text-left bg-[#0a0f18]" rowSpan={2}>Engenheiro</th>
@@ -245,7 +245,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                             </th>;
                                         })}
                                     </tr>
-                                    <tr className="text-[8px] text-gray-600 bg-[#0a0f18]">
+                                    <tr className="text-[8px] text-gray-600 h-7 bg-[#0a0f18] sticky top-8 z-[150]">
                                         {availableMonths.map(m => {
                                             const exp = expandedMonths.has(m);
                                             if (!exp) return <th key={`sub-${m}`} className="p-1 border-b border-r border-white/10 text-center bg-[#0a0f18]">RESUMO</th>;
@@ -259,7 +259,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
 
                                 <tbody className="divide-y divide-white/5">
                                     {/* TOTAL GERAL ROWS (SOLID OPACITY AND HIGH Z-INDEX) */}
-                                    <tr className="sticky top-[64px] z-[110] bg-[#1a1f2c]">
+                                    <tr className="sticky top-[60px] z-[110] bg-[#1a1f2c] h-8">
                                         <td style={{left: 0}} className="sticky z-[120] p-2 border-r border-b border-brand-accent/30 text-brand-accent text-center font-black uppercase text-[11px] bg-[#1a1f2c]">TOTAL GERAL</td>
                                         <td style={{left: W_OAE}} className="sticky z-[120] border-r border-b border-brand-accent/30 bg-[#1a1f2c]"></td>
                                         <td style={{left: W_OAE + W_APOIO}} className="sticky z-[120] border-r border-b border-brand-accent/30 bg-[#1a1f2c]"></td>
@@ -278,7 +278,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                             </React.Fragment>;
                                         })}
                                     </tr>
-                                    <tr className="sticky top-[92px] z-[110] bg-[#1a1f2c]">
+                                    <tr className="sticky top-[92px] z-[110] bg-[#1a1f2c] h-8">
                                         <td style={{left: 0}} className="sticky z-[120] p-2 border-r border-b-2 border-brand-accent/30 bg-[#1a1f2c]"></td>
                                         <td style={{left: W_OAE}} className="sticky z-[120] border-r border-b-2 border-brand-accent/30 bg-[#1a1f2c]"></td>
                                         <td style={{left: W_OAE + W_APOIO}} className="sticky z-[120] border-r border-b-2 border-brand-accent/30 bg-[#1a1f2c]"></td>
@@ -297,6 +297,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                             </React.Fragment>;
                                         })}
                                     </tr>
+
 
 
                                     {/* DATA ROWS WITH ZEBRA STRIPING */}
