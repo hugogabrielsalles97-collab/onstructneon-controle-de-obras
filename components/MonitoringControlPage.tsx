@@ -28,16 +28,11 @@ interface MonitoringControlPageProps {
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
-const TABS = [
-    "Estacas", "Blocos", "Pilares", "Travessas", "Pilar Provisório",
-    "Fabricação Vigas", "Lançamento Vigas", "Fabricação Pré-Laje", "Montagem Pré-Laje",
-    "Transversinas", "Laje", "Laje Elástica", "Laje de Aproximação"
-];
-
+// TABS will be derived dynamically from data
 interface DailyDataMap {
     [taskId: string]: {
         type?: string;
-        [dateKey: string]: any; // either prev/real or type
+        [dateKey: string]: any; 
     }
 }
 
@@ -71,18 +66,31 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
 }) => {
     const { currentUser: user, tasks, signOut } = useData();
 
-    const [selectedTab, setSelectedTab] = useState(TABS[0]);
-    
+    const [isLoadingData, setIsLoadingData] = useState(true);
+
     const today = new Date();
     const [currentMonth, setCurrentMonth] = useState(today.getMonth());
     const [currentYear, setCurrentYear] = useState(today.getFullYear());
 
     const [dailyData, setDailyData] = useState<DailyDataMap>({});
-    
-    // Suporte para "linhas manuais" (mocked tasks) se a pessoa quiser adicionar livremente sem criar task real
     const [customRows, setCustomRows] = useState<Task[]>([]);
 
-    const [isLoadingData, setIsLoadingData] = useState(true);
+    const dynamicTabs = useMemo(() => {
+        const tabsSet = new Set<string>();
+        customRows.forEach(r => { if (r.discipline) tabsSet.add(r.discipline); });
+        tasks.forEach(t => { if (t.discipline) tabsSet.add(t.discipline); });
+        
+        const sorted = Array.from(tabsSet).sort();
+        return sorted.length > 0 ? sorted : ["Geral"];
+    }, [customRows, tasks]);
+
+    const [selectedTab, setSelectedTab] = useState("");
+
+    useEffect(() => {
+        if (!selectedTab && dynamicTabs.length > 0) {
+            setSelectedTab(dynamicTabs[0]);
+        }
+    }, [dynamicTabs, selectedTab]);
 
     useEffect(() => {
         const loadInitialData = async () => {
@@ -208,14 +216,19 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
         return [...sysTasks, ...custTasks].sort((a, b) => (a.location || '').localeCompare(b.location || ''));
     }, [tasks, customRows, selectedTab]);
 
-    const calculateTotals = (taskId: string, type: 'prev' | 'real') => {
+    const calculateTotals = (taskId: string, type: 'prev' | 'real', onlyMonth?: boolean) => {
         const taskData = dailyData[taskId] || {};
         let sum = 0;
         Object.keys(taskData).forEach(dateKey => {
-            // Conta totais independente do mês para um planejamento acumulado fiel, 
-            // ou somente no mês se quisermos view isolada. 
-            // Para o Excel deles, "PLANEJADO X REAL TOTAL" parece ser total global.
-            sum += taskData[dateKey][type] || 0;
+            const hasValue = taskData[dateKey][type] !== undefined;
+            if (onlyMonth) {
+                const [y, m] = dateKey.split('-').map(Number);
+                if (y === currentYear && (m - 1) === currentMonth) {
+                    sum += taskData[dateKey][type] || 0;
+                }
+            } else {
+                sum += taskData[dateKey][type] || 0;
+            }
         });
         return sum;
     };
@@ -291,6 +304,8 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                             <input 
                                 type="number" 
                                 value={currentYear}
+                                min={2020}
+                                max={2030}
                                 onChange={(e) => setCurrentYear(Number(e.target.value))}
                                 className="bg-transparent border-none text-white w-20 font-bold outline-none focus:ring-0"
                             />
@@ -299,7 +314,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
 
                     {/* TABS */}
                     <div className="flex overflow-x-auto gap-2 pb-2 mb-4 scrollbar-thin">
-                        {TABS.map(tab => (
+                        {dynamicTabs.map(tab => (
                             <button
                                 key={tab}
                                 onClick={() => setSelectedTab(tab)}
@@ -350,7 +365,8 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                                     <th className="p-2 border border-white/5 text-gray-300 w-40 tracking-wider">ENGENHEIRO(A)</th>
                                     <th className="p-2 border border-white/5 text-brand-accent w-28 tracking-wider">TIPO/ADICIONAL</th>
                                     <th className="p-2 border border-white/5 text-brand-med-gray w-16 text-center font-bold">P / R</th>
-                                    <th className="p-2 border border-white/5 text-white w-20 text-center font-bold bg-white/5">TOTAL P/R</th>
+                                    <th className="p-2 border border-white/5 text-white w-20 text-center font-bold bg-white/5">TOTAL MÊS</th>
+                                    <th className="p-2 border border-white/5 text-white w-20 text-center font-bold bg-white/10">TOTAL GERAL</th>
                                     
                                     {daysArray.map(day => (
                                         <th key={day} className="p-2 border border-white/5 text-gray-400 w-12 text-center">
@@ -413,7 +429,8 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                                                     
                                                     {/* LINHA PREVISTO */}
                                                     <td className="p-1 border border-white/5 text-center font-bold tracking-widest text-[#4f5b70] bg-[#080d15] text-[10px]">PREV</td>
-                                                    <td className="p-2 border border-white/5 text-center font-bold text-[#64748b] bg-[#0c121d]">{calculateTotals(task.id, 'prev')}</td>
+                                                    <td className="p-2 border border-white/5 text-center font-bold text-[#64748b] bg-[#0c121d] opacity-80">{calculateTotals(task.id, 'prev', true)}</td>
+                                                    <td className="p-2 border border-white/5 text-center font-bold text-[#64748b] bg-[#0c121d] border-r-2 border-r-white/10">{calculateTotals(task.id, 'prev')}</td>
                                                     
                                                     {daysArray.map(day => {
                                                         const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -442,7 +459,8 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = ({
                                                 {/* LINHA REALIZADO */}
                                                 <tr className="bg-[#121a28] group-hover:bg-[#161f30] transition-colors">
                                                     <td className="p-1 border border-white/5 text-center font-bold tracking-widest text-brand-accent/80 bg-[#0c121e] text-[10px]">REAL</td>
-                                                    <td className="p-2 border border-white/5 text-center font-black text-brand-accent bg-[#111825]">{calculateTotals(task.id, 'real')}</td>
+                                                    <td className="p-2 border border-white/5 text-center font-black text-brand-accent bg-[#111825] opacity-80">{calculateTotals(task.id, 'real', true)}</td>
+                                                    <td className="p-2 border border-white/5 text-center font-black text-brand-accent bg-[#111825] border-r-2 border-r-brand-accent/20">{calculateTotals(task.id, 'real')}</td>
                                                     
                                                     {daysArray.map(day => {
                                                         const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
