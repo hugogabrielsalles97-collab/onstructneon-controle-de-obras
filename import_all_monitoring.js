@@ -1,7 +1,7 @@
 import XLSX from 'xlsx';
 import fs from 'fs';
 
-const filePath = 'C:/Users/hugo.sales/Downloads/2026-03-30 OAEs_Monit_Controle- LB4 (nomes engenheiros).xlsx';
+const filePath = 'C:/Users/hugo.sales/Downloads/2026-03-31 OAEs_Monit_Controle- LB4 (nome engenheiro).xlsx';
 
 function excelDateToISODate(serial) {
   if (!serial || typeof serial !== 'number') return null;
@@ -65,11 +65,25 @@ try {
       // Create a unique key for the row (service + oae + apoio + resp)
       const rowKey = `${sheetName}_${oae}_${apoio}_${resp}`.replace(/\s+/g, '_');
 
+      const normalizeService = (name) => {
+        let s = name.trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, ' ');
+        if (s === 'ESTACAS') s = 'ESTACA';
+        if (s === 'BLOCOS') s = 'BLOCO';
+        if (s === 'PILARES') s = 'PILAR';
+        if (s === 'TRAVESSAS') s = 'TRAVESSA';
+        if (s === 'TRANSVERSINAS') s = 'TRANSVERSINA';
+        if (s.includes('LAJE') && !s.includes('PRELAJE')) s = 'LAJE';
+        if (s === 'VIGAS') s = 'VIGA';
+        return s;
+      };
+
+      const finalService = normalizeService(sheetName);
+
       if (!dailyData[rowKey]) {
         dailyData[rowKey] = {};
         monitoringRows.push({
           id: rowKey,
-          service: sheetName.trim(),
+          service: finalService,
           oae: String(oae || '').trim(),
           apoio: String(apoio || '').trim(),
           responsible: String(resp || '').trim()

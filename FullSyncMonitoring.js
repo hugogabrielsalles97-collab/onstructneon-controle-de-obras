@@ -35,7 +35,7 @@ async function sbFetch(subpath, options = {}) {
     }
 }
 
-const filePath = 'C:/Users/hugo.sales/Downloads/2026-03-30 OAEs_Monit_Controle- LB4 (nomes engenheiros).xlsx';
+const filePath = 'C:/Users/hugo.sales/Downloads/2026-03-31 OAEs_Monit_Controle- LB4 (nome engenheiro).xlsx';
 
 function excelDateToISODate(serial) {
   if (!serial || typeof serial !== 'number') return null;
@@ -49,7 +49,7 @@ async function fullSync() {
     const workbook = XLSX.readFile(filePath);
     const availableSheetNames = workbook.SheetNames;
     
-    const targets = ["ESTACA", "BLOCO", "PILAR", "TRAVESSA", "VIGAS", "PRELAJE", "TRANSVERSINA", "LAJE"];
+    const targets = ["ESTACA", "BLOCO", "PILAR", "PIPLAR", "TRAVESSA", "VIGAS", "PRELAJE", "TRANSVERSINA", "LAJE"];
 
     const dailyDataByRow = {};
 
@@ -107,20 +107,28 @@ async function fullSync() {
           }
         }
 
-        if (!isPrev && !isReal && (row[1] || row[2])) {
-           isPrev = true;
-        }
-
         if (!isPrev && !isReal) continue;
 
-        // Normalizing service name to singular always for app consistency
-        let finalService = sheetName.trim().toUpperCase();
-        if (finalService === 'TRANSVERSINAS') finalService = 'TRANSVERSINA';
-        if (finalService === 'ESTACAS') finalService = 'ESTACA';
-        if (finalService === 'BLOCOS') finalService = 'BLOCO';
-        if (finalService === 'PILARES') finalService = 'PILAR';
-        if (finalService === 'TRAVESSAS') finalService = 'TRAVESSA';
+        // Robust normalization to avoid duplicates (singular/plural, trailing spaces, accents)
+        const normalizeService = (name) => {
+            let s = name.trim().toUpperCase()
+                .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                .replace(/\s+/g, ' ');
+            
+            if (s === 'ESTACAS') s = 'ESTACA';
+            if (s === 'BLOCOS') s = 'BLOCO';
+            if (s === 'PILARES') s = 'PILAR';
+            if (s === 'TRAVESSAS') s = 'TRAVESSA';
+            if (s === 'TRANSVERSINAS') s = 'TRANSVERSINA';
+            if (s === 'LAJES') s = 'LAJE';
+            if (s === 'PRELAJES') s = 'PRELAJE';
+            if (s === 'PIPLAR PROVISORIO' || s === 'PILAR PROVISORIO') s = 'PILAR PROVISORIO';
+            if (s === 'VIGAS' && !s.includes('FABRICACAO') && !s.includes('LANCAMENTO')) s = 'VIGA';
 
+            return s;
+        };
+
+        const finalService = normalizeService(sheetName);
         const rowKey = `${finalService.replace(/\s+/g, '_')}_${String(lastOAE).trim().replace(/\s+/g, '_').toUpperCase()}_${String(lastApoio).trim().replace(/\s+/g, '_').toUpperCase()}`;
 
         if (!dailyDataByRow[rowKey]) {
