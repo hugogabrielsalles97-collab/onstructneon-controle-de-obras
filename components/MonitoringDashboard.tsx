@@ -189,8 +189,8 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
             totalPrev, 
             totalReal, 
             progress, 
-            periodGap: totalPrev - totalReal, // User asked for Prev - Real
-            cumGap: cumPrev - cumReal 
+            periodGap: totalReal - totalPrev, // Back to Real - Prev
+            cumGap: cumReal - cumPrev 
         };
     }, [filteredRows, startDate, endDate, statusDate]);
 
@@ -274,8 +274,8 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                         <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Quantidade Prevista</p><h3 className="text-4xl font-black text-white">{metrics.totalPrev.toLocaleString()}</h3></div>
                         <div className="p-6 bg-[#0a0f18] border border-brand-accent/20 rounded-3xl shadow-2xl"><p className="text-[10px] font-black text-brand-accent uppercase mb-1">Quantidade Realizada</p><h3 className="text-4xl font-black text-white">{metrics.totalReal.toLocaleString()}</h3></div>
                         <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Aderência Médio (%)</p><h3 className={`text-4xl font-black ${metrics.progress >= 90 ? 'text-green-500' : metrics.progress >= 70 ? 'text-yellow-500' : 'text-red-500'}`}>{metrics.progress.toFixed(1)}%</h3></div>
-                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl relative overflow-hidden group"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Diferença no período</p><h3 className={`text-4xl font-black ${metrics.periodGap > 0 ? 'text-red-500' : metrics.periodGap < 0 ? 'text-green-500' : 'text-white'}`}>{metrics.periodGap > 0 ? '+' : ''}{metrics.periodGap.toLocaleString()}</h3></div>
-                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl relative overflow-hidden group"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Diferença acumulada</p><h3 className={`text-4xl font-black ${metrics.cumGap > 0 ? 'text-red-500' : metrics.cumGap < 0 ? 'text-green-500' : 'text-white'}`}>{metrics.cumGap > 0 ? '+' : ''}{metrics.cumGap.toLocaleString()}</h3></div>
+                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl relative overflow-hidden group"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Diferença no período</p><h3 className={`text-4xl font-black ${metrics.periodGap < 0 ? 'text-red-500' : metrics.periodGap > 0 ? 'text-green-500' : 'text-white'}`}>{metrics.periodGap > 0 ? '+' : ''}{metrics.periodGap.toLocaleString()}</h3></div>
+                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl relative overflow-hidden group"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Diferença acumulada</p><h3 className={`text-4xl font-black ${metrics.cumGap < 0 ? 'text-red-500' : metrics.cumGap > 0 ? 'text-green-500' : 'text-white'}`}>{metrics.cumGap > 0 ? '+' : ''}{metrics.cumGap.toLocaleString()}</h3></div>
                     </div>
 
                     <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl mb-8">
