@@ -177,7 +177,21 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
 
     if (isLoadingData) return <div className="flex bg-[#060a12] h-screen items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-brand-accent"></div></div>;
 
-    const services = Array.from(new Set(monitoringRows.map(r => r.service))).sort();
+    const serviceOrder = [
+        'ESTACA', 'BLOCO', 'PILAR', 'TRAVESSA', 'PILAR PROVISORIO', 
+        'LANCAMENTO VIGA', 'TRANSVERSINA', 'LANCAMENTO PRELAJE', 
+        'LAJE', 'LAJE ELASTICA', 'LAJE DE APROXIMACAO', 
+        'FABRICACAO VIGA', 'FABRICACAO PRELAJE'
+    ];
+
+    const services = Array.from(new Set(monitoringRows.map(r => r.service)) as Set<string>).sort((a, b) => {
+        const idxA = serviceOrder.indexOf(a);
+        const idxB = serviceOrder.indexOf(b);
+        if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+        if (idxA === -1) return 1;
+        if (idxB === -1) return -1;
+        return idxA - idxB;
+    });
 
     // LARGURAS STICKY
     const W_OAE = 110;

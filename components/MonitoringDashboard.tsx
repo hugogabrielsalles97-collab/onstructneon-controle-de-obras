@@ -117,13 +117,29 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
         let bestIndex = -1;
         uniqueDates.forEach((d, i) => { if (d <= targetDate) bestIndex = i; });
         if (bestIndex !== -1) {
-            const newRange: [number, number] = [...dateRange];
+            const newRange: [number, number] = [dateRange[0], dateRange[1]];
             newRange[index] = bestIndex;
             setDateRange(newRange);
         }
     };
 
-    const services = useMemo(() => ['ALL', ...Array.from(new Set(rows.map(r => r.service))).sort()], [rows]);
+    const services = useMemo(() => {
+        const serviceOrder = [
+            'ESTACA', 'BLOCO', 'PILAR', 'TRAVESSA', 'PILAR PROVISORIO', 
+            'LANCAMENTO VIGA', 'TRANSVERSINA', 'LANCAMENTO PRELAJE', 
+            'LAJE', 'LAJE ELASTICA', 'LAJE DE APROXIMACAO', 
+            'FABRICACAO VIGA', 'FABRICACAO PRELAJE'
+        ];
+        const srvs = Array.from(new Set(rows.map(r => r.service)) as Set<string>).sort((a, b) => {
+            const idxA = serviceOrder.indexOf(a);
+            const idxB = serviceOrder.indexOf(b);
+            if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+            if (idxA === -1) return 1;
+            if (idxB === -1) return -1;
+            return idxA - idxB;
+        });
+        return ['ALL', ...srvs];
+    }, [rows]);
     const oaes = useMemo(() => ['ALL', ...Array.from(new Set(rows.map(r => r.oae))).sort()], [rows]);
     const engineers = useMemo(() => ['ALL', ...Array.from(new Set(rows.map(r => r.responsible || 'N/A'))).sort()], [rows]);
 

@@ -183,8 +183,10 @@ async function fullSync() {
                 if (s === 'TRAVESSAS') s = 'TRAVESSA';
                 if (s === 'TRANSVERSINAS') s = 'TRANSVERSINA';
                 if (s === 'LAJES') s = 'LAJE';
-                if (s === 'PRELAJES') s = 'PRELAJE';
+                if (s === 'PRELAJES' || s === 'MONTAGEM PRELAJE') s = 'LANCAMENTO PRELAJE';
                 if (s === 'PIPLAR PROVISORIO' || s === 'PILAR PROVISORIO') s = 'PILAR PROVISORIO';
+                if (s === 'LANCAMENTO VIGAS') s = 'LANCAMENTO VIGA';
+                if (s === 'FABRICACAO VIGAS') s = 'FABRICACAO VIGA';
                 if (s === 'VIGAS' && !s.includes('FABRICACAO') && !s.includes('LANCAMENTO')) s = 'VIGA';
                 return s;
             };
