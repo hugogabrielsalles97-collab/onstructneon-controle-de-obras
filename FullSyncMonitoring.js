@@ -165,6 +165,16 @@ async function fullSync() {
 
             if (!lastOAE) continue;
 
+            const upperOAE = String(lastOAE).trim().toUpperCase();
+            const upperApoio = String(lastApoio).trim().toUpperCase();
+            
+            // Skip header leftovers or totalizador rows
+            if (upperOAE === 'OAE' || upperOAE === 'OAES') continue;
+            if (upperApoio === 'ENCONTRO / APOIO' || upperApoio === 'APOIO / ENCONTRO' || upperApoio === 'ENCONTRO' || upperApoio === 'APOIO') {
+                if (upperOAE === 'OAE' || !upperOAE) continue;
+            }
+            if (upperOAE.includes('TOTAL') || upperApoio.includes('TOTAL')) continue;
+
             const normalizeService = (name) => {
                 let s = name.trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, ' ');
                 if (s === 'ESTACAS') s = 'ESTACA';
