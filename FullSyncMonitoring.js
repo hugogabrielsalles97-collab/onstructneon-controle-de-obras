@@ -190,6 +190,12 @@ async function fullSync() {
             };
 
             const finalService = normalizeService(sheetName);
+            
+            // User requested to put OAE in Apoio column for FABRICACAO PRELAJE
+            if (finalService === 'FABRICACAO PRELAJE') {
+                lastApoio = lastOAE;
+            }
+
             const rowKey = `${finalService.replace(/\s+/g, '_')}_${String(lastOAE).trim().replace(/\s+/g, '_').toUpperCase()}_${String(lastApoio).trim().replace(/\s+/g, '_').toUpperCase()}`;
 
             if (!dailyDataByRow[rowKey]) {
