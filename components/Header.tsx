@@ -106,6 +106,13 @@ const Header: React.FC<HeaderProps> = ({
     { id: 'baseline', label: 'Linha Base', icon: <BaselineIcon className="w-5 h-5" />, onClick: onNavigateToBaseline, show: showFullMenu && !isOrgModule },
     { id: 'currentSchedule', label: 'Cronograma Corrente', icon: <ScheduleIcon className="w-5 h-5" />, onClick: onNavigateToCurrentSchedule, show: showFullMenu && !isOrgModule },
     {
+      id: 'monitoringControl', label: 'Monitoramento e Controle', icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-indigo-400">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+        </svg>
+      ), onClick: onNavigateToMonitoringControl, show: showFullMenu && !isOrgModule
+    },
+    {
       id: 'podcast', label: 'Podcast da obra', icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-purple-400">
           <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />

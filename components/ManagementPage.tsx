@@ -11,7 +11,6 @@ import CumulativeProgressChart from './CumulativeProgressChart';
 import Sidebar from './Sidebar';
 import { exportTasksToExcel } from '../utils/excelExport';
 import ManagementMonthlyProgress from './ManagementMonthlyProgress';
-import ManagementDisciplineProgress from './ManagementDisciplineProgress';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
   ResponsiveContainer, Line, ComposedChart, Cell, LabelList,
@@ -72,8 +71,6 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
         currentScheduleCutOffDateStr,
         monthlyPlanning,
         setMonthlyPlanning,
-        disciplinePlanning,
-        setDisciplinePlanning,
         saveTask,
     } = useData();
     const [selectedStatuses, setSelectedStatuses] = React.useState<string[]>(['Concluída', 'Em Andamento', 'Não Iniciada', 'Atrasada']);
@@ -98,13 +95,6 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
         if (!success && error) showToast(`Erro ao sair: ${error}`, 'error');
     };
 
-    const availableDisciplines = React.useMemo(() => {
-        const discSet = new Set<string>();
-        tasks.forEach(t => { if (t.discipline) discSet.add(t.discipline); });
-        // Garantir que disciplinas comuns existam caso não haja tarefas
-        ['Terraplenagem', 'Drenagem', 'Obras de Arte', 'Pavimentação'].forEach(d => discSet.add(d));
-        return Array.from(discSet).sort();
-    }, [tasks]);
 
     const toggleStatus = (status: string) => {
         setSelectedStatuses(prev =>
@@ -814,14 +804,6 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                         <ManagementMonthlyProgress 
                             data={monthlyPlanning}
                             onSave={setMonthlyPlanning}
-                            canEdit={user && (user.role === 'Master' || user.role === 'Planejador')}
-                        />
-
-                        {/* Planejamento por Disciplina */}
-                        <ManagementDisciplineProgress 
-                            data={disciplinePlanning}
-                            onSave={setDisciplinePlanning}
-                            availableDisciplines={availableDisciplines}
                             canEdit={user && (user.role === 'Master' || user.role === 'Planejador')}
                         />
 

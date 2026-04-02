@@ -89,9 +89,17 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                 }
                 const { data: config, error: configError } = await supabase.from('monitoring_rows').select('daily_data').eq('id', '_CONFIG_').maybeSingle();
                 if (configError) throw configError;
-                if (config?.daily_data?.status_date) setStatusDate(config.daily_data.status_date);
+                if (config?.daily_data?.status_date) {
+                    setStatusDate(config.daily_data.status_date);
+                    localStorage.setItem(`@elos_monitoring_status_date`, config.daily_data.status_date);
+                } else {
+                    const cachedDate = localStorage.getItem(`@elos_monitoring_status_date`);
+                    if (cachedDate) setStatusDate(cachedDate);
+                }
             } catch (e: any) {
                 console.error("Erro ao carregar dados:", e);
+                const cachedDate = localStorage.getItem(`@elos_monitoring_status_date`);
+                if (cachedDate) setStatusDate(cachedDate);
             } finally {
                 setIsLoadingData(false);
             }
@@ -181,6 +189,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
 
             showToast("Alterações salvas!", "success");
             localStorage.setItem(STORAGE_KEY, JSON.stringify(monitoringRows));
+            localStorage.setItem(`@elos_monitoring_status_date`, statusDate);
         } catch (e: any) {
             console.error("Erro ao salvar:", e);
             showToast(`Erro ao salvar: ${e.message || 'Erro desconhecido'}`, "error");
@@ -225,7 +234,30 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
             <Sidebar user={user!} activeScreen="monitoringControl" {...(props as any)} />
 
             <main className="flex-1 flex flex-col overflow-hidden relative">
-                <Header title="Monitoramento e Controle" user={user!} onLogout={signOut} />
+                <Header 
+                    title="Monitoramento e Controle" 
+                    user={user!} 
+                    onLogout={signOut} 
+                    activeScreen="monitoringControl"
+                    onNavigateToHome={props.onNavigateToHome}
+                    onNavigateToDashboard={props.onNavigateToDashboard}
+                    onNavigateToReports={props.onNavigateToReports}
+                    onNavigateToBaseline={props.onNavigateToBaseline}
+                    onNavigateToCurrentSchedule={props.onNavigateToCurrentSchedule}
+                    onNavigateToAnalysis={props.onNavigateToAnalysis}
+                    onNavigateToLean={props.onNavigateToLean}
+                    onNavigateToLeanConstruction={props.onNavigateToLeanConstruction}
+                    onNavigateToMonitoringControl={props.onNavigateToMonitoringControl}
+                    onNavigateToPodcast={props.onNavigateToPodcast}
+                    onNavigateToWarRoom={props.onNavigateToWarRoom}
+                    onNavigateToCost={props.onNavigateToCost}
+                    onNavigateToCheckoutSummary={props.onNavigateToCheckoutSummary}
+                    onNavigateToOrgChart={props.onNavigateToOrgChart}
+                    onNavigateToOrgSummary={props.onNavigateToOrgSummary}
+                    onNavigateToTeams={props.onNavigateToTeams}
+                    onNavigateToVisualControl={props.onNavigateToVisualControl}
+                    onUpgradeClick={props.onUpgradeClick}
+                />
                 
                 <div className="flex-1 flex flex-col p-4 lg:p-6 overflow-hidden">
                     <header className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
