@@ -23,9 +23,9 @@ const PpcChart: React.FC<PpcChartProps> = ({ tasks, baselineTasks, startDate, en
             const taskDueDate = new Date(task.dueDate + 'T23:59:59'); // Set to end of day
 
             if (taskDueDate >= start && taskDueDate <= end) {
-                // Get week identifier (Sunday to Saturday)
+                // Get week identifier (ending on Saturday)
                 const d = new Date(taskDueDate);
-                d.setDate(d.getDate() - d.getDay()); // Start of week (Sunday)
+                d.setDate(d.getDate() + (6 - d.getDay())); // End of week (Saturday)
                 const weekKey = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 
                 if (!weeks[weekKey]) weeks[weekKey] = { planned: 0, completed: 0 };

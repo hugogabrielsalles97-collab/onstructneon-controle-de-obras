@@ -207,28 +207,29 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
     const weeklyData = useMemo(() => {
         let cumPrev = 0, cumReal = 0;
         const weekMap: Record<string, { prev: number, real: number }> = {};
-        const getSunday = (dStr: string) => {
+        const getSaturdayEnd = (dStr: string) => {
             const d = new Date(dStr + 'T12:00:00');
             const day = d.getDay();
-            const diff = d.getDate() - day;
-            const sun = new Date(d.setDate(diff));
-            return sun.toISOString().split('T')[0];
+            const diff = 6 - day;
+            const sat = new Date(d);
+            sat.setDate(d.getDate() + diff);
+            return sat.toISOString().split('T')[0];
         };
         uniqueDates.filter(d => d >= startDate && d <= endDate).forEach(date => {
-            const sun = getSunday(date);
-            if (!weekMap[sun]) weekMap[sun] = { prev: 0, real: 0 };
+            const sat = getSaturdayEnd(date);
+            if (!weekMap[sat]) weekMap[sat] = { prev: 0, real: 0 };
             filteredRows.forEach(r => {
                 const val = r.daily_data[date];
                 if (val) {
-                    weekMap[sun].prev += val.prev || 0;
-                    weekMap[sun].real += val.real || 0;
+                    weekMap[sat].prev += val.prev || 0;
+                    weekMap[sat].real += val.real || 0;
                 }
             });
         });
-        return Object.keys(weekMap).sort().map(sunKey => {
-            const w = weekMap[sunKey];
+        return Object.keys(weekMap).sort().map(satKey => {
+            const w = weekMap[satKey];
             cumPrev += w.prev; cumReal += w.real;
-            return { name: sunKey.split('-').reverse().slice(0, 2).join('/'), prev: w.prev, real: w.real, cumPrev, cumReal };
+            return { name: satKey.split('-').reverse().slice(0, 2).join('/'), prev: w.prev, real: w.real, cumPrev, cumReal };
         });
     }, [filteredRows, startDate, endDate, uniqueDates]);
 

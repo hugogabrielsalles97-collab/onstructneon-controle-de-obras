@@ -35,7 +35,7 @@ const SlidePPCCombined: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
             if (taskDueDate > lastClosedWeekEnd) return;
             if (taskDueDate >= start && taskDueDate <= end) {
                 const d = new Date(taskDueDate);
-                d.setDate(d.getDate() - d.getDay());
+                d.setDate(d.getDate() + (6 - d.getDay()));
                 const weekKey = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
                 if (!weeks[weekKey]) weeks[weekKey] = { planned: 0, completed: 0 };
                 weeks[weekKey].planned += 1;
@@ -80,7 +80,7 @@ const SlidePPCCombined: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
         while (current <= maxDate) {
             const weekEnd = new Date(current);
             weekEnd.setDate(weekEnd.getDate() + 6);
-            const key = current.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+            const key = weekEnd.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
             let total = 0, completed = 0;
             tasks.forEach(task => {
                 const dueDate = new Date(task.dueDate + 'T00:00:00');
