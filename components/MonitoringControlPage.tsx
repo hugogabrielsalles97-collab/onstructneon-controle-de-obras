@@ -87,10 +87,11 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                         if (!selectedService) setSelectedService(parsed[0]?.service || "");
                     }
                 }
-                const { data: config } = await supabase.from('monitoring_rows').select('daily_data').eq('id', '_CONFIG_').single();
+                const { data: config, error: configError } = await supabase.from('monitoring_rows').select('daily_data').eq('id', '_CONFIG_').maybeSingle();
+                if (configError) throw configError;
                 if (config?.daily_data?.status_date) setStatusDate(config.daily_data.status_date);
-            } catch (e) {
-                console.error(e);
+            } catch (e: any) {
+                console.error("Erro ao carregar dados:", e);
             } finally {
                 setIsLoadingData(false);
             }
@@ -164,12 +165,25 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            await supabase.from('monitoring_rows').upsert(monitoringRows, { onConflict: 'id' });
-            await supabase.from('monitoring_rows').upsert({ id: '_CONFIG_', daily_data: { status_date: statusDate } });
+            const { error: errorRows } = await supabase.from('monitoring_rows').upsert(monitoringRows, { onConflict: 'id' });
+            if (errorRows) throw errorRows;
+
+            const { error: errorConfig } = await supabase.from('monitoring_rows').upsert({ 
+                id: '_CONFIG_', 
+                service: '_CONFIG_',
+                oae: '_CONFIG_',
+                apoio: '_CONFIG_',
+                responsible: '_CONFIG_',
+                daily_data: { status_date: statusDate } 
+            }, { onConflict: 'id' });
+            
+            if (errorConfig) throw errorConfig;
+
             showToast("Alterações salvas!", "success");
             localStorage.setItem(STORAGE_KEY, JSON.stringify(monitoringRows));
-        } catch (e) {
-            showToast("Erro ao salvar.", "error");
+        } catch (e: any) {
+            console.error("Erro ao salvar:", e);
+            showToast(`Erro ao salvar: ${e.message || 'Erro desconhecido'}`, "error");
         } finally {
             setIsSaving(false);
         }
