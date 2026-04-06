@@ -88,8 +88,9 @@ const getDayOfWeek = (dateStr: string): string => {
 
 // =====================================================================
 // Normalização AGRESSIVA de nomes de funções para evitar duplicatas
-// Trata: case, abreviações (Of. → Oficial), prefixos (1/2 ↔ Meio),
-//        preposições (de/do/da), sinônimos (carpintaria → carpinteiro)
+// Trata: case, abreviações (Of./Op. → Oficial/Operador), prefixos (1/2 ↔ Meio),
+//        preposições, sinônimos, acentos, numerais de qualificação (I/II/1/2),
+//        e colapso de categorias genéricas (Ajudante X → Ajudante)
 // =====================================================================
 const normalizeRole = (role: string): string => {
     let n = role.trim();
@@ -101,7 +102,6 @@ const normalizeRole = (role: string): string => {
     n = n.toLowerCase().replace(/\s+/g, ' ').trim();
 
     // 3. Expandir abreviações COM ponto (of. → oficial, etc.)
-    //    Importante: exigir o ponto para não quebrar palavras inteiras
     n = n.replace(/\bof\.\s*/g, 'oficial ');
     n = n.replace(/\bcarp\.\s*/g, 'carpinteiro ');
     n = n.replace(/\bmart\.\s*/g, 'marteleteiro ');
@@ -119,23 +119,49 @@ const normalizeRole = (role: string): string => {
     n = n.replace(/\bop\.\s*/g, 'operador ');
     n = n.replace(/\bmot\.\s*/g, 'motorista ');
 
-    // 4. Expandir "of" SEM ponto (quando seguido de espaço — "1/2 of carpinteiro")
-    //    Não pega "oficial" porque exige espaço depois de "of"
+    // 4. Expandir abreviações SEM ponto (exige espaço depois para não pegar dentro de palavras)
+    //    "of carpinteiro" → "oficial carpinteiro", "op maquina" → "operador maquina"
     n = n.replace(/\bof\s+/g, 'oficial ');
+    n = n.replace(/\bop\s+/g, 'operador ');
 
     // 5. Remover preposições soltas (de, do, da, dos, das)
     n = n.replace(/\b(de|do|da|dos|das)\b/g, ' ');
 
-    // 6. Substituir sinônimos de sufixo
+    // 6. Substituir sinônimos de ofício
     n = n.replace(/\bcarpintaria\b/g, 'carpinteiro');
     n = n.replace(/\barmação\b/g, 'armador');
     n = n.replace(/\bsoldagem\b/g, 'soldador');
     n = n.replace(/\bpedraria\b/g, 'pedreiro');
     n = n.replace(/\bmontagem\b/g, 'montador');
 
-    // 7. Limpar espaços extras e converter para Title Case
+    // 7. Normalizar acentos inconsistentes em palavras conhecidas
+    n = n.replace(/\bmaquina\b/g, 'máquina');
+    n = n.replace(/\beletrica\b/g, 'elétrica');
+    n = n.replace(/\bhidraulica\b/g, 'hidráulica');
+    n = n.replace(/\bmecanica\b/g, 'mecânica');
+    n = n.replace(/\btecnico\b/g, 'técnico');
+
+    // 8. Expandir formas curtas
+    n = n.replace(/\bretro\b/g, 'retroescavadeira');
+
+    // 9. Limpar espaços antes de colapsar
     n = n.replace(/\s+/g, ' ').trim();
-    n = n.replace(/\b\w/g, c => c.toUpperCase());
+
+    // 10. Colapsar roles genéricos (todas as variações → nome base)
+    //     "ajudante produção", "ajudante geral" → "ajudante"
+    //     "montador andaime", "montador estruturas" → "montador"
+    //     "soldador i", "soldador mig" → "soldador"
+    if (/^ajudante\b/.test(n)) n = 'ajudante';
+    if (/^montador\b/.test(n)) n = 'montador';
+    if (/^soldador\b/.test(n)) n = 'soldador';
+
+    // 11. Remover numerais de qualificação do final (I, II, III, IV, 1, 2, 3)
+    n = n.replace(/\s+(i{1,4}|iv|v|vi{0,3}|[1-9])$/, '');
+
+    // 12. Limpar espaços extras e converter para Title Case
+    //     Usa split(' ') em vez de \b\w para não quebrar com acentos (causa "MáQuina")
+    n = n.replace(/\s+/g, ' ').trim();
+    n = n.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
     return n;
 };
