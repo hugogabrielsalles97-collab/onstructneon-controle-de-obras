@@ -20,6 +20,7 @@ import FilterInput from './ui/FilterInput';
 import FilterSelect from './ui/FilterSelect';
 import AlertIcon from './icons/AlertIcon';
 import ConfirmModal from './ConfirmModal';
+import { exportWeeklyReportToExcel } from '../utils/excelExport';
 import { useOrgMembers } from '../hooks/dataHooks';
 
 type SortKey = keyof Task | 'none';
@@ -94,6 +95,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
 
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // ==== Availability Checker ====
   const [showAvailability, setShowAvailability] = useState(false);
@@ -360,6 +362,32 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     window.print();
   }
 
+  const handleExportReport = async () => {
+    if (!filters.startDate || !filters.endDate) {
+      showToast('Selecione o período (Início e Fim) nos filtros para gerar o relatório.', 'error');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const result = await exportWeeklyReportToExcel(
+        filteredAndSortedTasks,
+        filters.startDate,
+        filters.endDate,
+      );
+
+      if (result.success) {
+        showToast(`Relatório Excel gerado com sucesso! (${result.count} registros)`, 'success');
+      } else {
+        showToast(result.error || 'Erro ao gerar relatório.', 'error');
+      }
+    } catch (err) {
+      showToast('Erro inesperado ao gerar relatório.', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
 
   return (
     <div className="flex h-screen bg-[#060a12] overflow-hidden">
@@ -583,6 +611,25 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
                   <button onClick={handlePrint} className="text-[10px] font-bold text-brand-med-gray hover:text-white transition-colors flex items-center gap-1 px-2 py-1 rounded-md hover:bg-white/5">
                     <PrintIcon className="w-3.5 h-3.5" />
                     Imprimir
+                  </button>
+                  <button
+                    onClick={handleExportReport}
+                    disabled={isExporting}
+                    className="text-[10px] font-bold text-emerald-400/80 hover:text-emerald-300 transition-colors flex items-center gap-1 px-2 py-1 rounded-md hover:bg-emerald-500/10 disabled:opacity-50 disabled:cursor-wait"
+                    title="Exportar relatório dia a dia com resumo de colaboradores"
+                  >
+                    {isExporting ? (
+                      <div className="w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="16" y1="13" x2="8" y2="13" />
+                        <line x1="16" y1="17" x2="8" y2="17" />
+                        <polyline points="10 9 9 9 8 9" />
+                      </svg>
+                    )}
+                    {isExporting ? 'Gerando...' : 'Gerar Relatório'}
                   </button>
                 </div>
               </div>
