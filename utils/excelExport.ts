@@ -86,6 +86,38 @@ const getDayOfWeek = (dateStr: string): string => {
     return days[d.getDay()];
 };
 
+// =====================================================================
+// Normalização de nomes de funções para evitar duplicatas
+// Ex: "ARMADOR" / "armador" → "Armador"
+//     "1/2 oficial de carpintaria" / "1/2 oficial carpinteiro" → "1/2 Oficial Carpinteiro"
+// =====================================================================
+const normalizeRole = (role: string): string => {
+    // 1. Limpar espaços extras e converter para minúsculas
+    let normalized = role.trim().toLowerCase().replace(/\s+/g, ' ');
+
+    // 2. Substituir variações comuns de sufixo/sinônimo
+    //    "carpintaria" → "carpinteiro" (a função, não o ofício)
+    normalized = normalized
+        .replace(/\bde carpintaria\b/g, 'carpinteiro')
+        .replace(/\bcarpintaria\b/g, 'carpinteiro')
+        .replace(/\bde armação\b/g, 'armador')
+        .replace(/\barmação\b/g, 'armador')
+        .replace(/\bde soldagem\b/g, 'soldador')
+        .replace(/\bsoldagem\b/g, 'soldador')
+        .replace(/\bde pedraria\b/g, 'pedreiro')
+        .replace(/\bpedraria\b/g, 'pedreiro')
+        .replace(/\bde montagem\b/g, 'montador')
+        .replace(/\bmontagem\b/g, 'montador');
+
+    // 3. Converter para Title Case (Primeira letra maiúscula de cada palavra)
+    normalized = normalized.replace(/\b\w/g, c => c.toUpperCase());
+
+    // 4. Manter "1/2" como está (corrigir "1/2" que pode ter virado "1/2")
+    normalized = normalized.replace(/1\/2\s*/g, '1/2 ').replace(/\s+/g, ' ').trim();
+
+    return normalized;
+};
+
 export const exportWeeklyReportToExcel = async (
     tasks: Task[],
     startDate: string,
@@ -148,12 +180,12 @@ export const exportWeeklyReportToExcel = async (
             });
         }
 
-        // 4. Coletar todas as funções (roles) únicas para criar colunas dinâmicas
+        // 4. Coletar todas as funções (roles) NORMALIZADAS para criar colunas dinâmicas
         const allRoles = new Set<string>();
         manpowerMap.forEach(({ actual, planned }) => {
             const resources = actual.length > 0 ? actual : planned;
             resources.forEach((r: any) => {
-                if (r.role) allRoles.add(r.role);
+                if (r.role) allRoles.add(normalizeRole(r.role));
             });
         });
         const rolesList = Array.from(allRoles).sort();
@@ -175,6 +207,15 @@ export const exportWeeklyReportToExcel = async (
                 const mp = manpowerMap.get(task.id);
                 const resources = mp && mp.actual.length > 0 ? mp.actual : (mp?.planned || []);
 
+                // Agregar quantidades por função normalizada
+                // (ex: "ARMADOR" 2 + "armador" 1 = "Armador" 3)
+                const aggregated = new Map<string, number>();
+                for (const r of resources) {
+                    if (!r.role) continue;
+                    const norm = normalizeRole(r.role);
+                    aggregated.set(norm, (aggregated.get(norm) || 0) + (r.quantity || 0));
+                }
+
                 const row: any = {
                     'Data': formatDateBR(dateStr),
                     'Dia': getDayOfWeek(dateStr),
@@ -186,11 +227,10 @@ export const exportWeeklyReportToExcel = async (
                     'Apoio': task.support || '',
                 };
 
-                // Colunas dinâmicas: uma por função com a quantidade
+                // Colunas dinâmicas: uma por função normalizada com a quantidade agregada
                 let totalWorkers = 0;
                 for (const role of rolesList) {
-                    const resource = resources.find((r: any) => r.role === role);
-                    const qty = resource ? resource.quantity : 0;
+                    const qty = aggregated.get(role) || 0;
                     row[role] = qty > 0 ? qty : '';
                     totalWorkers += qty;
                 }
