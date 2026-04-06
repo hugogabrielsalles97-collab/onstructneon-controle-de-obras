@@ -87,35 +87,57 @@ const getDayOfWeek = (dateStr: string): string => {
 };
 
 // =====================================================================
-// Normalização de nomes de funções para evitar duplicatas
-// Ex: "ARMADOR" / "armador" → "Armador"
-//     "1/2 oficial de carpintaria" / "1/2 oficial carpinteiro" → "1/2 Oficial Carpinteiro"
+// Normalização AGRESSIVA de nomes de funções para evitar duplicatas
+// Trata: case, abreviações (Of. → Oficial), prefixos (1/2 ↔ Meio),
+//        preposições (de/do/da), sinônimos (carpintaria → carpinteiro)
 // =====================================================================
 const normalizeRole = (role: string): string => {
-    // 1. Limpar espaços extras e converter para minúsculas
-    let normalized = role.trim().toLowerCase().replace(/\s+/g, ' ');
+    let n = role.trim();
 
-    // 2. Substituir variações comuns de sufixo/sinônimo
-    //    "carpintaria" → "carpinteiro" (a função, não o ofício)
-    normalized = normalized
-        .replace(/\bde carpintaria\b/g, 'carpinteiro')
-        .replace(/\bcarpintaria\b/g, 'carpinteiro')
-        .replace(/\bde armação\b/g, 'armador')
-        .replace(/\barmação\b/g, 'armador')
-        .replace(/\bde soldagem\b/g, 'soldador')
-        .replace(/\bsoldagem\b/g, 'soldador')
-        .replace(/\bde pedraria\b/g, 'pedreiro')
-        .replace(/\bpedraria\b/g, 'pedreiro')
-        .replace(/\bde montagem\b/g, 'montador')
-        .replace(/\bmontagem\b/g, 'montador');
+    // 1. Converter "1/2" (e variações "1/ 2", "1 /2") para "meio"
+    n = n.replace(/^1\s*\/\s*2\b/i, 'meio');
 
-    // 3. Converter para Title Case (Primeira letra maiúscula de cada palavra)
-    normalized = normalized.replace(/\b\w/g, c => c.toUpperCase());
+    // 2. Lowercase e limpar espaços múltiplos
+    n = n.toLowerCase().replace(/\s+/g, ' ').trim();
 
-    // 4. Manter "1/2" como está (corrigir "1/2" que pode ter virado "1/2")
-    normalized = normalized.replace(/1\/2\s*/g, '1/2 ').replace(/\s+/g, ' ').trim();
+    // 3. Expandir abreviações COM ponto (of. → oficial, etc.)
+    //    Importante: exigir o ponto para não quebrar palavras inteiras
+    n = n.replace(/\bof\.\s*/g, 'oficial ');
+    n = n.replace(/\bcarp\.\s*/g, 'carpinteiro ');
+    n = n.replace(/\bmart\.\s*/g, 'marteleteiro ');
+    n = n.replace(/\barm\.\s*/g, 'armador ');
+    n = n.replace(/\bsold\.\s*/g, 'soldador ');
+    n = n.replace(/\bsolda\.\s*/g, 'soldador ');
+    n = n.replace(/\bserv\.\s*/g, 'servente ');
+    n = n.replace(/\bped\.\s*/g, 'pedreiro ');
+    n = n.replace(/\bmont\.\s*/g, 'montador ');
+    n = n.replace(/\benc\.\s*/g, 'encarregado ');
+    n = n.replace(/\bajud\.\s*/g, 'ajudante ');
+    n = n.replace(/\beng\.\s*/g, 'engenheiro ');
+    n = n.replace(/\btec\.\s*/g, 'técnico ');
+    n = n.replace(/\btéc\.\s*/g, 'técnico ');
+    n = n.replace(/\bop\.\s*/g, 'operador ');
+    n = n.replace(/\bmot\.\s*/g, 'motorista ');
 
-    return normalized;
+    // 4. Expandir "of" SEM ponto (quando seguido de espaço — "1/2 of carpinteiro")
+    //    Não pega "oficial" porque exige espaço depois de "of"
+    n = n.replace(/\bof\s+/g, 'oficial ');
+
+    // 5. Remover preposições soltas (de, do, da, dos, das)
+    n = n.replace(/\b(de|do|da|dos|das)\b/g, ' ');
+
+    // 6. Substituir sinônimos de sufixo
+    n = n.replace(/\bcarpintaria\b/g, 'carpinteiro');
+    n = n.replace(/\barmação\b/g, 'armador');
+    n = n.replace(/\bsoldagem\b/g, 'soldador');
+    n = n.replace(/\bpedraria\b/g, 'pedreiro');
+    n = n.replace(/\bmontagem\b/g, 'montador');
+
+    // 7. Limpar espaços extras e converter para Title Case
+    n = n.replace(/\s+/g, ' ').trim();
+    n = n.replace(/\b\w/g, c => c.toUpperCase());
+
+    return n;
 };
 
 export const exportWeeklyReportToExcel = async (
