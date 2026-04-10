@@ -134,7 +134,8 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
             'ESTACA', 'BLOCO', 'PILAR', 'TRAVESSA', 'PILAR PROVISORIO', 
             'LANCAMENTO VIGA', 'TRANSVERSINA', 'LANCAMENTO PRELAJE', 
             'LAJE', 'LAJE ELASTICA', 'LAJE DE APROXIMACAO', 
-            'FABRICACAO VIGA', 'FABRICACAO PRELAJE'
+            'FABRICACAO VIGA', 'FABRICACAO PRELAJE',
+            'CORTINA ATIRANTADA', 'SOLO GRAMPEADO'
         ];
         const srvs = Array.from(new Set(rows.map(r => r.service)) as Set<string>).sort((a, b) => {
             const idxA = serviceOrder.indexOf(a);
@@ -146,7 +147,16 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
         });
         return ['ALL', ...srvs];
     }, [rows]);
-    const oaes = useMemo(() => ['ALL', ...Array.from(new Set(rows.map(r => r.oae))).sort()], [rows]);
+    const corteServices = ['CORTINA ATIRANTADA', 'SOLO GRAMPEADO'];
+    const getServiceUnit = (service: string) => {
+        if (['SOLO GRAMPEADO', 'CORTINA ATIRANTADA', 'PILAR'].includes(service)) return 'm';
+        return 'un';
+    };
+    const localizacoes = useMemo(() => {
+        const filteredByService = selectedService === 'ALL' ? rows : rows.filter(r => r.service === selectedService);
+        const locs = Array.from(new Set(filteredByService.map(r => r.oae))).sort();
+        return ['ALL', ...locs];
+    }, [rows, selectedService]);
     const engineers = useMemo(() => ['ALL', ...Array.from(new Set(rows.map(r => r.responsible || 'N/A'))).sort()], [rows]);
 
     const filteredRows = useMemo(() => {
@@ -157,6 +167,9 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
             return true;
         });
     }, [rows, selectedService, selectedOAE, selectedEng]);
+
+    const isCorteFilter = selectedService !== 'ALL' && corteServices.includes(selectedService);
+    const locFilterLabel = isCorteFilter ? 'Corte' : (selectedService === 'ALL' ? 'Localização' : 'Obra de Arte (OAE)');
 
     const metrics = useMemo(() => {
         let totalPrev = 0, totalReal = 0;
@@ -262,8 +275,8 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-5 bg-[#0a0f18]/80 backdrop-blur-3xl border border-white/5 rounded-3xl mb-8 shadow-2xl">
-                        <div className="flex flex-col gap-1.5"><label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1"><Building2 size={10} /> Serviço</label><select value={selectedService} onChange={(e) => setSelectedService(e.target.value)} className="bg-black/40 border border-white/10 rounded-xl p-2.5 text-xs font-bold text-white outline-none focus:border-brand-accent transition-all">{services.map(s => <option key={s} value={s}>{s === 'ALL' ? 'Todos os Serviços' : s}</option>)}</select></div>
-                        <div className="flex flex-col gap-1.5"><label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1"><Target size={10} /> Obra de Arte (OAE)</label><select value={selectedOAE} onChange={(e) => setSelectedOAE(e.target.value)} className="bg-black/40 border border-white/10 rounded-xl p-2.5 text-xs font-bold text-white outline-none focus:border-brand-accent transition-all">{oaes.map(o => <option key={o} value={o}>{o === 'ALL' ? 'Todas as OAEs' : o}</option>)}</select></div>
+                        <div className="flex flex-col gap-1.5"><label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1"><Building2 size={10} /> Serviço</label><select value={selectedService} onChange={(e) => { setSelectedService(e.target.value); setSelectedOAE('ALL'); }} className="bg-black/40 border border-white/10 rounded-xl p-2.5 text-xs font-bold text-white outline-none focus:border-brand-accent transition-all">{services.map(s => <option key={s} value={s}>{s === 'ALL' ? 'Todos os Serviços' : s + ' (' + getServiceUnit(s) + ')'}</option>)}</select></div>
+                        <div className="flex flex-col gap-1.5"><label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1"><Target size={10} /> {locFilterLabel}</label><select value={selectedOAE} onChange={(e) => setSelectedOAE(e.target.value)} className="bg-black/40 border border-white/10 rounded-xl p-2.5 text-xs font-bold text-white outline-none focus:border-brand-accent transition-all">{localizacoes.map(o => <option key={o} value={o}>{o === 'ALL' ? (isCorteFilter ? 'Todos os Cortes' : 'Todas as Localizações') : o}</option>)}</select></div>
                         <div className="flex flex-col gap-1.5"><label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1"><User size={10} /> Engenheiro</label><select value={selectedEng} onChange={(e) => setSelectedEng(e.target.value)} className="bg-black/40 border border-white/10 rounded-xl p-2.5 text-xs font-bold text-white outline-none focus:border-brand-accent transition-all">{engineers.map(r => <option key={r} value={r}>{r === 'ALL' ? 'Todos os Engenheiros' : r}</option>)}</select></div>
                         <div className="flex flex-col gap-1.5"><label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1"><Calendar size={10} /> Linha do Tempo</label>
                             <div className="flex items-center gap-2 mb-2"><input type="date" value={startDate || ''} onChange={(e) => handleDateInputChange(e.target.value, 0)} className="bg-black/40 border border-white/10 rounded-lg p-1 text-[10px] text-brand-accent outline-none font-bold" /><span className="text-gray-500 text-[10px]">-</span><input type="date" value={endDate || ''} onChange={(e) => handleDateInputChange(e.target.value, 1)} className="bg-black/40 border border-white/10 rounded-lg p-1 text-[10px] text-white outline-none font-bold" /></div>

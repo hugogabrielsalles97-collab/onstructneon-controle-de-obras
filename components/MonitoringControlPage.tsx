@@ -204,8 +204,13 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
         'ESTACA', 'BLOCO', 'PILAR', 'TRAVESSA', 'PILAR PROVISORIO', 
         'LANCAMENTO VIGA', 'TRANSVERSINA', 'LANCAMENTO PRELAJE', 
         'LAJE', 'LAJE ELASTICA', 'LAJE DE APROXIMACAO', 
-        'FABRICACAO VIGA', 'FABRICACAO PRELAJE'
+        'FABRICACAO VIGA', 'FABRICACAO PRELAJE',
+        'CORTINA ATIRANTADA', 'SOLO GRAMPEADO'
     ];
+
+    const isCorteService = selectedService === 'CORTINA ATIRANTADA' || selectedService === 'SOLO GRAMPEADO';
+    const col1Label = isCorteService ? 'Corte' : 'OAE';
+    const col2Label = isCorteService ? 'FT' : 'Apoio';
 
     const services = Array.from(new Set(monitoringRows.map(r => r.service)) as Set<string>).sort((a, b) => {
         const idxA = serviceOrder.indexOf(a);
@@ -289,8 +294,8 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                             <table className="w-full border-separate border-spacing-0 text-[10px] min-w-max">
                                 <thead className="sticky top-0 z-[100] bg-[#0a0f18]">
                                     <tr className="text-gray-500 font-extrabold uppercase tracking-widest text-[9px] h-8 bg-[#0a0f18] sticky top-0 z-[150]">
-                                        <th style={{width: W_OAE, left: 0}} className="sticky z-50 p-3 border-b border-r border-white/20 text-left bg-[#0a0f18]" rowSpan={2}>OAE</th>
-                                        <th style={{width: W_APOIO, left: W_OAE}} className="sticky z-50 p-3 border-b border-r border-white/20 text-left bg-[#0a0f18]" rowSpan={2}>Apoio</th>
+                                        <th style={{width: W_OAE, left: 0}} className="sticky z-50 p-3 border-b border-r border-white/20 text-left bg-[#0a0f18]" rowSpan={2}>{col1Label}</th>
+                                        <th style={{width: W_APOIO, left: W_OAE}} className="sticky z-50 p-3 border-b border-r border-white/20 text-left bg-[#0a0f18]" rowSpan={2}>{col2Label}</th>
                                         <th style={{width: W_RESP, left: W_OAE + W_APOIO}} className="sticky z-50 p-3 border-b border-r border-white/20 text-left bg-[#0a0f18]" rowSpan={2}>Engenheiro</th>
                                         <th style={{width: W_INFO, left: W_OAE + W_APOIO + W_RESP}} className="sticky z-50 p-3 border-b border-r border-white/10 text-center bg-[#0a0f18]" rowSpan={2}>Info</th>
                                         <th style={{width: W_TOTAL, left: W_OAE + W_APOIO + W_RESP + W_INFO}} className="sticky z-50 p-3 border-b border-r border-brand-accent/50 text-center font-black text-brand-accent bg-[#0a0f18]" rowSpan={2}>TOTAL</th>
