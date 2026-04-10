@@ -326,9 +326,8 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                 <tbody>
                                     {/* TOTAL GERAL ROW - PREV — sticky individual nas cells */}
                                     <tr style={{background: '#1a1f2c'}} className="h-8">
-                                        <td style={{left: 0, top: 60, width: W_OAE, background: '#1a1f2c'}} className="sticky z-[160] p-2 border-r text-brand-accent text-center font-black uppercase text-[11px]">TOTAL</td>
-                                        <td style={{left: W_OAE, top: 60, width: W_APOIO, background: '#1a1f2c'}} className="sticky z-[160] p-2 border-r text-brand-accent text-center font-black uppercase text-[11px]">GERAL</td>
-                                        <td style={{left: W_OAE + W_APOIO, top: 60, width: W_RESP, background: '#1a1f2c'}} className="sticky z-[160] p-2 border-r"></td>
+                                        <td style={{left: 0, top: 60, width: W_OAE, background: '#1a1f2c'}} className="sticky z-[160] px-2 pt-4 pb-0 border-r text-brand-accent text-center font-black uppercase text-[11px] align-bottom">TOTAL</td>
+                                        <td style={{left: W_OAE, top: 60, width: W_APOIO + W_RESP, background: '#1a1f2c', minWidth: W_APOIO + W_RESP}} colSpan={2} className="sticky z-[160] px-2 pt-4 pb-0 border-r text-brand-accent text-center font-black uppercase text-[11px] align-bottom">GERAL</td>
                                         <td style={{left: W_OAE + W_APOIO + W_RESP, top: 60, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b border-white/10 text-center text-[9px] font-black text-gray-200 uppercase">PREV</td>
                                         <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO, top: 60, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b border-brand-accent/30 text-center text-gray-100 font-black text-[11px]">
                                             {filteredRows.reduce((a, r) => a + getGrandTotal(r, 'prev'), 0).toLocaleString()}
@@ -345,9 +344,8 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                     </tr>
                                     {/* TOTAL GERAL ROW - REAL */}
                                     <tr style={{background: '#1a1f2c'}} className="h-8">
-                                        <td style={{left: 0, top: 92, width: W_OAE, background: '#1a1f2c'}} className="sticky z-[160] p-2 border-r border-b-2 border-brand-accent/30"></td>
-                                        <td style={{left: W_OAE, top: 92, width: W_APOIO, background: '#1a1f2c'}} className="sticky z-[160] p-2 border-r border-b-2 border-brand-accent/30"></td>
-                                        <td style={{left: W_OAE + W_APOIO, top: 92, width: W_RESP, background: '#1a1f2c'}} className="sticky z-[160] p-2 border-r border-b-2 border-brand-accent/30"></td>
+                                        <td style={{left: 0, top: 92, width: W_OAE, background: '#1a1f2c'}} className="sticky z-[160] px-2 pt-0 pb-4 border-r border-b-2 border-brand-accent/30"></td>
+                                        <td style={{left: W_OAE, top: 92, width: W_APOIO + W_RESP, background: '#1a1f2c', minWidth: W_APOIO + W_RESP}} colSpan={2} className="sticky z-[160] px-2 pt-0 pb-4 border-r border-b-2 border-brand-accent/30"></td>
                                         <td style={{left: W_OAE + W_APOIO + W_RESP, top: 92, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b-2 border-brand-accent/30 text-center text-[8px] font-black text-brand-accent uppercase">REAL</td>
                                         <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO, top: 92, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b-2 border-brand-accent/30 text-center text-brand-accent font-black text-[11px]">
                                             {filteredRows.reduce((a, r) => a + getGrandTotal(r, 'real'), 0).toLocaleString()}
