@@ -205,12 +205,13 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
         'LANCAMENTO VIGA', 'TRANSVERSINA', 'LANCAMENTO PRELAJE', 
         'LAJE', 'LAJE ELASTICA', 'LAJE DE APROXIMACAO', 
         'FABRICACAO VIGA', 'FABRICACAO PRELAJE',
-        'CORTINA ATIRANTADA', 'SOLO GRAMPEADO'
+        'CORTINA ATIRANTADA', 'SOLO GRAMPEADO', 'CBUQ'
     ];
 
+    const isTrechoService = selectedService === 'CBUQ';
     const isCorteService = selectedService === 'CORTINA ATIRANTADA' || selectedService === 'SOLO GRAMPEADO';
-    const col1Label = isCorteService ? 'Corte' : 'OAE';
-    const col2Label = isCorteService ? 'FT' : 'Apoio';
+    const col1Label = isTrechoService ? 'Trecho' : (isCorteService ? 'Corte' : 'OAE');
+    const col2Label = isCorteService || isTrechoService ? 'FT' : 'Apoio';
 
     const services = Array.from(new Set(monitoringRows.map(r => r.service)) as Set<string>).sort((a, b) => {
         const idxA = serviceOrder.indexOf(a);
@@ -325,7 +326,9 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                 <tbody className="divide-y divide-white/5">
                                     {/* TOTAL GERAL ROWS (SOLID OPACITY AND HIGH Z-INDEX) */}
                                     <tr className="sticky top-[60px] z-[110] bg-[#1a1f2c] h-8">
-                                        <td colSpan={3} rowSpan={2} style={{left: 0}} className="sticky z-[120] p-2 border-r border-b-2 border-brand-accent/30 text-brand-accent text-center font-black uppercase text-[11px] bg-[#1a1f2c] align-middle">TOTAL GERAL</td>
+                                        <td style={{left: 0, width: W_OAE}} rowSpan={2} className="sticky z-[120] p-2 border-r border-b-2 border-brand-accent/30 text-brand-accent text-center font-black uppercase text-[11px] bg-[#1a1f2c] align-middle">TOTAL</td>
+                                        <td style={{left: W_OAE, width: W_APOIO}} rowSpan={2} className="sticky z-[120] p-2 border-r border-b-2 border-brand-accent/30 text-brand-accent text-center font-black uppercase text-[11px] bg-[#1a1f2c] align-middle">GERAL</td>
+                                        <td style={{left: W_OAE + W_APOIO, width: W_RESP}} rowSpan={2} className="sticky z-[120] p-2 border-r border-b-2 border-brand-accent/30 bg-[#1a1f2c] align-middle"></td>
                                         
                                         <td style={{left: W_OAE + W_APOIO + W_RESP}} className="sticky z-[120] p-1 border-r border-b border-white/10 text-center text-[9px] font-black text-gray-200 uppercase bg-[#1a1f2c]">PREV</td>
                                         <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO}} className="sticky z-[120] p-1 border-r border-b border-brand-accent/30 text-center text-gray-100 font-black text-[11px] bg-[#1a1f2c]">
