@@ -245,7 +245,20 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     'PÁTIO DE VIGAS': 'Matheus Ramos',
   };
 
-  const getEngineerForLocation = useCallback((location: string | undefined): string | null => {
+  // Mapeamento Disciplina → Engenheiro
+  const DISCIPLINE_ENGINEER_MAP: Record<string, string> = {
+    'Drenagem': 'Rodrigo Marota',
+    'Pavimentação': 'Rodrigo Marota',
+    'Terraplenagem': 'Rodrigo Marota',
+    'Contenções': 'Rodrigo Marota',
+  };
+
+  const getEngineerForTask = useCallback((location: string | undefined, discipline: string | undefined): string | null => {
+    // Primeiro, verificar pelo mapeamento de disciplina
+    if (discipline && DISCIPLINE_ENGINEER_MAP[discipline]) {
+      return DISCIPLINE_ENGINEER_MAP[discipline];
+    }
+    // Depois, verificar pelo mapeamento de localização (OAE)
     if (!location) return null;
     const loc = location.toUpperCase().trim();
     for (const [oaeLabel, engineer] of Object.entries(OAE_ENGINEER_MAP)) {
@@ -267,13 +280,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
       if (task.assignee) assignees.add(task.assignee);
       if (task.discipline) disciplines.add(task.discipline);
       if (task.level) levels.add(task.level);
-      if (task.location) {
-        locations.add(task.location);
-        const eng = getEngineerForLocation(task.location);
-        if (eng) engineers.add(eng);
-      }
+      if (task.location) locations.add(task.location);
       if (task.corte) cortes.add(task.corte);
       if (task.support) supports.add(task.support);
+      const eng = getEngineerForTask(task.location, task.discipline);
+      if (eng) engineers.add(eng);
     });
 
     return {
@@ -285,7 +296,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
       support: Array.from(supports).sort(),
       engineer: Array.from(engineers).sort(),
     };
-  }, [visibleTasks, getEngineerForLocation]);
+  }, [visibleTasks, getEngineerForTask]);
 
   const filteredTasksWithoutStatus = useMemo(() => {
     const filterStartDateNum = filters.startDate ? new Date(filters.startDate + 'T00:00:00').getTime() : null;
@@ -308,13 +319,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
       if (filterEndDateNum && taskDueDateNum > filterEndDateNum) return false;
 
       if (filters.engineer) {
-        const eng = getEngineerForLocation(task.location);
+        const eng = getEngineerForTask(task.location, task.discipline);
         if (eng !== filters.engineer) return false;
       }
 
       return true;
     });
-  }, [visibleTasks, filters.assignee, filters.discipline, filters.level, filters.location, filters.corte, filters.support, filters.startDate, filters.endDate, filters.engineer, getEngineerForLocation]);
+  }, [visibleTasks, filters.assignee, filters.discipline, filters.level, filters.location, filters.corte, filters.support, filters.startDate, filters.endDate, filters.engineer, getEngineerForTask]);
 
   const filteredAndSortedTasks = useMemo(() => {
     const todayNum = new Date().setHours(0, 0, 0, 0);

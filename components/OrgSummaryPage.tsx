@@ -168,8 +168,8 @@ const OrgSummaryPage: React.FC<OrgSummaryPageProps> = (props) => {
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                            {engineerSummaries.slice(0, 3).map(eng => (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                            {engineerSummaries.map(eng => (
                                 <SummaryCard
                                     key={eng.id}
                                     name={eng.name}
