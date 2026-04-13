@@ -245,20 +245,37 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     'PÁTIO DE VIGAS': 'Matheus Ramos',
   };
 
-  // Mapeamento Disciplina → Engenheiro
-  const DISCIPLINE_ENGINEER_MAP: Record<string, string> = {
-    'Drenagem': 'Rodrigo Marota',
-    'Pavimentação': 'Rodrigo Marota',
-    'Terraplenagem': 'Rodrigo Marota',
-    'Contenções': 'Rodrigo Marota',
-  };
+  // Mapeamento Engenheiro → Nomes dos descendentes (via árvore do organograma)
+  // Usado para engenheiros cujo filtro deve obedecer a hierarquia (ex: Rodrigo Marota)
+  const orgChartEngineerDescendants = useMemo(() => {
+    if (!orgMembers) return new Map<string, Set<string>>();
+    const result = new Map<string, Set<string>>();
 
-  const getEngineerForTask = useCallback((location: string | undefined, discipline: string | undefined): string | null => {
-    // Primeiro, verificar pelo mapeamento de disciplina
-    if (discipline && DISCIPLINE_ENGINEER_MAP[discipline]) {
-      return DISCIPLINE_ENGINEER_MAP[discipline];
-    }
-    // Depois, verificar pelo mapeamento de localização (OAE)
+    // Encontra engenheiros no organograma que NÃO estão no mapeamento por OAE
+    const oaeEngineers = new Set(Object.values(OAE_ENGINEER_MAP));
+    const orgEngineers = orgMembers.filter(m =>
+      (m.role || '').toLowerCase().includes('engenheiro') && !oaeEngineers.has(m.name)
+    );
+
+    orgEngineers.forEach(eng => {
+      const descendants = new Set<string>();
+      const findDescendants = (parentId: string) => {
+        const children = orgMembers.filter(m => m.parent_id === parentId);
+        children.forEach(child => {
+          if (child.name) descendants.add(child.name);
+          findDescendants(child.id);
+        });
+      };
+      findDescendants(eng.id);
+      if (descendants.size > 0) {
+        result.set(eng.name, descendants);
+      }
+    });
+
+    return result;
+  }, [orgMembers]);
+
+  const getEngineerForLocation = useCallback((location: string | undefined): string | null => {
     if (!location) return null;
     const loc = location.toUpperCase().trim();
     for (const [oaeLabel, engineer] of Object.entries(OAE_ENGINEER_MAP)) {
@@ -266,6 +283,26 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     }
     return null;
   }, []);
+
+  // Retorna a lista de engenheiros associados a uma tarefa (pode ser mais de um)
+  const getEngineersForTask = useCallback((task: { location?: string; assignee?: string }): string[] => {
+    const result: string[] = [];
+
+    // 1. Por localização (OAE) — Bruno Bastos, Matheus Ramos, Rafael Requiao
+    const locEng = getEngineerForLocation(task.location);
+    if (locEng) result.push(locEng);
+
+    // 2. Por árvore do organograma — Rodrigo Marota (e outros engenheiros da árvore)
+    if (task.assignee) {
+      orgChartEngineerDescendants.forEach((descendants, engName) => {
+        if (descendants.has(task.assignee!)) {
+          result.push(engName);
+        }
+      });
+    }
+
+    return result;
+  }, [getEngineerForLocation, orgChartEngineerDescendants]);
 
   const uniqueOptions = useMemo(() => {
     const assignees = new Set<string>();
@@ -283,8 +320,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
       if (task.location) locations.add(task.location);
       if (task.corte) cortes.add(task.corte);
       if (task.support) supports.add(task.support);
-      const eng = getEngineerForTask(task.location, task.discipline);
-      if (eng) engineers.add(eng);
+      const engs = getEngineersForTask(task);
+      engs.forEach(eng => engineers.add(eng));
     });
 
     return {
@@ -296,7 +333,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
       support: Array.from(supports).sort(),
       engineer: Array.from(engineers).sort(),
     };
-  }, [visibleTasks, getEngineerForTask]);
+  }, [visibleTasks, getEngineersForTask]);
 
   const filteredTasksWithoutStatus = useMemo(() => {
     const filterStartDateNum = filters.startDate ? new Date(filters.startDate + 'T00:00:00').getTime() : null;
@@ -319,13 +356,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
       if (filterEndDateNum && taskDueDateNum > filterEndDateNum) return false;
 
       if (filters.engineer) {
-        const eng = getEngineerForTask(task.location, task.discipline);
-        if (eng !== filters.engineer) return false;
+        const engs = getEngineersForTask(task);
+        if (!engs.includes(filters.engineer)) return false;
       }
 
       return true;
     });
-  }, [visibleTasks, filters.assignee, filters.discipline, filters.level, filters.location, filters.corte, filters.support, filters.startDate, filters.endDate, filters.engineer, getEngineerForTask]);
+  }, [visibleTasks, filters.assignee, filters.discipline, filters.level, filters.location, filters.corte, filters.support, filters.startDate, filters.endDate, filters.engineer, getEngineersForTask]);
 
   const filteredAndSortedTasks = useMemo(() => {
     const todayNum = new Date().setHours(0, 0, 0, 0);
