@@ -210,6 +210,18 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
         };
     }, [filteredRows, startDate, endDate, statusDate]);
 
+    /** Ultimo dia com previsto (>0) nos registros filtrados: fim do indicador (ex.: CBUQ ate mai/26, nao o fim global da linha do tempo). */
+    const indicatorEndDateIso = useMemo(() => {
+        let max = '';
+        filteredRows.forEach(r => {
+            Object.entries(r.daily_data || {}).forEach(([date, vals]) => {
+                const prev = (vals as { prev: number; real: number }).prev || 0;
+                if (prev > 0 && date > max) max = date;
+            });
+        });
+        return max || null;
+    }, [filteredRows]);
+
     const taktTimePerWeek = useMemo(() => {
         // statusDate vem do _CONFIG_ e pode ser DD/MM/YYYY (UI) ou YYYY-MM-DD (chaves do daily_data)
         let isoStatusDate = statusDate;
@@ -218,15 +230,16 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
             if (parts.length === 3) isoStatusDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
         }
 
-        if (!isoStatusDate || !endDate) return null;
+        const taktEndIso = indicatorEndDateIso || endDate;
+        if (!isoStatusDate || !taktEndIso) return null;
 
-        // Total planejado até o fim do indicador (endDate do filtro)
+        // Total planejado até o fim do indicador (dados filtrados), não o fim da linha do tempo global
         let plannedToEnd = 0;
         let realToCut = 0;
         filteredRows.forEach(r => {
             Object.entries(r.daily_data || {}).forEach(([date, vals]) => {
                 const v = vals as { prev: number; real: number };
-                if (date <= endDate) plannedToEnd += v.prev || 0;
+                if (date <= taktEndIso) plannedToEnd += v.prev || 0;
                 if (date <= isoStatusDate) realToCut += v.real || 0;
             });
         });
@@ -234,8 +247,10 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
         const remaining = plannedToEnd - realToCut;
 
         const start = new Date(isoStatusDate + 'T12:00:00');
-        const end = new Date(endDate + 'T12:00:00');
-        if (isNaN(start.getTime()) || isNaN(end.getTime())) return { remaining, weeks: 0, perWeek: remaining };
+        const end = new Date(taktEndIso + 'T12:00:00');
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+            return { remaining, weeks: 0, perWeek: remaining, endIso: taktEndIso };
+        }
 
         // Considera o período a partir do dia seguinte à data de corte
         const cursor = new Date(start);
@@ -251,8 +266,8 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
         const weeks = businessDays / 5;
         const perWeek = weeks > 0 ? remaining / weeks : remaining;
 
-        return { remaining, weeks, perWeek };
-    }, [filteredRows, statusDate, endDate]);
+        return { remaining, weeks, perWeek, endIso: taktEndIso };
+    }, [filteredRows, statusDate, endDate, indicatorEndDateIso]);
 
     const getPeriodTotal = (row: MonitoringRow, type: 'prev' | 'real') => {
         let sum = 0;
@@ -346,7 +361,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                             </h3>
                             <p className="text-[9px] text-brand-med-gray font-bold uppercase tracking-widest mt-1 opacity-80">
                                 {taktTimePerWeek
-                                    ? `Saldo: ${taktTimePerWeek.remaining.toLocaleString('pt-BR')} | Até ${new Date(endDate + 'T12:00:00').toLocaleDateString('pt-BR')}`
+                                    ? `Saldo: ${taktTimePerWeek.remaining.toLocaleString('pt-BR')} | Até ${new Date(taktTimePerWeek.endIso + 'T12:00:00').toLocaleDateString('pt-BR')}`
                                     : 'Defina a data de corte e o fim do indicador'}
                             </p>
                         </div>
