@@ -252,18 +252,27 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
             return { remaining, weeks: 0, perWeek: remaining, endIso: taktEndIso };
         }
 
-        // Considera o período a partir do dia seguinte à data de corte
-        const cursor = new Date(start);
-        cursor.setDate(cursor.getDate() + 1);
+        // Mesma semana do gráfico (fim no sábado): só entram semanas com previsto > 0 após a data de corte
+        const getSaturdayEnd = (dStr: string) => {
+            const d = new Date(dStr + 'T12:00:00');
+            const day = d.getDay();
+            const diff = 6 - day;
+            const sat = new Date(d);
+            sat.setDate(d.getDate() + diff);
+            return sat.toISOString().split('T')[0];
+        };
 
-        let businessDays = 0;
-        while (cursor <= end) {
-            const day = cursor.getDay(); // 0 dom ... 6 sáb
-            if (day !== 0 && day !== 6) businessDays += 1;
-            cursor.setDate(cursor.getDate() + 1);
-        }
+        const futureWeekPrev: Record<string, number> = {};
+        filteredRows.forEach(r => {
+            Object.entries(r.daily_data || {}).forEach(([date, vals]) => {
+                if (date <= isoStatusDate || date > taktEndIso) return;
+                const v = vals as { prev: number; real: number };
+                const sat = getSaturdayEnd(date);
+                futureWeekPrev[sat] = (futureWeekPrev[sat] || 0) + (v.prev || 0);
+            });
+        });
 
-        const weeks = businessDays / 5;
+        const weeks = Object.values(futureWeekPrev).filter(p => p > 0).length;
         const perWeek = weeks > 0 ? remaining / weeks : remaining;
 
         return { remaining, weeks, perWeek, endIso: taktEndIso };
@@ -353,7 +362,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                         <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl relative overflow-hidden group"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Diferença no período</p><h3 className={`text-4xl font-black ${metrics.periodGap < 0 ? 'text-red-500' : metrics.periodGap > 0 ? 'text-green-500' : 'text-white'}`}>{metrics.periodGap > 0 ? '+' : ''}{metrics.periodGap.toLocaleString('pt-BR')}</h3></div>
                         <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl relative overflow-hidden group"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Diferença acumulada</p><h3 className={`text-4xl font-black ${metrics.cumGap < 0 ? 'text-red-500' : metrics.cumGap > 0 ? 'text-green-500' : 'text-white'}`}>{metrics.cumGap > 0 ? '+' : ''}{metrics.cumGap.toLocaleString('pt-BR')}</h3></div>
                         <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl relative overflow-hidden group">
-                            <p className="text-[10px] font-black text-gray-500 uppercase mb-1">TAKT TIME/ SEMANA</p>
+                            <p className="text-[10px] font-black text-gray-500 uppercase mb-1">TAKT / SEMANA</p>
                             <h3 className="text-4xl font-black text-white">
                                 {taktTimePerWeek
                                     ? `${taktTimePerWeek.perWeek.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}`
