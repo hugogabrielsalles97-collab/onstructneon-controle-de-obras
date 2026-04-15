@@ -2,7 +2,7 @@
  * Insere/atualiza linhas de SOLO GRAMPEADO (FT = NA, Eng. João Lucas).
  * Uso: node insert_solo_grampeado_na.js  (requer .env com VITE_SUPABASE_*)
  *
- * Equivalente à migração: supabase/migrations/20260414120000_solo_grampeado_na_rows.sql
+ * Equivalente às migrações 20260414120000_solo_grampeado_na_rows.sql e 20260415140000_solo_grampeado_na_cleanup.sql
  */
 import fs from 'fs';
 
@@ -42,18 +42,17 @@ function buildId(oae, apoio) {
 }
 
 const items = [
-    { oae: 'CS09', apoio: 'NA' },
+    { oae: 'CS09A', apoio: 'NA' },
     { oae: 'PRAÇA26', apoio: 'NA' },
     { oae: 'CS07XP', apoio: 'NA' },
     { oae: 'CS24', apoio: 'NA' },
-    { oae: 'CD26', apoio: 'NA' },
     { oae: 'CS21-R1', apoio: 'NA' },
-    { oae: 'CS03', apoio: 'NA' },
-    { oae: 'CD34', apoio: 'NA' },
     { oae: 'PRACA27', apoio: 'NA' },
     { oae: 'TD27', apoio: 'NA' },
     { oae: 'D20 P3', apoio: 'NA' },
     { oae: 'D20 P5', apoio: 'NA' },
+    { oae: 'D20 P6', apoio: 'NA' },
+    { oae: 'S12 P5', apoio: 'NA' },
     { oae: 'D21 P3', apoio: 'NA' },
     { oae: 'D21 P4', apoio: 'NA' },
     { oae: 'CD29', apoio: 'NA' },

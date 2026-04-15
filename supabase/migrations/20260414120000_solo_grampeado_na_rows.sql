@@ -3,18 +3,17 @@
 
 INSERT INTO public.monitoring_rows (id, service, oae, apoio, responsible, daily_data)
 VALUES
-  ('SOLO_GRAMPEADO_CS09_NA', 'SOLO GRAMPEADO', 'CS09', 'NA', 'João Lucas', '{}'::jsonb),
+  ('SOLO_GRAMPEADO_CS09A_NA', 'SOLO GRAMPEADO', 'CS09A', 'NA', 'João Lucas', '{}'::jsonb),
   ('SOLO_GRAMPEADO_PRAÇA26_NA', 'SOLO GRAMPEADO', 'PRAÇA26', 'NA', 'João Lucas', '{}'::jsonb),
   ('SOLO_GRAMPEADO_CS07XP_NA', 'SOLO GRAMPEADO', 'CS07XP', 'NA', 'João Lucas', '{}'::jsonb),
   ('SOLO_GRAMPEADO_CS24_NA', 'SOLO GRAMPEADO', 'CS24', 'NA', 'João Lucas', '{}'::jsonb),
-  ('SOLO_GRAMPEADO_CD26_NA', 'SOLO GRAMPEADO', 'CD26', 'NA', 'João Lucas', '{}'::jsonb),
   ('SOLO_GRAMPEADO_CS21-R1_NA', 'SOLO GRAMPEADO', 'CS21-R1', 'NA', 'João Lucas', '{}'::jsonb),
-  ('SOLO_GRAMPEADO_CS03_NA', 'SOLO GRAMPEADO', 'CS03', 'NA', 'João Lucas', '{}'::jsonb),
-  ('SOLO_GRAMPEADO_CD34_NA', 'SOLO GRAMPEADO', 'CD34', 'NA', 'João Lucas', '{}'::jsonb),
   ('SOLO_GRAMPEADO_PRACA27_NA', 'SOLO GRAMPEADO', 'PRACA27', 'NA', 'João Lucas', '{}'::jsonb),
   ('SOLO_GRAMPEADO_TD27_NA', 'SOLO GRAMPEADO', 'TD27', 'NA', 'João Lucas', '{}'::jsonb),
   ('SOLO_GRAMPEADO_D20_P3_NA', 'SOLO GRAMPEADO', 'D20 P3', 'NA', 'João Lucas', '{}'::jsonb),
   ('SOLO_GRAMPEADO_D20_P5_NA', 'SOLO GRAMPEADO', 'D20 P5', 'NA', 'João Lucas', '{}'::jsonb),
+  ('SOLO_GRAMPEADO_D20_P6_NA', 'SOLO GRAMPEADO', 'D20 P6', 'NA', 'João Lucas', '{}'::jsonb),
+  ('SOLO_GRAMPEADO_S12_P5_NA', 'SOLO GRAMPEADO', 'S12 P5', 'NA', 'João Lucas', '{}'::jsonb),
   ('SOLO_GRAMPEADO_D21_P3_NA', 'SOLO GRAMPEADO', 'D21 P3', 'NA', 'João Lucas', '{}'::jsonb),
   ('SOLO_GRAMPEADO_D21_P4_NA', 'SOLO GRAMPEADO', 'D21 P4', 'NA', 'João Lucas', '{}'::jsonb),
   ('SOLO_GRAMPEADO_CD29_NA', 'SOLO GRAMPEADO', 'CD29', 'NA', 'João Lucas', '{}'::jsonb),
