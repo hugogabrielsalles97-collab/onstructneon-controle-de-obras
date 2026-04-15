@@ -210,6 +210,50 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
         };
     }, [filteredRows, startDate, endDate, statusDate]);
 
+    const taktTimePerWeek = useMemo(() => {
+        // statusDate vem do _CONFIG_ e pode ser DD/MM/YYYY (UI) ou YYYY-MM-DD (chaves do daily_data)
+        let isoStatusDate = statusDate;
+        if (statusDate.includes('/')) {
+            const parts = statusDate.split('/');
+            if (parts.length === 3) isoStatusDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+
+        if (!isoStatusDate || !endDate) return null;
+
+        // Total planejado até o fim do indicador (endDate do filtro)
+        let plannedToEnd = 0;
+        let realToCut = 0;
+        filteredRows.forEach(r => {
+            Object.entries(r.daily_data || {}).forEach(([date, vals]) => {
+                const v = vals as { prev: number; real: number };
+                if (date <= endDate) plannedToEnd += v.prev || 0;
+                if (date <= isoStatusDate) realToCut += v.real || 0;
+            });
+        });
+
+        const remaining = plannedToEnd - realToCut;
+
+        const start = new Date(isoStatusDate + 'T12:00:00');
+        const end = new Date(endDate + 'T12:00:00');
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) return { remaining, weeks: 0, perWeek: remaining };
+
+        // Considera o período a partir do dia seguinte à data de corte
+        const cursor = new Date(start);
+        cursor.setDate(cursor.getDate() + 1);
+
+        let businessDays = 0;
+        while (cursor <= end) {
+            const day = cursor.getDay(); // 0 dom ... 6 sáb
+            if (day !== 0 && day !== 6) businessDays += 1;
+            cursor.setDate(cursor.getDate() + 1);
+        }
+
+        const weeks = businessDays / 5;
+        const perWeek = weeks > 0 ? remaining / weeks : remaining;
+
+        return { remaining, weeks, perWeek };
+    }, [filteredRows, statusDate, endDate]);
+
     const getPeriodTotal = (row: MonitoringRow, type: 'prev' | 'real') => {
         let sum = 0;
         Object.entries(row.daily_data || {}).forEach(([date, vals]) => {
@@ -287,12 +331,25 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Quantidade Prevista</p><h3 className="text-4xl font-black text-white">{metrics.totalPrev.toLocaleString()}</h3></div>
-                        <div className="p-6 bg-[#0a0f18] border border-brand-accent/20 rounded-3xl shadow-2xl"><p className="text-[10px] font-black text-brand-accent uppercase mb-1">Quantidade Realizada</p><h3 className="text-4xl font-black text-white">{metrics.totalReal.toLocaleString()}</h3></div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
+                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Quantidade Prevista</p><h3 className="text-4xl font-black text-white">{metrics.totalPrev.toLocaleString('pt-BR')}</h3></div>
+                        <div className="p-6 bg-[#0a0f18] border border-brand-accent/20 rounded-3xl shadow-2xl"><p className="text-[10px] font-black text-brand-accent uppercase mb-1">Quantidade Realizada</p><h3 className="text-4xl font-black text-white">{metrics.totalReal.toLocaleString('pt-BR')}</h3></div>
                         <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Aderência Médio (%)</p><h3 className={`text-4xl font-black ${metrics.progress >= 90 ? 'text-green-500' : metrics.progress >= 70 ? 'text-yellow-500' : 'text-red-500'}`}>{metrics.progress.toFixed(1)}%</h3></div>
-                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl relative overflow-hidden group"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Diferença no período</p><h3 className={`text-4xl font-black ${metrics.periodGap < 0 ? 'text-red-500' : metrics.periodGap > 0 ? 'text-green-500' : 'text-white'}`}>{metrics.periodGap > 0 ? '+' : ''}{metrics.periodGap.toLocaleString()}</h3></div>
-                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl relative overflow-hidden group"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Diferença acumulada</p><h3 className={`text-4xl font-black ${metrics.cumGap < 0 ? 'text-red-500' : metrics.cumGap > 0 ? 'text-green-500' : 'text-white'}`}>{metrics.cumGap > 0 ? '+' : ''}{metrics.cumGap.toLocaleString()}</h3></div>
+                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl relative overflow-hidden group"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Diferença no período</p><h3 className={`text-4xl font-black ${metrics.periodGap < 0 ? 'text-red-500' : metrics.periodGap > 0 ? 'text-green-500' : 'text-white'}`}>{metrics.periodGap > 0 ? '+' : ''}{metrics.periodGap.toLocaleString('pt-BR')}</h3></div>
+                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl relative overflow-hidden group"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Diferença acumulada</p><h3 className={`text-4xl font-black ${metrics.cumGap < 0 ? 'text-red-500' : metrics.cumGap > 0 ? 'text-green-500' : 'text-white'}`}>{metrics.cumGap > 0 ? '+' : ''}{metrics.cumGap.toLocaleString('pt-BR')}</h3></div>
+                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl relative overflow-hidden group">
+                            <p className="text-[10px] font-black text-gray-500 uppercase mb-1">TAKT TIME/ SEMANA</p>
+                            <h3 className="text-4xl font-black text-white">
+                                {taktTimePerWeek
+                                    ? `${taktTimePerWeek.perWeek.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}`
+                                    : '-'}
+                            </h3>
+                            <p className="text-[9px] text-brand-med-gray font-bold uppercase tracking-widest mt-1 opacity-80">
+                                {taktTimePerWeek
+                                    ? `Saldo: ${taktTimePerWeek.remaining.toLocaleString('pt-BR')} | Até ${new Date(endDate + 'T12:00:00').toLocaleDateString('pt-BR')}`
+                                    : 'Defina a data de corte e o fim do indicador'}
+                            </p>
+                        </div>
                     </div>
 
                     <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl mb-8">
