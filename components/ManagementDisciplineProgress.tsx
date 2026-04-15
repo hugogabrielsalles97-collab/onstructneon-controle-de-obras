@@ -28,7 +28,7 @@ export interface DisciplineMonthProgress {
 const MANAGEMENT_RULES = {
     'OAE': {
         manager: 'Eduardo Meira',
-        engineers: ['Matheus Ramos', 'Bruno Bastos', 'Rafael Arouca'],
+        engineers: ['Matheus Ramos', 'Bruno Bastos', 'Rafael Requiao'],
         services: ['Estaca', 'Bloco', 'Pilar', 'Travessa', 'Lançamento de viga', 'Transversina', 'Prelaje', 'Laje']
     },
     'Pavimentação': {

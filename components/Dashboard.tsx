@@ -102,9 +102,37 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
   const [availabilityDate, setAvailabilityDate] = useState('');
   const [availabilityEngineer, setAvailabilityEngineer] = useState('');
 
+  // Normalização de nomes — unifica duplicatas no organograma
+  // Se o banco tem "Rafael Arouca" mas o correto é "Rafael Requiao", mapeia aqui.
+  const NAME_NORMALIZATION_MAP: Record<string, string> = {
+    'Rafael Arouca': 'Rafael Requiao',
+  };
+
+  // Remove acentos e caracteres especiais para comparações robustas
+  const normalizeString = (str: string): string => {
+    return str
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+  };
+
+  const normalizeName = (name: string): string => NAME_NORMALIZATION_MAP[name] || name;
+
   const engineersList = useMemo(() => {
     if (!orgMembers) return [];
-    return orgMembers.filter(m => (m.role || '').toLowerCase().includes('engenheiro')).sort((a, b) => a.name.localeCompare(b.name));
+    // Deduplica engenheiros pelo nome normalizado (ex: "Rafael Arouca" → "Rafael Requiao")
+    const seen = new Set<string>();
+    return orgMembers
+      .filter(m => (m.role || '').toLowerCase().includes('engenheiro'))
+      .filter(m => {
+        const normalized = normalizeString(normalizeName(m.name || ''));
+        if (seen.has(normalized)) return false;
+        seen.add(normalized);
+        return true;
+      })
+      .map(m => ({ ...m, name: normalizeName(m.name || '') }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [orgMembers]);
 
   const freeEncarregadosData = useMemo(() => {
@@ -113,7 +141,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     // 0. Filter by chosen Engineer (traverse down to find all descendants of the selected engineer)
     let allowedEncarregadosIds: Set<string> | null = null;
     if (availabilityEngineer) {
-      const eng = orgMembers.find(m => m.name === availabilityEngineer && (m.role || '').toLowerCase().includes('engenheiro'));
+      // Busca pelo nome normalizado para funcionar mesmo que o banco tenha "Rafael Arouca"
+      const targetEng = normalizeString(availabilityEngineer);
+      const eng = orgMembers.find(m => {
+        const normalized = normalizeString(normalizeName(m.name || ''));
+        return normalized === targetEng && (m.role || '').toLowerCase().includes('engenheiro');
+      });
       if (eng) {
         allowedEncarregadosIds = new Set();
         const findDescendants = (parentId: string) => {
@@ -231,6 +264,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     setFilters(initialFilters);
   };
 
+
   // Mapeamento OAE → Engenheiro (mesma lógica do Controle Visual)
   const OAE_ENGINEER_MAP: Record<string, string> = {
     'S01': 'Bruno Bastos', 'S02': 'Bruno Bastos', 'S03': 'Bruno Bastos',
@@ -246,30 +280,52 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
   };
 
   // Mapeamento Engenheiro → Nomes dos descendentes (via árvore do organograma)
-  // Usado para engenheiros cujo filtro deve obedecer a hierarquia (ex: Rodrigo Marota)
+  // SOMENTE Rodrigo Marota usa essa lógica — os demais usam OAE_ENGINEER_MAP por localização.
+  const TREE_BASED_ENGINEERS = ['rodrigo marota'];
+
+  /** Nomes exibidos no filtro (sempre presentes), mesmo sem tarefa que já associe o engenheiro por árvore. */
+  const treeEngineerFilterLabels = useMemo(() => {
+    if (!orgMembers) return [] as string[];
+    return orgMembers
+      .filter(m => {
+        const normalizedName = normalizeString(normalizeName(m.name || ''));
+        return TREE_BASED_ENGINEERS.includes(normalizedName);
+      })
+      .map(m => normalizeName(m.name || '').trim())
+      .filter(Boolean);
+  }, [orgMembers]);
+
   const orgChartEngineerDescendants = useMemo(() => {
     if (!orgMembers) return new Map<string, Set<string>>();
     const result = new Map<string, Set<string>>();
 
-    // Encontra engenheiros no organograma que NÃO estão no mapeamento por OAE
-    const oaeEngineers = new Set(Object.values(OAE_ENGINEER_MAP));
-    const orgEngineers = orgMembers.filter(m =>
-      (m.role || '').toLowerCase().includes('engenheiro') && !oaeEngineers.has(m.name)
-    );
+    // Busca EXCLUSIVAMENTE os engenheiros listados em TREE_BASED_ENGINEERS no organograma
+    // Para esses casos, não exigimos que o role contenha "engenheiro", pois podem ser gestores/coordenadores.
+    const treeEngineers = orgMembers.filter(m => {
+      const normalizedName = normalizeString(normalizeName(m.name || ''));
+      return TREE_BASED_ENGINEERS.includes(normalizedName);
+    });
 
-    orgEngineers.forEach(eng => {
+    treeEngineers.forEach(eng => {
+      const finalEngName = normalizeName(eng.name || '').trim();
+      if (!finalEngName) return;
+
       const descendants = new Set<string>();
+      // Próprio gestor: tarefas com ele como responsável também entram no filtro dele
+      descendants.add(normalizeString(normalizeName(eng.name || '')));
+
       const findDescendants = (parentId: string) => {
         const children = orgMembers.filter(m => m.parent_id === parentId);
         children.forEach(child => {
-          if (child.name) descendants.add(child.name);
+          if (child.name) {
+            descendants.add(normalizeString(normalizeName(child.name)));
+          }
           findDescendants(child.id);
         });
       };
+
       findDescendants(eng.id);
-      if (descendants.size > 0) {
-        result.set(eng.name, descendants);
-      }
+      result.set(finalEngName, descendants);
     });
 
     return result;
@@ -292,10 +348,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     const locEng = getEngineerForLocation(task.location);
     if (locEng) result.push(locEng);
 
-    // 2. Por árvore do organograma — Rodrigo Marota (e outros engenheiros da árvore)
+    // 2. Por árvore do organograma — ex.: Rodrigo Marota = gestor de todos os responsáveis abaixo dele na árvore
     if (task.assignee) {
+      const assigneeKey = normalizeString(normalizeName(task.assignee));
       orgChartEngineerDescendants.forEach((descendants, engName) => {
-        if (descendants.has(task.assignee!)) {
+        if (descendants.has(assigneeKey)) {
           result.push(engName);
         }
       });
@@ -331,9 +388,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
       location: Array.from(locations).sort(),
       corte: Array.from(cortes).sort(),
       support: Array.from(supports).sort(),
-      engineer: Array.from(engineers).sort(),
+      engineer: Array.from(new Set([...engineers, ...treeEngineerFilterLabels])).sort(),
     };
-  }, [visibleTasks, getEngineersForTask]);
+  }, [visibleTasks, getEngineersForTask, treeEngineerFilterLabels]);
 
   const filteredTasksWithoutStatus = useMemo(() => {
     const filterStartDateNum = filters.startDate ? new Date(filters.startDate + 'T00:00:00').getTime() : null;
@@ -356,8 +413,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
       if (filterEndDateNum && taskDueDateNum > filterEndDateNum) return false;
 
       if (filters.engineer) {
+        const filterEngKey = normalizeString(normalizeName(filters.engineer));
         const engs = getEngineersForTask(task);
-        if (!engs.includes(filters.engineer)) return false;
+        const matches = engs.some(e => normalizeString(normalizeName(e)) === filterEngKey);
+        if (!matches) return false;
       }
 
       return true;
