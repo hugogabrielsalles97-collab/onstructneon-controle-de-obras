@@ -318,11 +318,44 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
     }, [filteredRows, startDate, endDate, uniqueDates]);
 
     const rankingRows = useMemo(() => {
+        let isoStatusDate = statusDate;
+        if (statusDate.includes('/')) {
+            const parts = statusDate.split('/');
+            if (parts.length === 3) isoStatusDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+        const taktEndIso = indicatorEndDateIso || endDate;
+
         return filteredRows
-            .map(r => ({ ...r, pTotal: getPeriodTotal(r, 'prev'), rTotal: getPeriodTotal(r, 'real') }))
+            .map(r => {
+                let rPlannedToEnd = 0;
+                let rRealToCut = 0;
+                const rFutureWeekPrev: Record<string, number> = {};
+
+                if (isoStatusDate && taktEndIso) {
+                    Object.entries(r.daily_data || {}).forEach(([date, vals]) => {
+                        const v = vals as { prev: number; real: number };
+                        if (date <= taktEndIso) rPlannedToEnd += v.prev || 0;
+                        if (date <= isoStatusDate) rRealToCut += v.real || 0;
+                        
+                        if (date > isoStatusDate && date <= taktEndIso) {
+                            const d = new Date(date + 'T12:00:00');
+                            const diff = 6 - d.getDay();
+                            const sat = new Date(d);
+                            sat.setDate(d.getDate() + diff);
+                            const satStr = sat.toISOString().split('T')[0];
+                            rFutureWeekPrev[satStr] = (rFutureWeekPrev[satStr] || 0) + (v.prev || 0);
+                        }
+                    });
+                }
+                const rRemaining = rPlannedToEnd - rRealToCut;
+                const rWeeks = Object.values(rFutureWeekPrev).filter(pv => pv > 0).length;
+                const rowTakt = rRemaining > 0 ? (rWeeks > 0 ? rRemaining / rWeeks : rRemaining) : 0;
+
+                return { ...r, pTotal: getPeriodTotal(r, 'prev'), rTotal: getPeriodTotal(r, 'real'), rowTakt };
+            })
             .filter(r => r.pTotal > 0 || r.rTotal > 0)
             .sort((a, b) => b.rTotal - a.rTotal);
-    }, [filteredRows, startDate, endDate]);
+    }, [filteredRows, startDate, endDate, statusDate, indicatorEndDateIso]);
 
     if (!user) return null;
     if (isLoading) return <div className="flex bg-[#060a12] h-screen items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-brand-accent"></div></div>;
@@ -355,25 +388,12 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
                         <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Quantidade Prevista</p><h3 className="text-4xl font-black text-white">{metrics.totalPrev.toLocaleString('pt-BR')}</h3></div>
                         <div className="p-6 bg-[#0a0f18] border border-brand-accent/20 rounded-3xl shadow-2xl"><p className="text-[10px] font-black text-brand-accent uppercase mb-1">Quantidade Realizada</p><h3 className="text-4xl font-black text-white">{metrics.totalReal.toLocaleString('pt-BR')}</h3></div>
                         <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Aderência Médio (%)</p><h3 className={`text-4xl font-black ${metrics.progress >= 90 ? 'text-green-500' : metrics.progress >= 70 ? 'text-yellow-500' : 'text-red-500'}`}>{metrics.progress.toFixed(1)}%</h3></div>
                         <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl relative overflow-hidden group"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Diferença no período</p><h3 className={`text-4xl font-black ${metrics.periodGap < 0 ? 'text-red-500' : metrics.periodGap > 0 ? 'text-green-500' : 'text-white'}`}>{metrics.periodGap > 0 ? '+' : ''}{metrics.periodGap.toLocaleString('pt-BR')}</h3></div>
                         <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl relative overflow-hidden group"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Diferença acumulada</p><h3 className={`text-4xl font-black ${metrics.cumGap < 0 ? 'text-red-500' : metrics.cumGap > 0 ? 'text-green-500' : 'text-white'}`}>{metrics.cumGap > 0 ? '+' : ''}{metrics.cumGap.toLocaleString('pt-BR')}</h3></div>
-                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl relative overflow-hidden group">
-                            <p className="text-[10px] font-black text-gray-500 uppercase mb-1">TAKT / SEMANA</p>
-                            <h3 className="text-4xl font-black text-white">
-                                {taktTimePerWeek
-                                    ? `${taktTimePerWeek.perWeek.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}`
-                                    : '-'}
-                            </h3>
-                            <p className="text-[9px] text-brand-med-gray font-bold uppercase tracking-widest mt-1 opacity-80">
-                                {taktTimePerWeek
-                                    ? `Saldo: ${taktTimePerWeek.remaining.toLocaleString('pt-BR')} | Até ${new Date(taktTimePerWeek.endIso + 'T12:00:00').toLocaleDateString('pt-BR')}`
-                                    : 'Defina a data de corte e o fim do indicador'}
-                            </p>
-                        </div>
                     </div>
 
                     <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl mb-8">
@@ -397,10 +417,10 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                         <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[500px]">
-                             <h4 className="text-xs font-black uppercase tracking-widest text-white mb-6">Performance por Obra (OAE)</h4>
+                             <h4 className="text-xs font-black uppercase tracking-widest text-white mb-6">Performance por Obra</h4>
                              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                                 <table className="w-full text-left border-collapse">
-                                    <thead className="sticky top-0 bg-[#0a0f18] z-10 shadow-[0_1px_0_0_rgba(255,255,255,0.05)]"><tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5"><th className="pb-4">OAE / Apoio</th><th className="pb-4 text-center">Prev.</th><th className="pb-4 text-center">Real.</th><th className="pb-4 text-right">Ader.</th></tr></thead>
+                                    <thead className="sticky top-0 bg-[#0a0f18] z-10 shadow-[0_1px_0_0_rgba(255,255,255,0.05)]"><tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5"><th className="pb-4">Obra / Apoio</th><th className="pb-4 text-center">Prev.</th><th className="pb-4 text-center">Real.</th><th className="pb-4 text-center">Takt (Sem)</th><th className="pb-4 text-right">Ader.</th></tr></thead>
                                     <tbody className="divide-y divide-white/5">
                                         {rankingRows.map(r => {
                                             const p = r.pTotal; const rv = r.rTotal;
@@ -410,6 +430,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                                                     <td className="py-3 font-bold text-xs truncate max-w-[120px]">{r.oae} <span className="text-[9px] text-gray-500 font-normal">({r.apoio})</span></td>
                                                     <td className="py-3 text-center text-xs font-semibold text-gray-400">{p}</td>
                                                     <td className="py-3 text-center text-xs font-black text-brand-accent">{rv}</td>
+                                                    <td className="py-3 text-center text-xs font-semibold text-gray-300">{r.rowTakt ? r.rowTakt.toFixed(1) : '-'}</td>
                                                     <td className={`py-3 text-right font-black text-xs ${perc >= 100 ? 'text-green-500' : 'text-orange-500'}`}>{perc.toFixed(0)}%</td>
                                                 </tr>
                                             );
