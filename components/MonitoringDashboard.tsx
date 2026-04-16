@@ -438,7 +438,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                                 <table className="w-full text-left border-collapse">
                                     <thead className="sticky top-0 bg-[#0a0f18] z-10 shadow-[0_1px_0_0_rgba(255,255,255,0.05)]"><tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5"><th className="pb-4">Obra / Apoio</th><th className="pb-4 text-center">Prev.{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</th><th className="pb-4 text-center">Real.{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</th><th className="pb-4 text-center">Takt (Sem)</th><th className="pb-4 text-right">Ader.</th></tr></thead>
                                     <tbody className="divide-y divide-white/5">
-                                        {rankingRows.map(r => {
+                                        {selectedService === 'ALL' ? null : rankingRows.map(r => {
                                             const p = r.pTotal; const rv = r.rTotal;
                                             const perc = p > 0 ? (rv / p) * 100 : (rv > 0 ? 100 : 0);
                                             return (
@@ -462,7 +462,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                                 <table className="w-full text-left border-collapse">
                                     <thead className="sticky top-0 bg-[#0a0f18] z-10 shadow-[0_1px_0_0_rgba(255,255,255,0.05)]"><tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5"><th className="pb-4">Engenheiro</th><th className="pb-4 text-center">Prev.{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</th><th className="pb-4 text-center">Real.{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</th><th className="pb-4 text-right">%</th></tr></thead>
                                     <tbody className="divide-y divide-white/5">
-                                        {Array.from(new Set(filteredRows.map(r => r.responsible))).filter(Boolean).map(eng => {
+                                        {selectedService === 'ALL' ? null : Array.from(new Set(filteredRows.map(r => r.responsible))).filter(Boolean).map(eng => {
                                             const engRows = filteredRows.filter(r => r.responsible === eng);
                                             const p = engRows.reduce((acc, r) => acc + getPeriodTotal(r, 'prev'), 0);const rv = engRows.reduce((acc, r) => acc + getPeriodTotal(r, 'real'), 0);
                                             if (p === 0 && rv === 0) return null; const perc = p > 0 ? (rv / p) * 100 : (rv > 0 ? 100 : 0);
