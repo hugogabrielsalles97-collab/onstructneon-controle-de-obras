@@ -330,6 +330,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                 let rPlannedToEnd = 0;
                 let rRealToCut = 0;
                 const rFutureWeekPrev: Record<string, number> = {};
+                const weekReal: Record<string, number> = {};
 
                 if (isoStatusDate && taktEndIso) {
                     Object.entries(r.daily_data || {}).forEach(([date, vals]) => {
@@ -345,13 +346,36 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                             const satStr = sat.toISOString().split('T')[0];
                             rFutureWeekPrev[satStr] = (rFutureWeekPrev[satStr] || 0) + (v.prev || 0);
                         }
+
+                        if (v.real > 0) {
+                            const d = new Date(date + 'T12:00:00');
+                            const diff = 6 - d.getDay();
+                            const sat = new Date(d);
+                            sat.setDate(d.getDate() + diff);
+                            const satStr = sat.toISOString().split('T')[0];
+                            weekReal[satStr] = (weekReal[satStr] || 0) + v.real;
+                        }
                     });
                 }
                 const rRemaining = rPlannedToEnd - rRealToCut;
                 const rWeeks = Object.values(rFutureWeekPrev).filter(pv => pv > 0).length;
                 const rowTakt = rRemaining > 0 ? (rWeeks > 0 ? rRemaining / rWeeks : rRemaining) : 0;
 
-                return { ...r, pTotal: getPeriodTotal(r, 'prev'), rTotal: getPeriodTotal(r, 'real'), rowTakt };
+                const realWeeksArr = Object.values(weekReal).filter(v => v > 0);
+                const countRealWeeks = realWeeksArr.length;
+                const sumRealWeeks = realWeeksArr.reduce((acc, v) => acc + v, 0);
+                const rProdMedia = countRealWeeks > 0 ? sumRealWeeks / countRealWeeks : 0;
+                
+                const aboveAvg = realWeeksArr.filter(v => v > rProdMedia).sort((a, b) => a - b);
+                let rPotencial = 0;
+                if (aboveAvg.length > 0) {
+                    const mid = Math.floor(aboveAvg.length / 2);
+                    rPotencial = aboveAvg.length % 2 !== 0 ? aboveAvg[mid] : (aboveAvg[mid - 1] + aboveAvg[mid]) / 2;
+                } else if (realWeeksArr.length > 0) {
+                    rPotencial = rProdMedia;
+                }
+
+                return { ...r, pTotal: getPeriodTotal(r, 'prev'), rTotal: getPeriodTotal(r, 'real'), rowTakt, rProdMedia, rPotencial };
             })
             .filter(r => r.pTotal > 0 || r.rTotal > 0)
             .sort((a, b) => b.rTotal - a.rTotal);
@@ -431,12 +455,12 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                         )}
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                        <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[500px]">
+                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-8">
+                        <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[500px] lg:col-span-3">
                              <h4 className="text-xs font-black uppercase tracking-widest text-white mb-6">Performance por Obra</h4>
                              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                                 <table className="w-full text-left border-collapse">
-                                    <thead className="sticky top-0 bg-[#0a0f18] z-10 shadow-[0_1px_0_0_rgba(255,255,255,0.05)]"><tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5"><th className="pb-4">Obra / Apoio</th><th className="pb-4 text-center">Prev.{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</th><th className="pb-4 text-center">Real.{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</th><th className="pb-4 text-center">Takt (Sem)</th><th className="pb-4 text-right">Ader.</th></tr></thead>
+                                    <thead className="sticky top-0 bg-[#0a0f18] z-10 shadow-[0_1px_0_0_rgba(255,255,255,0.05)]"><tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5"><th className="pb-4">Obra / Apoio</th><th className="pb-4 text-center">Prev.{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</th><th className="pb-4 text-center">Real.{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</th><th className="pb-4 text-center">Takt (Sem)</th><th className="pb-4 text-center">Prod. Média (Sem)</th><th className="pb-4 text-center">Potencial</th><th className="pb-4 text-right">Ader.</th></tr></thead>
                                     <tbody className="divide-y divide-white/5">
                                         {selectedService === 'ALL' ? null : rankingRows.map(r => {
                                             const p = r.pTotal; const rv = r.rTotal;
@@ -447,6 +471,8 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                                                     <td className="py-3 text-center text-xs font-semibold text-gray-400">{Number.isInteger(p) ? p : Number(p).toFixed(2)}</td>
                                                     <td className="py-3 text-center text-xs font-black text-brand-accent">{Number.isInteger(rv) ? rv : Number(rv).toFixed(2)}</td>
                                                     <td className="py-3 text-center text-xs font-semibold text-gray-300">{r.rowTakt ? r.rowTakt.toFixed(1) : '-'}</td>
+                                                    <td className="py-3 text-center text-xs font-semibold text-stone-300">{r.rProdMedia ? r.rProdMedia.toFixed(1) : '-'}</td>
+                                                    <td className="py-3 text-center text-xs font-semibold text-emerald-400">{r.rPotencial ? r.rPotencial.toFixed(1) : '-'}</td>
                                                     <td className={`py-3 text-right font-black text-xs ${perc >= 100 ? 'text-green-500' : 'text-orange-500'}`}>{perc.toFixed(0)}%</td>
                                                 </tr>
                                             );
@@ -456,7 +482,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                              </div>
                         </div>
 
-                        <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[500px]">
+                        <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[500px] lg:col-span-2">
                              <h4 className="text-xs font-black uppercase tracking-widest text-white mb-6">Performance por Engenheiro</h4>
                              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                                 <table className="w-full text-left border-collapse">
