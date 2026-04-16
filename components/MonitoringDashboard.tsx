@@ -388,31 +388,47 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                         </div>
                     </div>
 
+                    {selectedService === 'ALL' && (
+                        <div className="mb-6 flex justify-center">
+                            <span className="text-brand-accent bg-[#e35a10]/10 px-4 py-2 rounded-full font-black uppercase text-xs tracking-widest animate-pulse flex items-center gap-2 border border-brand-accent/20">
+                                <AlertTriangle size={16} /> Selecione um serviço para visualizar os indicadores
+                            </span>
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Quantidade Prevista</p><h3 className="text-4xl font-black text-white">{metrics.totalPrev.toLocaleString('pt-BR')}</h3></div>
-                        <div className="p-6 bg-[#0a0f18] border border-brand-accent/20 rounded-3xl shadow-2xl"><p className="text-[10px] font-black text-brand-accent uppercase mb-1">Quantidade Realizada</p><h3 className="text-4xl font-black text-white">{metrics.totalReal.toLocaleString('pt-BR')}</h3></div>
-                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Aderência Médio (%)</p><h3 className={`text-4xl font-black ${metrics.progress >= 90 ? 'text-green-500' : metrics.progress >= 70 ? 'text-yellow-500' : 'text-red-500'}`}>{metrics.progress.toFixed(1)}%</h3></div>
-                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl relative overflow-hidden group"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Diferença no período</p><h3 className={`text-4xl font-black ${metrics.periodGap < 0 ? 'text-red-500' : metrics.periodGap > 0 ? 'text-green-500' : 'text-white'}`}>{metrics.periodGap > 0 ? '+' : ''}{metrics.periodGap.toLocaleString('pt-BR')}</h3></div>
-                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl relative overflow-hidden group"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Diferença acumulada</p><h3 className={`text-4xl font-black ${metrics.cumGap < 0 ? 'text-red-500' : metrics.cumGap > 0 ? 'text-green-500' : 'text-white'}`}>{metrics.cumGap > 0 ? '+' : ''}{metrics.cumGap.toLocaleString('pt-BR')}</h3></div>
+                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Quantidade Prevista{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</p><h3 className="text-4xl font-black text-white">{selectedService === 'ALL' ? '-' : metrics.totalPrev.toLocaleString('pt-BR')}</h3></div>
+                        <div className="p-6 bg-[#0a0f18] border border-brand-accent/20 rounded-3xl shadow-2xl"><p className="text-[10px] font-black text-brand-accent uppercase mb-1">Quantidade Realizada{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</p><h3 className="text-4xl font-black text-white">{selectedService === 'ALL' ? '-' : metrics.totalReal.toLocaleString('pt-BR')}</h3></div>
+                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Aderência Médio (%)</p><h3 className={`text-4xl font-black ${selectedService === 'ALL' ? 'text-white' : metrics.progress >= 90 ? 'text-green-500' : metrics.progress >= 70 ? 'text-yellow-500' : 'text-red-500'}`}>{selectedService === 'ALL' ? '-' : `${metrics.progress.toFixed(1)}%`}</h3></div>
+                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl relative overflow-hidden group"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Diferença no período</p><h3 className={`text-4xl font-black ${selectedService === 'ALL' ? 'text-white' : metrics.periodGap < 0 ? 'text-red-500' : metrics.periodGap > 0 ? 'text-green-500' : 'text-white'}`}>{selectedService === 'ALL' ? '-' : `${metrics.periodGap > 0 ? '+' : ''}${metrics.periodGap.toLocaleString('pt-BR')}`}</h3></div>
+                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl relative overflow-hidden group"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Diferença acumulada</p><h3 className={`text-4xl font-black ${selectedService === 'ALL' ? 'text-white' : metrics.cumGap < 0 ? 'text-red-500' : metrics.cumGap > 0 ? 'text-green-500' : 'text-white'}`}>{selectedService === 'ALL' ? '-' : `${metrics.cumGap > 0 ? '+' : ''}${metrics.cumGap.toLocaleString('pt-BR')}`}</h3></div>
                     </div>
 
                     <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl mb-8">
                         <h4 className="text-xs font-black uppercase tracking-widest text-white mb-8 flex items-center gap-2"><TrendingUp size={16} className="text-brand-accent" /> Evolução Semanal vs Acumulado</h4>
-                        <div className="h-[450px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <ComposedChart data={weeklyData}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#4b5563', fontSize: 10}} />
-                                    <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{fill: '#4b5563', fontSize: 10}} />
-                                    <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{fill: '#e35a10', fontSize: 10}} />
-                                    <Tooltip contentStyle={{backgroundColor: '#0a0f18', border: '1px solid #ffffff10', borderRadius: '16px'}} />
-                                    <Legend verticalAlign="top" height={36}/>
-                                    <Bar yAxisId="left" dataKey="prev" name="Previsto Semanal" fill="#374151" radius={[4, 4, 0, 0]} barSize={25}><LabelList dataKey="prev" position="top" content={(props: any) => {const { x, y, width, value, index } = props; if (index === undefined || !weeklyData[index] || value === 0 || value === weeklyData[index].real) return null; return <text x={x + width / 2} y={y - 5} fill="#4b5563" fontSize={9} fontWeight="bold" textAnchor="middle">{value}</text>; }} /></Bar>
-                                    <Bar yAxisId="left" dataKey="real" name="Realizado Semanal" fill="#ea580c" radius={[4, 4, 0, 0]} barSize={25}><LabelList dataKey="real" position="top" style={{fontSize: 9, fill: '#ea580c', fontWeight: 'bold'}} /></Bar>
-                                    <Area yAxisId="right" type="monotone" dataKey="cumPrev" stroke="#6b7280" strokeWidth={1} strokeDasharray="4 4" fill="transparent" dot={false} /><Area yAxisId="right" type="monotone" dataKey="cumReal" stroke="#e35a10" strokeWidth={2} fill="transparent" dot={false} />
-                                </ComposedChart>
-                            </ResponsiveContainer>
-                        </div>
+                        {selectedService === 'ALL' ? (
+                            <div className="h-[450px] flex items-center justify-center border border-dashed border-white/10 rounded-2xl">
+                                <span className="text-gray-500 font-bold text-xs uppercase tracking-widest flex items-center gap-2">
+                                    <AlertTriangle size={16} /> Selecione um serviço para visualizar o gráfico
+                                </span>
+                            </div>
+                        ) : (
+                            <div className="h-[450px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <ComposedChart data={weeklyData}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#4b5563', fontSize: 10}} />
+                                        <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{fill: '#4b5563', fontSize: 10}} />
+                                        <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{fill: '#e35a10', fontSize: 10}} />
+                                        <Tooltip contentStyle={{backgroundColor: '#0a0f18', border: '1px solid #ffffff10', borderRadius: '16px'}} />
+                                        <Legend verticalAlign="top" height={36}/>
+                                        <Bar yAxisId="left" dataKey="prev" name="Previsto Semanal" fill="#374151" radius={[4, 4, 0, 0]} barSize={25}><LabelList dataKey="prev" position="top" content={(props: any) => {const { x, y, width, value, index } = props; if (index === undefined || !weeklyData[index] || value === 0 || value === weeklyData[index].real) return null; return <text x={x + width / 2} y={y - 5} fill="#4b5563" fontSize={9} fontWeight="bold" textAnchor="middle">{value}</text>; }} /></Bar>
+                                        <Bar yAxisId="left" dataKey="real" name="Realizado Semanal" fill="#ea580c" radius={[4, 4, 0, 0]} barSize={25}><LabelList dataKey="real" position="top" style={{fontSize: 9, fill: '#ea580c', fontWeight: 'bold'}} /></Bar>
+                                        <Area yAxisId="right" type="monotone" dataKey="cumPrev" stroke="#6b7280" strokeWidth={1} strokeDasharray="4 4" fill="transparent" dot={false} /><Area yAxisId="right" type="monotone" dataKey="cumReal" stroke="#e35a10" strokeWidth={2} fill="transparent" dot={false} />
+                                    </ComposedChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -420,7 +436,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                              <h4 className="text-xs font-black uppercase tracking-widest text-white mb-6">Performance por Obra</h4>
                              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                                 <table className="w-full text-left border-collapse">
-                                    <thead className="sticky top-0 bg-[#0a0f18] z-10 shadow-[0_1px_0_0_rgba(255,255,255,0.05)]"><tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5"><th className="pb-4">Obra / Apoio</th><th className="pb-4 text-center">Prev.</th><th className="pb-4 text-center">Real.</th><th className="pb-4 text-center">Takt (Sem)</th><th className="pb-4 text-right">Ader.</th></tr></thead>
+                                    <thead className="sticky top-0 bg-[#0a0f18] z-10 shadow-[0_1px_0_0_rgba(255,255,255,0.05)]"><tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5"><th className="pb-4">Obra / Apoio</th><th className="pb-4 text-center">Prev.{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</th><th className="pb-4 text-center">Real.{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</th><th className="pb-4 text-center">Takt (Sem)</th><th className="pb-4 text-right">Ader.</th></tr></thead>
                                     <tbody className="divide-y divide-white/5">
                                         {rankingRows.map(r => {
                                             const p = r.pTotal; const rv = r.rTotal;
@@ -444,7 +460,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                              <h4 className="text-xs font-black uppercase tracking-widest text-white mb-6">Performance por Engenheiro</h4>
                              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                                 <table className="w-full text-left border-collapse">
-                                    <thead className="sticky top-0 bg-[#0a0f18] z-10 shadow-[0_1px_0_0_rgba(255,255,255,0.05)]"><tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5"><th className="pb-4">Engenheiro</th><th className="pb-4 text-center">Prev.</th><th className="pb-4 text-center">Real.</th><th className="pb-4 text-right">%</th></tr></thead>
+                                    <thead className="sticky top-0 bg-[#0a0f18] z-10 shadow-[0_1px_0_0_rgba(255,255,255,0.05)]"><tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5"><th className="pb-4">Engenheiro</th><th className="pb-4 text-center">Prev.{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</th><th className="pb-4 text-center">Real.{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</th><th className="pb-4 text-right">%</th></tr></thead>
                                     <tbody className="divide-y divide-white/5">
                                         {Array.from(new Set(filteredRows.map(r => r.responsible))).filter(Boolean).map(eng => {
                                             const engRows = filteredRows.filter(r => r.responsible === eng);
