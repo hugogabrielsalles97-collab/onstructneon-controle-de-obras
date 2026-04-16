@@ -422,8 +422,8 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                                         <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{fill: '#e35a10', fontSize: 10}} />
                                         <Tooltip contentStyle={{backgroundColor: '#0a0f18', border: '1px solid #ffffff10', borderRadius: '16px'}} />
                                         <Legend verticalAlign="top" height={36}/>
-                                        <Bar yAxisId="left" dataKey="prev" name="Previsto Semanal" fill="#374151" radius={[4, 4, 0, 0]} barSize={25}><LabelList dataKey="prev" position="top" content={(props: any) => {const { x, y, width, value, index } = props; if (index === undefined || !weeklyData[index] || value === 0 || value === weeklyData[index].real) return null; return <text x={x + width / 2} y={y - 5} fill="#4b5563" fontSize={9} fontWeight="bold" textAnchor="middle">{value}</text>; }} /></Bar>
-                                        <Bar yAxisId="left" dataKey="real" name="Realizado Semanal" fill="#ea580c" radius={[4, 4, 0, 0]} barSize={25}><LabelList dataKey="real" position="top" style={{fontSize: 9, fill: '#ea580c', fontWeight: 'bold'}} /></Bar>
+                                        <Bar yAxisId="left" dataKey="prev" name="Previsto Semanal" fill="#374151" radius={[4, 4, 0, 0]} barSize={25}><LabelList dataKey="prev" position="top" content={(props: any) => {const { x, y, width, value, index } = props; if (index === undefined || !weeklyData[index] || value === 0 || value === weeklyData[index].real) return null; return <text x={x + width / 2} y={y - 5} fill="#4b5563" fontSize={9} fontWeight="bold" textAnchor="middle">{Number.isInteger(value) ? value : Number(value).toFixed(2)}</text>; }} /></Bar>
+                                        <Bar yAxisId="left" dataKey="real" name="Realizado Semanal" fill="#ea580c" radius={[4, 4, 0, 0]} barSize={25}><LabelList dataKey="real" position="top" style={{fontSize: 9, fill: '#ea580c', fontWeight: 'bold'}} formatter={(val: any) => typeof val === 'number' ? (Number.isInteger(val) ? val : Number(val).toFixed(2)) : val} /></Bar>
                                         <Area yAxisId="right" type="monotone" dataKey="cumPrev" stroke="#6b7280" strokeWidth={1} strokeDasharray="4 4" fill="transparent" dot={false} /><Area yAxisId="right" type="monotone" dataKey="cumReal" stroke="#e35a10" strokeWidth={2} fill="transparent" dot={false} />
                                     </ComposedChart>
                                 </ResponsiveContainer>
@@ -444,8 +444,8 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                                             return (
                                                 <tr key={r.id} className="hover:bg-white/5 group">
                                                     <td className="py-3 font-bold text-xs truncate max-w-[120px]">{r.oae} <span className="text-[9px] text-gray-500 font-normal">({r.apoio})</span></td>
-                                                    <td className="py-3 text-center text-xs font-semibold text-gray-400">{p}</td>
-                                                    <td className="py-3 text-center text-xs font-black text-brand-accent">{rv}</td>
+                                                    <td className="py-3 text-center text-xs font-semibold text-gray-400">{Number.isInteger(p) ? p : Number(p).toFixed(2)}</td>
+                                                    <td className="py-3 text-center text-xs font-black text-brand-accent">{Number.isInteger(rv) ? rv : Number(rv).toFixed(2)}</td>
                                                     <td className="py-3 text-center text-xs font-semibold text-gray-300">{r.rowTakt ? r.rowTakt.toFixed(1) : '-'}</td>
                                                     <td className={`py-3 text-right font-black text-xs ${perc >= 100 ? 'text-green-500' : 'text-orange-500'}`}>{perc.toFixed(0)}%</td>
                                                 </tr>
@@ -468,7 +468,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                                             if (p === 0 && rv === 0) return null; const perc = p > 0 ? (rv / p) * 100 : (rv > 0 ? 100 : 0);
                                             return (
                                                 <tr key={eng} className="hover:bg-white/5 group">
-                                                    <td className="py-3 font-bold text-xs truncate max-w-[150px] text-gray-300">{eng}</td><td className="py-3 text-center text-xs font-semibold text-gray-400">{p}</td><td className="py-3 text-center text-xs font-black text-brand-accent">{rv}</td><td className={`py-3 text-right font-black text-xs ${perc >= 100 ? 'text-green-500' : 'text-orange-500'}`}>{perc.toFixed(0)}%</td>
+                                                    <td className="py-3 font-bold text-xs truncate max-w-[150px] text-gray-300">{eng}</td><td className="py-3 text-center text-xs font-semibold text-gray-400">{Number.isInteger(p) ? p : Number(p).toFixed(2)}</td><td className="py-3 text-center text-xs font-black text-brand-accent">{Number.isInteger(rv) ? rv : Number(rv).toFixed(2)}</td><td className={`py-3 text-right font-black text-xs ${perc >= 100 ? 'text-green-500' : 'text-orange-500'}`}>{perc.toFixed(0)}%</td>
                                                 </tr>
                                             );
                                         })}
