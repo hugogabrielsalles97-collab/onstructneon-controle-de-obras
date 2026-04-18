@@ -1,0 +1,1463 @@
+/// <reference types="vite/client" />
+import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { Task, TaskStatus, Resource, User, OrgMember } from '../types';
+import { useOrgMembers, CatalogItem, fetchTaskHeavyData, createNotification } from '../hooks/dataHooks';
+import { useData } from '../context/DataProvider';
+import { supabase } from '../supabaseClient';
+import XIcon from './icons/XIcon';
+import PlusIcon from './icons/PlusIcon';
+import SparkleIcon from './icons/SparkleIcon';
+import WeatherIcon from './icons/WeatherIcon';
+import SafetyAnalysisIcon from './icons/SafetyAnalysisIcon';
+import ConstructionIcon from './icons/ConstructionIcon';
+import ManagementIcon from './icons/ManagementIcon';
+import WhatsAppIcon from './icons/WhatsAppIcon';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { disciplineOptions, taskTitleOptions, oaeLocations, frentes, apoios, vaos, sideOptions, unitOptions } from '../utils/constants';
+import AIRestrictedAccess from './AIRestrictedAccess';
+import ConfirmModal from './ConfirmModal';
+import EyeIcon from './icons/EyeIcon';
+
+
+
+interface TaskModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (task: Task) => void;
+    task: Task | null;
+    tasks: Task[];
+    baselineTasks: Task[];
+    user: User;
+    allUsers: User[];
+    onUpgradeClick: () => void;
+}
+
+type ResourceField = 'plannedManpower' | 'plannedMachinery' | 'actualManpower' | 'actualMachinery';
+
+const ResourceSection: React.FC<{
+    title: string;
+    resources: Resource[];
+    onAdd: (resource: Resource) => void;
+    onRemove: (index: number) => void;
+    onUpdate: (index: number, resource: Resource) => void;
+    rolePlaceholder: string;
+    disabled?: boolean;
+}> = ({ title, resources, onAdd, onRemove, onUpdate, rolePlaceholder, disabled = false }) => {
+    const [newRole, setNewRole] = useState('');
+    const [newQuantity, setNewQuantity] = useState(1);
+
+    const handleAddClick = () => {
+        if (newRole.trim() && newQuantity > 0) {
+            onAdd({ role: newRole, quantity: newQuantity });
+            setNewRole('');
+            setNewQuantity(1);
+        }
+    };
+
+    return (
+        <div className="space-y-3">
+            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] block mb-1">{title}</label>
+            {resources.length > 0 ? (
+                <div className="space-y-2 max-h-32 overflow-y-auto pr-2 custom-scrollbar">
+                    {resources.map((res, index) => (
+                        <div key={index} className="flex items-center gap-2 animate-fade-in group">
+                            <div className="flex-grow bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white text-sm font-medium">
+                                {res.role}
+                            </div>
+                            <div className="w-16 bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white text-sm text-center font-bold">
+                                {res.quantity}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="text-[10px] text-brand-med-gray italic bg-white/5 p-3 rounded-xl border border-white/5">
+                    Nenhum recurso alocado via organograma.
+                </div>
+            )}
+        </div>
+    );
+};
+
+const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, tasks, baselineTasks, user, allUsers, onUpgradeClick }) => {
+    const { catalogs } = useData();
+    const getInitialFormData = (): Omit<Task, 'id' | 'status'> => {
+        const today = new Date().toISOString().split('T')[0];
+        return {
+            title: '',
+            description: '',
+            assignee: '',
+            discipline: '',
+            level: '',
+            startDate: today,
+            dueDate: today,
+            actualStartDate: '',
+            actualEndDate: '',
+            location: '',
+            support: '',
+            side: '',
+            corte: '',
+            shift: null,
+            quantity: 0,
+            unit: '',
+            actualQuantity: 0,
+            progress: 0,
+            plannedManpower: [],
+            plannedMachinery: [],
+            actualManpower: [],
+            actualMachinery: [],
+            photos: [],
+            observations: '',
+            baseline_id: '',
+            rescheduleHistory: [],
+        };
+    };
+
+    const [formData, setFormData] = useState<Omit<Task, 'id' | 'status'>>(getInitialFormData());
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [isMappingBaseline, setIsMappingBaseline] = useState(false);
+    const [conflictingTasks, setConflictingTasks] = useState<Task[]>([]);
+    const [plannedWeather, setPlannedWeather] = useState<string | null>(null);
+    const [actualWeather, setActualWeather] = useState<string | null>(null);
+    const [isFetchingPlannedWeather, setIsFetchingPlannedWeather] = useState(false);
+    const [isFetchingActualWeather, setIsFetchingActualWeather] = useState(false);
+    const [showAIRestricted, setShowAIRestricted] = useState(false);
+    const [aiFeatureName, setAiFeatureName] = useState('');
+    const [aiFeatureDesc, setAiFeatureDesc] = useState('');
+    const { data: orgMembers } = useOrgMembers();
+
+
+
+    const checkAIRestriction = (name: string, desc: string) => {
+        if (!canUseAI) {
+            setAiFeatureName(name);
+            setAiFeatureDesc(desc);
+            setShowAIRestricted(true);
+            return true;
+        }
+        return false;
+    };
+    const [analyzingPhotoIndex, setAnalyzingPhotoIndex] = useState<number | null>(null);
+    const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                if (previewPhoto) setPreviewPhoto(null);
+                else if (isOpen) onClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [previewPhoto, isOpen, onClose]);
+    const [safetyAnalysisResult, setSafetyAnalysisResult] = useState<{ status: 'idle' | 'safe' | 'risk'; message: string }>({ status: 'idle', message: '' });
+    const [selected6M, setSelected6M] = useState<string[]>([]);
+
+    const categories6M = useMemo(() => [
+        { id: 'Projeto', label: 'Projeto', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg> },
+        { id: 'Mão de obra', label: 'Mão de obra', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg> },
+        { id: 'Equipamento', label: 'Equipamento', icon: <ConstructionIcon className="w-5 h-5" /> },
+        { id: 'Acesso', label: 'Acesso', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M12 8l4 4-4 4" /><path d="M8 12h7" /></svg> },
+        { id: 'Chuva', label: 'Chuva', icon: <WeatherIcon className="w-5 h-5" /> },
+        { id: 'Inspeção', label: 'Inspeção', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><polyline points="9 12 11 14 15 10" /></svg> },
+        { id: 'Material', label: 'Material', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></svg> },
+        { id: 'Predecessora', label: 'Predecessora', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19 7-7-7-7" /><path d="M19 12H5" /></svg> },
+        { id: 'Interferências', label: 'Interferências', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg> },
+    ], []);
+
+    const isMaster = user.role === 'Master';
+    const isPlanner = user.role === 'Planejador';
+    const isManager = user.role === 'Gerenciador';
+    const isExecutor = user.role === 'Executor';
+
+    const canEditPlanning = isMaster || isPlanner;
+    const canEditExecution = isMaster || isPlanner || isExecutor;
+    const canUseAI = isMaster || isManager;
+
+    const isReadOnlyPlanning = !canEditPlanning;
+    const isReadOnlyExecution = !canEditExecution;
+
+    const assignableUsers = (allUsers || [])
+        .filter(u => u.role !== 'Gerenciador')
+        .sort((a, b) => a.fullName.localeCompare(b.fullName));
+
+    useEffect(() => {
+        if (isOpen) {
+            if (task) {
+                const isAssigneeValid = assignableUsers.some(u => u.fullName === task.assignee);
+                setFormData({
+                    title: task.title,
+                    description: task.description,
+                    assignee: isAssigneeValid ? task.assignee : '',
+                    discipline: task.discipline || '',
+                    level: task.level || '',
+                    startDate: task.startDate,
+                    dueDate: task.dueDate,
+                    actualStartDate: task.actualStartDate || '',
+                    actualEndDate: task.actualEndDate || '',
+                    location: task.location || '',
+                    support: task.support || '',
+                    side: task.side || '',
+                    corte: task.corte || '',
+                    shift: task.shift || null,
+                    quantity: task.quantity || 0,
+                    unit: task.unit || '',
+                    actualQuantity: task.actualQuantity || 0,
+                    progress: task.progress || 0,
+                    plannedManpower: task.plannedManpower || [],
+                    plannedMachinery: task.plannedMachinery || [],
+                    actualManpower: task.actualManpower || [],
+                    actualMachinery: task.actualMachinery || [],
+                    photos: task.photos || [],
+                    observations: '', // Will be set below with cleaning
+                    baseline_id: task.baseline_id || '',
+                    rescheduleHistory: task.rescheduleHistory || [],
+                });
+
+                // Parse 6M tags and clean observations
+                const rawObs = task.observations || '';
+                const found6M: string[] = [];
+                let cleanObs = rawObs;
+                categories6M.forEach(cat => {
+                    const tag = `[${cat.id}]`;
+                    if (rawObs.includes(tag)) {
+                        found6M.push(cat.id);
+                        cleanObs = cleanObs.replace(tag, '');
+                    }
+                });
+                
+                setSelected6M(found6M);
+                setFormData(prev => ({ ...prev, observations: cleanObs.trim() }));
+            } else {
+                setFormData(getInitialFormData());
+                setSelected6M([]);
+            }
+            setConflictingTasks([]);
+            setPlannedWeather(null);
+            setActualWeather(null);
+            setAnalyzingPhotoIndex(null);
+            setSafetyAnalysisResult({ status: 'idle', message: '' });
+        }
+    }, [task, isOpen, allUsers]);
+
+    // Busca os campos pesados (JSONB) sob demanda quando editando uma tarefa existente
+    useEffect(() => {
+        if (isOpen && task?.id) {
+            fetchTaskHeavyData(task.id, 'tasks').then(heavyData => {
+                if (heavyData) {
+                    setFormData(prev => ({
+                        ...prev,
+                        plannedManpower: heavyData.plannedManpower || prev.plannedManpower || [],
+                        plannedMachinery: heavyData.plannedMachinery || prev.plannedMachinery || [],
+                        actualManpower: heavyData.actualManpower || prev.actualManpower || [],
+                        actualMachinery: heavyData.actualMachinery || prev.actualMachinery || [],
+                        photos: heavyData.photos || prev.photos || [],
+                    }));
+                }
+            }).catch(err => console.warn('Erro ao buscar dados pesados da tarefa:', err));
+        }
+    }, [isOpen, task?.id]);
+
+    useEffect(() => {
+        if (['Contenções'].includes(formData.discipline) && formData.level) {
+            setFormData(prev => ({ ...prev, title: prev.level }));
+        }
+    }, [formData.discipline, formData.level]);
+
+    useEffect(() => {
+        if (!task && formData.title && formData.startDate && formData.dueDate) {
+            const newStartDate = new Date(formData.startDate);
+            const newEndDate = new Date(formData.dueDate);
+
+            const conflicts = (tasks || []).filter(existingTask => {
+                if (existingTask.title.trim().toLowerCase() !== formData.title.trim().toLowerCase()) {
+                    return false;
+                }
+
+                const existingStartDate = new Date(existingTask.startDate);
+                const existingEndDate = new Date(existingTask.dueDate);
+
+                const overlap = newStartDate <= existingEndDate && newEndDate >= existingStartDate;
+
+                return overlap;
+            });
+
+            setConflictingTasks(conflicts);
+        } else {
+            setConflictingTasks([]);
+        }
+    }, [formData.title, formData.startDate, formData.dueDate, task, tasks]);
+
+    // Auto-populate resources based on Org Chart
+    useEffect(() => {
+        if (!formData.assignee || !orgMembers) return;
+
+        // Find the selected user object to get their ID if possible
+        const selectedUser = allUsers?.find(u => u.fullName === formData.assignee);
+
+        // Find member in org chart (match by user_id or name)
+        const member = orgMembers.find(m =>
+            (selectedUser && m.user_id === selectedUser.id) ||
+            m.name === formData.assignee
+        );
+
+        if (!member) return;
+
+        // Find immediate subordinates
+        const subordinates = orgMembers.filter(m => m.parent_id === member.id);
+
+        if (subordinates.length > 0) {
+            const resources: Resource[] = subordinates.map(sub => ({
+                role: sub.role,
+                quantity: sub.quantity || 1
+            }));
+
+            setFormData(prev => {
+                // Only update if it's different to avoid infinite loops or overwriting manual work 
+                // if the assignee hasn't actually changed (though useEffect already handles dep)
+                // We overwrite plannedManpower as requested
+                return { ...prev, plannedManpower: resources };
+            });
+        }
+    }, [formData.assignee, orgMembers, allUsers]);
+
+    const supervisor = useMemo(() => {
+        if (!formData.assignee || !orgMembers || !allUsers) return null;
+
+        const selectedUser = allUsers.find(u => u.fullName === formData.assignee);
+        let currentMember = orgMembers.find(m =>
+            (selectedUser && m.user_id === selectedUser.id) ||
+            m.name === formData.assignee
+        );
+
+        if (!currentMember) return null;
+
+        // Procura por um "Engenheiro" na hierarquia superior
+        let parent = orgMembers.find(m => m.id === currentMember?.parent_id);
+        let topParent: OrgMember | null = null;
+
+        while (parent) {
+            if (parent.role.toLowerCase().includes('eng')) {
+                return parent;
+            }
+            if (!parent.parent_id) {
+                topParent = parent;
+                break;
+            }
+            parent = orgMembers.find(m => m.id === parent?.parent_id);
+        }
+
+        // Se não achou papel de engenheiro, retorna o topo da cadeia (que geralmente é o eng)
+        return topParent;
+    }, [formData.assignee, orgMembers, allUsers]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        const { name, value, type } = e.target;
+
+        if ((name === 'actualStartDate' || name === 'actualEndDate') && value) {
+            const selectedDate = new Date(value + 'T00:00:00');
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            if (selectedDate > today) {
+                alert("Não é permitido inserir uma data futura para o avanço real.");
+                return;
+            }
+        }
+
+        setFormData(prev => {
+            const newValues = { ...prev, [name]: value };
+
+            if (name === 'discipline') {
+                newValues.level = '';
+                newValues.location = '';
+                newValues.corte = '';
+                newValues.support = '';
+                newValues.title = '';
+            }
+
+            if (name === 'level') {
+                newValues.support = '';
+                newValues.title = '';
+            }
+
+            if (type === 'number') {
+                newValues[name] = parseFloat(value) || 0;
+            }
+
+            const quant = newValues.quantity;
+
+            if (name === 'progress') {
+                newValues.progress = Math.min(100, Math.max(0, newValues.progress || 0));
+                newValues.actualQuantity = Number(((newValues.progress / 100) * quant).toFixed(2));
+            } else if (name === 'quantity') {
+                newValues.actualQuantity = Number(((newValues.progress / 100) * quant).toFixed(2));
+            } else if (name === 'actualQuantity') {
+                if (quant > 0) {
+                    newValues.progress = Math.min(100, Math.round((newValues.actualQuantity / quant) * 100));
+                } else {
+                    newValues.progress = 0;
+                }
+            }
+
+            if (name === 'actualStartDate' && !value) {
+                newValues.progress = 0;
+                newValues.actualQuantity = 0;
+                newValues.actualEndDate = '';
+            }
+
+            return newValues;
+        });
+    };
+
+    const handleResourceChange = (field: ResourceField, action: 'add' | 'remove' | 'update', payload: any) => {
+        setFormData(prev => {
+            const currentResources = prev[field] || [];
+            let newResources: Resource[] = [];
+
+            if (action === 'add') {
+                newResources = [...currentResources, payload.resource];
+            } else if (action === 'remove') {
+                newResources = currentResources.filter((_, i) => i !== payload.index);
+            } else if (action === 'update') {
+                newResources = currentResources.map((res, i) => i === payload.index ? payload.resource : res);
+            }
+
+            return { ...prev, [field]: newResources };
+        });
+    };
+
+    const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+
+        const files = Array.from(e.target.files);
+
+        // Função para comprimir a imagem via <canvas> antes do upload
+        const compressImage = (file: File): Promise<Blob> => {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.src = URL.createObjectURL(file);
+                img.onload = () => {
+                    URL.revokeObjectURL(img.src);
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 1200;
+                    const MAX_HEIGHT = 1200;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width *= MAX_HEIGHT / height;
+                            height = MAX_HEIGHT;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) return reject('Failed to get 2d context');
+
+                    ctx.drawImage(img, 0, 0, width, height);
+                    canvas.toBlob(
+                        (blob) => {
+                            if (blob) resolve(blob);
+                            else reject(new Error('Canvas to Blob failed'));
+                        },
+                        'image/jpeg',
+                        0.7 // 70% de qualidade - redução massiva de tamanho!
+                    );
+                };
+                img.onerror = error => reject(error);
+            });
+        };
+
+        const uploadPromises = files.map(async (file: File) => {
+            try {
+                // Comprime o arquivo original (10MB -> ~200KB)
+                const compressedBlob = await compressImage(file);
+
+                // Gerar um nome único para o arquivo: timestamp-nome
+                const fileExt = 'jpg';
+                const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+                const filePath = `${fileName}`;
+
+                // Upload para o Bucket 'task-photos' com o blob comprimido
+                const { data, error } = await supabase.storage
+                    .from('task-photos')
+                    .upload(filePath, compressedBlob, { contentType: 'image/jpeg' });
+
+                if (error) throw error;
+
+                // Obter a URL pública
+                const { data: { publicUrl } } = supabase.storage
+                    .from('task-photos')
+                    .getPublicUrl(filePath);
+
+                return publicUrl;
+            } catch (error) {
+                console.error('Erro no upload ou compressão da foto:', error);
+                return null;
+            }
+        });
+
+        const uploadedUrls = await Promise.all(uploadPromises);
+        const validUrls = uploadedUrls.filter((url): url is string => url !== null);
+
+        if (validUrls.length > 0) {
+            setFormData(prev => ({
+                ...prev,
+                photos: [...(prev.photos || []), ...validUrls]
+            }));
+        }
+
+        e.target.value = '';
+    };
+
+    const handleRemovePhoto = (indexToRemove: number) => {
+        setFormData(prev => ({
+            ...prev,
+            photos: (prev.photos || []).filter((_, index) => index !== indexToRemove)
+        }));
+    };
+
+    const handleAIAssist = async () => {
+        if (checkAIRestriction("Gerador de Observações IA", "O Gerador Assistido por IA utiliza modelos de linguagem para analisar o progresso da tarefa e sugerir observações técnicas para o RDO.")) return;
+        setIsAnalyzing(true);
+        try {
+            const { progress, actualEndDate } = formData;
+            const currentStatus = progress >= 100 && actualEndDate ? TaskStatus.Completed : (progress > 0 ? TaskStatus.InProgress : TaskStatus.ToDo);
+
+            const prompt = `
+            Você é um assistente de engenharia de obras. Seu objetivo é analisar os dados de uma tarefa e gerar uma observação concisa e profissional para um Relatório Diário de Obra (RDO).
+            
+            Analise os seguintes dados da tarefa:
+            - Título: ${formData.title}
+            - Disciplina: ${formData.discipline}
+            - Status Atual: ${currentStatus}
+            - Progresso: ${formData.progress}%
+            - Período Planejado: ${formData.startDate} a ${formData.dueDate}
+            - Período Real: ${formData.actualStartDate || 'Não iniciado'} a ${formData.actualEndDate || 'Não finalizado'}
+            - Quantidade Planejada: ${formData.quantity} ${formData.unit}
+            - Quantidade Realizada: ${formData.actualQuantity} ${formData.unit}
+            - Mão de Obra Real: ${formData.actualManpower?.map(r => `${r.quantity} ${r.role}`).join(', ') || 'N/A'}
+            - Equipamentos Reais: ${formData.actualMachinery?.map(r => `${r.quantity} ${r.role}`).join(', ') || 'N/A'}
+            - Observações existentes do usuário: ${formData.observations || 'Nenhuma'}
+
+            Com base nesses dados, gere uma observação para o relatório. A observação deve:
+            1. Ser em português do Brasil, em tom técnico e formal.
+            2. Resumir o estado atual da tarefa.
+            3. Identificar potenciais riscos com base nas datas e progresso.
+            4. Se houver riscos, sugerir um ponto de atenção.
+            5. Se a tarefa está adiantada ou concluída, dê um parecer positivo.
+            6. Seja breve (máximo 3 frases).
+            `;
+
+            const { callGeminiProxy } = await import('../utils/aiHelper');
+            const aiText = await callGeminiProxy(prompt);
+
+            setFormData(prev => ({
+                ...prev,
+                observations: (prev.observations ? prev.observations + '\n\n' : '') + '--- Análise da IA ---\n' + aiText
+            }));
+
+        } catch (error) {
+            console.error("Erro ao chamar a IA:", error);
+            alert(`Erro na IA: ${(error instanceof Error ? error.message : String(error))}`);
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
+
+    const handleSuggestBaseline = async () => {
+        if (baselineTasks.length === 0) {
+            alert("Nenhuma linha de base disponível para comparação.");
+            return;
+        }
+        if (checkAIRestriction("Mapeamento de Linha de Base IA", "Esta funcionalidade utiliza IA para vincular automaticamente sua tarefa de execução a um item da macro-estrutura da Linha de Base.")) return;
+
+        setIsMappingBaseline(true);
+        try {
+            const baselineSummary = baselineTasks.map(t => ({
+                id: t.id,
+                title: t.title,
+                discipline: t.discipline,
+                level: t.level,
+                location: t.location,
+            }));
+
+            const prompt = `
+            Vincule esta tarefa de execução a um item da Linha de Base (Macro).
+            Tarefa: ${formData.title} / ${formData.discipline} / ${formData.location}
+            Opções: ${JSON.stringify(baselineSummary)}
+            Responda APENAS o ID escolhido ou "null".
+            `;
+
+            const { callGeminiProxy } = await import('../utils/aiHelper');
+            const responseText = (await callGeminiProxy(prompt)).trim();
+            const sugeridoId = responseText.replace(/['"`]/g, '').toLowerCase() === 'null' ? '' : responseText.replace(/['"`]/g, '');
+
+            if (sugeridoId) {
+                setFormData(prev => ({ ...prev, baseline_id: sugeridoId }));
+                const baselineTask = baselineTasks.find(t => t.id === sugeridoId);
+                if (baselineTask) {
+                    alert(`Vínculo sugerido: "${baselineTask.title}"`);
+                }
+            } else {
+                alert("Nenhuma correspondência clara encontrada.");
+            }
+
+        } catch (error) {
+            console.error("Erro na sugestão de vínculo:", error);
+        } finally {
+            setIsMappingBaseline(false);
+        }
+    };
+
+    const handleAnalyzeSafety = async (photoUrlOrBase64: string, index: number) => {
+        if (checkAIRestriction("Análise de Segurança IA", "O Hugo analisa suas fotos de obra em busca de riscos de segurança, falta de EPIs ou desorganização do canteiro.")) return;
+        setAnalyzingPhotoIndex(index);
+        setSafetyAnalysisResult({ status: 'idle', message: '' });
+        try {
+            let mimeType = '';
+            let imageData = '';
+
+            // Verificar se é uma URL ou Base64
+            if (photoUrlOrBase64.startsWith('http')) {
+                // Se for URL, precisamos baixar a imagem para converter em base64 para a API do Gemini
+                const response = await fetch(photoUrlOrBase64);
+                const blob = await response.blob();
+                mimeType = blob.type;
+
+                // Converter blob para base64
+                imageData = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const base64String = reader.result as string;
+                        resolve(base64String.split(',')[1]);
+                    };
+                    reader.readAsDataURL(blob);
+                });
+            } else {
+                // Formato Base64 antigo (legado)
+                mimeType = photoUrlOrBase64.split(';')[0].split(':')[1];
+                imageData = photoUrlOrBase64.split(',')[1];
+            }
+
+            const prompt = `
+            Analise a imagem em busca de riscos de segurança na obra (EPIs, queda, organização).
+            Seja direto e técnico.
+            Retorne JSON: {"is_safe": boolean, "findings": "descrição"}.
+            `;
+
+            const { callGeminiProxyMultimodal } = await import('../utils/aiHelper');
+            const responseText = await callGeminiProxyMultimodal([{ text: prompt }, { inlineData: { data: imageData, mimeType } }]);
+            const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+            const analysis = jsonMatch ? JSON.parse(jsonMatch[0]) : { is_safe: false, findings: "Falha na análise." };
+
+            setSafetyAnalysisResult({
+                status: analysis.is_safe ? 'safe' : 'risk',
+                message: analysis.findings,
+            });
+
+        } catch (error) {
+            console.error("Erro na análise de segurança:", error);
+            alert("Erro ao analisar imagem: " + (error instanceof Error ? error.message : String(error)));
+        } finally {
+            setAnalyzingPhotoIndex(null);
+        }
+    };
+
+    const fetchWeather = async (location: string, startDate: string, endDate: string, isForecast: boolean) => {
+        const hardcodedLocation = "PARACAMBI-RJ";
+        try {
+            const { callGeminiProxy } = await import('../utils/aiHelper');
+            const prompt = `Meteorologia para ${hardcodedLocation} entre ${startDate} e ${endDate}. Resumo técnico curto.`;
+            return await callGeminiProxy(prompt) || 'Indisponível.';
+        } catch (error) {
+            return "Indisponível.";
+        }
+    };
+
+    const handleFetchPlannedWeather = async () => {
+        if (!formData.startDate || !formData.dueDate) return;
+        if (checkAIRestriction("Predição Meteorológica IA", "Utiliza modelos de IA para cruzar dados climáticos e prever impactos na execução dos serviços planejados.")) return;
+        setIsFetchingPlannedWeather(true);
+        setPlannedWeather(null);
+        const weather = await fetchWeather(formData.location, formData.startDate, formData.dueDate, true);
+        setPlannedWeather(weather);
+        setIsFetchingPlannedWeather(false);
+    };
+
+    const handleFetchActualWeather = async () => {
+        if (!formData.actualStartDate) return;
+        if (checkAIRestriction("Análise Meteorológica Realizada", "Analisa as condições climáticas históricas durante a execução para justificar eventuais atrasos ou improdutividades.")) return;
+        setIsFetchingActualWeather(true);
+        setActualWeather(null);
+        const weather = await fetchWeather(formData.location, formData.actualStartDate, formData.actualEndDate || formData.actualStartDate, false);
+        setActualWeather(weather);
+        setIsFetchingActualWeather(false);
+    };
+
+    const handleReschedule = () => {
+        const today = new Date().toISOString().split('T')[0];
+        setFormData(prev => ({
+            ...prev,
+            rescheduleHistory: [
+                ...(prev.rescheduleHistory || []),
+                {
+                    startDate: prev.startDate,
+                    dueDate: prev.dueDate,
+                    rescheduledAt: new Date().toISOString()
+                }
+            ],
+            startDate: today,
+            dueDate: today,
+        }));
+    };
+
+    const handleWhatsAppShare = () => {
+        if (!formData.assignee) return;
+        const selectedUser = allUsers.find(u => u.fullName === formData.assignee);
+        if (!selectedUser?.whatsapp) {
+            alert("Responsável não possui WhatsApp cadastrado no sistema.");
+            return;
+        }
+
+        const phone = selectedUser.whatsapp.replace(/\D/g, '');
+        const checkoutLink = `${window.location.origin}${window.location.pathname}?taskId=${task?.id || ''}&action=checkout`;
+
+        const localDetails = [
+            formData.location,
+            formData.support ? `Apoio/Vão: ${formData.support}` : '',
+            formData.corte ? `Corte: ${formData.corte}` : '',
+            formData.side ? `Lado: ${formData.side}` : ''
+        ].filter(Boolean).join(' | ');
+
+        const message = `Olá *${selectedUser.fullName}*,\n\nVocê tem uma nova atividade alocada:\n📌 *${formData.title}*\n📍 Local: ${localDetails}\n📅 Prazo: ${new Date(formData.startDate + 'T00:00:00').toLocaleDateString('pt-BR')} até ${new Date(formData.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}\n\n👉 *Atualize o avanço aqui:* ${checkoutLink}\n\n*Vamos pra cima!* 🚀🏗️`;
+
+        const url = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank');
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        let finalStatus: TaskStatus;
+        if (formData.progress >= 100 && formData.actualEndDate) {
+            finalStatus = TaskStatus.Completed;
+        } else if (formData.progress > 0 || formData.actualStartDate) {
+            finalStatus = TaskStatus.InProgress;
+        } else {
+            finalStatus = TaskStatus.ToDo;
+        }
+
+        const finalFormData = { ...formData };
+        if (finalStatus === TaskStatus.Completed) {
+            finalFormData.progress = 100;
+            finalFormData.actualQuantity = finalFormData.quantity;
+        }
+
+        const mTags = selected6M.map(m => `[${m}]`).join(' ');
+        const finalObs = mTags ? `${mTags} ${formData.observations}`.trim() : formData.observations;
+
+        if (finalObs && finalObs !== (task?.observations || '')) {
+            const actualTaskId = task?.id || new Date().toISOString();
+            createNotification({
+                // Supabase was throwing error for task.id failing UUID type check, so we send a dummy to the db 
+                // and pack the actual task.id inside the title
+                task_id: '00000000-0000-0000-0000-000000000000',
+                task_title: `${actualTaskId}|__|${finalFormData.title || 'Nova Atividade'}`,
+                user_name: user?.fullName || 'Usuário',
+                message: `Atualizou o resumo de impactos (Observações)`,
+            });
+        }
+
+        const taskToSave: Task = {
+            id: task?.id || new Date().toISOString(),
+            ...finalFormData,
+            observations: finalObs,
+            status: finalStatus,
+            actualStartDate: formData.actualStartDate || null,
+            actualEndDate: formData.actualEndDate || null,
+        };
+        onSave(taskToSave);
+    };
+
+    if (!isOpen) return null;
+
+    const isTitleAutoPopulated = ['Contenções'].includes(formData.discipline);
+
+    // Merge Catalogs with Hardcoded Options
+    const allDisciplineOptions = useMemo(() => {
+        const base = Object.keys(disciplineOptions);
+        const fromCatalog = catalogs.map(c => c.discipline);
+        return Array.from(new Set([...base, ...fromCatalog])).sort();
+    }, [catalogs]);
+
+    const allLevelOptions = useMemo(() => {
+        if (!formData.discipline) return [];
+        const base = disciplineOptions[formData.discipline] || [];
+        const fromCatalog = catalogs
+            .filter(c => c.discipline === formData.discipline && c.level)
+            .map(c => c.level as string);
+        return Array.from(new Set([...base, ...fromCatalog])).sort();
+    }, [formData.discipline, catalogs]);
+
+    const allActivityOptions = useMemo(() => {
+        if (!formData.discipline || !formData.level) return undefined;
+        const base = taskTitleOptions[formData.discipline]?.[formData.level] || [];
+        const fromCatalog = catalogs
+            .filter(c => c.discipline === formData.discipline && c.level === formData.level && c.activity_title)
+            .map(c => c.activity_title as string);
+
+        const merged = Array.from(new Set([...base, ...fromCatalog])).sort();
+        return merged.length > 0 ? merged : undefined;
+    }, [formData.discipline, formData.level, catalogs]);
+
+    const isOAE = formData.discipline === 'Obras de arte especiais';
+    const isOAESuperestrutura = isOAE && formData.level === 'Superestrutura';
+
+    const levelOptions = allLevelOptions;
+    const specificTaskOptions = allActivityOptions;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+            <div
+                className="bg-[#0a0f18]/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] w-full max-w-4xl shadow-[0_0_100px_-20px_rgba(227,90,16,0.3)] max-h-[92vh] flex flex-col overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Header Section */}
+                <div className="p-8 pb-4 flex justify-between items-center border-b border-white/5 bg-gradient-to-r from-brand-accent/5 to-transparent">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-brand-accent rounded-2xl flex items-center justify-center shadow-lg shadow-brand-accent/20 rotate-3 transition-transform hover:rotate-0 cursor-default">
+                            <ConstructionIcon className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic">
+                                {task ? 'Detalhes da Tarefa' : 'Nova Atividade'}
+                            </h2>
+                            <p className="text-[10px] text-brand-med-gray font-black uppercase tracking-[2px] mt-0.5">Módulo de Planejamento e Controle</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-brand-med-gray hover:text-white hover:bg-white/10 transition-all border border-white/10"
+                    >
+                        <XIcon className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* Main Content Area */}
+                <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-10 custom-scrollbar">
+                    <form id="task-form" onSubmit={handleSubmit} className="space-y-12">
+
+                        {/* 1. SEÇÃO DE PLANEJAMENTO */}
+                        <section className="space-y-6">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="w-1.5 h-6 bg-brand-accent rounded-full pulse-neon"></div>
+                                <h3 className="text-sm font-black text-white uppercase tracking-widest">Configurações de Planejamento</h3>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-white/5 rounded-3xl border border-white/5 group hover:border-brand-accent/20 transition-all duration-500">
+
+                                {conflictingTasks.length > 0 && (
+                                    <div className="col-span-1 md:col-span-2 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-4 animate-shake">
+                                        <div className="w-10 h-10 rounded-xl bg-red-500 flex items-center justify-center shrink-0">
+                                            <XIcon className="w-5 h-5 text-white" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-red-400 uppercase tracking-tight">Conflito de Alocação Detectado</p>
+                                            <p className="text-xs text-red-300 opacity-80 mt-0.5">
+                                                Já existem {conflictingTasks.length} tarefa(s) "{formData.title}" alocando um total de <strong>{conflictingTasks.reduce((acc, t) => acc + (t.quantity || 0), 0)} {formData.unit}</strong> para este período.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Inputs Estilizados */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Disciplina</label>
+                                    <select
+                                        name="discipline"
+                                        value={formData.discipline}
+                                        onChange={handleChange}
+                                        required
+                                        disabled={isReadOnlyPlanning}
+                                        className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all disabled:opacity-50 appearance-none font-bold"
+                                        style={{ backgroundImage: 'linear-gradient(45deg, transparent 50%, gray 50%), linear-gradient(135deg, gray 50%, transparent 50%)', backgroundPosition: 'calc(100% - 20px) calc(1em + 2px), calc(100% - 15px) calc(1em + 2px)', backgroundSize: '5px 5px, 5px 5px', backgroundRepeat: 'no-repeat' }}
+                                    >
+                                        <option value="">Selecione a Disciplina</option>
+                                        {allDisciplineOptions.map(disc => <option key={disc} value={disc}>{disc}</option>)}
+                                    </select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Nível / Item</label>
+                                    <select
+                                        name="level"
+                                        value={formData.level}
+                                        onChange={handleChange}
+                                        required
+                                        disabled={!formData.discipline || isReadOnlyPlanning}
+                                        className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all appearance-none font-bold"
+                                    >
+                                        <option value="">Selecione o Nível</option>
+                                        {levelOptions.map(lvl => <option key={lvl} value={lvl}>{lvl}</option>)}
+                                    </select>
+                                </div>
+
+                                <div className="col-span-1 md:col-span-2 space-y-2">
+                                    <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Título da Atividade</label>
+                                    {isTitleAutoPopulated ? (
+                                        <div className="w-full bg-white/5 border border-white/5 rounded-2xl py-3 px-4 text-brand-accent/80 font-black italic tracking-tight">{formData.title}</div>
+                                    ) : specificTaskOptions ? (
+                                        <select
+                                            name="title"
+                                            value={formData.title}
+                                            onChange={handleChange}
+                                            required
+                                            disabled={isReadOnlyPlanning}
+                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all appearance-none font-bold"
+                                        >
+                                            <option value="">Selecione a Tarefa</option>
+                                            {specificTaskOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                        </select>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            name="title"
+                                            value={formData.title}
+                                            onChange={handleChange}
+                                            placeholder="Descreva a atividade..."
+                                            required
+                                            disabled={!formData.discipline || !formData.level || isReadOnlyPlanning}
+                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white placeholder:text-gray-600 focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all font-bold"
+                                        />
+                                    )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Localização</label>
+                                    <select
+                                        name="location"
+                                        value={formData.location}
+                                        onChange={handleChange}
+                                        required
+                                        disabled={isReadOnlyPlanning}
+                                        className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all font-bold"
+                                    >
+                                        <option value="">Selecione o Local</option>
+                                        {(isOAE ? oaeLocations : frentes).map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                                    </select>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div className={`grid grid-cols-1 ${(formData.level === 'Fundação' || formData.level === 'Mesoestrutura') ? 'md:grid-cols-2' : ''} gap-6 transition-all duration-300`}>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">
+                                                {isOAE ? (isOAESuperestrutura ? 'Vão' : 'Apoio') : 'Sub-Trecho (Corte)'}
+                                            </label>
+                                            {isOAE ? (
+                                                <select
+                                                    name="support"
+                                                    value={formData.support}
+                                                    onChange={handleChange}
+                                                    required
+                                                    disabled={isReadOnlyPlanning}
+                                                    className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all appearance-none font-bold"
+                                                >
+                                                    <option value="">{isOAESuperestrutura ? 'Selecione o Vão' : 'Selecione o Apoio'}</option>
+                                                    {(isOAESuperestrutura ? vaos : apoios).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                </select>
+                                            ) : (
+                                                <input
+                                                    type="text"
+                                                    name="corte"
+                                                    value={formData.corte}
+                                                    onChange={handleChange}
+                                                    placeholder="Ex: Estaca 100+10"
+                                                    disabled={isReadOnlyPlanning}
+                                                    className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all font-bold"
+                                                />
+                                            )}
+                                        </div>
+
+                                        {(formData.level === 'Fundação' || formData.level === 'Mesoestrutura') && (
+                                            <div className="space-y-2 animate-fade-in">
+                                                <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Lado</label>
+                                                <select
+                                                    name="side"
+                                                    value={formData.side}
+                                                    onChange={handleChange}
+                                                    disabled={isReadOnlyPlanning}
+                                                    className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all appearance-none font-bold"
+                                                >
+                                                    <option value="">Selecione o Lado</option>
+                                                    {sideOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                </select>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Turno de Execução */}
+                                <div className="col-span-1 md:col-span-2 space-y-2">
+                                    <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Turno de Execução</label>
+                                    <div className="flex gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData(prev => ({ ...prev, shift: prev.shift === 'Diurno' ? null : 'Diurno' }))}
+                                            disabled={isReadOnlyPlanning}
+                                            className={`flex-1 flex items-center justify-center gap-3 py-3.5 px-4 rounded-2xl border-2 transition-all duration-300 font-black text-sm uppercase tracking-wider group ${formData.shift === 'Diurno'
+                                                ? 'bg-amber-500/15 border-amber-400/50 text-amber-300 shadow-lg shadow-amber-500/10'
+                                                : 'bg-white/5 border-white/10 text-brand-med-gray hover:border-amber-400/30 hover:text-amber-300/70'
+                                                } disabled:opacity-50`}
+                                        >
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform group-hover:scale-110 ${formData.shift === 'Diurno' ? 'text-amber-400' : ''}`}>
+                                                <circle cx="12" cy="12" r="5" />
+                                                <line x1="12" y1="1" x2="12" y2="3" />
+                                                <line x1="12" y1="21" x2="12" y2="23" />
+                                                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                                                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                                                <line x1="1" y1="12" x2="3" y2="12" />
+                                                <line x1="21" y1="12" x2="23" y2="12" />
+                                                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                                                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                                            </svg>
+                                            Diurno
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData(prev => ({ ...prev, shift: prev.shift === 'Noturno' ? null : 'Noturno' }))}
+                                            disabled={isReadOnlyPlanning}
+                                            className={`flex-1 flex items-center justify-center gap-3 py-3.5 px-4 rounded-2xl border-2 transition-all duration-300 font-black text-sm uppercase tracking-wider group ${formData.shift === 'Noturno'
+                                                ? 'bg-indigo-500/15 border-indigo-400/50 text-indigo-300 shadow-lg shadow-indigo-500/10'
+                                                : 'bg-white/5 border-white/10 text-brand-med-gray hover:border-indigo-400/30 hover:text-indigo-300/70'
+                                                } disabled:opacity-50`}
+                                        >
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform group-hover:scale-110 ${formData.shift === 'Noturno' ? 'text-indigo-400' : ''}`}>
+                                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                                            </svg>
+                                            Noturno
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="col-span-1 md:col-span-2 p-6 bg-brand-accent/5 rounded-3xl border border-brand-accent/10 space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-[10px] font-black text-brand-accent uppercase tracking-[2px]">Vínculo com Linha de Base (Macro)</label>
+                                        <button
+                                            type="button"
+                                            onClick={handleSuggestBaseline}
+                                            disabled={isMappingBaseline || !formData.title || isReadOnlyPlanning}
+                                            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-white/5 py-2 px-4 rounded-xl hover:bg-white/10 transition-all border border-white/10 text-brand-med-gray"
+                                        >
+                                            <SparkleIcon className={`w-3.5 h-3.5 ${isMappingBaseline ? 'animate-spin' : 'text-purple-400'}`} />
+                                            {isMappingBaseline ? 'MAPEANDO...' : 'Sugerir com IA'}
+                                        </button>
+                                    </div>
+                                    <select
+                                        name="baseline_id"
+                                        value={formData.baseline_id}
+                                        onChange={handleChange}
+                                        disabled={isReadOnlyPlanning}
+                                        className="w-full bg-[#0a0f18]/60 border border-brand-accent/10 rounded-2xl py-3 px-4 text-white font-medium text-sm"
+                                    >
+                                        <option value="">Busca inteligente de macro-atividades...</option>
+                                        {baselineTasks.map(bt => <option key={bt.id} value={bt.id}>{bt.title} [{bt.discipline}]</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* 2. RECURSOS E PRAZOS */}
+                        <section className="space-y-6">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="w-1.5 h-6 bg-blue-500 rounded-full"></div>
+                                <h3 className="text-sm font-black text-white uppercase tracking-widest">Recursos e Cronograma</h3>
+                            </div>
+
+                            <div className="p-8 bg-white/5 rounded-[2rem] border border-white/5 space-y-8">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px]">Responsável</label>
+                                        </div>
+                                        <select
+                                            name="assignee"
+                                            value={formData.assignee}
+                                            onChange={handleChange}
+                                            disabled={isReadOnlyPlanning}
+                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-4 px-5 text-white focus:ring-2 focus:ring-brand-accent/50 font-bold tracking-tight"
+                                        >
+                                            <option value="">Selecione um responsável...</option>
+                                            {assignableUsers.map(u => <option key={u.username} value={u.fullName}>{u.fullName} • {u.role}</option>)}
+                                        </select>
+
+                                        {formData.assignee && user.role !== 'Executor' && (
+                                            <button
+                                                type="button"
+                                                onClick={handleWhatsAppShare}
+                                                className="mt-2 flex items-center justify-center gap-2 w-full py-2.5 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white rounded-xl border border-green-500/20 transition-all duration-300 font-bold text-xs group"
+                                            >
+                                                <WhatsAppIcon className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                                Reenviar p/ WhatsApp
+                                            </button>
+                                        )}
+
+                                        {supervisor && (
+                                            <div className="mt-3 p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl flex items-center gap-4 animate-fade-in shadow-lg">
+                                                <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20">
+                                                    <ManagementIcon className="w-5 h-5 text-white" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Supervisor / Engenheiro Responsável</p>
+                                                    <p className="text-sm font-bold text-white group-hover:text-indigo-300 transition-colors">
+                                                        {supervisor.name}
+                                                    </p>
+                                                    <p className="text-[10px] text-indigo-300/60 font-medium italic">{supervisor.role}</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px]">Qnt. Prevista</label>
+                                            <input type="number" name="quantity" value={formData.quantity} onChange={handleChange} className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-4 px-4 text-white text-center font-black text-lg" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px]">Unidade</label>
+                                            <select name="unit" value={formData.unit} onChange={handleChange} className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-4 px-4 text-white text-center font-black">
+                                                <option value="">MUD</option>
+                                                {unitOptions.map(u => <option key={u} value={u}>{u}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-4 p-6 bg-white/5 rounded-3xl border border-white/5">
+                                        <div className="flex justify-between items-center mb-1 flex-wrap gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <label className="text-[10px] font-black text-cyan-400 uppercase tracking-[2px]">Prazo de Execução</label>
+                                                {(formData.rescheduleHistory?.length || 0) > 0 && (
+                                                    <span className="text-[8px] font-black text-amber-400 bg-amber-500/15 border border-amber-500/20 px-2 py-0.5 rounded-lg uppercase tracking-wider animate-scale-in">
+                                                        {formData.rescheduleHistory!.length}ª Reprogramação
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {!isReadOnlyPlanning && task && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleReschedule}
+                                                        className="text-[9px] font-black text-amber-400/70 hover:text-amber-400 uppercase tracking-widest flex items-center gap-1.5 transition-all p-1 hover:bg-amber-500/10 rounded-lg border border-transparent hover:border-amber-500/20"
+                                                        title="Salvar prazo atual no histórico e definir novo prazo"
+                                                    >
+                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                            <polyline points="1 4 1 10 7 10" />
+                                                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                                                        </svg>
+                                                        Reprogramar
+                                                    </button>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={handleFetchPlannedWeather}
+                                                    className="text-[9px] font-black text-white/50 hover:text-cyan-400 uppercase tracking-widest flex items-center gap-2 transition-all p-1"
+                                                >
+                                                    <WeatherIcon className="w-3.5 h-3.5" /> Predição Meteorológica
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Histórico de reprogramações */}
+                                        {(formData.rescheduleHistory?.length || 0) > 0 && (
+                                            <div className="space-y-1.5 mb-3">
+                                                <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">Programações Anteriores</p>
+                                                {formData.rescheduleHistory!.map((h, idx) => (
+                                                    <div key={idx} className="flex items-center gap-2 text-[9px] bg-white/[0.03] border border-white/5 rounded-lg px-3 py-1.5">
+                                                        <span className="text-amber-400/60 font-black">{idx + 1}ª</span>
+                                                        <span className="text-white/40 font-mono">
+                                                            {new Date(h.startDate).toLocaleDateString('pt-BR')} → {new Date(h.dueDate).toLocaleDateString('pt-BR')}
+                                                        </span>
+                                                        <span className="text-white/15 ml-auto text-[8px]">
+                                                            {new Date(h.rescheduledAt).toLocaleDateString('pt-BR')}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        <div className="flex items-center gap-3">
+                                            <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} disabled={isReadOnlyPlanning} className="flex-1 bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-white text-xs font-mono disabled:opacity-50" />
+                                            <div className="text-gray-600 font-bold">→</div>
+                                            <input type="date" name="dueDate" value={formData.dueDate} onChange={handleChange} disabled={isReadOnlyPlanning} className="flex-1 bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-white text-xs font-mono disabled:opacity-50" />
+                                        </div>
+                                        {plannedWeather && (
+                                            <div className="mt-4 p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-[10px] text-cyan-300 font-medium leading-relaxed italic">
+                                                " {plannedWeather} "
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-6">
+                                        <ResourceSection
+                                            title="Equipe Necessária"
+                                            resources={formData.plannedManpower}
+                                            onAdd={(res) => handleResourceChange('plannedManpower', 'add', { resource: res })}
+                                            onRemove={(idx) => handleResourceChange('plannedManpower', 'remove', { index: idx })}
+                                            onUpdate={(idx, res) => handleResourceChange('plannedManpower', 'update', { index: idx, resource: res })}
+                                            rolePlaceholder="Ex: Carpinteiro"
+                                            disabled={isReadOnlyPlanning}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* 3. CONTROLE DE EXECUÇÃO */}
+                        {(task || formData.actualStartDate) && (
+                            <section id="checkout-section" className="space-y-6 animate-slide-up">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-1.5 h-6 bg-green-500 rounded-full shadow-[0_0_15px_rgba(34,197,94,0.5)]"></div>
+                                    <h3 className="text-sm font-black text-white uppercase tracking-widest">Avanço Físico e Diário de Obras</h3>
+                                </div>
+
+                                <div className="p-8 bg-green-500/5 rounded-[2.5rem] border border-green-500/10 space-y-10">
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <div className="space-y-4">
+                                            <label className="text-[10px] font-black text-green-400 uppercase tracking-[2px]">Cronograma Realizado</label>
+                                            <div className="flex gap-4">
+                                                <input type="date" name="actualStartDate" value={formData.actualStartDate || ''} onChange={handleChange} className="flex-1 bg-white/5 border border-white/10 rounded-2xl py-4 px-5 text-white font-mono text-center" />
+                                                <input type="date" name="actualEndDate" value={formData.actualEndDate || ''} onChange={handleChange} className="flex-1 bg-white/5 border border-white/10 rounded-2xl py-4 px-5 text-white font-mono text-center" />
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <div className="flex justify-between items-end mb-1">
+                                                <label className="text-[10px] font-black text-green-400 uppercase tracking-[2px]">Avanço (%)</label>
+                                                <span className="text-[10px] font-bold text-brand-med-gray italic tracking-tight">Volume: {formData.actualQuantity} / {formData.quantity} {formData.unit}</span>
+                                            </div>
+                                            <div className="relative h-12 bg-black/40 rounded-2xl border border-white/5 overflow-hidden group">
+                                                <div
+                                                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-600 to-green-400 transition-all duration-1000 ease-out shadow-[0_0_20px_rgba(34,197,94,0.3)]"
+                                                    style={{ width: `${formData.progress}%` }}
+                                                >
+                                                    <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.1)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.1)_50%,rgba(255,255,255,0.1)_75%,transparent_75%,transparent)] bg-[length:20px_20px] animate-[shimmer_2s_infinite_linear]"></div>
+                                                </div>
+                                                <input
+                                                    type="number"
+                                                    name="progress"
+                                                    value={formData.progress}
+                                                    onChange={handleChange}
+                                                    min="0"
+                                                    max="100"
+                                                    className="absolute inset-0 w-full h-full bg-transparent text-center font-black text-xl text-white focus:outline-none pr-6"
+                                                />
+                                                <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                                                    <span className="text-white/50 font-black text-lg">%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-6">
+                                        <div className="flex justify-between items-center">
+                                            <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px]">Galeria de Evidências</label>
+                                            <label htmlFor="photo-upload" className="cursor-pointer text-[9px] font-black text-brand-accent uppercase border border-brand-accent/30 py-1.5 px-4 rounded-xl hover:bg-brand-accent hover:text-white transition-all">
+                                                Adicionar Registro
+                                            </label>
+                                            <input id="photo-upload" type="file" className="sr-only" accept="image/*" multiple onChange={handlePhotoUpload} />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4">
+                                            {formData.photos?.map((photo, idx) => (
+                                                <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden border-2 border-white/5 group hover:border-brand-accent/50 transition-all shadow-xl bg-black/20">
+                                                    <img src={photo} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
+                                                        <button type="button" onClick={() => setPreviewPhoto(photo)} className="p-2 bg-brand-accent rounded-lg hover:bg-brand-accent/80 shadow-lg transition-transform active:scale-90" title="Visualizar"><EyeIcon className="w-4 h-4 text-white" /></button>
+                                                        <button type="button" onClick={() => handleAnalyzeSafety(photo, idx)} className="p-2 bg-blue-500 rounded-lg hover:bg-blue-600 shadow-lg transition-transform active:scale-90" title="Análise IA"><SafetyAnalysisIcon className="w-4 h-4 text-white" /></button>
+                                                        <button type="button" onClick={() => handleRemovePhoto(idx)} className="p-2 bg-red-500 rounded-lg hover:bg-red-600 shadow-lg transition-transform active:scale-90" title="Excluir"><XIcon className="w-4 h-4 text-white" /></button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            <label htmlFor="photo-upload" className="aspect-square rounded-2xl border-2 border-dashed border-white/5 hover:border-white/20 hover:bg-white/5 flex flex-col items-center justify-center cursor-pointer transition-all group">
+                                                <PlusIcon className="w-6 h-6 text-gray-700 group-hover:text-brand-accent transition-colors" />
+                                            </label>
+                                        </div>
+
+                                        {safetyAnalysisResult.status !== 'idle' && (
+                                            <div className={`p-4 rounded-2xl border ${safetyAnalysisResult.status === 'safe' ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'} animate-fade-in`}>
+                                                <p className="text-[10px] font-black uppercase tracking-widest mb-1">{safetyAnalysisResult.status === 'safe' ? 'Verificação Positiva' : 'Alerta de Segurança'}</p>
+                                                <p className="text-xs text-brand-med-gray italic tracking-tight leading-relaxed">"{safetyAnalysisResult.message}"</p>
+                                            </div>
+                                        )}
+                                    </div>
+
+
+                                    <div className="space-y-6">
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex flex-col gap-1">
+                                                <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px]">Causa de não cumprimento</label>
+                                                <p className="text-[8px] text-brand-med-gray/50 font-bold uppercase tracking-widest italic">Selecione o(s) motivo(s) de impacto para detalhar</p>
+                                            </div>
+                                            <div className="flex gap-3">
+                                                {formData.assignee && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleWhatsAppShare}
+                                                        className="text-[9px] font-black text-green-400 uppercase flex items-center gap-2 bg-green-500/10 py-1.5 px-4 rounded-xl border border-green-500/20 hover:bg-green-500 hover:text-white transition-all shadow-inner"
+                                                    >
+                                                        <WhatsAppIcon className="w-3 h-3" />
+                                                        Reenviar p/ WhatsApp
+                                                    </button>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={handleAIAssist}
+                                                    disabled={isAnalyzing}
+                                                    className="text-[9px] font-black text-brand-accent uppercase flex items-center gap-2 bg-brand-accent/10 py-1.5 px-4 rounded-xl border border-brand-accent/20 hover:bg-brand-accent hover:text-white transition-all shadow-inner"
+                                                >
+                                                    <SparkleIcon className={`w-3 h-3 ${isAnalyzing ? 'animate-spin' : ''}`} />
+                                                    Gerador Assistido por IA
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-3">
+                                            {categories6M.map((cat) => (
+                                                <button
+                                                    key={cat.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSelected6M(prev => 
+                                                            prev.includes(cat.id) 
+                                                                ? prev.filter(x => x !== cat.id) 
+                                                                : [...prev, cat.id]
+                                                        );
+                                                    }}
+                                                    className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all duration-300 gap-2 group ${
+                                                        selected6M.includes(cat.id)
+                                                            ? 'bg-green-500/15 border-green-500 text-green-500 shadow-lg shadow-green-500/10'
+                                                            : 'bg-white/5 border-white/5 text-brand-med-gray hover:border-green-500/30 hover:bg-green-500/5'
+                                                    }`}
+                                                >
+                                                    <div className={`transition-transform duration-300 ${selected6M.includes(cat.id) ? 'scale-110' : 'group-hover:scale-110 opacity-50 group-hover:opacity-100'}`}>
+                                                        {cat.icon}
+                                                    </div>
+                                                    <span className="text-[9px] font-black uppercase tracking-tight text-center leading-tight">{cat.label}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {(selected6M.length > 0 || (formData.observations && formData.observations.trim().length > 0)) && (
+                                            <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                                                <textarea
+                                                    id="resumo_causa"
+                                                    name="observations"
+                                                    value={formData.observations || ''}
+                                                    onChange={handleChange}
+                                                    rows={4}
+                                                    placeholder="Descreva detalhadamente o(s) impacto(s) selecionado(s) acima, motivos de atraso ou observações de campo..."
+                                                    className="w-full bg-black/40 border border-brand-accent/20 rounded-3xl py-4 px-6 text-white text-sm placeholder:text-gray-700 focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all shadow-inner"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </section>
+                        )}
+                    </form>
+                </div>
+
+                {/* Footer / Actions */}
+                <div className="p-8 border-t border-white/10 bg-[#060a12]/80 flex justify-between items-center gap-4">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="px-8 py-3.5 rounded-2xl text-brand-med-gray hover:text-white hover:bg-white/5 transition-all text-sm font-black uppercase tracking-widest border border-white/5"
+                    >
+                        Descartar
+                    </button>
+                    <div className="flex gap-4">
+                        <button
+                            form="task-form"
+                            type="submit"
+                            disabled={isManager}
+                            className="px-10 py-3.5 bg-brand-accent text-white rounded-2xl font-black text-sm uppercase tracking-widest transition-all hover:bg-[#e35a10] hover:scale-105 active:scale-95 shadow-xl shadow-brand-accent/30 disabled:opacity-50 disabled:cursor-not-allowed group flex items-center gap-3"
+                        >
+                            <span>Efetivar Lançamento</span>
+                            <div className="w-2 h-2 rounded-full bg-white animate-ping opacity-75 group-hover:block hidden"></div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Modal de Restrição de IA */}
+            {showAIRestricted && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
+                        onClick={() => setShowAIRestricted(false)}
+                    ></div>
+                    <div className="relative bg-[#0a0f18]/90 backdrop-blur-xl w-full max-w-lg rounded-2xl border border-white/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300">
+                        <div className="p-2 flex justify-end">
+                            <button onClick={() => setShowAIRestricted(false)} className="p-2 text-gray-500 hover:text-white transition-colors">
+                                <XIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <AIRestrictedAccess
+                            featureName={aiFeatureName}
+                            onUpgradeClick={() => {
+                                setShowAIRestricted(false);
+                                onUpgradeClick();
+                            }}
+                            description={aiFeatureDesc}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Visualização de Foto via Portal */}
+            {previewPhoto && createPortal(
+                <div
+                    className="fixed inset-0 z-[9999] flex items-center justify-center p-4 md:p-12 bg-black/90 backdrop-blur-md"
+                    onClick={() => setPreviewPhoto(null)}
+                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+                >
+                    <div className="relative max-w-5xl w-full flex flex-col items-center gap-6" onClick={e => e.stopPropagation()}>
+                        <div className="w-full flex justify-end">
+                            <button
+                                onClick={() => setPreviewPhoto(null)}
+                                className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-white/10 flex items-center justify-center text-white hover:bg-red-500 transition-all border border-white/10 group shadow-2xl"
+                                title="Fechar (Esc)"
+                            >
+                                <XIcon className="w-5 h-5 md:w-6 md:h-6 group-hover:rotate-90 transition-transform" />
+                            </button>
+                        </div>
+                        <div className="w-full bg-[#0a0f18] rounded-[2.5rem] border border-white/10 overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)] p-4 flex items-center justify-center">
+                            {previewPhoto && (
+                                <img
+                                    src={previewPhoto}
+                                    className="max-w-full max-h-[75vh] object-contain rounded-2xl cursor-zoom-in"
+                                    alt="Preview"
+                                    onClick={() => window.open(previewPhoto, '_blank')}
+                                />
+                            )}
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+        </div>
+    );
+};
+
+export default TaskModal;

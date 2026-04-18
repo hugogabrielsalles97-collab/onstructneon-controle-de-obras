@@ -1,0 +1,287 @@
+
+import React from 'react';
+import { User } from '../types';
+import ConstructionIcon from './icons/ConstructionIcon';
+import ChartIcon from './icons/ChartIcon';
+import BaselineIcon from './icons/BaselineIcon';
+import ScheduleIcon from './icons/ScheduleIcon';
+import LeanIcon from './icons/LeanIcon';
+import ManagementIcon from './icons/ManagementIcon';
+import HistoryIcon from './icons/HistoryIcon';
+import UserIcon from './icons/UserIcon';
+import BriefcaseIcon from './icons/BriefcaseIcon';
+
+interface SidebarProps {
+    user: User;
+    activeScreen: string;
+    onNavigateToHome?: () => void;
+    onNavigateToDashboard: () => void;
+    onNavigateToReports: () => void;
+    onNavigateToBaseline: () => void;
+    onNavigateToCurrentSchedule: () => void;
+    onNavigateToAnalysis: () => void;
+    onNavigateToLean?: () => void;
+    onNavigateToLeanConstruction?: () => void;
+    onNavigateToMonitoringControl?: () => void;
+    onNavigateToCost?: () => void;
+    onNavigateToPodcast?: () => void;
+    onNavigateToCheckoutSummary: () => void;
+    onNavigateToOrgChart?: () => void;
+    onNavigateToOrgSummary?: () => void;
+    onNavigateToTeams?: () => void;
+    onNavigateToVisualControl?: () => void;
+    onNavigateToWarRoom?: () => void;
+    onNavigateToSystem?: () => void;
+    onUpgradeClick: () => void;
+    onAddTask?: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome, onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToMonitoringControl, onNavigateToPodcast, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToWarRoom, onNavigateToSystem, onUpgradeClick, onAddTask }) => {
+    const showFullMenu = user.role !== 'Executor';
+    const isCostModule = activeScreen === 'cost';
+    const isOrgModule = activeScreen === 'orgSummary' || activeScreen === 'orgChart';
+    const accentColor = isCostModule ? 'green-600' : isOrgModule ? 'blue-600' : 'brand-accent';
+    const accentText = isCostModule ? 'text-green-500' : isOrgModule ? 'text-blue-400' : 'text-brand-accent';
+    const accentBg = isCostModule ? 'bg-green-600' : isOrgModule ? 'bg-blue-600' : 'bg-brand-accent';
+    const accentBorder = isCostModule ? 'border-green-600/30' : isOrgModule ? 'border-blue-600/30' : 'border-brand-accent/30';
+    const accentShadow = isCostModule ? 'shadow-green-600/20' : isOrgModule ? 'shadow-blue-600/20' : 'shadow-brand-accent/20';
+
+    return (
+        <aside className="hidden lg:flex flex-col w-72 bg-[#0a0f18] border-r border-white/5 non-printable transition-all duration-300">
+            <div className="p-8 flex-1 overflow-y-auto custom-scrollbar flex flex-col">
+                <div className="flex flex-col mb-10">
+                    <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 ${accentBg} rounded-xl flex items-center justify-center shadow-lg ${accentShadow}`}>
+                            <ConstructionIcon className="w-6 h-6 text-white" />
+                        </div>
+                        <h1 className="text-2xl font-black text-white tracking-tighter">ELOS</h1>
+                    </div>
+                    <p className={`text-[8px] ${accentText} font-black uppercase tracking-[0.15em] ml-[52px] mt-[-4px] break-words leading-tight`}>
+                        Egtc Lean Operational System
+                    </p>
+                </div>
+
+                <nav className="space-y-2">
+                    <h3 className="text-[10px] text-brand-med-gray font-black uppercase tracking-[2px] mb-4 ml-2">
+                        {isCostModule ? 'Módulo Financeiro' : isOrgModule ? 'Módulo Organograma' : 'Menu Principal'}
+                    </h3>
+
+
+                    {!isCostModule && !isOrgModule && (
+                        <>
+                            <NavButton
+                                active={activeScreen === 'dashboard'}
+                                icon={<ChartIcon className="w-5 h-5" />}
+                                label="Programação Semanal"
+                                onClick={onNavigateToDashboard}
+                                isCostModule={isCostModule}
+                            />
+                            <NavButton
+                                active={activeScreen === 'management'}
+                                icon={<ManagementIcon className="w-5 h-5" />}
+                                label="Painel Gerencial"
+                                onClick={onNavigateToAnalysis}
+                                isCostModule={isCostModule}
+                            />
+                            {(user.role === 'Master' || user.role === 'Gerenciador' || user.role === 'Planejador') && onNavigateToMonitoringControl && (
+                                <NavButton
+                                    active={activeScreen === 'monitoringControl'}
+                                    icon={
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-indigo-400">
+                                            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                                        </svg>
+                                    }
+                                    label="Monitoramento e Controle"
+                                    onClick={onNavigateToMonitoringControl}
+                                    isCostModule={isCostModule}
+                                />
+                            )}
+                            {showFullMenu && (
+                                <NavButton
+                                    active={activeScreen === 'checkoutSummary'}
+                                    icon={<HistoryIcon className="w-5 h-5 text-brand-accent" />}
+                                    label="Resumo Checkout"
+                                    onClick={onNavigateToCheckoutSummary}
+                                    isCostModule={isCostModule}
+                                />
+                            )}
+                            {showFullMenu && (
+                                <>
+                                    <NavButton
+                                        active={activeScreen === 'leanConstruction'}
+                                        icon={<LeanIcon className="w-5 h-5 text-cyan-400" />}
+                                        label="Lean Construction"
+                                        onClick={onNavigateToLeanConstruction}
+                                        isCostModule={isCostModule}
+                                    />
+                                    <NavButton
+                                        active={activeScreen === 'lean' || activeScreen === 'restrictions'}
+                                        icon={<LeanIcon className="w-5 h-5" />}
+                                        label="Sistema LPS"
+                                        onClick={onNavigateToLean}
+                                        isCostModule={isCostModule}
+                                    />
+                                    {onNavigateToVisualControl && (
+                                        <NavButton
+                                            active={activeScreen === 'visualControl'}
+                                            icon={
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-orange-400">
+                                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                                    <circle cx="8.5" cy="8.5" r="1.5" />
+                                                    <polyline points="21 15 16 10 5 21" />
+                                                </svg>
+                                            }
+                                            label="Controle Visual"
+                                            onClick={onNavigateToVisualControl}
+                                            isCostModule={isCostModule}
+                                        />
+                                    )}
+
+                                    <NavButton
+                                        active={activeScreen === 'baseline'}
+                                        icon={<BaselineIcon className="w-5 h-5" />}
+                                        label="Linha Base"
+                                        onClick={onNavigateToBaseline}
+                                        isCostModule={isCostModule}
+                                    />
+                                    <NavButton
+                                        active={activeScreen === 'currentSchedule'}
+                                        icon={<ScheduleIcon className="w-5 h-5" />}
+                                        label="Cronograma Corrente"
+                                        onClick={onNavigateToCurrentSchedule}
+                                        isCostModule={isCostModule}
+                                    />
+                                    {onNavigateToPodcast && (
+                                        <NavButton
+                                            active={activeScreen === 'podcast'}
+                                            icon={
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-purple-400">
+                                                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                                                    <line x1="12" y1="19" x2="12" y2="23" />
+                                                    <line x1="8" y1="23" x2="16" y2="23" />
+                                                </svg>
+                                            }
+                                            label="Podcast da obra"
+                                            onClick={onNavigateToPodcast}
+                                            isCostModule={isCostModule}
+                                        />
+                                    )}
+                                </>
+                            )}
+
+                            {user.role === 'Master' && onNavigateToWarRoom && (
+                                <NavButton
+                                    active={activeScreen === 'warRoomTV'}
+                                    icon={
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-rose-400">
+                                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                                            <line x1="8" y1="21" x2="16" y2="21" />
+                                            <line x1="12" y1="17" x2="12" y2="21" />
+                                        </svg>
+                                    }
+                                    label="War Room TV"
+                                    onClick={onNavigateToWarRoom}
+                                    isCostModule={isCostModule}
+                                />
+                            )}
+
+                            {(user.role === 'Master' || user.role === 'Planejador') && onNavigateToSystem && (
+                                <NavButton
+                                    active={activeScreen === 'system'}
+                                    icon={
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-brand-accent">
+                                            <circle cx="12" cy="12" r="3" />
+                                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H4a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H20a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                                        </svg>
+                                    }
+                                    label="Sistema"
+                                    onClick={onNavigateToSystem}
+                                    isCostModule={isCostModule}
+                                />
+                            )}
+                        </>
+                    )}
+
+                    {isOrgModule && (
+                        <>
+                            {onNavigateToOrgSummary && (
+                                <NavButton
+                                    active={activeScreen === 'orgSummary'}
+                                    icon={<BriefcaseIcon className="w-5 h-5 text-blue-400" />}
+                                    label="Resumo Organograma"
+                                    onClick={onNavigateToOrgSummary}
+                                    isCostModule={isCostModule}
+                                />
+                            )}
+                            {onNavigateToOrgChart && (
+                                <NavButton
+                                    active={activeScreen === 'orgChart'}
+                                    icon={<ManagementIcon className="w-5 h-5 text-indigo-400" />}
+                                    label="Árvore Organograma"
+                                    onClick={onNavigateToOrgChart}
+                                    isCostModule={isCostModule}
+                                />
+                            )}
+                        </>
+                    )}
+                    {isCostModule && (
+                        <>
+                            {/* Cost module items could be added here if needed, but for now we focus on Planning consistency */}
+                            <p className="text-xs text-brand-med-gray px-4 py-2">Módulo de Custos Ativo</p>
+                        </>
+                    )}
+                </nav>
+            </div>
+
+            <div className="p-6 bg-brand-darkest/50 animate-slide-up animate-stagger-4 mt-auto">
+                <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 smooth-transition group cursor-pointer hover-shine relative overflow-hidden">
+                    <div className={`w-10 h-10 rounded-xl ${accentBg} flex items-center justify-center text-white font-black shadow-lg group-hover:rotate-6 smooth-transition`}>
+                        {user.fullName.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black text-white truncate leading-none">{user.fullName}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                            <p className="text-[10px] font-bold text-brand-med-gray uppercase tracking-wider">{user.role}</p>
+                            <button
+                                onClick={onUpgradeClick}
+                                className={`text-[8px] ${isCostModule ? 'bg-green-600/20 text-green-500' : 'bg-brand-accent/20 text-brand-accent'} border ${accentBorder} px-1.5 py-0.5 rounded hover:${accentBg} hover:text-white transition-all font-black uppercase`}
+                            >
+                                Upgrade
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    );
+};
+
+const NavButton: React.FC<{
+    icon: React.ReactNode,
+    label: string,
+    onClick: () => void,
+    active?: boolean,
+    isCostModule?: boolean
+}> = ({ icon, label, onClick, active, isCostModule }) => {
+    const activeBg = isCostModule ? 'bg-green-600' : 'bg-brand-accent';
+    const activeShadow = isCostModule ? 'shadow-green-600/20' : 'shadow-brand-accent/20';
+    const iconColor = isCostModule ? 'text-green-500/70' : 'text-brand-accent/70';
+
+    return (
+        <button
+            onClick={onClick}
+            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 group ${active
+                ? `${activeBg} text-white shadow-lg ${activeShadow} font-bold`
+                : 'text-brand-med-gray hover:bg-white/5 hover:text-white font-medium'
+                }`}
+        >
+            <div className={`transition-transform duration-300 group-hover:scale-110 ${active ? 'text-white' : iconColor}`}>
+                {icon}
+            </div>
+            <span className="text-sm tracking-tight whitespace-nowrap">{label}</span>
+        </button>
+    );
+};
+
+export default Sidebar;

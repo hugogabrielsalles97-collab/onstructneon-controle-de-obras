@@ -1,0 +1,5 @@
+{
+  "name": "ConstructNeon - Controle de Obras",
+  "description": "Um aplicativo para controle de atividades de obras de construção civil com um tema neon escuro. Permite o cadastro de tarefas, acompanhamento de progresso e visualização de dashboards e relatórios.",
+  "requestFramePermissions": []
+}

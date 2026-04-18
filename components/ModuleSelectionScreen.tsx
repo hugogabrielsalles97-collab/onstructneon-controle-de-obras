@@ -1,0 +1,248 @@
+
+import React, { useState } from 'react';
+import { useData } from '../context/DataProvider';
+import ConstructionIcon from './icons/ConstructionIcon';
+import { useNotifications, markNotificationAsRead, clearAllNotifications } from '../hooks/dataHooks';
+
+interface ModuleSelectionScreenProps {
+    onSelectPlanning: () => void;
+    onSelectCost: () => void;
+    onSelectOrg: () => void;
+    showToast: (message: string, type: 'success' | 'error') => void;
+}
+
+const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({ onSelectPlanning, onSelectCost, onSelectOrg, showToast }) => {
+    const { currentUser: user, signOut } = useData();
+
+    const handleLogout = async () => {
+        const { success, error } = await signOut();
+        if (!success && error) showToast(`Erro ao sair: ${error}`, 'error');
+    };
+
+    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const { data: notifications = [], refetch: refetchNotifications } = useNotifications(user ? user.role === 'Master' : false);
+    const unreadCount = notifications.filter(n => !n.is_read).length;
+
+    const handleNotificationClick = async (notifId: string, taskId: string) => {
+        await markNotificationAsRead(notifId);
+        refetchNotifications();
+        setIsNotificationsOpen(false);
+        const newUrl = window.location.origin + window.location.pathname + `?taskId=${taskId}&action=reviewObs`;
+        window.location.href = newUrl;
+    };
+
+    const handleClearAllNotifications = async () => {
+        await clearAllNotifications();
+        refetchNotifications();
+    };
+
+    if (!user) return null;
+
+    // Lógica para obter o nome de exibição (2 primeiros nomes)
+    const getDisplayName = () => {
+        // Tenta usar o nome completo, ou username, ou email
+        let name = user.fullName || user.username || user.email || 'Engenheiro';
+
+        // Se for um email, pega apenas a parte antes do @
+        if (name.includes('@')) {
+            name = name.split('@')[0];
+        }
+
+        // Separa por espaços e pega os 2 primeiros
+        const parts = name.split(' ').filter(part => part.trim().length > 0);
+        if (parts.length >= 2) {
+            return `${parts[0]} ${parts[1]}`;
+        } else if (parts.length === 1) {
+            return parts[0];
+        }
+
+        return name;
+    };
+
+    return (
+        <div className="min-h-screen bg-[#020202] text-white flex flex-col relative overflow-hidden font-sans selection:bg-brand-accent selection:text-white">
+            {/* Background Effects */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#1a1f2e] via-[#050505] to-[#000000] z-0"></div>
+            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 z-0 mix-blend-overlay pointer-events-none"></div>
+
+            {/* Header / Logout */}
+            <div className="relative z-20 p-6 flex justify-between items-center max-w-7xl mx-auto w-full">
+                <div className="flex items-center gap-3 opacity-80 hover:opacity-100 transition-opacity cursor-default">
+                    <ConstructionIcon className="w-6 h-6 text-brand-accent" />
+                    <span className="text-sm font-bold tracking-widest uppercase text-brand-med-gray">ELOS</span>
+                </div>
+                
+                <div className="flex items-center gap-4">
+                    {user.role === 'Master' && (
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                                className="relative p-2 text-brand-med-gray hover:text-white hover:bg-white/5 rounded-xl transition-all"
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={unreadCount > 0 ? "text-brand-accent animate-[shake_0.5s_ease-in-out_infinite] animate-pulse" : ""}>
+                                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                                </svg>
+                                {unreadCount > 0 && (
+                                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-[#0a0f18] shadow-[0_0_5px_rgba(239,68,68,0.8)]"></span>
+                                )}
+                            </button>
+
+                            {isNotificationsOpen && (
+                            <div className="absolute top-full right-0 mt-2 w-80 bg-[#0f172a] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 animate-slide-up">
+                                <div className="p-3 bg-brand-darkest/80 border-b border-white/10 flex justify-between items-center">
+                                <span className="text-[10px] font-black tracking-widest uppercase text-white">Notificações Administrativas</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[9px] font-mono text-brand-med-gray">{notifications.length} itens</span>
+                                    {notifications.filter(n => !n.is_read).length > 0 && (
+                                        <button
+                                            onClick={handleClearAllNotifications}
+                                            className="text-[9px] font-bold uppercase tracking-wider text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 px-2 py-0.5 rounded-md border border-red-500/20 transition-all duration-200"
+                                        >
+                                            Limpar Tudo
+                                        </button>
+                                    )}
+                                </div>
+                                </div>
+                                <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                                {notifications.filter(n => !n.is_read).length === 0 ? (
+                                    <div className="p-6 text-center text-brand-med-gray text-xs">Nenhuma notificação recente.</div>
+                                ) : (
+                                    notifications.filter(n => !n.is_read).map(n => (
+                                    <div 
+                                        key={n.id} 
+                                        onClick={() => handleNotificationClick(n.id, n.task_id)}
+                                        className={`p-4 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors ${!n.is_read ? 'bg-brand-accent/5 relative' : ''}`}
+                                    >
+                                        {!n.is_read && <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-accent"></div>}
+                                        <p className="text-xs text-white font-bold mb-1 truncate">{n.task_title}</p>
+                                        <p className="text-[10px] text-brand-med-gray">{n.user_name} {n.message}</p>
+                                        <p className="text-[8px] text-white/40 font-mono mt-2">{new Date(n.created_at).toLocaleString('pt-BR')}</p>
+                                    </div>
+                                    ))
+                                )}
+                                </div>
+                            </div>
+                            )}
+                        </div>
+                    )}
+                    <button
+                        onClick={handleLogout}
+                        className="text-xs font-bold text-gray-500 hover:text-white uppercase tracking-widest transition-colors flex items-center gap-2"
+                    >
+                        Sair da Conta
+                    </button>
+                </div>
+            </div>
+
+            {/* Main Content */}
+            <main className="flex-1 flex flex-col items-center justify-center relative z-10 px-4 pb-20">
+                <div className="mb-12 text-center animate-fade-in-up">
+                    <h1 className="text-3xl md:text-5xl font-black text-white mb-2 tracking-tight">
+                        Olá, <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-accent to-orange-400 capitalize">{getDisplayName()}</span>.
+                    </h1>
+                    <p className="text-gray-400 text-sm md:text-lg font-light tracking-wide">
+                        Selecione o módulo de gestão para acessar.
+                    </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl px-4 animate-fade-in-up delay-100">
+                    {/* Card: Planejamento */}
+                    <button
+                        onClick={onSelectPlanning}
+                        className="group relative h-[300px] bg-[#111827]/40 rounded-3xl border border-white/5 overflow-hidden transition-all duration-500 hover:border-brand-accent/50 hover:shadow-[0_0_50px_-10px_rgba(227,90,16,0.3)] hover:-translate-y-2 text-left"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-br from-brand-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                        <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:opacity-40 group-hover:scale-110 transition-transform duration-700">
+                            <svg className="w-32 h-32 text-brand-accent transform rotate-12" fill="currentColor" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" /></svg>
+                        </div>
+
+                        <div className="absolute bottom-0 left-0 w-full p-8 z-10">
+                            <div className="w-12 h-12 bg-brand-accent/20 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-sm border border-brand-accent/20 group-hover:bg-brand-accent group-hover:text-white transition-colors duration-300">
+                                <svg className="w-6 h-6 text-brand-accent group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                            </div>
+                            <h2 className="text-2xl font-bold text-white mb-2 group-hover:text-brand-accent transition-colors">Planejamento</h2>
+                            <p className="text-xs text-gray-400 font-medium leading-relaxed max-w-[80%] group-hover:text-gray-300 transition-colors">
+                                Gestão de cronogramas, Last Planner System, RDOs e controle de produção.
+                            </p>
+                        </div>
+                    </button>
+
+                    {/* Card: Organograma */}
+                    <button
+                        onClick={() => {
+                            if (user.role !== 'Executor') {
+                                onSelectOrg();
+                            } else {
+                                showToast('Acesso restrito a gestores.', 'error');
+                            }
+                        }}
+                        className={`group relative h-[300px] bg-[#111827]/40 rounded-3xl border border-white/5 overflow-hidden transition-all duration-500 hover:border-blue-500/50 hover:shadow-[0_0_50px_-10px_rgba(59,130,246,0.3)] hover:-translate-y-2 text-left ${user.role === 'Executor' ? 'opacity-75' : ''}`}
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                        <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:opacity-40 group-hover:scale-110 transition-transform duration-700">
+                            <svg className="w-32 h-32 text-blue-500 transform rotate-45" fill="currentColor" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" /></svg>
+                        </div>
+
+                        <div className="absolute bottom-0 left-0 w-full p-8 z-10">
+                            <div className="w-12 h-12 bg-blue-500/20 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-sm border border-blue-500/20 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+                                <svg className="w-6 h-6 text-blue-500 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                            </div>
+                            <h2 className="text-2xl font-bold text-white mb-2 group-hover:text-blue-500 transition-colors flex items-center gap-3">
+                                Organograma
+                                <span className={`text-[8px] ${user.role === 'Executor' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'} border px-1.5 py-0.5 rounded-full font-black tracking-widest uppercase`}>
+                                    {user.role === 'Executor' ? 'Acesso Restrito' : 'Equipe'}
+                                </span>
+                            </h2>
+                            <p className="text-xs text-brand-med-gray font-medium leading-relaxed max-w-[80%] group-hover:text-gray-300 transition-colors">
+                                {user.role === 'Executor'
+                                    ? 'Apenas GESTORES podem visualizar a estrutura hierárquica e resumo de pessoal.'
+                                    : 'Resumo de colaboradores por função, hierarquia e estrutura da obra.'}
+                            </p>
+                        </div>
+                    </button>
+
+
+                    {/* Card: Custo */}
+                    <button
+                        onClick={() => {
+                            if (user.role === 'Master') {
+                                onSelectCost();
+                            } else {
+                                showToast('Acesso restrito ao usuário Master.', 'error');
+                            }
+                        }}
+                        className={`group relative h-[300px] bg-[#111827]/40 rounded-3xl border border-white/5 overflow-hidden transition-all duration-500 hover:border-green-500/50 hover:shadow-[0_0_50px_-10px_rgba(34,197,94,0.3)] hover:-translate-y-2 text-left ${user.role !== 'Master' ? 'opacity-75' : ''}`}
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                        <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:opacity-40 group-hover:scale-110 transition-transform duration-700">
+                            <svg className="w-32 h-32 text-green-500 transform -rotate-12" fill="currentColor" viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" /></svg>
+                        </div>
+
+                        <div className="absolute bottom-0 left-0 w-full p-8 z-10">
+                            <div className="w-12 h-12 bg-green-500/20 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-sm border border-green-500/20 group-hover:bg-green-500 group-hover:text-white transition-colors duration-300">
+                                <svg className="w-6 h-6 text-green-500 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            </div>
+                            <h2 className="text-2xl font-bold text-white mb-2 group-hover:text-green-500 transition-colors flex items-center gap-3">
+                                Custos
+                                <span className={`text-[8px] bg-green-500/20 text-green-500 border border-green-500/30 px-1.5 py-0.5 rounded-full animate-pulse font-black tracking-widest uppercase`}>
+                                    {user.role === 'Master' ? 'Em Desenvolvimento' : 'Acesso Restrito'}
+                                </span>
+                            </h2>
+                            <p className="text-xs text-brand-med-gray font-medium leading-relaxed max-w-[80%] group-hover:text-gray-300 transition-colors">
+                                {user.role === 'Master'
+                                    ? 'Controle de orçamento, medições, fluxo de caixa e viabilidade financeira.'
+                                    : 'Apenas usuários MASTER podem acessar as informações financeiras.'}
+                            </p>
+                        </div>
+                    </button>
+                </div>
+
+                <p className="mt-12 text-[10px] text-gray-600 font-mono tracking-widest uppercase opacity-50">
+                    ELOS V1.0 • Powered by Hugo AI
+                </p>
+            </main>
+        </div>
+    );
+};
+
+export default ModuleSelectionScreen;

@@ -1,0 +1,59 @@
+﻿Reading Excel...
+Sheet: "Planilha1" | Clean: "PLANILHA1" | Relevant: false
+Sheet: "ESTACAS" | Clean: "ESTACAS" | Relevant: true
+Processing sheet: "ESTACAS" (262 rows)
+    Header found at row 3. ColMap: {"resp":-1,"oae":1,"apoio":2,"status":-1}
+  Added rows from ESTACAS. Current total: 0
+Sheet: "BLOCOS" | Clean: "BLOCOS" | Relevant: true
+Processing sheet: "BLOCOS" (262 rows)
+    Header found at row 3. ColMap: {"resp":-1,"oae":1,"apoio":2,"status":-1}
+  Added rows from BLOCOS. Current total: 0
+Sheet: "PILARES" | Clean: "PILARES" | Relevant: true
+Processing sheet: "PILARES" (263 rows)
+    Header found at row 4. ColMap: {"resp":-1,"oae":1,"apoio":2,"status":-1}
+  Added rows from PILARES. Current total: 0
+Sheet: "TRAVESSAS" | Clean: "TRAVESSAS" | Relevant: true
+Processing sheet: "TRAVESSAS" (263 rows)
+    Header found at row 4. ColMap: {"resp":-1,"oae":1,"apoio":2,"status":-1}
+  Added rows from TRAVESSAS. Current total: 0
+Sheet: "PIPLAR PROVISORIO" | Clean: "PIPLAR PROVISORIO" | Relevant: true
+Processing sheet: "PIPLAR PROVISORIO" (263 rows)
+    Header found at row 4. ColMap: {"resp":-1,"oae":1,"apoio":2,"status":-1}
+  Added rows from PIPLAR PROVISORIO. Current total: 0
+Sheet: "FABRICA├ç├âO VIGAS" | Clean: "FABRICACAO VIGAS" | Relevant: true
+Processing sheet: "FABRICA├ç├âO VIGAS" (263 rows)
+    Header found at row 4. ColMap: {"resp":-1,"oae":1,"apoio":2,"status":-1}
+  Added rows from FABRICA├ç├âO VIGAS. Current total: 0
+Sheet: "LAN├çAMENTO VIGAS" | Clean: "LANCAMENTO VIGAS" | Relevant: true
+Processing sheet: "LAN├çAMENTO VIGAS" (263 rows)
+    Header found at row 4. ColMap: {"resp":-1,"oae":1,"apoio":2,"status":-1}
+  Added rows from LAN├çAMENTO VIGAS. Current total: 0
+Sheet: "FABRICA├ç├âO PRELAJE" | Clean: "FABRICACAO PRELAJE" | Relevant: true
+Processing sheet: "FABRICA├ç├âO PRELAJE" (263 rows)
+    Header found at row 4. ColMap: {"resp":-1,"oae":1,"apoio":2,"status":-1}
+  Added rows from FABRICA├ç├âO PRELAJE. Current total: 0
+Sheet: "MONTAGEM PRELAJE" | Clean: "MONTAGEM PRELAJE" | Relevant: true
+Processing sheet: "MONTAGEM PRELAJE" (263 rows)
+    Header found at row 4. ColMap: {"resp":-1,"oae":1,"apoio":2,"status":-1}
+  Added rows from MONTAGEM PRELAJE. Current total: 0
+Sheet: "TRANSVERSINAS" | Clean: "TRANSVERSINAS" | Relevant: true
+Processing sheet: "TRANSVERSINAS" (263 rows)
+    Header found at row 4. ColMap: {"resp":-1,"oae":1,"apoio":2,"status":-1}
+  Added rows from TRANSVERSINAS. Current total: 0
+Sheet: "LAJE" | Clean: "LAJE" | Relevant: true
+Processing sheet: "LAJE" (263 rows)
+    Header found at row 4. ColMap: {"resp":-1,"oae":1,"apoio":2,"status":-1}
+  Added rows from LAJE. Current total: 0
+Sheet: "LAJE EL├üSTICA" | Clean: "LAJE ELASTICA" | Relevant: true
+Processing sheet: "LAJE EL├üSTICA" (263 rows)
+    Header found at row 4. ColMap: {"resp":-1,"oae":1,"apoio":2,"status":-1}
+  Added rows from LAJE EL├üSTICA. Current total: 0
+Sheet: "LAJE DE APROXIMA├ç├âO " | Clean: "LAJE DE APROXIMACAO" | Relevant: true
+Processing sheet: "LAJE DE APROXIMA├ç├âO " (263 rows)
+    Header found at row 4. ColMap: {"resp":-1,"oae":1,"apoio":2,"status":-1}
+  Added rows from LAJE DE APROXIMA├ç├âO . Current total: 0
+Total prepared rows: 0
+Clearing DB...
+DB cleared.
+
+Upload Done.

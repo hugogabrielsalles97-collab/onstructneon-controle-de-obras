@@ -1,0 +1,21 @@
+import fs from 'fs';
+
+const envText = fs.readFileSync('.env', 'utf8');
+const SUPABASE_URL = (envText.match(/VITE_SUPABASE_URL=(.*)/) || [])[1]?.trim();
+const SUPABASE_ANON_KEY = (envText.match(/VITE_SUPABASE_ANON_KEY=(.*)/) || [])[1]?.trim();
+
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
+async function check() {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/monitoring_rows?select=service`, {
+        headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+        }
+    });
+    const data = await res.json();
+    const services = Array.from(new Set(data.map(r => r.service))).sort();
+    console.log("DISTINCT SERVICES IN DB:", services);
+}
+
+check();

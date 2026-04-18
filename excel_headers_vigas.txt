@@ -1,0 +1,23 @@
+
+
+=== SHEET: FABRICAÇÃO VIGAS ===
+Row 0: 2
+Row 1:  | QUADRO DE PROJEÇÃO DE FABRICAÇÃO DE VIGAS
+Row 2: 
+Row 3: 
+Row 4: Engenheiro responsável | OAE | ENCONTRO / APOIO | PLANEJADO X REAL (Ñ PROTENDIDA) |  | PLANEJADO X REAL (PROTENDIDA) |  | 45566 | 45567 | 45568 | 45569 | 45570 | 45571 | 45572 | 45573
+Row 5:  |  |  | PREV. | 60 | PREV. | 474 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0
+Row 6:  |  |  | REAL | 32 | REAL | 276 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0
+Row 7: Bruno Bastos | S01 | P1-P2 | PREV. | 6 | PREV. | - |  |  |  | - | - | - |  | 
+Row 8:  |  |  | REAL | 6 | REAL | - |  |  |  | - | - | - |  | 
+Row 9: Bruno Bastos | S02 | E1-P1 | PREV. | - | PREV. | 5 |  |  |  | - | - | - |  | 
+Row 10:  |  |  | REAL | - | REAL | 5 |  |  |  | - | - | - |  | 
+Row 11: Bruno Bastos | S02 | P1-P2 | PREV. | - | PREV. | 5 |  |  |  | - | - | - |  | 
+Row 12:  |  |  | REAL | - | REAL | 5 |  |  |  | - | - | - |  | 
+Row 13: Bruno Bastos | S02 | P2-P3 | PREV. | - | PREV. | 5 |  |  |  | - | - | - |  | 
+Row 14:  |  |  | REAL | - | REAL | 5 |  |  |  | - | - | - |  | 
+Row 15: Bruno Bastos | S02 | P3-E2 | PREV. | - | PREV. | 5 |  |  |  | - | - | - |  | 
+Row 16:  |  |  | REAL | - | REAL | 5 |  |  |  | - | - | - |  | 
+Row 17: Bruno Bastos | S03 | E1-P1 | PREV. | - | PREV. | 5 |  |  |  | - | - | - |  | 
+Row 18:  |  |  | REAL | - | REAL | 5 |  |  |  | - | - | - |  | 
+Row 19: Bruno Bastos | S03 | P1-P2 | PREV. | - | PREV. | 5 |  |  |  | - | - | - |  | 
