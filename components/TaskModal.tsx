@@ -18,6 +18,7 @@ import { disciplineOptions, taskTitleOptions, oaeLocations, frentes, apoios, vao
 import AIRestrictedAccess from './AIRestrictedAccess';
 import ConfirmModal from './ConfirmModal';
 import EyeIcon from './icons/EyeIcon';
+import { getRescheduleHistoryForDisplay, resolveBaselineTask } from '../utils/taskPlanning';
 
 
 
@@ -167,6 +168,12 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         { id: 'Predecessora', label: 'Predecessora', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19 7-7-7-7" /><path d="M19 12H5" /></svg> },
         { id: 'Interferências', label: 'Interferências', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg> },
     ], []);
+
+    const baselineById = useMemo(() => {
+        const m = new Map<string, Task>();
+        baselineTasks.forEach(bt => m.set(String(bt.id), bt));
+        return m;
+    }, [baselineTasks]);
 
     const isMaster = user.role === 'Master';
     const isPlanner = user.role === 'Planejador';
@@ -356,6 +363,32 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         // Se não achou papel de engenheiro, retorna o topo da cadeia (que geralmente é o eng)
         return topParent;
     }, [formData.assignee, orgMembers, allUsers]);
+
+    const allDisciplineOptions = useMemo(() => {
+        const base = Object.keys(disciplineOptions);
+        const fromCatalog = catalogs.map(c => c.discipline);
+        return Array.from(new Set([...base, ...fromCatalog])).sort();
+    }, [catalogs]);
+
+    const allLevelOptions = useMemo(() => {
+        if (!formData.discipline) return [];
+        const base = disciplineOptions[formData.discipline] || [];
+        const fromCatalog = catalogs
+            .filter(c => c.discipline === formData.discipline && c.level)
+            .map(c => c.level as string);
+        return Array.from(new Set([...base, ...fromCatalog])).sort();
+    }, [formData.discipline, catalogs]);
+
+    const allActivityOptions = useMemo(() => {
+        if (!formData.discipline || !formData.level) return undefined;
+        const base = taskTitleOptions[formData.discipline]?.[formData.level] || [];
+        const fromCatalog = catalogs
+            .filter(c => c.discipline === formData.discipline && c.level === formData.level && c.activity_title)
+            .map(c => c.activity_title as string);
+
+        const merged = Array.from(new Set([...base, ...fromCatalog])).sort();
+        return merged.length > 0 ? merged : undefined;
+    }, [formData.discipline, formData.level, catalogs]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
@@ -710,19 +743,32 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
 
     const handleReschedule = () => {
         const today = new Date().toISOString().split('T')[0];
-        setFormData(prev => ({
-            ...prev,
-            rescheduleHistory: [
-                ...(prev.rescheduleHistory || []),
-                {
-                    startDate: prev.startDate,
-                    dueDate: prev.dueDate,
-                    rescheduledAt: new Date().toISOString()
-                }
-            ],
-            startDate: today,
-            dueDate: today,
-        }));
+        const rescheduledAt = new Date().toISOString();
+        setFormData(prev => {
+            const startMs = new Date((prev.startDate || today) + 'T00:00:00').getTime();
+            const dueMs = new Date((prev.dueDate || prev.startDate || today) + 'T00:00:00').getTime();
+            let spanDays = 0;
+            if (!Number.isNaN(startMs) && !Number.isNaN(dueMs)) {
+                spanDays = Math.max(0, Math.round((dueMs - startMs) / 86400000));
+            }
+            const newStart = new Date(today + 'T00:00:00');
+            const newDue = new Date(newStart);
+            newDue.setUTCDate(newDue.getUTCDate() + spanDays);
+            const newDueStr = newDue.toISOString().split('T')[0];
+            return {
+                ...prev,
+                rescheduleHistory: [
+                    ...(prev.rescheduleHistory || []),
+                    {
+                        startDate: today,
+                        dueDate: newDueStr,
+                        rescheduledAt,
+                    },
+                ],
+                startDate: today,
+                dueDate: newDueStr,
+            };
+        });
     };
 
     const handleWhatsAppShare = () => {
@@ -790,14 +836,14 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             const last = mergedHistory[mergedHistory.length - 1];
             const snapAlready =
                 last &&
-                last.startDate === task.startDate &&
-                last.dueDate === task.dueDate;
+                last.startDate === finalFormData.startDate &&
+                last.dueDate === finalFormData.dueDate;
             if (!snapAlready) {
                 mergedHistory = [
                     ...mergedHistory,
                     {
-                        startDate: task.startDate,
-                        dueDate: task.dueDate,
+                        startDate: finalFormData.startDate,
+                        dueDate: finalFormData.dueDate,
                         rescheduledAt: new Date().toISOString(),
                     },
                 ];
@@ -827,34 +873,15 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
 
     if (!isOpen) return null;
 
+    const taskLikeForPlanning: Task = {
+        ...formData,
+        id: task?.id || '',
+        status: task?.status ?? TaskStatus.ToDo,
+    };
+    const baselineLinkedModal = resolveBaselineTask(taskLikeForPlanning, baselineById);
+    const rescheduleHistoryRows = getRescheduleHistoryForDisplay(taskLikeForPlanning, baselineLinkedModal);
+
     const isTitleAutoPopulated = ['Contenções'].includes(formData.discipline);
-
-    // Merge Catalogs with Hardcoded Options
-    const allDisciplineOptions = useMemo(() => {
-        const base = Object.keys(disciplineOptions);
-        const fromCatalog = catalogs.map(c => c.discipline);
-        return Array.from(new Set([...base, ...fromCatalog])).sort();
-    }, [catalogs]);
-
-    const allLevelOptions = useMemo(() => {
-        if (!formData.discipline) return [];
-        const base = disciplineOptions[formData.discipline] || [];
-        const fromCatalog = catalogs
-            .filter(c => c.discipline === formData.discipline && c.level)
-            .map(c => c.level as string);
-        return Array.from(new Set([...base, ...fromCatalog])).sort();
-    }, [formData.discipline, catalogs]);
-
-    const allActivityOptions = useMemo(() => {
-        if (!formData.discipline || !formData.level) return undefined;
-        const base = taskTitleOptions[formData.discipline]?.[formData.level] || [];
-        const fromCatalog = catalogs
-            .filter(c => c.discipline === formData.discipline && c.level === formData.level && c.activity_title)
-            .map(c => c.activity_title as string);
-
-        const merged = Array.from(new Set([...base, ...fromCatalog])).sort();
-        return merged.length > 0 ? merged : undefined;
-    }, [formData.discipline, formData.level, catalogs]);
 
     const isOAE = formData.discipline === 'Obras de arte especiais';
     const isOAESuperestrutura = isOAE && formData.level === 'Superestrutura';
@@ -1217,12 +1244,12 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                         {/* Histórico de reprogramações */}
                                         {(formData.rescheduleHistory?.length || 0) > 0 && (
                                             <div className="space-y-1.5 mb-3">
-                                                <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">Programações anteriores (histórico)</p>
-                                                {formData.rescheduleHistory!.map((h, idx) => (
+                                                <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">Prazo definido em cada reprogramação</p>
+                                                {rescheduleHistoryRows.map((h, idx) => (
                                                     <div key={idx} className="flex items-center gap-2 text-[9px] bg-white/[0.03] border border-white/5 rounded-lg px-3 py-1.5">
                                                         <span className="text-amber-400/60 font-black">{idx + 1}ª</span>
                                                         <span className="text-white/40 font-mono">
-                                                            {new Date(h.startDate).toLocaleDateString('pt-BR')} → {new Date(h.dueDate).toLocaleDateString('pt-BR')}
+                                                            {new Date(h.startDate + 'T00:00:00').toLocaleDateString('pt-BR')} → {new Date(h.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}
                                                         </span>
                                                         <span className="text-white/15 ml-auto text-[8px]">
                                                             {new Date(h.rescheduledAt).toLocaleDateString('pt-BR')}

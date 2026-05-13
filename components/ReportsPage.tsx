@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { User, Task, TaskStatus } from '../types';
-import { getAnchorDue, getAnchorStart, taskWasRescheduled } from '../utils/taskPlanning';
+import { getAnchorDue, getAnchorStart, taskCurrentDiffersFromInitialPlan, resolveBaselineTask } from '../utils/taskPlanning';
 import { useData } from '../context/DataProvider';
 import Header from './Header';
 import DashboardSummary from './DashboardSummary';
@@ -83,28 +83,47 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
     setStatusFilter('all');
   };
 
-  const filterTasksByDate = (tasksToFilter: Task[]) => {
+  const baselineById = useMemo(() => {
+    const m = new Map<string, Task>();
+    baselineTasks.forEach(bt => m.set(String(bt.id), bt));
+    return m;
+  }, [baselineTasks]);
+
+  const dateFilteredTasks = useMemo(() => {
     if (!dateFilters.startDate && !dateFilters.endDate) {
-      return tasksToFilter;
+      return tasks;
     }
-    return tasksToFilter.filter(task => {
-      const taskStartDate = new Date(getAnchorStart(task) + 'T00:00:00');
-      const taskDueDate = new Date(getAnchorDue(task) + 'T00:00:00');
+    return tasks.filter(task => {
+      const bl = resolveBaselineTask(task, baselineById);
+      const taskStartDate = new Date(getAnchorStart(task, bl) + 'T00:00:00');
+      const taskDueDate = new Date(getAnchorDue(task, bl) + 'T00:00:00');
       const filterStartDate = dateFilters.startDate ? new Date(dateFilters.startDate + 'T00:00:00') : null;
       const filterEndDate = dateFilters.endDate ? new Date(dateFilters.endDate + 'T00:00:00') : null;
 
-      // Lógica de Overlap: 
-      // Tarefa deve terminar DEPOIS do início do filtro (se houver início)
       const matchesStartDate = !filterStartDate || taskDueDate >= filterStartDate;
-      // Tarefa deve começar ANTES do fim do filtro (se houver fim)
       const matchesEndDate = !filterEndDate || taskStartDate <= filterEndDate;
 
       return matchesStartDate && matchesEndDate;
     });
-  };
+  }, [tasks, dateFilters, baselineById]);
 
-  const dateFilteredTasks = useMemo(() => filterTasksByDate(tasks), [tasks, dateFilters]);
-  const dateFilteredBaselineTasks = useMemo(() => filterTasksByDate(baselineTasks), [baselineTasks, dateFilters]);
+  const dateFilteredBaselineTasks = useMemo(() => {
+    if (!dateFilters.startDate && !dateFilters.endDate) {
+      return baselineTasks;
+    }
+    return baselineTasks.filter(task => {
+      const bl = resolveBaselineTask(task, baselineById);
+      const taskStartDate = new Date(getAnchorStart(task, bl) + 'T00:00:00');
+      const taskDueDate = new Date(getAnchorDue(task, bl) + 'T00:00:00');
+      const filterStartDate = dateFilters.startDate ? new Date(dateFilters.startDate + 'T00:00:00') : null;
+      const filterEndDate = dateFilters.endDate ? new Date(dateFilters.endDate + 'T00:00:00') : null;
+
+      const matchesStartDate = !filterStartDate || taskDueDate >= filterStartDate;
+      const matchesEndDate = !filterEndDate || taskStartDate <= filterEndDate;
+
+      return matchesStartDate && matchesEndDate;
+    });
+  }, [baselineTasks, dateFilters, baselineById]);
 
   const filteredTasks = useMemo(() => {
     if (statusFilter === 'all') return dateFilteredTasks;
@@ -112,7 +131,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
     return dateFilteredTasks.filter(task => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const dueDate = new Date(getAnchorDue(task) + 'T00:00:00');
+      const bl = resolveBaselineTask(task, baselineById);
+      const dueDate = new Date(getAnchorDue(task, bl) + 'T00:00:00');
       const isOverdue = dueDate < today && task.status !== TaskStatus.Completed;
 
       if (statusFilter === 'overdue') {
@@ -120,7 +140,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
       }
 
       if (statusFilter === 'rescheduled') {
-        return taskWasRescheduled(task);
+        return taskCurrentDiffersFromInitialPlan(task, bl);
       }
 
       if (statusFilter === TaskStatus.Completed) {
@@ -130,7 +150,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
         return task.status === statusFilter && !isOverdue;
       }
     });
-  }, [dateFilteredTasks, statusFilter]);
+  }, [dateFilteredTasks, baselineById, statusFilter]);
 
   // Sincronizar baseline apenas com filtros de data, manter baseline original para comparação em gráficos de curva
   const filteredBaselineTasks = dateFilteredBaselineTasks;
@@ -316,7 +336,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
                 <h4 className="text-xs font-black text-white uppercase tracking-widest leading-none">Visão Geral do Projeto</h4>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
-                <DashboardSummary tasks={dateFilteredTasks} onStatusSelect={handleStatusSelect} activeStatus={statusFilter} />
+                <DashboardSummary tasks={dateFilteredTasks} baselineTasks={baselineTasks} onStatusSelect={handleStatusSelect} activeStatus={statusFilter} />
               </div>
             </section>
 

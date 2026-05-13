@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react';
 import { Task, TaskStatus } from '../types';
-import { getAnchorDue, taskWasRescheduled } from '../utils/taskPlanning';
+import { getAnchorDue, resolveBaselineTask, taskCurrentDiffersFromInitialPlan } from '../utils/taskPlanning';
 
 type StatusFilter = 'all' | 'overdue' | 'rescheduled' | TaskStatus;
 
 interface DashboardSummaryProps {
   tasks: Task[];
+  baselineTasks: Task[];
   onStatusSelect: (status: StatusFilter) => void;
   activeStatus: StatusFilter;
 }
@@ -55,9 +56,11 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ title, value, color, onClick,
   );
 };
 
-const DashboardSummary: React.FC<DashboardSummaryProps> = ({ tasks, onStatusSelect, activeStatus }) => {
+const DashboardSummary: React.FC<DashboardSummaryProps> = ({ tasks, baselineTasks, onStatusSelect, activeStatus }) => {
   const { completedTasks, overdueTasks, inProgressOnTime, toDoOnTime, rescheduledTasks } = useMemo(() => {
     const todayNum = new Date().setHours(0, 0, 0, 0);
+    const baselineById = new Map<string, Task>();
+    baselineTasks.forEach(bt => baselineById.set(String(bt.id), bt));
 
     let completed = 0;
     let overdue = 0;
@@ -66,11 +69,12 @@ const DashboardSummary: React.FC<DashboardSummaryProps> = ({ tasks, onStatusSele
     let rescheduled = 0;
 
     tasks.forEach(task => {
-      if (taskWasRescheduled(task)) rescheduled++;
+      if (taskCurrentDiffersFromInitialPlan(task, resolveBaselineTask(task, baselineById))) rescheduled++;
       if (task.status === TaskStatus.Completed) {
         completed++;
       } else {
-        const dueDateNum = new Date(getAnchorDue(task) + 'T00:00:00').getTime();
+        const bl = resolveBaselineTask(task, baselineById);
+        const dueDateNum = new Date(getAnchorDue(task, bl) + 'T00:00:00').getTime();
         if (dueDateNum < todayNum) {
           overdue++;
         } else {
@@ -87,7 +91,7 @@ const DashboardSummary: React.FC<DashboardSummaryProps> = ({ tasks, onStatusSele
       toDoOnTime: toDo,
       rescheduledTasks: rescheduled,
     };
-  }, [tasks]);
+  }, [tasks, baselineTasks]);
 
   return (
     <>

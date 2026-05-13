@@ -3,7 +3,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Task, TaskStatus, User } from '../types';
 import { fetchTaskHeavyData, fetchTaskIdsWithPhotos } from '../hooks/dataHooks';
-import { getRescheduleCount, isTaskOverdueByInitialPlan } from '../utils/taskPlanning';
+import { isTaskOverdueByInitialPlan, getAnchorStart, getAnchorDue, taskShowsReplannedColumn, resolveBaselineTask } from '../utils/taskPlanning';
 import SortIcon from './icons/SortIcon';
 import EditIcon from './icons/EditIcon';
 import DeleteIcon from './icons/DeleteIcon';
@@ -124,8 +124,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEdi
     return new Date(dateString).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
   }
 
-  const getDisplayStatus = (task: Task, todayNum: number): { status: DisplayStatus, text: string } => {
-    const isOverdue = isTaskOverdueByInitialPlan(task, todayNum);
+  const getDisplayStatus = (task: Task, todayNum: number, baselineLinked: Task | null): { status: DisplayStatus, text: string } => {
+    const isOverdue = isTaskOverdueByInitialPlan(task, todayNum, baselineLinked);
 
     if (isOverdue) return { status: 'Atrasado', text: 'Atrasado' };
     return { status: task.status, text: task.status };
@@ -152,8 +152,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEdi
           {(() => {
             const todayNum = new Date().setHours(0, 0, 0, 0);
             return tasks.map((task, index) => {
-              const display = getDisplayStatus(task, todayNum);
-              const baselineTask = baselineMap.get(task.id);
+              const baselineLinked = resolveBaselineTask(task, baselineMap);
+              const display = getDisplayStatus(task, todayNum, baselineLinked);
               const staggerClass = index < 10 ? `animate-stagger-${Math.min(index + 1, 4)}` : '';
 
               return (
@@ -208,31 +208,36 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEdi
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-5 border-t border-b border-white/5 align-middle text-center max-w-[160px]">
-                    <div className="flex flex-col items-center gap-1">
-                      <span className={`text-sm font-black ${getRescheduleCount(task) > 0 ? 'text-amber-400' : 'text-brand-med-gray/50'}`}>
-                        {getRescheduleCount(task)}
-                      </span>
-                      {getRescheduleCount(task) > 0 && task.rescheduleHistory && (
-                        <div className="text-left w-full space-y-0.5 max-h-20 overflow-y-auto custom-scrollbar">
-                          {task.rescheduleHistory.map((h, idx) => (
-                            <div key={idx} className="text-[7px] text-amber-400/70 font-mono leading-tight border border-amber-500/10 rounded px-1 py-0.5 bg-amber-500/5">
-                              {formatDate(h.startDate)}–{formatDate(h.dueDate)}
-                            </div>
-                          ))}
+                  <td className="px-4 py-5 border-t border-b border-white/5 align-middle min-w-[120px]">
+                    {taskShowsReplannedColumn(task, baselineLinked) ? (
+                      <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 min-w-[120px] justify-center mx-auto">
+                        <div className="flex flex-col">
+                          <span className="text-[7px] font-black text-brand-med-gray uppercase tracking-tighter leading-none mb-0.5">Início reprog.</span>
+                          <span className="text-[10px] font-bold text-gray-300 leading-none">{formatDate(task.startDate)}</span>
                         </div>
-                      )}
-                    </div>
+                        <div className="flex flex-col">
+                          <span className="text-[7px] font-black text-brand-med-gray uppercase tracking-tighter leading-none mb-0.5">Fim reprog.</span>
+                          <span className="text-[10px] font-bold text-gray-300 leading-none">{formatDate(task.dueDate)}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 min-w-[120px] justify-center mx-auto">
+                        <div className="col-span-2 text-center">
+                          <span className="text-[7px] font-black text-brand-med-gray uppercase tracking-tighter leading-none mb-0.5 block">Reprog.</span>
+                          <span className="text-[10px] font-bold text-gray-400/60 leading-none">—</span>
+                        </div>
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-5 border-t border-b border-white/5 align-middle">
                     <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 min-w-[120px] justify-center mx-auto">
                       <div className="flex flex-col">
                         <span className="text-[7px] font-black text-brand-med-gray uppercase tracking-tighter leading-none mb-0.5">Início Plan.</span>
-                        <span className="text-[10px] font-bold text-gray-300 leading-none">{formatDate(task.startDate)}</span>
+                        <span className="text-[10px] font-bold text-gray-300 leading-none">{formatDate(getAnchorStart(task, baselineLinked))}</span>
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[7px] font-black text-brand-med-gray uppercase tracking-tighter leading-none mb-0.5">Fim Plan.</span>
-                        <span className="text-[10px] font-bold text-gray-300 leading-none">{formatDate(task.dueDate)}</span>
+                        <span className="text-[10px] font-bold text-gray-300 leading-none">{formatDate(getAnchorDue(task, baselineLinked))}</span>
                       </div>
                       {task.actualStartDate && (
                         <div className="flex flex-col">
