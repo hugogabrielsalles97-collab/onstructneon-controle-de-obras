@@ -195,6 +195,10 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         if (isOpen) {
             if (task) {
                 const isAssigneeValid = assignableUsers.some(u => u.fullName === task.assignee);
+                const baselineMatch = task.baseline_id
+                    ? baselineTasks.find(bt => String(bt.id) === String(task.baseline_id))
+                    : baselineTasks.find(bt => String(bt.id) === String(task.id));
+
                 setFormData({
                     title: task.title,
                     description: task.description,
@@ -222,8 +226,16 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                     observations: '', // Will be set below with cleaning
                     baseline_id: task.baseline_id || '',
                     rescheduleHistory: task.rescheduleHistory || [],
-                    originalStartDate: task.originalStartDate || task.startDate,
-                    originalDueDate: task.originalDueDate || task.dueDate,
+                    originalStartDate:
+                        task.originalStartDate ||
+                        baselineMatch?.originalStartDate ||
+                        baselineMatch?.startDate ||
+                        task.startDate,
+                    originalDueDate:
+                        task.originalDueDate ||
+                        baselineMatch?.originalDueDate ||
+                        baselineMatch?.dueDate ||
+                        task.dueDate,
                 });
 
                 // Parse 6M tags and clean observations
@@ -250,7 +262,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             setAnalyzingPhotoIndex(null);
             setSafetyAnalysisResult({ status: 'idle', message: '' });
         }
-    }, [task, isOpen, allUsers]);
+    }, [task, isOpen, allUsers, baselineTasks]);
 
     // Busca os campos pesados (JSONB) sob demanda quando editando uma tarefa existente
     useEffect(() => {
@@ -850,12 +862,20 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             }
         }
 
+        const trimD = (s: string | null | undefined) => (s || '').trim();
+
+        /* Plano inicial: priorizar o que está no formulário (fixado na abertura e não alterado ao mudar prazo).
+           Não usar só task.startDate após reprogramação — no props ele já é o prazo novo e apagaria o histórico. */
         const lockedOriginalStart = task
-            ? (task.originalStartDate || task.startDate)
-            : finalFormData.startDate;
+            ? trimD(formData.originalStartDate) ||
+              trimD(task.originalStartDate) ||
+              trimD(task.startDate)
+            : trimD(finalFormData.startDate);
         const lockedOriginalDue = task
-            ? (task.originalDueDate || task.dueDate)
-            : finalFormData.dueDate;
+            ? trimD(formData.originalDueDate) ||
+              trimD(task.originalDueDate) ||
+              trimD(task.dueDate)
+            : trimD(finalFormData.dueDate);
 
         const taskToSave: Task = {
             id: task?.id || new Date().toISOString(),
