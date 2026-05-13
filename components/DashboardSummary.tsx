@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { Task, TaskStatus } from '../types';
+import { getAnchorDue, taskWasRescheduled } from '../utils/taskPlanning';
 
-type StatusFilter = 'all' | 'overdue' | TaskStatus;
+type StatusFilter = 'all' | 'overdue' | 'rescheduled' | TaskStatus;
 
 interface DashboardSummaryProps {
   tasks: Task[];
@@ -12,7 +13,7 @@ interface DashboardSummaryProps {
 interface SummaryCardProps {
   title: string;
   value: number | string;
-  color: 'green' | 'red' | 'yellow' | 'blue' | 'med-gray';
+  color: 'green' | 'red' | 'yellow' | 'blue' | 'med-gray' | 'amber';
   onClick: () => void;
   isActive: boolean;
   index: number;
@@ -25,6 +26,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ title, value, color, onClick,
     yellow: 'bg-yellow-400 shadow-yellow-400/20',
     blue: 'bg-blue-400 shadow-blue-400/20',
     'med-gray': 'bg-brand-med-gray shadow-gray-500/20',
+    amber: 'bg-amber-500 shadow-amber-500/20',
   }
 
   return (
@@ -54,19 +56,21 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ title, value, color, onClick,
 };
 
 const DashboardSummary: React.FC<DashboardSummaryProps> = ({ tasks, onStatusSelect, activeStatus }) => {
-  const { completedTasks, overdueTasks, inProgressOnTime, toDoOnTime } = useMemo(() => {
+  const { completedTasks, overdueTasks, inProgressOnTime, toDoOnTime, rescheduledTasks } = useMemo(() => {
     const todayNum = new Date().setHours(0, 0, 0, 0);
 
     let completed = 0;
     let overdue = 0;
     let inProgress = 0;
     let toDo = 0;
+    let rescheduled = 0;
 
     tasks.forEach(task => {
+      if (taskWasRescheduled(task)) rescheduled++;
       if (task.status === TaskStatus.Completed) {
         completed++;
       } else {
-        const dueDateNum = new Date(task.dueDate + 'T00:00:00').getTime();
+        const dueDateNum = new Date(getAnchorDue(task) + 'T00:00:00').getTime();
         if (dueDateNum < todayNum) {
           overdue++;
         } else {
@@ -81,6 +85,7 @@ const DashboardSummary: React.FC<DashboardSummaryProps> = ({ tasks, onStatusSele
       overdueTasks: overdue,
       inProgressOnTime: inProgress,
       toDoOnTime: toDo,
+      rescheduledTasks: rescheduled,
     };
   }, [tasks]);
 
@@ -91,6 +96,7 @@ const DashboardSummary: React.FC<DashboardSummaryProps> = ({ tasks, onStatusSele
       <SummaryCard index={3} title="Tarefas Atrasadas" value={overdueTasks} color="red" onClick={() => onStatusSelect('overdue')} isActive={activeStatus === 'overdue'} />
       <SummaryCard index={4} title="Em Andamento" value={inProgressOnTime} color="blue" onClick={() => onStatusSelect(TaskStatus.InProgress)} isActive={activeStatus === TaskStatus.InProgress} />
       <SummaryCard index={5} title="A Iniciar" value={toDoOnTime} color="yellow" onClick={() => onStatusSelect(TaskStatus.ToDo)} isActive={activeStatus === TaskStatus.ToDo} />
+      <SummaryCard index={6} title="Reprogramadas" value={rescheduledTasks} color="amber" onClick={() => onStatusSelect('rescheduled')} isActive={activeStatus === 'rescheduled'} />
     </>
   );
 };

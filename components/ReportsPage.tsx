@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { User, Task, TaskStatus } from '../types';
+import { getAnchorDue, getAnchorStart, taskWasRescheduled } from '../utils/taskPlanning';
 import { useData } from '../context/DataProvider';
 import Header from './Header';
 import DashboardSummary from './DashboardSummary';
@@ -63,7 +64,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
 }) => {
   const { currentUser: user, tasks, baselineTasks, signOut } = useData();
   const [dateFilters, setDateFilters] = useState({ startDate: '', endDate: '' });
-  const [statusFilter, setStatusFilter] = useState<'all' | 'overdue' | TaskStatus>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'overdue' | 'rescheduled' | TaskStatus>('all');
 
   if (!user) return null;
 
@@ -87,8 +88,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
       return tasksToFilter;
     }
     return tasksToFilter.filter(task => {
-      const taskStartDate = new Date(task.startDate + 'T00:00:00');
-      const taskDueDate = new Date(task.dueDate + 'T00:00:00');
+      const taskStartDate = new Date(getAnchorStart(task) + 'T00:00:00');
+      const taskDueDate = new Date(getAnchorDue(task) + 'T00:00:00');
       const filterStartDate = dateFilters.startDate ? new Date(dateFilters.startDate + 'T00:00:00') : null;
       const filterEndDate = dateFilters.endDate ? new Date(dateFilters.endDate + 'T00:00:00') : null;
 
@@ -111,11 +112,15 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
     return dateFilteredTasks.filter(task => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const dueDate = new Date(task.dueDate + 'T00:00:00');
+      const dueDate = new Date(getAnchorDue(task) + 'T00:00:00');
       const isOverdue = dueDate < today && task.status !== TaskStatus.Completed;
 
       if (statusFilter === 'overdue') {
         return isOverdue;
+      }
+
+      if (statusFilter === 'rescheduled') {
+        return taskWasRescheduled(task);
       }
 
       if (statusFilter === TaskStatus.Completed) {
@@ -310,7 +315,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
                 <div className="w-1 h-4 bg-brand-accent rounded-full"></div>
                 <h4 className="text-xs font-black text-white uppercase tracking-widest leading-none">Visão Geral do Projeto</h4>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
                 <DashboardSummary tasks={dateFilteredTasks} onStatusSelect={handleStatusSelect} activeStatus={statusFilter} />
               </div>
             </section>

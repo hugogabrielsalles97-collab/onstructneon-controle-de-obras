@@ -111,6 +111,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             observations: '',
             baseline_id: '',
             rescheduleHistory: [],
+            originalStartDate: today,
+            originalDueDate: today,
         };
     };
 
@@ -213,6 +215,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                     observations: '', // Will be set below with cleaning
                     baseline_id: task.baseline_id || '',
                     rescheduleHistory: task.rescheduleHistory || [],
+                    originalStartDate: task.originalStartDate || task.startDate,
+                    originalDueDate: task.originalDueDate || task.dueDate,
                 });
 
                 // Parse 6M tags and clean observations
@@ -253,6 +257,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                         actualManpower: heavyData.actualManpower || prev.actualManpower || [],
                         actualMachinery: heavyData.actualMachinery || prev.actualMachinery || [],
                         photos: heavyData.photos || prev.photos || [],
+                        rescheduleHistory: heavyData.rescheduleHistory ?? prev.rescheduleHistory ?? [],
                     }));
                 }
             }).catch(err => console.warn('Erro ao buscar dados pesados da tarefa:', err));
@@ -776,6 +781,36 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             });
         }
 
+        const plannedDatesChanged =
+            !!task &&
+            (formData.startDate !== task.startDate || formData.dueDate !== task.dueDate);
+
+        let mergedHistory = [...(formData.rescheduleHistory || [])];
+        if (plannedDatesChanged && task) {
+            const last = mergedHistory[mergedHistory.length - 1];
+            const snapAlready =
+                last &&
+                last.startDate === task.startDate &&
+                last.dueDate === task.dueDate;
+            if (!snapAlready) {
+                mergedHistory = [
+                    ...mergedHistory,
+                    {
+                        startDate: task.startDate,
+                        dueDate: task.dueDate,
+                        rescheduledAt: new Date().toISOString(),
+                    },
+                ];
+            }
+        }
+
+        const lockedOriginalStart = task
+            ? (task.originalStartDate || task.startDate)
+            : finalFormData.startDate;
+        const lockedOriginalDue = task
+            ? (task.originalDueDate || task.dueDate)
+            : finalFormData.dueDate;
+
         const taskToSave: Task = {
             id: task?.id || new Date().toISOString(),
             ...finalFormData,
@@ -783,6 +818,9 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             status: finalStatus,
             actualStartDate: formData.actualStartDate || null,
             actualEndDate: formData.actualEndDate || null,
+            originalStartDate: lockedOriginalStart,
+            originalDueDate: lockedOriginalDue,
+            rescheduleHistory: mergedHistory,
         };
         onSave(taskToSave);
     };
@@ -1147,7 +1185,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                                 <label className="text-[10px] font-black text-cyan-400 uppercase tracking-[2px]">Prazo de Execução</label>
                                                 {(formData.rescheduleHistory?.length || 0) > 0 && (
                                                     <span className="text-[8px] font-black text-amber-400 bg-amber-500/15 border border-amber-500/20 px-2 py-0.5 rounded-lg uppercase tracking-wider animate-scale-in">
-                                                        {formData.rescheduleHistory!.length}ª Reprogramação
+                                                        {formData.rescheduleHistory!.length} {formData.rescheduleHistory!.length === 1 ? 'reprogramação' : 'reprogramações'}
                                                     </span>
                                                 )}
                                             </div>
@@ -1179,7 +1217,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                         {/* Histórico de reprogramações */}
                                         {(formData.rescheduleHistory?.length || 0) > 0 && (
                                             <div className="space-y-1.5 mb-3">
-                                                <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">Programações Anteriores</p>
+                                                <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">Programações anteriores (histórico)</p>
                                                 {formData.rescheduleHistory!.map((h, idx) => (
                                                     <div key={idx} className="flex items-center gap-2 text-[9px] bg-white/[0.03] border border-white/5 rounded-lg px-3 py-1.5">
                                                         <span className="text-amber-400/60 font-black">{idx + 1}ª</span>
@@ -1199,6 +1237,10 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                             <div className="text-gray-600 font-bold">→</div>
                                             <input type="date" name="dueDate" value={formData.dueDate} onChange={handleChange} disabled={isReadOnlyPlanning} className="flex-1 bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-white text-xs font-mono disabled:opacity-50" />
                                         </div>
+                                        <p className="text-[8px] text-white/35 leading-relaxed mt-2">
+                                            Os quadros <span className="text-cyan-400/80 font-bold">Atrasadas</span>, <span className="text-cyan-400/80 font-bold">Em andamento</span> e <span className="text-cyan-400/80 font-bold">A iniciar</span> consideram o prazo <span className="text-white/60 font-bold">planejado inicial</span>
+                                            {' '}({new Date((formData.originalStartDate || formData.startDate) + 'T00:00:00').toLocaleDateString('pt-BR')} → {new Date((formData.originalDueDate || formData.dueDate) + 'T00:00:00').toLocaleDateString('pt-BR')}), para a tarefa continuar no mesmo “quadro” após reprogramar o prazo atual.
+                                        </p>
                                         {plannedWeather && (
                                             <div className="mt-4 p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-[10px] text-cyan-300 font-medium leading-relaxed italic">
                                                 " {plannedWeather} "

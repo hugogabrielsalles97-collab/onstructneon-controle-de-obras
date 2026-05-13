@@ -18,8 +18,11 @@ export interface Task {
   assignee: string; // Responsável
   discipline: string; // Disciplina (ex: Estrutura, Hidráulica)
   level: string; // Nível/Pavimento (ex: Térreo, 1º Andar)
-  startDate: string; // Datas
-  dueDate: string; // Datas
+  startDate: string; // Datas (planejamento atual)
+  dueDate: string; // Datas (planejamento atual)
+  /** Planejamento inicial — usado nos quadros de status (atraso, período) para tarefas que foram reprogramadas */
+  originalStartDate?: string | null;
+  originalDueDate?: string | null;
   actualStartDate?: string | null; // Início (Real)
   actualEndDate?: string | null; // Fim (Real)
   location: string; // Local ou Frente

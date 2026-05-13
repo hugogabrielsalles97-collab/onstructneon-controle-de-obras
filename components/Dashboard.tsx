@@ -22,10 +22,11 @@ import AlertIcon from './icons/AlertIcon';
 import ConfirmModal from './ConfirmModal';
 import { exportWeeklyReportToExcel } from '../utils/excelExport';
 import { useOrgMembers } from '../hooks/dataHooks';
+import { getAnchorDue, getAnchorStart, isTaskOverdueByInitialPlan, taskWasRescheduled } from '../utils/taskPlanning';
 
 type SortKey = keyof Task | 'none';
 type SortDirection = 'asc' | 'desc';
-type StatusFilter = TaskStatus | 'all' | 'overdue';
+type StatusFilter = TaskStatus | 'all' | 'overdue' | 'rescheduled';
 
 
 interface DashboardProps {
@@ -397,7 +398,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     const filterEndDateNum = filters.endDate ? new Date(filters.endDate + 'T00:00:00').getTime() : null;
 
     return visibleTasks.filter(task => {
-      const taskDueDateNum = new Date(task.dueDate + 'T00:00:00').getTime();
 
       if (filters.assignee && !task.assignee.toLowerCase().includes(filters.assignee.toLowerCase())) return false;
       if (filters.discipline && !task.discipline.toLowerCase().includes(filters.discipline.toLowerCase())) return false;
@@ -407,10 +407,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
       if (filters.support && !task.support.toLowerCase().includes(filters.support.toLowerCase())) return false;
 
       if (filterStartDateNum) {
-        const taskStartNum = new Date(task.startDate + 'T00:00:00').getTime();
+        const taskStartNum = new Date(getAnchorStart(task) + 'T00:00:00').getTime();
         if (taskStartNum < filterStartDateNum) return false;
       }
-      if (filterEndDateNum && taskDueDateNum > filterEndDateNum) return false;
+      if (filterEndDateNum) {
+        const anchorDueNum = new Date(getAnchorDue(task) + 'T00:00:00').getTime();
+        if (anchorDueNum > filterEndDateNum) return false;
+      }
 
       if (filters.engineer) {
         const filterEngKey = normalizeString(normalizeName(filters.engineer));
@@ -427,12 +430,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     const todayNum = new Date().setHours(0, 0, 0, 0);
 
     let filtered = filteredTasksWithoutStatus.filter(task => {
-      const taskDueDateNum = new Date(task.dueDate + 'T00:00:00').getTime();
-      const isOverdue = taskDueDateNum < todayNum && task.status !== TaskStatus.Completed;
+      const isOverdue = isTaskOverdueByInitialPlan(task, todayNum);
 
       let matchesStatus = true;
       if (filters.status === 'overdue') {
         matchesStatus = isOverdue;
+      } else if (filters.status === 'rescheduled') {
+        matchesStatus = taskWasRescheduled(task);
       } else if (filters.status !== 'all') {
         if (filters.status === TaskStatus.Completed) {
           matchesStatus = task.status === TaskStatus.Completed;
@@ -446,8 +450,18 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
 
     if (sortConfig.key !== 'none') {
       filtered.sort((a, b) => {
-        const aValue = a[sortConfig.key as keyof Task];
-        const bValue = b[sortConfig.key as keyof Task];
+        let aValue: string | number | boolean | null | undefined;
+        let bValue: string | number | boolean | null | undefined;
+        if (sortConfig.key === 'startDate') {
+          aValue = getAnchorStart(a);
+          bValue = getAnchorStart(b);
+        } else if (sortConfig.key === 'dueDate') {
+          aValue = getAnchorDue(a);
+          bValue = getAnchorDue(b);
+        } else {
+          aValue = a[sortConfig.key as keyof Task] as string | number | boolean | undefined;
+          bValue = b[sortConfig.key as keyof Task] as string | number | boolean | undefined;
+        }
         if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
         if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
@@ -699,7 +713,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
             </div>
 
             {/* Dash Analytics Summary */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 non-printable">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-5 non-printable">
               <DashboardSummary tasks={filteredTasksWithoutStatus} onStatusSelect={handleStatusSelect} activeStatus={filters.status} />
             </div>
 

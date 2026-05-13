@@ -3,6 +3,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Task, TaskStatus, User } from '../types';
 import { fetchTaskHeavyData, fetchTaskIdsWithPhotos } from '../hooks/dataHooks';
+import { getRescheduleCount, isTaskOverdueByInitialPlan } from '../utils/taskPlanning';
 import SortIcon from './icons/SortIcon';
 import EditIcon from './icons/EditIcon';
 import DeleteIcon from './icons/DeleteIcon';
@@ -124,8 +125,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEdi
   }
 
   const getDisplayStatus = (task: Task, todayNum: number): { status: DisplayStatus, text: string } => {
-    const dueDateNum = new Date(task.dueDate + 'T00:00:00').getTime();
-    const isOverdue = dueDateNum < todayNum && task.status !== TaskStatus.Completed;
+    const isOverdue = isTaskOverdueByInitialPlan(task, todayNum);
 
     if (isOverdue) return { status: 'Atrasado', text: 'Atrasado' };
     return { status: task.status, text: task.status };
@@ -141,6 +141,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEdi
             <HeaderCell label="Localização" sortKey="location" onSort={onSort} sortConfig={sortConfig} />
             <HeaderCell label="Apoio" sortKey="support" onSort={onSort} sortConfig={sortConfig} />
             <HeaderCell label="Quantidades" sortKey="quantity" onSort={onSort} sortConfig={sortConfig} />
+            <th className="px-4 py-3 text-xs font-medium text-brand-med-gray uppercase tracking-wider text-center">Reprog.</th>
             <HeaderCell label="Datas" sortKey="dueDate" onSort={onSort} sortConfig={sortConfig} centered={true} />
             <HeaderCell label="Status" sortKey="status" onSort={onSort} sortConfig={sortConfig} />
             <th className="px-4 py-4 text-left text-[10px] font-black text-brand-med-gray uppercase tracking-widest">Avanço</th>
@@ -205,6 +206,22 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEdi
                         <span className="text-[10px] font-black text-green-500 w-4">R:</span>
                         <span className="text-xs font-black text-green-400">{task.actualQuantity ?? 0} <span className="text-[9px] font-normal opacity-40 uppercase">{task.unit}</span></span>
                       </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-5 border-t border-b border-white/5 align-middle text-center max-w-[160px]">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className={`text-sm font-black ${getRescheduleCount(task) > 0 ? 'text-amber-400' : 'text-brand-med-gray/50'}`}>
+                        {getRescheduleCount(task)}
+                      </span>
+                      {getRescheduleCount(task) > 0 && task.rescheduleHistory && (
+                        <div className="text-left w-full space-y-0.5 max-h-20 overflow-y-auto custom-scrollbar">
+                          {task.rescheduleHistory.map((h, idx) => (
+                            <div key={idx} className="text-[7px] text-amber-400/70 font-mono leading-tight border border-amber-500/10 rounded px-1 py-0.5 bg-amber-500/5">
+                              {formatDate(h.startDate)}–{formatDate(h.dueDate)}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-5 border-t border-b border-white/5 align-middle">

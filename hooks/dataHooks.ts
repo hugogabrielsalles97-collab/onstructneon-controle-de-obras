@@ -12,15 +12,65 @@ export interface CatalogItem {
 
 // ==========================================
 // COLUNAS LEVES (sem JSONB pesados como plannedManpower, photos, etc.)
-// Isso reduz drasticamente o consumo de RAM e Disk I/O
 // ==========================================
-const TASK_LIGHT_COLUMNS = `
+const TASK_LIGHT_COLUMNS_BASE = `
     id, title, description, status, assignee, discipline, level,
-    "startDate", "dueDate", "actualStartDate", "actualEndDate",
+    "startDate", "dueDate",
+    "actualStartDate", "actualEndDate",
     location, support, side, corte, shift,
     quantity, unit, "actualQuantity", progress,
     observations, response, response_user, response_at, baseline_id, user_id, created_at
 `.replace(/\s+/g, ' ').trim();
+
+/** Inclui reprogramação — exige migração 20260513120000_tasks_reprogramming.sql no Supabase */
+const TASK_LIGHT_COLUMNS_FULL = `
+    id, title, description, status, assignee, discipline, level,
+    "startDate", "dueDate", "originalStartDate", "originalDueDate",
+    "actualStartDate", "actualEndDate",
+    location, support, side, corte, shift,
+    quantity, unit, "actualQuantity", progress,
+    observations, response, response_user, response_at, baseline_id, user_id, created_at,
+    "rescheduleHistory"
+`.replace(/\s+/g, ' ').trim();
+
+const taskLightColumnsCache = new Map<string, string>();
+
+/** Sonda se a migração de reprogramação já foi aplicada na tabela (cache por sessão). */
+export async function resolveTaskLightColumns(tableName: string): Promise<string> {
+    const hit = taskLightColumnsCache.get(tableName);
+    if (hit) return hit;
+
+    const { error } = await supabase.from(tableName).select('id, "originalStartDate"').limit(1);
+    const msg = String(error?.message || '').toLowerCase();
+    const missingCol =
+        !!error &&
+        (msg.includes('does not exist') ||
+            msg.includes('column') ||
+            error.code === '42703' ||
+            (error as { details?: string }).details?.includes?.('column'));
+
+    if (error && !missingCol) {
+        console.error(`[DataHooks] Erro ao sondar colunas em ${tableName}:`, error);
+        taskLightColumnsCache.set(tableName, TASK_LIGHT_COLUMNS_BASE);
+        return TASK_LIGHT_COLUMNS_BASE;
+    }
+
+    if (missingCol) {
+        console.warn(
+            `[Data Hooks] Tabela "${tableName}": execute no Supabase (SQL Editor) o arquivo supabase/migrations/20260513120000_tasks_reprogramming.sql depois recarregue o app.`
+        );
+        taskLightColumnsCache.set(tableName, TASK_LIGHT_COLUMNS_BASE);
+        return TASK_LIGHT_COLUMNS_BASE;
+    }
+
+    taskLightColumnsCache.set(tableName, TASK_LIGHT_COLUMNS_FULL);
+    return TASK_LIGHT_COLUMNS_FULL;
+}
+
+/** Limpa cache da sonda de colunas (útil após rodar migração SQL no Supabase). */
+export function clearTaskLightColumnsCache(): void {
+    taskLightColumnsCache.clear();
+}
 
 // Colunas pesadas (JSONB) — carregadas SOMENTE quando necessário
 const TASK_HEAVY_COLUMNS = `"plannedManpower", "plannedMachinery", "actualManpower", "actualMachinery", photos, "rescheduleHistory"`;
@@ -198,7 +248,8 @@ export const useTasks = (enabled: boolean = true) => {
     return useQuery<Task[]>({
         queryKey: ['tasks'],
         queryFn: async () => {
-            const data = await fetchAllRows('tasks', TASK_LIGHT_COLUMNS);
+            const cols = await resolveTaskLightColumns('tasks');
+            const data = await fetchAllRows('tasks', cols);
             // Auto-heal local: se a tarefa tem início real, não pode estar A Iniciar
             return data.map((t: any) => {
                 if (t.status === TaskStatus.ToDo && t.actualStartDate) {
@@ -238,7 +289,10 @@ export const useLeanTasks = (enabled: boolean = true) => {
 export const useBaselineTasks = (enabled: boolean = false) => {
     return useQuery<Task[]>({
         queryKey: ['baselineTasks'],
-        queryFn: () => fetchAllRows('baseline_tasks', TASK_LIGHT_COLUMNS),
+        queryFn: async () => {
+            const cols = await resolveTaskLightColumns('baseline_tasks');
+            return fetchAllRows('baseline_tasks', cols);
+        },
         enabled,
         staleTime: 1000 * 60 * 60 * 8, // 8 horas
         gcTime: 1000 * 60 * 60 * 12,
@@ -251,7 +305,10 @@ export const useBaselineTasks = (enabled: boolean = false) => {
 export const useCurrentScheduleTasks = (enabled: boolean = false) => {
     return useQuery<Task[]>({
         queryKey: ['currentScheduleTasks'],
-        queryFn: () => fetchAllRows('current_schedule_tasks', TASK_LIGHT_COLUMNS),
+        queryFn: async () => {
+            const cols = await resolveTaskLightColumns('current_schedule_tasks');
+            return fetchAllRows('current_schedule_tasks', cols);
+        },
         enabled,
         staleTime: 1000 * 60 * 60 * 4, // 4 horas
         gcTime: 1000 * 60 * 60 * 8,

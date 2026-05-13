@@ -3,7 +3,7 @@ import { Session } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient';
 import { User, Task, Restriction, LeanTask } from '../types';
 import { useQueryClient } from '@tanstack/react-query';
-import { useTasks, useBaselineTasks, useCurrentScheduleTasks, useRestrictions, useAllUsers, useCurrentUser, useLeanTasks, useCheckoutLogs, useProjectSettings, useCatalogs, CatalogItem } from '../hooks/dataHooks';
+import { useTasks, useBaselineTasks, useCurrentScheduleTasks, useRestrictions, useAllUsers, useCurrentUser, useLeanTasks, useCheckoutLogs, useProjectSettings, useCatalogs, CatalogItem, clearTaskLightColumnsCache } from '../hooks/dataHooks';
 import { runAutoMigration } from '../utils/migratePhotos';
 
 interface DataContextType {
@@ -231,6 +231,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 
     const refreshData = async () => {
+        clearTaskLightColumnsCache();
         // Invalida apenas queries essenciais (não todas de uma vez)
         // Isso evita bombardear o Supabase com muitas requisições simultâneas
         await queryClient.invalidateQueries({ queryKey: ['tasks'] });
