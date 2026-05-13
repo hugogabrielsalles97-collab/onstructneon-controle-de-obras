@@ -2,6 +2,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import LoginScreen from './components/LoginScreen';
 import RegisterScreen from './components/RegisterScreen';
+import LandingPage from './components/LandingPage';
 import ModuleSelectionScreen from './components/ModuleSelectionScreen';
 import TaskModal from './components/TaskModal';
 import RdoModal from './components/RdoModal';
@@ -35,7 +36,7 @@ const WarRoomTVPage = lazy(() => import('./components/WarRoomTVPage'));
 const MonitoringDashboard = lazy(() => import('./components/MonitoringDashboard'));
 
 
-type Screen = 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'monitoringControl' | 'monitoringDashboard' | 'restrictions' | 'cost' | 'podcast' | 'checkoutSummary' | 'orgChart' | 'orgSummary' | 'visualControl' | 'system' | 'warRoomTV';
+type Screen = 'landing' | 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'monitoringControl' | 'monitoringDashboard' | 'restrictions' | 'cost' | 'podcast' | 'checkoutSummary' | 'orgChart' | 'orgSummary' | 'visualControl' | 'system' | 'warRoomTV';
 
 const AppContent: React.FC = () => {
   const {
@@ -69,9 +70,9 @@ const AppContent: React.FC = () => {
   // Efeito para redirecionar para login se não houver usuário, ou moduleSelection se houver e a tela for login
   useEffect(() => {
     if (!effectiveLoading) {
-      if (!currentUser && screen !== 'register') {
-        setScreen('login');
-      } else if (currentUser && (screen === 'login' || screen === 'register')) {
+      if (!currentUser && screen !== 'register' && screen !== 'landing' && screen !== 'login') {
+        setScreen('landing');
+      } else if (currentUser && (screen === 'landing' || screen === 'login' || screen === 'register')) {
         setScreen('moduleSelection');
       }
     }
@@ -246,8 +247,9 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
     if (!currentUser) {
       switch (screen) {
         case 'register': return <RegisterScreen onNavigateToLogin={() => setScreen('login')} showToast={showToast} />;
-        case 'login':
-        default: return <LoginScreen onNavigateToRegister={() => setScreen('register')} showToast={showToast} onVisitorLogin={() => { }} />;
+        case 'login': return <LoginScreen onNavigateToRegister={() => setScreen('register')} showToast={showToast} onVisitorLogin={() => { }} />;
+        case 'landing':
+        default: return <LandingPage onNavigateToLogin={() => setScreen('login')} />;
       }
     }
 
