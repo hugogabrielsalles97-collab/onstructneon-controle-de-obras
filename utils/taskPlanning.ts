@@ -68,26 +68,9 @@ export function taskWasRescheduled(task: Task): boolean {
 }
 
 /**
- * Histórico legado gravava o prazo *substituído*; o correto é o prazo *novo* após cada reprogramação.
- * Uma entrada única igual ao âncora inicial, com plano atual diferente, é tratada como legado para exibição.
+ * Histórico: cada item = prazo que foi substituído ao replanejar (não o prazo novo).
+ * A lista/modal usam isso como trilha de auditoria; o prazo vigente continua em startDate/dueDate.
  */
-export function getRescheduleHistoryForDisplay(task: Task, baselineLinked?: Task | null): NonNullable<Task['rescheduleHistory']> {
-  const h = task.rescheduleHistory;
-  if (!h?.length) return [];
-
-  const anchorS = getAnchorStart(task, baselineLinked);
-  const anchorD = getAnchorDue(task, baselineLinked);
-  const curS = (task.startDate || '').trim();
-  const curD = (task.dueDate || '').trim();
-
-  if (h.length === 1 && anchorS && anchorD && curS && curD) {
-    const e0 = h[0];
-    const entryMatchesAnchor = e0.startDate === anchorS && e0.dueDate === anchorD;
-    const planDiffers = curS !== anchorS || curD !== anchorD;
-    if (entryMatchesAnchor && planDiffers) {
-      return [{ ...e0, startDate: curS, dueDate: curD }];
-    }
-  }
-
-  return h;
+export function getRescheduleHistoryForDisplay(task: Task, _baselineLinked?: Task | null): NonNullable<Task['rescheduleHistory']> {
+  return task.rescheduleHistory ?? [];
 }

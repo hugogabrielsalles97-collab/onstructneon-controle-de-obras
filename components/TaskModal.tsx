@@ -772,8 +772,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                 rescheduleHistory: [
                     ...(prev.rescheduleHistory || []),
                     {
-                        startDate: today,
-                        dueDate: newDueStr,
+                        startDate: prev.startDate,
+                        dueDate: prev.dueDate,
                         rescheduledAt,
                     },
                 ],
@@ -848,14 +848,14 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
             const last = mergedHistory[mergedHistory.length - 1];
             const snapAlready =
                 last &&
-                last.startDate === finalFormData.startDate &&
-                last.dueDate === finalFormData.dueDate;
+                last.startDate === task.startDate &&
+                last.dueDate === task.dueDate;
             if (!snapAlready) {
                 mergedHistory = [
                     ...mergedHistory,
                     {
-                        startDate: finalFormData.startDate,
-                        dueDate: finalFormData.dueDate,
+                        startDate: task.startDate,
+                        dueDate: task.dueDate,
                         rescheduledAt: new Date().toISOString(),
                     },
                 ];
@@ -1264,7 +1264,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                                         {/* Histórico de reprogramações */}
                                         {(formData.rescheduleHistory?.length || 0) > 0 && (
                                             <div className="space-y-1.5 mb-3">
-                                                <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">Prazo definido em cada reprogramação</p>
+                                                <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">Prazos substituídos (plano anterior a cada replanejamento)</p>
                                                 {rescheduleHistoryRows.map((h, idx) => (
                                                     <div key={idx} className="flex items-center gap-2 text-[9px] bg-white/[0.03] border border-white/5 rounded-lg px-3 py-1.5">
                                                         <span className="text-amber-400/60 font-black">{idx + 1}ª</span>

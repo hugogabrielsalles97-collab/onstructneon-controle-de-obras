@@ -45,7 +45,7 @@ export interface Task {
   response_at?: string;
   user_id?: string; // Foreign key to auth.users
   baseline_id?: string; // Reference to baseline_tasks.id
-  /** Cada item = prazo planejado após uma reprogramação (novo início/fim), não o prazo substituído */
+  /** Cada item = prazo substituído em uma reprogramação (o que deixou de valer), em ordem cronológica */
   rescheduleHistory?: { startDate: string; dueDate: string; rescheduledAt: string }[];
 }
 
