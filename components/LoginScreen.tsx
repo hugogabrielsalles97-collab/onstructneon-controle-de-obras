@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import ConstructionIcon from './icons/ConstructionIcon';
-import { supabase } from '../supabaseClient';
+import { supabase, isSupabaseConfigured } from '../supabaseClient';
 
 interface LoginScreenProps {
   onNavigateToRegister: () => void;
@@ -26,6 +26,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister, onVisit
       return;
     }
 
+    if (!isSupabaseConfigured) {
+      setError(
+        'O app não está ligado ao Supabase: crie o arquivo .env na pasta do projeto com VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY (copie de .env.example), depois reinicie o servidor (npm run dev).'
+      );
+      setLoading(false);
+      return;
+    }
+
     try {
       const loginEmail = username.includes('@') ? username : `${username}@construcao.com`;
 
@@ -35,9 +43,28 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister, onVisit
       });
 
       if (signInError) {
+        console.error('Supabase signIn error:', signInError);
         const msg = signInError.message.toLowerCase();
-        if (msg.includes('invalid api key') || msg.includes('failed to fetch') || msg.includes('network') || msg.includes('timeout') || msg.includes('econnrefused') || msg.includes('503') || msg.includes('502')) {
-          setError('Erro de Conexão: O servidor está temporariamente indisponível. Tente novamente em alguns minutos.');
+        const status = (signInError as { status?: number }).status;
+        if (msg.includes('invalid api key') || msg.includes('no api key')) {
+          setError(
+            'Chave do Supabase inválida ou incorreta. No painel do projeto (Settings → API), copie a anon public key para VITE_SUPABASE_ANON_KEY no .env e reinicie o app.'
+          );
+        } else if (
+          msg.includes('failed to fetch') ||
+          msg.includes('network') ||
+          msg.includes('timeout') ||
+          msg.includes('econnrefused') ||
+          msg.includes('503') ||
+          msg.includes('502') ||
+          msg.includes('load failed') ||
+          msg.includes('networkerror') ||
+          status === 502 ||
+          status === 503
+        ) {
+          setError(
+            'Não foi possível conectar ao servidor de login. Verifique sua internet, se o projeto no Supabase está ativo (não pausado) e se a URL em VITE_SUPABASE_URL está correta. Tente de novo em instantes.'
+          );
         } else {
           setError(signInError.message === 'Invalid login credentials' ? 'Usuário ou senha inválidos.' : signInError.message);
         }

@@ -4,7 +4,7 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import { useData } from '../context/DataProvider';
 import { supabase } from '../supabaseClient';
-import { LayoutDashboard, Save, Search, Calendar, ChevronRight, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Save, Search, ChevronRight, ChevronDown, Plus, Trash2 } from 'lucide-react';
 
 interface MonitoringControlPageProps {
     onNavigateToDashboard: () => void;
@@ -46,6 +46,8 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [isSaving, setIsSaving] = useState(false);
     const [statusDate, setStatusDate] = useState("31/03/2026");
+    const [deleteConfirmRowId, setDeleteConfirmRowId] = useState<string | null>(null);
+    const [isDeletingRow, setIsDeletingRow] = useState(false);
 
     useEffect(() => {
         const load = async () => {
@@ -107,6 +109,20 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
         load();
     }, []);
 
+    useEffect(() => {
+        if (!deleteConfirmRowId) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && !isDeletingRow) setDeleteConfirmRowId(null);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [deleteConfirmRowId, isDeletingRow]);
+
+    const pendingDeleteRow = useMemo(
+        () => (deleteConfirmRowId ? monitoringRows.find((r) => r.id === deleteConfirmRowId) : undefined),
+        [deleteConfirmRowId, monitoringRows]
+    );
+
     const filteredRows = useMemo(() => {
         return monitoringRows.filter(r => 
             r.service === selectedService && 
@@ -162,6 +178,61 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
             }
             return r;
         }));
+    };
+
+    const handleMetaChange = (rowId: string, field: 'oae' | 'apoio' | 'responsible', value: string) => {
+        setMonitoringRows(prev => prev.map(r => (r.id === rowId ? { ...r, [field]: value } : r)));
+    };
+
+    const newRowId = () =>
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+            ? `manual_${crypto.randomUUID()}`
+            : `manual_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+
+    const handleAddRow = () => {
+        if (!selectedService) {
+            showToast('Selecione um serviço nas abas antes de adicionar uma linha.', 'error');
+            return;
+        }
+        const row: MonitoringRow = {
+            id: newRowId(),
+            service: selectedService,
+            oae: '',
+            apoio: '',
+            responsible: '',
+            daily_data: {},
+        };
+        setMonitoringRows(prev => [...prev, row]);
+    };
+
+    const requestDeleteRow = (rowId: string) => {
+        setDeleteConfirmRowId(rowId);
+    };
+
+    const cancelDeleteRow = () => {
+        if (!isDeletingRow) setDeleteConfirmRowId(null);
+    };
+
+    const confirmDeleteRow = async () => {
+        if (!deleteConfirmRowId) return;
+        setIsDeletingRow(true);
+        try {
+            const rowId = deleteConfirmRowId;
+            const { error } = await supabase.from('monitoring_rows').delete().eq('id', rowId);
+            if (error) throw error;
+            setMonitoringRows((prev) => {
+                const next = prev.filter((r) => r.id !== rowId);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+                return next;
+            });
+            setDeleteConfirmRowId(null);
+            showToast('Linha excluída.', 'success');
+        } catch (e: any) {
+            console.error('Erro ao excluir linha:', e);
+            showToast(e.message || 'Erro ao excluir linha.', 'error');
+        } finally {
+            setIsDeletingRow(false);
+        }
     };
 
     const toggleMonth = (m: string) => {
@@ -228,6 +299,8 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
     const W_RESP = 140;
     const W_INFO = 45;
     const W_TOTAL = 75;
+    const W_DEL = 58;
+    const LEFT_STICKY_DEL = W_OAE + W_APOIO + W_RESP + W_INFO + W_TOTAL;
 
     // CORES SOLIDAS PARA BLOQUEAR TRANSPARÊNCIA
     const BG_STICKY_HDR = "#0a0f18";
@@ -279,6 +352,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 transition-colors group-focus-within:text-brand-accent" />
                                 <input type="text" placeholder="Filtrar planilha..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="bg-brand-dark/40 border border-white/10 rounded-lg py-2 pl-9 pr-4 text-sm w-64 outline-none focus:border-brand-accent transition-all" />
                             </div>
+                            <button type="button" onClick={handleAddRow} className="flex items-center gap-2 px-5 py-2 bg-emerald-700 hover:bg-emerald-600 rounded-xl font-bold text-xs uppercase shadow-xl transition-all active:scale-95"><Plus size={14} /> Nova linha</button>
                             <button onClick={onNavigateToMonitoringDashboard} className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-xs uppercase shadow-xl transition-all active:scale-95"><LayoutDashboard size={14} /> Analítico</button>
                             <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 px-6 py-2 bg-brand-accent hover:bg-brand-accent/90 rounded-xl font-bold text-xs uppercase shadow-xl transition-all active:scale-95">{isSaving ? '...' : 'Salvar Tudo'}</button>
                         </div>
@@ -300,6 +374,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                         <th style={{width: W_RESP, left: W_OAE + W_APOIO, top: 0, background: '#0a0f18'}} className="sticky z-[200] p-3 border-b border-r border-white/20 text-left" rowSpan={2}>Engenheiro</th>
                                         <th style={{width: W_INFO, left: W_OAE + W_APOIO + W_RESP, top: 0, background: '#0a0f18'}} className="sticky z-[200] p-3 border-b border-r border-white/10 text-center" rowSpan={2}>Info</th>
                                         <th style={{width: W_TOTAL, left: W_OAE + W_APOIO + W_RESP + W_INFO, top: 0, background: '#0a0f18'}} className="sticky z-[200] p-3 border-b border-r border-brand-accent/50 text-center font-black text-brand-accent" rowSpan={2}>TOTAL</th>
+                                        <th style={{width: W_DEL, left: LEFT_STICKY_DEL, top: 0, background: '#0a0f18'}} className="sticky z-[200] px-1 py-2 border-b border-r border-white/20 text-center font-extrabold text-[8px] uppercase tracking-tight text-gray-400" rowSpan={2} title="Remover linha do serviço">Ações</th>
                                         
                                         {availableMonths.map(m => {
                                             const exp = expandedMonths.has(m);
@@ -332,6 +407,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                         <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO, top: 60, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b border-brand-accent/30 text-center text-gray-100 font-black text-[11px]">
                                             {filteredRows.reduce((a, r) => a + getGrandTotal(r, 'prev'), 0).toLocaleString('pt-BR')}
                                         </td>
+                                        <td style={{left: LEFT_STICKY_DEL, top: 60, width: W_DEL, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b border-brand-accent/30 text-center" aria-hidden />
                                         {availableMonths.map(m => {
                                             const exp = expandedMonths.has(m);
                                             const monthSum = filteredRows.reduce((a, r) => a + getMonthTotal(r, m, 'prev'), 0);
@@ -350,6 +426,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                         <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO, top: 92, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b-2 border-brand-accent/30 text-center text-brand-accent font-black text-[11px]">
                                             {filteredRows.reduce((a, r) => a + getGrandTotal(r, 'real'), 0).toLocaleString('pt-BR')}
                                         </td>
+                                        <td style={{left: LEFT_STICKY_DEL, top: 92, width: W_DEL, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b-2 border-brand-accent/30" aria-hidden />
                                         {availableMonths.map(m => {
                                             const exp = expandedMonths.has(m);
                                             const monthSum = filteredRows.reduce((a, r) => a + getMonthTotal(r, m, 'real'), 0);
@@ -368,11 +445,31 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                         <React.Fragment key={row.id}>
                                             {/* PREV ROW — mostra OAE/Apoio/Eng, sem borda inferior nessas 3 cols */}
                                             <tr style={{background: bg}} className="group transition-colors">
-                                                <td style={{left: 0, background: bg}} className="sticky z-[140] px-2 pt-4 pb-0 border-r border-white/10 text-white font-bold truncate group-hover:!bg-[#1a2b4b] align-bottom">{row.oae}</td>
-                                                <td style={{left: W_OAE, background: bg}} className="sticky z-[140] px-2 pt-4 pb-0 border-r border-white/10 text-blue-400 font-black truncate text-center group-hover:!bg-[#1a2b4b] align-bottom">{row.apoio}</td>
-                                                <td style={{left: W_OAE + W_APOIO, background: bg}} className="sticky z-[140] px-2 pt-4 pb-0 border-r border-white/10 text-[10px] text-gray-300 font-semibold truncate group-hover:!bg-[#1a2b4b] align-bottom">{row.responsible}</td>
+                                                <td style={{left: 0, background: bg}} className="sticky z-[140] p-0 pt-3 pb-0 border-r border-white/10 group-hover:!bg-[#1a2b4b] align-bottom">
+                                                    <input type="text" value={row.oae} onChange={(e) => handleMetaChange(row.id, 'oae', e.target.value)} placeholder="—"
+                                                        className="w-full min-w-0 px-2 py-1 bg-transparent border-none outline-none text-white font-bold text-[10px] focus:bg-white/10 rounded placeholder:text-gray-600" />
+                                                </td>
+                                                <td style={{left: W_OAE, background: bg}} className="sticky z-[140] p-0 pt-3 pb-0 border-r border-white/10 group-hover:!bg-[#1a2b4b] align-bottom">
+                                                    <input type="text" value={row.apoio} onChange={(e) => handleMetaChange(row.id, 'apoio', e.target.value)} placeholder="—"
+                                                        className="w-full min-w-0 px-2 py-1 bg-transparent border-none outline-none text-blue-400 font-black text-[10px] text-center focus:bg-white/10 rounded placeholder:text-blue-900/40" />
+                                                </td>
+                                                <td style={{left: W_OAE + W_APOIO, background: bg}} className="sticky z-[140] p-0 pt-3 pb-0 border-r border-white/10 group-hover:!bg-[#1a2b4b] align-bottom">
+                                                    <input type="text" value={row.responsible ?? ''} onChange={(e) => handleMetaChange(row.id, 'responsible', e.target.value)} placeholder="—"
+                                                        className="w-full min-w-0 px-2 py-1 bg-transparent border-none outline-none text-gray-300 font-semibold text-[10px] focus:bg-white/10 rounded placeholder:text-gray-600" />
+                                                </td>
                                                 <td style={{left: W_OAE + W_APOIO + W_RESP, background: bg}} className="sticky z-[140] p-1 border-r border-b border-blue-500/30 text-center text-[8px] font-black text-blue-500 uppercase group-hover:!bg-[#1a2b4b]">Prev</td>
                                                 <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO, background: bg}} className="sticky z-[140] p-1 border-r border-b border-white/10 text-center font-bold text-gray-400 group-hover:!bg-[#1a2b4b]">{getGrandTotal(row, 'prev')}</td>
+                                                <td style={{left: LEFT_STICKY_DEL, background: bg}} className="sticky z-[140] p-0.5 border-r border-b border-white/10 text-center align-bottom group-hover:!bg-[#1a2b4b]">
+                                                    <button
+                                                        type="button"
+                                                        title="Excluir esta linha"
+                                                        onClick={(e) => { e.stopPropagation(); requestDeleteRow(row.id); }}
+                                                        className="inline-flex flex-col items-center justify-center gap-0 w-full py-1 px-0.5 rounded border border-red-500/60 bg-red-950/50 text-red-400 hover:bg-red-500/25"
+                                                    >
+                                                        <Trash2 size={12} strokeWidth={2.5} className="shrink-0 text-red-400" />
+                                                        <span className="text-[6px] font-black uppercase leading-none tracking-tight">Excluir</span>
+                                                    </button>
+                                                </td>
                                                 
                                                 {availableMonths.map(m => {
                                                     const exp = expandedMonths.has(m);
@@ -396,6 +493,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                                 <td style={{left: W_OAE + W_APOIO, background: bg}} className="sticky z-[140] px-2 pt-0 pb-4 border-r border-b-2 border-white/10 group-hover:!bg-[#243b5e]"></td>
                                                 <td style={{left: W_OAE + W_APOIO + W_RESP, background: bg}} className="sticky z-[140] p-1 border-r border-b-2 border-brand-accent/30 text-center text-[8px] font-black text-brand-accent uppercase group-hover:!bg-[#243b5e]">Real</td>
                                                 <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO, background: bg}} className="sticky z-[140] p-1 border-r border-b-2 border-brand-accent/30 text-center font-black text-brand-accent group-hover:!bg-[#243b5e]">{getGrandTotal(row, 'real')}</td>
+                                                <td style={{left: LEFT_STICKY_DEL, background: bg}} className="sticky z-[140] p-1 border-r border-b-2 border-brand-accent/30 group-hover:!bg-[#243b5e]" aria-hidden />
                                                 {availableMonths.map(m => {
                                                     const exp = expandedMonths.has(m);
                                                     const total = getMonthTotal(row, m, 'real');
@@ -420,6 +518,53 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                     </div>
                 </div>
             </main>
+
+            {deleteConfirmRowId && pendingDeleteRow && (
+                <div
+                    className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+                    role="presentation"
+                    onClick={cancelDeleteRow}
+                >
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="delete-row-title"
+                        className="w-full max-w-md rounded-2xl border border-white/15 bg-[#0f1624] p-6 shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h2 id="delete-row-title" className="text-lg font-black uppercase italic tracking-tight text-white">
+                            Confirmar exclusão
+                        </h2>
+                        <p className="mt-3 text-sm text-gray-400 leading-relaxed">
+                            Esta linha será removida do sistema. Os dados de previsão e realizado associados a ela serão perdidos. Esta ação não pode ser desfeita.
+                        </p>
+                        <div className="mt-4 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-xs text-gray-300 space-y-1">
+                            <p><span className="font-bold text-gray-500 uppercase tracking-wider">{col1Label}:</span> {pendingDeleteRow.oae?.trim() || '—'}</p>
+                            <p><span className="font-bold text-gray-500 uppercase tracking-wider">{col2Label}:</span> {pendingDeleteRow.apoio?.trim() || '—'}</p>
+                            <p><span className="font-bold text-gray-500 uppercase tracking-wider">Eng.:</span> {(pendingDeleteRow.responsible || '').trim() || '—'}</p>
+                            <p><span className="font-bold text-gray-500 uppercase tracking-wider">Serviço:</span> {pendingDeleteRow.service}</p>
+                        </div>
+                        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                            <button
+                                type="button"
+                                disabled={isDeletingRow}
+                                onClick={cancelDeleteRow}
+                                className="rounded-xl border border-white/15 px-4 py-2.5 text-sm font-bold text-gray-300 hover:bg-white/5 disabled:opacity-50"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                disabled={isDeletingRow}
+                                onClick={() => void confirmDeleteRow()}
+                                className="rounded-xl border border-red-500/50 bg-red-600/90 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-500 disabled:opacity-50"
+                            >
+                                {isDeletingRow ? 'Excluindo…' : 'Sim, excluir'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
