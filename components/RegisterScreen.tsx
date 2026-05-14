@@ -7,14 +7,17 @@ interface RegisterScreenProps {
   showToast: (message: string, type: 'success' | 'error') => void;
 }
 
-const TOKENS: Record<'Master' | 'Planejador' | 'Gerenciador' | 'Executor', string> = {
+type RegistrableRole = 'Master' | 'Planejador' | 'Gerenciador' | 'Executor' | 'Visualizador';
+
+const TOKENS: Record<RegistrableRole, string> = {
   'Master': 'admin',
   'Planejador': 'planning',
   'Gerenciador': 'manager',
   'Executor': 'production',
+  'Visualizador': 'visual',
 };
 
-const ROLE_INFO: Record<'Master' | 'Planejador' | 'Gerenciador' | 'Executor', { desc: string; highlights: string[] }> = {
+const ROLE_INFO: Record<RegistrableRole, { desc: string; highlights: string[] }> = {
   'Master': {
     desc: 'Controle total da obra e do sistema.',
     highlights: ['Planejamento e Execução', 'Linha Base e Relatórios', 'IA Assistant e IA Insights']
@@ -30,11 +33,15 @@ const ROLE_INFO: Record<'Master' | 'Planejador' | 'Gerenciador' | 'Executor', { 
   'Executor': {
     desc: 'Foco operacional e campo.',
     highlights: ['Lançamento de Produção', 'Visualização de Tarefas']
+  },
+  'Visualizador': {
+    desc: 'Apenas o painel War Room TV (modo display).',
+    highlights: ['Indicadores em tempo real', 'Slides automáticos', 'Sem acesso ao planejamento']
   }
 };
 
 const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin, showToast }) => {
-  const [role, setRole] = useState<'Master' | 'Planejador' | 'Gerenciador' | 'Executor'>('Executor');
+  const [role, setRole] = useState<RegistrableRole>('Executor');
   const [token, setToken] = useState('');
   const [fullName, setFullName] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
@@ -197,7 +204,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin, show
                     </div>
                     <select
                       value={role}
-                      onChange={(e) => setRole(e.target.value as any)}
+                      onChange={(e) => setRole(e.target.value as RegistrableRole)}
                       className="appearance-none w-full bg-[#111827] border border-white/10 text-white text-sm rounded-xl px-10 py-3 focus:outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/50 transition-all cursor-pointer hover:bg-white/5"
                     >
                       {Object.keys(TOKENS).map(r => (

@@ -169,6 +169,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ onClose, show
                                                     <option value="Executor">Executor</option>
                                                     <option value="Planejador">Planejador</option>
                                                     <option value="Visitante">Visitante</option>
+                                                    <option value="Visualizador">Visualizador</option>
                                                 </select>
                                             </div>
                                             <div className="w-full md:w-1/4">
@@ -204,6 +205,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ onClose, show
                                             <div className="flex items-center gap-6">
                                                 <span className={`px-3 py-1 rounded-full text-xs font-bold border ${user.role === 'Master' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
                                                     user.role === 'Gerenciador' ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' :
+                                                    user.role === 'Visualizador' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
                                                         'bg-gray-500/10 text-gray-400 border-gray-500/20'
                                                     }`}>
                                                     {user.role}

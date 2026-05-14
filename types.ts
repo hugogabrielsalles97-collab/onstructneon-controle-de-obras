@@ -52,7 +52,7 @@ export interface Task {
 export interface User {
   id: string;
   username: string;
-  role: 'Master' | 'Planejador' | 'Gerenciador' | 'Executor' | 'Visitante';
+  role: 'Master' | 'Planejador' | 'Gerenciador' | 'Executor' | 'Visitante' | 'Visualizador';
   fullName: string;
   whatsapp?: string;
   email?: string;

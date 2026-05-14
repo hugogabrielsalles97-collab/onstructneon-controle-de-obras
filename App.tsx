@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useLayoutEffect, Suspense, lazy } from 'react';
 import LoginScreen from './components/LoginScreen';
 import RegisterScreen from './components/RegisterScreen';
 import LandingPage from './components/LandingPage';
@@ -73,10 +73,16 @@ const AppContent: React.FC = () => {
       if (!currentUser && screen !== 'register' && screen !== 'landing' && screen !== 'login') {
         setScreen('landing');
       } else if (currentUser && (screen === 'landing' || screen === 'login' || screen === 'register')) {
-        setScreen('moduleSelection');
+        setScreen(currentUser.role === 'Visualizador' ? 'warRoomTV' : 'moduleSelection');
       }
     }
   }, [currentUser, effectiveLoading, screen]);
+
+  useLayoutEffect(() => {
+    if (!effectiveLoading && currentUser?.role === 'Visualizador' && screen !== 'warRoomTV') {
+      setScreen('warRoomTV');
+    }
+  }, [effectiveLoading, currentUser?.role, screen]);
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -85,6 +91,15 @@ const AppContent: React.FC = () => {
   // Efeito para lidar com deep links (ex: redirecionamento do WhatsApp)
   useEffect(() => {
     if (!effectiveLoading && currentUser && tasks.length > 0) {
+      if (currentUser.role === 'Visualizador') {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('taskId')) {
+          const newUrl = window.location.origin + window.location.pathname;
+          window.history.replaceState({}, document.title, newUrl);
+        }
+        return;
+      }
+
       const params = new URLSearchParams(window.location.search);
       const taskId = params.get('taskId');
       const action = params.get('action');
@@ -121,7 +136,7 @@ const AppContent: React.FC = () => {
           window.history.replaceState({}, document.title, newUrl);
         } else {
             showToast('Ops! A atividade referenciada nesta notificação não foi localizada.', 'error');
-            setScreen('dashboard'); // Para tirar o usuário da tela negra de seleção
+            setScreen('dashboard');
             const newUrl = window.location.origin + window.location.pathname;
             window.history.replaceState({}, document.title, newUrl);
         }
@@ -194,6 +209,10 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
     handleCloseTaskModal();
   };
 
+  const effectiveScreen: Screen =
+    currentUser?.role === 'Visualizador' && screen !== 'warRoomTV'
+      ? 'warRoomTV'
+      : screen;
 
   const renderContent = () => {
     if (effectiveLoading) {
@@ -279,7 +298,7 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
       onAddTask: () => handleOpenTaskModal(null),
     };
 
-    switch (screen) {
+    switch (effectiveScreen) {
       case 'moduleSelection':
         return (
           <ModuleSelectionScreen
@@ -369,13 +388,20 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
         />
       );
       case 'warRoomTV': 
-        if (currentUser?.role !== 'Master') {
+        if (currentUser?.role !== 'Master' && currentUser?.role !== 'Visualizador') {
           setScreen('dashboard');
           return null;
         }
         return (
           <WarRoomTVPage
-            onNavigateToHome={handleNavigateToHome}
+            onNavigateToHome={
+              currentUser?.role === 'Visualizador'
+                ? async () => {
+                    const { success, error } = await signOut();
+                    if (!success && error) showToast(`Erro ao sair: ${error}`, 'error');
+                  }
+                : handleNavigateToHome
+            }
             showToast={showToast}
           />
         );
@@ -383,7 +409,7 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
         <SystemPage
           {...navigationProps}
           user={currentUser}
-          activeScreen={screen}
+          activeScreen={effectiveScreen}
           showToast={showToast}
         />
       );
@@ -412,7 +438,7 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
       <Suspense fallback={loadingFallback}>
         {renderContent()}
       </Suspense>
-      {isTaskModalOpen && currentUser && (
+      {isTaskModalOpen && currentUser && currentUser.role !== 'Visualizador' && (
         <TaskModal
           isOpen={isTaskModalOpen}
           onClose={handleCloseTaskModal}
@@ -425,7 +451,7 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
           onUpgradeClick={() => setIsUpgradeModalOpen(true)}
         />
       )}
-      {isRdoModalOpen && (
+      {isRdoModalOpen && currentUser?.role !== 'Visualizador' && (
         <RdoModal
           isOpen={isRdoModalOpen}
           onClose={handleCloseRdoModal}
@@ -433,18 +459,18 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
           onUpgradeClick={() => setIsUpgradeModalOpen(true)}
         />
       )}
-      {currentUser && !effectiveLoading && (
+      {currentUser && !effectiveLoading && currentUser.role !== 'Visualizador' && (
         <AIAssistant
           tasks={tasks}
           baselineTasks={baselineTasks}
-          activeScreen={screen}
+          activeScreen={effectiveScreen}
           costItems={costItems}
           measurements={measurements}
           cashFlow={cashFlow}
           onUpgradeClick={() => setIsUpgradeModalOpen(true)}
         />
       )}
-      {isUpgradeModalOpen && (
+      {isUpgradeModalOpen && currentUser?.role !== 'Visualizador' && (
         <UpgradeModal
           isOpen={isUpgradeModalOpen}
           onClose={() => setIsUpgradeModalOpen(false)}
