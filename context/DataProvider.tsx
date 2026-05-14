@@ -90,10 +90,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         initializeAuth();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             if (mounted) {
                 setSession(session);
                 setIsAuthLoading(false);
+                if (session?.user?.id) {
+                    queryClient.invalidateQueries({ queryKey: ['currentUser', session.user.id] });
+                }
             }
         });
 
@@ -101,7 +104,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             mounted = false;
             subscription.unsubscribe();
         };
-    }, []);
+    }, [queryClient]);
 
     const userId = session?.user?.id;
     const isLoggedIn = !!session;

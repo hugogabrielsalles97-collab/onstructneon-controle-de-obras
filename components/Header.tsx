@@ -35,6 +35,7 @@ interface HeaderProps {
   onNavigateToCheckoutSummary?: () => void;
   onNavigateToOrgChart?: () => void;
   onNavigateToOrgSummary?: () => void;
+  onNavigateToWarRoom?: () => void;
   onUpgradeClick?: () => void;
   activeScreen?: string;
 }
@@ -56,6 +57,7 @@ const Header: React.FC<HeaderProps> = ({
   onNavigateToCheckoutSummary,
   onNavigateToOrgChart,
   onNavigateToOrgSummary,
+  onNavigateToWarRoom,
   onUpgradeClick,
   activeScreen = 'dashboard'
 }) => {
@@ -65,7 +67,8 @@ const Header: React.FC<HeaderProps> = ({
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const showFullMenu = user.role !== 'Executor';
+  const isWarRoomOnlyProfile = user.role === 'Visualizador';
+  const showFullMenu = user.role !== 'Executor' && !isWarRoomOnlyProfile;
 
   const { data: notifications = [], refetch: refetchNotifications } = useNotifications(user.role === 'Master');
   const unreadCount = notifications.filter(n => !n.is_read).length;
@@ -94,7 +97,23 @@ const Header: React.FC<HeaderProps> = ({
 
   const isOrgModule = activeScreen === 'orgSummary' || activeScreen === 'orgChart';
 
-  const menuItems = [
+  const menuItems = isWarRoomOnlyProfile && onNavigateToWarRoom
+    ? [
+        {
+          id: 'warRoomTV',
+          label: 'War Room TV',
+          icon: (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-rose-400">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+              <line x1="8" y1="21" x2="16" y2="21" />
+              <line x1="12" y1="17" x2="12" y2="21" />
+            </svg>
+          ),
+          onClick: onNavigateToWarRoom,
+          show: true,
+        },
+      ]
+    : [
     { id: 'dashboard', label: 'Programação Semanal', icon: <ChartIcon className="w-5 h-5" />, onClick: onNavigateToDashboard, show: !isOrgModule },
     { id: 'checkoutSummary', label: 'Resumo Checkout', icon: <HistoryIcon className="w-5 h-5 text-brand-accent" />, onClick: onNavigateToCheckoutSummary, show: !isOrgModule },
     { id: 'leanConstruction', label: 'Lean Construction', icon: <LeanConstructionIcon className="w-5 h-5 text-cyan-400" />, onClick: onNavigateToLeanConstruction, show: showFullMenu && !isOrgModule },
@@ -121,7 +140,20 @@ const Header: React.FC<HeaderProps> = ({
           <line x1="8" y1="23" x2="16" y2="23" />
         </svg>
       ), onClick: onNavigateToPodcast, show: showFullMenu && !isOrgModule
-    }
+    },
+    {
+      id: 'warRoomTV',
+      label: 'War Room TV',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-rose-400">
+          <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+          <line x1="8" y1="21" x2="16" y2="21" />
+          <line x1="12" y1="17" x2="12" y2="21" />
+        </svg>
+      ),
+      onClick: onNavigateToWarRoom,
+      show: user.role === 'Master' && !!onNavigateToWarRoom && !isOrgModule,
+    },
   ];
 
   const handleMenuClick = (onClick?: () => void) => {
@@ -172,12 +204,14 @@ const Header: React.FC<HeaderProps> = ({
             <div className="hidden sm:flex flex-col items-end leading-none text-right">
               <span className="text-[10px] text-brand-med-gray font-black uppercase tracking-widest mb-1">{user.fullName}</span>
               <div className="flex items-center gap-2">
+                {!isWarRoomOnlyProfile && (
                 <button
                   onClick={onUpgradeClick}
                   className={`text-[9px] ${isCostModule ? 'bg-green-600/10 text-green-500 border-green-600/30' : 'bg-brand-accent/10 text-brand-accent border-brand-accent/30'} px-1.5 py-0.5 rounded hover:text-white transition-all uppercase font-bold`}
                 >
                   Upgrade
                 </button>
+                )}
                 <button
                   onClick={() => setIsChangePasswordOpen(true)}
                   className={`text-[9px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 px-1.5 py-0.5 rounded hover:bg-cyan-500 hover:text-white transition-all uppercase font-bold`}

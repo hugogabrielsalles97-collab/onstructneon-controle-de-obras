@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabaseClient';
 import { Task, TaskStatus, User, Restriction, LeanTask, CheckoutLog, OrgMember } from '../types';
-import { mapProfileRoleToCanonical } from '../utils/userAccess';
+import { mapProfileRoleToCanonical, metadataIndicatesWarRoomViewer, isElevatedPlanningRole, profileRoleIsWarRoomViewer } from '../utils/userAccess';
 
 export interface CatalogItem {
     id: string;
@@ -373,6 +373,24 @@ export const useCurrentUser = (userId: string | undefined) => {
             if (error) throw error;
 
             data.role = mapProfileRoleToCanonical(data.role as string) as User['role'];
+
+            const { data: sessionWrap } = await supabase.auth.getSession();
+            const metaRole = sessionWrap?.session?.user?.user_metadata?.role;
+            const pk = (data.role as string).trim().toLowerCase();
+            if (
+                metadataIndicatesWarRoomViewer(metaRole) &&
+                !isElevatedPlanningRole(data.role) &&
+                !profileRoleIsWarRoomViewer(data.role) &&
+                (pk === 'visitante' || pk === 'executor')
+            ) {
+                const { error: syncErr } = await supabase
+                    .from('profiles')
+                    .update({ role: 'Visualizador' })
+                    .eq('id', userId);
+                if (!syncErr) {
+                    data.role = 'Visualizador';
+                }
+            }
 
             // Check if this is the master user and update role if necessary
             if (data.username === 'hugo.sales@egtc.com.br' && data.role !== 'Master') {
