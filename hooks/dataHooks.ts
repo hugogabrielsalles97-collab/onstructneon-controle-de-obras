@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabaseClient';
 import { Task, TaskStatus, User, Restriction, LeanTask, CheckoutLog, OrgMember } from '../types';
+import { mapProfileRoleToCanonical } from '../utils/userAccess';
 
 export interface CatalogItem {
     id: string;
@@ -342,11 +343,14 @@ export const useAllUsers = (enabled: boolean = true) => {
     return useQuery<User[]>({
         queryKey: ['allUsers'],
         queryFn: async () => {
-            const { data, error } = await supabase
+            const { data, error} = await supabase
                 .from('profiles')
                 .select(`id, username, role, fullName: full_name, whatsapp, is_approved`);
             if (error) throw error;
-            return data as User[];
+            return (data ?? []).map((row) => ({
+                ...row,
+                role: mapProfileRoleToCanonical(row.role as string),
+            })) as User[];
         },
         enabled,
         staleTime: 1000 * 60 * 60,
@@ -367,6 +371,8 @@ export const useCurrentUser = (userId: string | undefined) => {
                 .single();
 
             if (error) throw error;
+
+            data.role = mapProfileRoleToCanonical(data.role as string) as User['role'];
 
             // Check if this is the master user and update role if necessary
             if (data.username === 'hugo.sales@egtc.com.br' && data.role !== 'Master') {
