@@ -81,14 +81,11 @@ const TASK_HEAVY_COLUMNS = `"plannedManpower", "plannedMachinery", "actualManpow
 // ==========================================
 const fetchAllRows = async (tableName: string, columns: string = '*') => {
     try {
-        const step = 200; // Reduzido de 500 para 200: alivia a RAM do PostgREST/V8 em cada pedido
+        const step = 500;
         let allRows: any[] = [];
         let from = 0;
         let hasMore = true;
 
-        // BEM MAIS LEVE: Ao invés de usar `count: 'exact'` (que força o Supabase a ler
-        // a tabela inteira do zero consumindo RAM absurdamente), nós apenas tentamos 
-        // puxar as linhas e paramos quando vier menos que a capacidade máxima da página.
         while (hasMore) {
             const { data, error } = await supabase
                 .from(tableName)
@@ -98,14 +95,17 @@ const fetchAllRows = async (tableName: string, columns: string = '*') => {
             if (error) throw error;
 
             if (data && data.length > 0) {
-                allRows = allRows.concat(data);
+                // push é mais leve que concat (não cria array temporário)
+                for (let i = 0; i < data.length; i++) allRows.push(data[i]);
                 if (data.length < step) {
-                    hasMore = false; // Última página
+                    hasMore = false;
                 } else {
-                    from += step; // Próxima página
+                    from += step;
+                    // Yield ao main thread entre páginas — evita "Página sem resposta"
+                    await new Promise(r => setTimeout(r, 0));
                 }
             } else {
-                hasMore = false; // Vazio, acabou
+                hasMore = false;
             }
         }
 

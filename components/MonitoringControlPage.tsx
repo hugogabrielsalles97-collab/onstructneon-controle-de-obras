@@ -65,10 +65,19 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                         .order('oae', { ascending: true });
 
                     if (data && data.length > 0) {
-                        allRows = [...allRows, ...data];
-                        if (data.length < 1000) hasMore = false;
-                        else from += 1000;
-                    } else hasMore = false;
+                        for (let i = 0; i < data.length; i++) {
+                            allRows.push(data[i]);
+                        }
+                        if (data.length < 1000) {
+                            hasMore = false;
+                        } else {
+                            from += 1000;
+                            // Yield to browser to prevent "Unresponsive Page" freeze
+                            await new Promise(r => setTimeout(r, 0));
+                        }
+                    } else {
+                        hasMore = false;
+                    }
                     if (error) hasMore = false;
                 }
 

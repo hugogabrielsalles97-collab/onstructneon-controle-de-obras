@@ -42,6 +42,8 @@ interface ManagementPageProps {
     showToast: (message: string, type: 'success' | 'error') => void;
 }
 
+const IMPACT_CATEGORIES = ['Projeto', 'Mão de obra', 'Equipamento', 'Acesso', 'Chuva', 'Inspeção', 'Material', 'Predecessora', 'Interferências'] as const;
+
 const ManagementPage: React.FC<ManagementPageProps> = ({
     onNavigateToDashboard,
     onNavigateToReports,
@@ -90,7 +92,6 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
     const [savingImpactTaskId, setSavingImpactTaskId] = React.useState<string | null>(null);
     const [deleteResponseConfirm, setDeleteResponseConfirm] = React.useState<{ isOpen: boolean; taskId: string | null }>({ isOpen: false, taskId: null });
 
-    const IMPACT_CATEGORIES = ['Projeto', 'Mão de obra', 'Equipamento', 'Acesso', 'Chuva', 'Inspeção', 'Material', 'Predecessora', 'Interferências'];
     const canEditImpact = user && (user.role === 'Master' || user.role === 'Planejador');
     const canRespondToImpact = user && (user.role === 'Master' || user.role === 'Planejador' || user.role === 'Gerenciador');
     
@@ -356,7 +357,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 ...data.values
             }))
             .slice(-20);
-    }, [tasks, IMPACT_CATEGORIES, impactDateFilters]);
+    }, [tasks, impactDateFilters]);
 
     // --- LÓGICA PPC SEMANAL (Semanas Fechadas) ---
     const weeklyPpcData = useMemo(() => {
@@ -453,11 +454,41 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
 
         if (tasksToUse.length === 0) return [];
 
-        const tasksByWeek: { weekStart: Date; weekEnd: Date; key: string; total: number; completed: number }[] = [];
-        const allDates = tasksToUse.flatMap(t => [new Date(t.startDate), new Date(t.dueDate)]);
-        const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
+        // PRÉ-PROCESSAR: calcular timestamps uma vez e ordenar por dueDate
+        // Isso transforma O(semanas × tasks) em O(tasks × log(tasks) + semanas)
+        const processed = tasksToUse.map(task => {
+            const dueDateTs = new Date(task.dueDate + 'T00:00:00').getTime();
+            let completedOnTime = false;
+            if (task.status === TaskStatus.Completed && task.actualEndDate) {
+                const actualEnd = new Date(task.actualEndDate + 'T00:00:00').getTime();
+                const dueLimit = new Date(task.dueDate + 'T23:59:59').getTime();
+                completedOnTime = actualEnd <= dueLimit;
+            }
+            return { dueDateTs, completedOnTime };
+        }).sort((a, b) => a.dueDateTs - b.dueDateTs);
 
-        // FORÇAR O INÍCIO EM 21/02 (Semana de 15/02 a 21/02)
+        const allDueDates = processed.map(p => p.dueDateTs);
+        const maxDate = new Date(allDueDates[allDueDates.length - 1]);
+
+        // Prefix-sum para contagem de "completedOnTime" — torna cada consulta O(log n)
+        const completedPrefix = new Array(processed.length + 1);
+        completedPrefix[0] = 0;
+        for (let i = 0; i < processed.length; i++) {
+            completedPrefix[i + 1] = completedPrefix[i] + (processed[i].completedOnTime ? 1 : 0);
+        }
+
+        // Função de busca binária: quantas tasks têm dueDate <= weekEndTs
+        const countUpTo = (endTs: number): { total: number; completed: number } => {
+            let lo = 0, hi = processed.length;
+            while (lo < hi) {
+                const mid = (lo + hi) >>> 1;
+                if (processed[mid].dueDateTs <= endTs) lo = mid + 1;
+                else hi = mid;
+            }
+            return { total: lo, completed: completedPrefix[lo] };
+        };
+
+        const tasksByWeek: { key: string; total: number; completed: number; weekEnd: Date }[] = [];
         const current = new Date(projectStart);
 
         while (current <= maxDate) {
@@ -466,28 +497,9 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
             weekEnd.setHours(23, 59, 59, 999);
 
             const key = weekEnd.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-            let totalByWeekEnd = 0, completedByWeekEnd = 0;
-            
-            tasksToUse.forEach(task => {
-                const dueDate = new Date(task.dueDate + 'T00:00:00');
-                if (dueDate <= weekEnd) {
-                    totalByWeekEnd++;
-                    if (task.status === TaskStatus.Completed) {
-                        const actualEnd = new Date(task.actualEndDate + 'T00:00:00');
-                        const dueLimit = new Date(task.dueDate + 'T23:59:59');
-                        if (actualEnd <= dueLimit) completedByWeekEnd++;
-                    }
-                }
-            });
+            const { total, completed } = countUpTo(weekEnd.getTime());
 
-            tasksByWeek.push({ 
-                weekStart: new Date(current), 
-                weekEnd: new Date(weekEnd), 
-                key, 
-                total: totalByWeekEnd, 
-                completed: completedByWeekEnd 
-            });
-            
+            tasksByWeek.push({ key, total, completed, weekEnd });
             current.setDate(current.getDate() + 7);
         }
 

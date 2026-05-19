@@ -73,9 +73,19 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                 while (hasMore) {
                     const { data, error } = await supabase.from('monitoring_rows').select('*').neq('id', '_CONFIG_').range(from, from + 999).order('oae', { ascending: true });
                     if (data && data.length > 0) {
-                        allRows = [...allRows, ...data];
-                        if (data.length < 1000) hasMore = false; else from += 1000;
-                    } else hasMore = false;
+                        for (let i = 0; i < data.length; i++) {
+                            allRows.push(data[i]);
+                        }
+                        if (data.length < 1000) {
+                            hasMore = false;
+                        } else {
+                            from += 1000;
+                            // Yield para o navegador respirar e não travar ("Página sem resposta")
+                            await new Promise(r => setTimeout(r, 0));
+                        }
+                    } else {
+                        hasMore = false;
+                    }
                     if (error) hasMore = false;
                 }
                 if (allRows.length > 0) {
