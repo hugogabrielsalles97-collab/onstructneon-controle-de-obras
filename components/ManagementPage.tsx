@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useData } from '../context/DataProvider';
 import Header from './Header';
 import { Task, TaskStatus } from '../types';
@@ -72,7 +72,16 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
         monthlyPlanning,
         setMonthlyPlanning,
         saveTask,
+        enableScheduleLoading,
     } = useData();
+
+    // Ativar carregamento do cronograma vigente ao montar a página
+    useEffect(() => {
+        enableScheduleLoading();
+    }, [enableScheduleLoading]);
+
+    // Limite de itens renderizados (paginação progressiva para não travar o DOM)
+    const [visibleItemCount, setVisibleItemCount] = useState(20);
     const [selectedStatuses, setSelectedStatuses] = React.useState<string[]>(['Concluída', 'Em Andamento', 'Não Iniciada', 'Atrasada']);
     const [dateFilters, setDateFilters] = React.useState({ startDate: '', endDate: '' });
     const [impactDateFilters, setImpactDateFilters] = React.useState({ startDate: '', endDate: '' });
@@ -104,6 +113,19 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
         );
     };
 
+    // Pré-indexar tasks por baseline_id — O(n) ao invés de O(n*m) no loop
+    const tasksByBaselineId = useMemo(() => {
+        const map = new Map<string, Task[]>();
+        for (const t of tasks) {
+            const bid = String(t.baseline_id || '');
+            if (!bid) continue;
+            const arr = map.get(bid);
+            if (arr) arr.push(t);
+            else map.set(bid, [t]);
+        }
+        return map;
+    }, [tasks]);
+
     const analysisData = useMemo(() => {
         const today = new Date();
         const cutOffDate = new Date(currentScheduleCutOffDateStr + 'T00:00:00Z');
@@ -120,7 +142,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 return true;
             })
             .map(bt => {
-                const linkedTasks = tasks.filter(t => String(t.baseline_id) === String(bt.id));
+                const linkedTasks = tasksByBaselineId.get(String(bt.id)) || [];
 
                 const pStart = new Date(bt.startDate);
                 const pEnd = new Date(bt.dueDate);
@@ -209,7 +231,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
             .filter((item): item is NonNullable<typeof item> => item !== null)
             .filter(item => selectedStatuses.includes(item.currentStatus))
             .sort((a, b) => new Date(a.baseline.dueDate).getTime() - new Date(b.baseline.dueDate).getTime());
-    }, [tasks, currentScheduleTasks, currentScheduleCutOffDateStr, selectedStatuses, dateFilters]);
+    }, [tasksByBaselineId, currentScheduleTasks, currentScheduleCutOffDateStr, selectedStatuses, dateFilters]);
 
     const paretoData = useMemo(() => {
         const counts: Record<string, number> = {
@@ -937,12 +959,20 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                         })()}
 
                         <div className="grid grid-cols-1 gap-4">
-                            {analysisData.length === 0 ? (
+                            {currentScheduleTasks.length === 0 ? (
+                                <div className="bg-brand-dark/70 p-12 rounded-lg text-center">
+                                    <div className="flex flex-col items-center gap-4">
+                                        <div className="w-10 h-10 border-4 border-brand-accent/30 border-t-brand-accent rounded-full animate-spin"></div>
+                                        <p className="text-brand-med-gray text-sm font-bold uppercase tracking-widest">Carregando cronograma vigente...</p>
+                                        <p className="text-brand-med-gray/50 text-xs">Os dados do cronograma estão sendo carregados do banco de dados.</p>
+                                    </div>
+                                </div>
+                            ) : analysisData.length === 0 ? (
                                 <div className="bg-brand-dark/70 p-12 rounded-lg text-center text-brand-med-gray">
                                     Nenhum item macro corresponde aos filtros selecionados.
                                 </div>
                             ) : (
-                                analysisData.map(({ baseline, tasks: linkedTasks, stats, isPastCutoff }) => {
+                                analysisData.slice(0, visibleItemCount).map(({ baseline, tasks: linkedTasks, stats, isPastCutoff }) => {
                                     if (isPastCutoff) {
                                         return (
                                             <div key={baseline.id} className="bg-brand-dark/30 rounded-lg border border-green-500/20 p-4 flex justify-between items-center opacity-70">
@@ -1104,6 +1134,15 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                         </div>
                                     );
                                 })
+                            )}
+                            {analysisData.length > visibleItemCount && (
+                                <button
+                                    onClick={() => setVisibleItemCount(prev => prev + 20)}
+                                    className="w-full py-4 bg-brand-accent/10 hover:bg-brand-accent/20 border border-brand-accent/20 hover:border-brand-accent/40 rounded-xl text-brand-accent font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-3"
+                                >
+                                    <span>Mostrar mais {Math.min(20, analysisData.length - visibleItemCount)} itens</span>
+                                    <span className="text-brand-med-gray">({visibleItemCount} de {analysisData.length})</span>
+                                </button>
                             )}
                         </div>
                     </div>
