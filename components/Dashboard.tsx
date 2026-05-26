@@ -83,8 +83,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     if (user.role === 'Executor') {
       baseTasks = tasks.filter(t => t.assignee === user.fullName && t.status !== TaskStatus.Completed);
     }
-    // Filtrar e remover todas as tarefas que possuem o nível de 'checklist'
-    return baseTasks.filter(t => !t.level || t.level.toLowerCase().trim() !== 'checklist');
+    
+    // Função auxiliar robusta para identificar tarefas de checklist (nível, disciplina ou título)
+    const isChecklistTask = (t: Task) => {
+      const lvl = (t.level || '').toLowerCase().trim();
+      const disc = (t.discipline || '').toLowerCase().trim();
+      const title = (t.title || '').toLowerCase().trim();
+
+      const matchesLvl = lvl.includes('check') || lvl.includes('chk') || lvl.includes('verificac') || lvl.includes('verificaç');
+      const matchesDisc = disc.includes('check') || disc.includes('chk') || disc.includes('verificac') || disc.includes('verificaç');
+      const matchesTitle = title.includes('checklist') || title.includes('check-list') || title.includes('check list');
+
+      return matchesLvl || matchesDisc || matchesTitle;
+    };
+
+    // Retirar dos índices e do dashboard todas as tarefas de checklist
+    return baseTasks.filter(t => !isChecklistTask(t));
   }, [tasks, user.role, user.fullName]);
 
   const baselineById = useMemo(() => {

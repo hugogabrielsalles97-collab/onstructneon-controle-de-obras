@@ -89,8 +89,21 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
     return m;
   }, [baselineTasks]);
 
+  // Função auxiliar robusta para identificar tarefas de checklist (nível, disciplina ou título)
+  const isChecklistTask = (t: Task) => {
+    const lvl = (t.level || '').toLowerCase().trim();
+    const disc = (t.discipline || '').toLowerCase().trim();
+    const title = (t.title || '').toLowerCase().trim();
+
+    const matchesLvl = lvl.includes('check') || lvl.includes('chk') || lvl.includes('verificac') || lvl.includes('verificaç');
+    const matchesDisc = disc.includes('check') || disc.includes('chk') || disc.includes('verificac') || disc.includes('verificaç');
+    const matchesTitle = title.includes('checklist') || title.includes('check-list') || title.includes('check list');
+
+    return matchesLvl || matchesDisc || matchesTitle;
+  };
+
   const dateFilteredTasks = useMemo(() => {
-    const baseTasks = tasks.filter(t => !t.level || t.level.toLowerCase().trim() !== 'checklist');
+    const baseTasks = tasks.filter(t => !isChecklistTask(t));
     if (!dateFilters.startDate && !dateFilters.endDate) {
       return baseTasks;
     }
@@ -109,7 +122,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
   }, [tasks, dateFilters, baselineById]);
 
   const dateFilteredBaselineTasks = useMemo(() => {
-    const baseBaselineTasks = baselineTasks.filter(t => !t.level || t.level.toLowerCase().trim() !== 'checklist');
+    const baseBaselineTasks = baselineTasks.filter(t => !isChecklistTask(t));
     if (!dateFilters.startDate && !dateFilters.endDate) {
       return baseBaselineTasks;
     }
