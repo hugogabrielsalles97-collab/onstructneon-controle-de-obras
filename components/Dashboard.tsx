@@ -28,6 +28,18 @@ type SortKey = keyof Task | 'none';
 type SortDirection = 'asc' | 'desc';
 type StatusFilter = TaskStatus | 'all' | 'overdue' | 'rescheduled';
 
+const isChecklistTask = (t: Task) => {
+  const lvl = (t.level || '').toLowerCase().trim();
+  const disc = (t.discipline || '').toLowerCase().trim();
+  const title = (t.title || '').toLowerCase().trim();
+
+  const matchesLvl = lvl.includes('check') || lvl.includes('chk') || lvl.includes('verificac') || lvl.includes('verificaç');
+  const matchesDisc = disc.includes('check') || disc.includes('chk') || disc.includes('verificac') || disc.includes('verificaç');
+  const matchesTitle = title.includes('checklist') || title.includes('check-list') || title.includes('check list');
+
+  return matchesLvl || matchesDisc || matchesTitle;
+};
+
 
 interface DashboardProps {
   onOpenModal: (task: Task | null) => void;
@@ -83,22 +95,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     if (user.role === 'Executor') {
       baseTasks = tasks.filter(t => t.assignee === user.fullName && t.status !== TaskStatus.Completed);
     }
-    
-    // Função auxiliar robusta para identificar tarefas de checklist (nível, disciplina ou título)
-    const isChecklistTask = (t: Task) => {
-      const lvl = (t.level || '').toLowerCase().trim();
-      const disc = (t.discipline || '').toLowerCase().trim();
-      const title = (t.title || '').toLowerCase().trim();
-
-      const matchesLvl = lvl.includes('check') || lvl.includes('chk') || lvl.includes('verificac') || lvl.includes('verificaç');
-      const matchesDisc = disc.includes('check') || disc.includes('chk') || disc.includes('verificac') || disc.includes('verificaç');
-      const matchesTitle = title.includes('checklist') || title.includes('check-list') || title.includes('check list');
-
-      return matchesLvl || matchesDisc || matchesTitle;
-    };
-
-    // Retirar dos índices e do dashboard todas as tarefas de checklist
-    return baseTasks.filter(t => !isChecklistTask(t));
+    return baseTasks;
   }, [tasks, user.role, user.fullName]);
 
   const baselineById = useMemo(() => {
@@ -745,7 +742,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
 
             {/* Dash Analytics Summary */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-5 non-printable">
-              <DashboardSummary tasks={filteredTasksWithoutStatus} baselineTasks={baselineTasks} onStatusSelect={handleStatusSelect} activeStatus={filters.status} />
+              <DashboardSummary tasks={filteredTasksWithoutStatus.filter(t => !isChecklistTask(t))} baselineTasks={baselineTasks} onStatusSelect={handleStatusSelect} activeStatus={filters.status} />
             </div>
 
             {/* Interactive Filters Glass Panel */}
