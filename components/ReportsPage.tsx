@@ -90,10 +90,11 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
   }, [baselineTasks]);
 
   const dateFilteredTasks = useMemo(() => {
+    const baseTasks = tasks.filter(t => !t.level || t.level.toLowerCase().trim() !== 'checklist');
     if (!dateFilters.startDate && !dateFilters.endDate) {
-      return tasks;
+      return baseTasks;
     }
-    return tasks.filter(task => {
+    return baseTasks.filter(task => {
       const bl = resolveBaselineTask(task, baselineById);
       const taskStartDate = new Date(getAnchorStart(task, bl) + 'T00:00:00');
       const taskDueDate = new Date(getAnchorDue(task, bl) + 'T00:00:00');
@@ -108,10 +109,11 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
   }, [tasks, dateFilters, baselineById]);
 
   const dateFilteredBaselineTasks = useMemo(() => {
+    const baseBaselineTasks = baselineTasks.filter(t => !t.level || t.level.toLowerCase().trim() !== 'checklist');
     if (!dateFilters.startDate && !dateFilters.endDate) {
-      return baselineTasks;
+      return baseBaselineTasks;
     }
-    return baselineTasks.filter(task => {
+    return baseBaselineTasks.filter(task => {
       const bl = resolveBaselineTask(task, baselineById);
       const taskStartDate = new Date(getAnchorStart(task, bl) + 'T00:00:00');
       const taskDueDate = new Date(getAnchorDue(task, bl) + 'T00:00:00');

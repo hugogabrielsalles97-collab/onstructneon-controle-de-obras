@@ -79,10 +79,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
   // Executores veem apenas o que lhes foi alocado E que NÃO foi concluído
   // Outros cargos (Master, Gerenciador, Planejador) veem tudo
   const visibleTasks = useMemo(() => {
+    let baseTasks = tasks;
     if (user.role === 'Executor') {
-      return tasks.filter(t => t.assignee === user.fullName && t.status !== TaskStatus.Completed);
+      baseTasks = tasks.filter(t => t.assignee === user.fullName && t.status !== TaskStatus.Completed);
     }
-    return tasks;
+    // Filtrar e remover todas as tarefas que possuem o nível de 'checklist'
+    return baseTasks.filter(t => !t.level || t.level.toLowerCase().trim() !== 'checklist');
   }, [tasks, user.role, user.fullName]);
 
   const baselineById = useMemo(() => {
