@@ -13,8 +13,6 @@ import {
     ListChecks,
     ChevronRight,
     X,
-    Sun,
-    Moon,
 } from 'lucide-react';
 import {
     ResponsiveContainer,
@@ -28,6 +26,7 @@ import {
     LabelList,
 } from 'recharts';
 import Sidebar from './Sidebar';
+import { useTheme } from '../utils/theme';
 import { useData } from '../context/DataProvider';
 import { MonitoringRow } from '../types';
 import { supabase } from '../supabaseClient';
@@ -88,13 +87,7 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
     const [selectedService, setSelectedService] = useState('ALL');
     const [selectedEng, setSelectedEng] = useState('ALL');
     const [detailService, setDetailService] = useState<string | null>(null);
-    const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-        try { return (localStorage.getItem('@elos_dv_theme') as 'dark' | 'light') || 'dark'; } catch { return 'dark'; }
-    });
-
-    useEffect(() => {
-        try { localStorage.setItem('@elos_dv_theme', theme); } catch { /* ignore */ }
-    }, [theme]);
+    const { theme } = useTheme();
 
     const baselineLabel = baselineKey === 'lb05' ? 'LB05' : 'LB04';
 
@@ -299,41 +292,7 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
         : { grid: 'rgba(255,255,255,0.04)', axis: '#4b5563', label: '#9ca3af', cursor: 'rgba(255,255,255,0.05)', tipBg: '#0a0f18', tipBorder: 'rgba(255,255,255,0.06)', tipText: '#e5e7eb' };
 
     return (
-        <div data-dvtheme={theme} className="flex h-screen bg-[var(--dv-page)] overflow-hidden text-[var(--dv-text)] font-sans">
-            <style>{`
-                [data-dvtheme="dark"] {
-                    --dv-page: #060a12;
-                    --dv-surface: #0a0f18;
-                    --dv-surface-2: #0f1624;
-                    --dv-glass: rgba(10,15,24,0.8);
-                    --dv-text: #e5e7eb;
-                    --dv-text-strong: #ffffff;
-                    --dv-text-soft: #9ca3af;
-                    --dv-text-muted: #6b7280;
-                    --dv-text-faint: #4b5563;
-                    --dv-border: rgba(255,255,255,0.06);
-                    --dv-border-strong: rgba(255,255,255,0.15);
-                    --dv-hover: rgba(255,255,255,0.05);
-                    --dv-subtle: rgba(255,255,255,0.05);
-                    --dv-input: rgba(0,0,0,0.4);
-                }
-                [data-dvtheme="light"] {
-                    --dv-page: #eef2f7;
-                    --dv-surface: #ffffff;
-                    --dv-surface-2: #ffffff;
-                    --dv-glass: rgba(255,255,255,0.85);
-                    --dv-text: #1e293b;
-                    --dv-text-strong: #0f172a;
-                    --dv-text-soft: #475569;
-                    --dv-text-muted: #64748b;
-                    --dv-text-faint: #94a3b8;
-                    --dv-border: rgba(15,23,42,0.1);
-                    --dv-border-strong: rgba(15,23,42,0.18);
-                    --dv-hover: rgba(15,23,42,0.04);
-                    --dv-subtle: rgba(15,23,42,0.05);
-                    --dv-input: rgba(15,23,42,0.04);
-                }
-            `}</style>
+        <div className="flex h-screen bg-[var(--dv-page)] overflow-hidden text-[var(--dv-text)] font-sans">
             <Sidebar user={user} activeScreen="monitoringControl" {...props} />
             <main className="flex-1 overflow-y-auto relative custom-scrollbar">
                 <div className="p-8 pb-12">
@@ -347,10 +306,7 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
                             <p className="text-brand-med-gray text-[10px] font-bold uppercase tracking-[0.2em] opacity-60">Análise gerencial de aderência ao planejamento</p>
                         </div>
                         <div className="flex items-center gap-3">
-                            <button onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} title="Alternar tema claro / escuro" className="flex items-center gap-2 px-4 py-2.5 bg-[var(--dv-subtle)] hover:bg-[var(--dv-hover)] rounded-xl border border-[var(--dv-border)] transition-all font-black text-[10px] uppercase tracking-wider shadow-2xl text-[var(--dv-text-soft)]">
-                                {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />} {theme === 'dark' ? 'Claro' : 'Escuro'}
-                            </button>
-                            <button onClick={props.onNavigateToMonitoringDashboard} className="flex items-center gap-2 px-6 py-2.5 bg-blue-600/90 hover:bg-blue-500 rounded-xl border border-blue-400/20 transition-all font-black text-[10px] uppercase tracking-wider shadow-2xl">
+                            <button onClick={props.onNavigateToMonitoringDashboard} className="flex items-center gap-2 px-6 py-2.5 bg-blue-600/90 hover:bg-blue-500 rounded-xl border border-blue-400/20 transition-all font-black text-[10px] uppercase tracking-wider shadow-2xl text-white">
                                 <LayoutDashboard size={14} /> Analítico
                             </button>
                             <button onClick={props.onNavigateToMonitoringControl} className="flex items-center gap-2 px-6 py-2.5 bg-[var(--dv-subtle)] hover:bg-[var(--dv-hover)] rounded-xl border border-[var(--dv-border)] transition-all font-black text-[10px] uppercase tracking-wider shadow-2xl">

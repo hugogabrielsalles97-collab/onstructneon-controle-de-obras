@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { User } from '../types';
+import { useTheme } from '../utils/theme';
 import ConstructionIcon from './icons/ConstructionIcon';
 import ChartIcon from './icons/ChartIcon';
 import BaselineIcon from './icons/BaselineIcon';
@@ -37,6 +38,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome, onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToMonitoringControl, onNavigateToPodcast, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToWarRoom, onNavigateToSystem, onUpgradeClick, onAddTask }) => {
+    const { theme, toggleTheme } = useTheme();
     const showFullMenu = user.role !== 'Executor' && user.role !== 'Visualizador';
     const isCostModule = activeScreen === 'cost';
     const isOrgModule = activeScreen === 'orgSummary' || activeScreen === 'orgChart';
@@ -253,6 +255,19 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
             </div>
 
             <div className="p-6 bg-brand-darkest/50 animate-slide-up animate-stagger-4 mt-auto">
+                <button
+                    onClick={toggleTheme}
+                    title="Alternar tema claro / escuro"
+                    aria-label="Alternar tema claro / escuro"
+                    className="w-full flex items-center justify-center gap-2 mb-3 px-3 py-2 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 text-brand-med-gray hover:text-white transition-all text-[10px] font-black uppercase tracking-wider"
+                >
+                    {theme === 'dark' ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></svg>
+                    ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
+                    )}
+                    <span>{theme === 'dark' ? 'Tema Claro' : 'Tema Escuro'}</span>
+                </button>
                 <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 smooth-transition group cursor-pointer hover-shine relative overflow-hidden">
                     <div className={`w-10 h-10 rounded-xl ${accentBg} flex items-center justify-center text-white font-black shadow-lg group-hover:rotate-6 smooth-transition`}>
                         {user.fullName.charAt(0)}
