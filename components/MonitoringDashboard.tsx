@@ -46,6 +46,7 @@ interface MonitoringDashboardProps {
     onNavigateToTeams: () => void;
     onNavigateToVisualControl: () => void;
     onNavigateToSystem: () => void;
+    onNavigateToMonitoringDeviations: () => void;
     onUpgradeClick: () => void;
     showToast: (msg: string, type: 'success' | 'error') => void;
 }
@@ -415,9 +416,14 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                             </div>
                             <p className="text-brand-med-gray text-[10px] font-bold uppercase tracking-[0.2em] opacity-60">Monitoramento e Controle de Obras</p>
                         </div>
-                        <button onClick={props.onNavigateToMonitoringControl} className="flex items-center gap-2 px-6 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-all font-black text-[10px] uppercase tracking-wider shadow-2xl">
-                            <ArrowLeft size={14} /> Voltar para Planilha
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <button onClick={props.onNavigateToMonitoringDeviations} className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-red-600/90 to-orange-600/90 hover:from-red-500 hover:to-orange-500 rounded-xl border border-red-400/30 transition-all font-black text-[10px] uppercase tracking-wider shadow-2xl shadow-red-900/30">
+                                <AlertTriangle size={14} /> Resumo Desvios
+                            </button>
+                            <button onClick={props.onNavigateToMonitoringControl} className="flex items-center gap-2 px-6 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-all font-black text-[10px] uppercase tracking-wider shadow-2xl">
+                                <ArrowLeft size={14} /> Voltar para Planilha
+                            </button>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-5 bg-[#0a0f18]/80 backdrop-blur-3xl border border-white/5 rounded-3xl mb-8 shadow-2xl">
