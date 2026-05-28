@@ -13,6 +13,8 @@ import {
     ListChecks,
     ChevronRight,
     X,
+    Sun,
+    Moon,
 } from 'lucide-react';
 import {
     ResponsiveContainer,
@@ -86,6 +88,13 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
     const [selectedService, setSelectedService] = useState('ALL');
     const [selectedEng, setSelectedEng] = useState('ALL');
     const [detailService, setDetailService] = useState<string | null>(null);
+    const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+        try { return (localStorage.getItem('@elos_dv_theme') as 'dark' | 'light') || 'dark'; } catch { return 'dark'; }
+    });
+
+    useEffect(() => {
+        try { localStorage.setItem('@elos_dv_theme', theme); } catch { /* ignore */ }
+    }, [theme]);
 
     const baselineLabel = baselineKey === 'lb05' ? 'LB05' : 'LB04';
 
@@ -282,10 +291,49 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
     }, [detailService]);
 
     if (!user) return null;
-    if (isLoading) return <div className="flex bg-[#060a12] h-screen items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-brand-accent" /></div>;
+    if (isLoading) return <div className="flex bg-[var(--dv-page)] h-screen items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-brand-accent" /></div>;
+
+    const isLight = theme === 'light';
+    const chart = isLight
+        ? { grid: 'rgba(15,23,42,0.08)', axis: '#94a3b8', label: '#475569', cursor: 'rgba(15,23,42,0.05)', tipBg: '#ffffff', tipBorder: 'rgba(15,23,42,0.12)', tipText: '#0f172a' }
+        : { grid: 'rgba(255,255,255,0.04)', axis: '#4b5563', label: '#9ca3af', cursor: 'rgba(255,255,255,0.05)', tipBg: '#0a0f18', tipBorder: 'rgba(255,255,255,0.06)', tipText: '#e5e7eb' };
 
     return (
-        <div className="flex h-screen bg-[#060a12] overflow-hidden text-gray-100 font-sans">
+        <div data-dvtheme={theme} className="flex h-screen bg-[var(--dv-page)] overflow-hidden text-[var(--dv-text)] font-sans">
+            <style>{`
+                [data-dvtheme="dark"] {
+                    --dv-page: #060a12;
+                    --dv-surface: #0a0f18;
+                    --dv-surface-2: #0f1624;
+                    --dv-glass: rgba(10,15,24,0.8);
+                    --dv-text: #e5e7eb;
+                    --dv-text-strong: #ffffff;
+                    --dv-text-soft: #9ca3af;
+                    --dv-text-muted: #6b7280;
+                    --dv-text-faint: #4b5563;
+                    --dv-border: rgba(255,255,255,0.06);
+                    --dv-border-strong: rgba(255,255,255,0.15);
+                    --dv-hover: rgba(255,255,255,0.05);
+                    --dv-subtle: rgba(255,255,255,0.05);
+                    --dv-input: rgba(0,0,0,0.4);
+                }
+                [data-dvtheme="light"] {
+                    --dv-page: #eef2f7;
+                    --dv-surface: #ffffff;
+                    --dv-surface-2: #ffffff;
+                    --dv-glass: rgba(255,255,255,0.85);
+                    --dv-text: #1e293b;
+                    --dv-text-strong: #0f172a;
+                    --dv-text-soft: #475569;
+                    --dv-text-muted: #64748b;
+                    --dv-text-faint: #94a3b8;
+                    --dv-border: rgba(15,23,42,0.1);
+                    --dv-border-strong: rgba(15,23,42,0.18);
+                    --dv-hover: rgba(15,23,42,0.04);
+                    --dv-subtle: rgba(15,23,42,0.05);
+                    --dv-input: rgba(15,23,42,0.04);
+                }
+            `}</style>
             <Sidebar user={user} activeScreen="monitoringControl" {...props} />
             <main className="flex-1 overflow-y-auto relative custom-scrollbar">
                 <div className="p-8 pb-12">
@@ -299,98 +347,101 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
                             <p className="text-brand-med-gray text-[10px] font-bold uppercase tracking-[0.2em] opacity-60">Análise gerencial de aderência ao planejamento</p>
                         </div>
                         <div className="flex items-center gap-3">
+                            <button onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} title="Alternar tema claro / escuro" className="flex items-center gap-2 px-4 py-2.5 bg-[var(--dv-subtle)] hover:bg-[var(--dv-hover)] rounded-xl border border-[var(--dv-border)] transition-all font-black text-[10px] uppercase tracking-wider shadow-2xl text-[var(--dv-text-soft)]">
+                                {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />} {theme === 'dark' ? 'Claro' : 'Escuro'}
+                            </button>
                             <button onClick={props.onNavigateToMonitoringDashboard} className="flex items-center gap-2 px-6 py-2.5 bg-blue-600/90 hover:bg-blue-500 rounded-xl border border-blue-400/20 transition-all font-black text-[10px] uppercase tracking-wider shadow-2xl">
                                 <LayoutDashboard size={14} /> Analítico
                             </button>
-                            <button onClick={props.onNavigateToMonitoringControl} className="flex items-center gap-2 px-6 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-all font-black text-[10px] uppercase tracking-wider shadow-2xl">
+                            <button onClick={props.onNavigateToMonitoringControl} className="flex items-center gap-2 px-6 py-2.5 bg-[var(--dv-subtle)] hover:bg-[var(--dv-hover)] rounded-xl border border-[var(--dv-border)] transition-all font-black text-[10px] uppercase tracking-wider shadow-2xl">
                                 <ArrowLeft size={14} /> Voltar para Planilha
                             </button>
                         </div>
                     </div>
 
                     {/* FILTERS */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-5 bg-[#0a0f18]/80 backdrop-blur-3xl border border-white/5 rounded-3xl mb-4 shadow-2xl">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-5 bg-[var(--dv-glass)] backdrop-blur-3xl border border-[var(--dv-border)] rounded-3xl mb-4 shadow-2xl">
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1"><Target size={10} /> Linha Base de Referência</label>
+                            <label className="text-[10px] font-black text-[var(--dv-text-muted)] uppercase flex items-center gap-1"><Target size={10} /> Linha Base de Referência</label>
                             <div className="flex gap-2">
                                 {(['prev', 'lb05'] as const).map(k => {
                                     const active = baselineKey === k;
                                     const label = k === 'prev' ? 'LB04' : 'LB05';
                                     return (
-                                        <button key={k} onClick={() => setBaselineKey(k)} className={`flex-1 px-3 py-2.5 rounded-xl border text-xs font-black uppercase tracking-wide transition-all ${active ? (k === 'lb05' ? 'bg-cyan-500/15 border-cyan-400/60 text-cyan-300' : 'bg-gray-500/15 border-gray-400/60 text-gray-200') : 'bg-black/30 border-white/10 text-gray-600 hover:border-white/20'}`}>{label}</button>
+                                        <button key={k} onClick={() => setBaselineKey(k)} className={`flex-1 px-3 py-2.5 rounded-xl border text-xs font-black uppercase tracking-wide transition-all ${active ? (k === 'lb05' ? 'bg-cyan-500/15 border-cyan-400/60 text-cyan-300' : 'bg-gray-500/15 border-gray-400/60 text-[var(--dv-text-strong)]') : 'bg-[var(--dv-input)] border-[var(--dv-border)] text-[var(--dv-text-faint)] hover:border-[var(--dv-border-strong)]'}`}>{label}</button>
                                     );
                                 })}
                             </div>
                         </div>
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1"><Building2 size={10} /> Serviço</label>
-                            <select value={selectedService} onChange={(e) => setSelectedService(e.target.value)} className="bg-black/40 border border-white/10 rounded-xl p-2.5 text-xs font-bold text-white outline-none focus:border-brand-accent transition-all">{services.map(s => <option key={s} value={s}>{s === 'ALL' ? 'Todos os Serviços' : `${s} (${getServiceUnit(s)})`}</option>)}</select>
+                            <label className="text-[10px] font-black text-[var(--dv-text-muted)] uppercase flex items-center gap-1"><Building2 size={10} /> Serviço</label>
+                            <select value={selectedService} onChange={(e) => setSelectedService(e.target.value)} className="bg-[var(--dv-input)] border border-[var(--dv-border)] rounded-xl p-2.5 text-xs font-bold text-[var(--dv-text-strong)] outline-none focus:border-brand-accent transition-all">{services.map(s => <option key={s} value={s}>{s === 'ALL' ? 'Todos os Serviços' : `${s} (${getServiceUnit(s)})`}</option>)}</select>
                         </div>
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1"><User size={10} /> Engenheiro</label>
-                            <select value={selectedEng} onChange={(e) => setSelectedEng(e.target.value)} className="bg-black/40 border border-white/10 rounded-xl p-2.5 text-xs font-bold text-white outline-none focus:border-brand-accent transition-all">{engineers.map(e => <option key={e} value={e}>{e === 'ALL' ? 'Todos os Engenheiros' : e}</option>)}</select>
+                            <label className="text-[10px] font-black text-[var(--dv-text-muted)] uppercase flex items-center gap-1"><User size={10} /> Engenheiro</label>
+                            <select value={selectedEng} onChange={(e) => setSelectedEng(e.target.value)} className="bg-[var(--dv-input)] border border-[var(--dv-border)] rounded-xl p-2.5 text-xs font-bold text-[var(--dv-text-strong)] outline-none focus:border-brand-accent transition-all">{engineers.map(e => <option key={e} value={e}>{e === 'ALL' ? 'Todos os Engenheiros' : e}</option>)}</select>
                         </div>
                         <div className="flex flex-col gap-1.5 justify-end">
-                            <label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1"><Activity size={10} /> Posição Acumulada Até</label>
-                            <div className="bg-black/40 border border-white/10 rounded-xl p-2.5 text-xs font-black text-brand-accent">{cutDateLabel}</div>
+                            <label className="text-[10px] font-black text-[var(--dv-text-muted)] uppercase flex items-center gap-1"><Activity size={10} /> Posição Acumulada Até</label>
+                            <div className="bg-[var(--dv-input)] border border-[var(--dv-border)] rounded-xl p-2.5 text-xs font-black text-brand-accent">{cutDateLabel}</div>
                         </div>
                     </div>
 
-                    <p className="text-[10px] text-gray-500 mb-8 px-1 leading-relaxed">
-                        Desvio = <span className="text-gray-300 font-bold">Realizado − {baselineLabel}</span> acumulado até a data status. Valores negativos indicam <span className="text-red-400 font-bold">atraso</span> em relação ao planejado; positivos indicam <span className="text-cyan-300 font-bold">adiantamento</span>.
+                    <p className="text-[10px] text-[var(--dv-text-muted)] mb-8 px-1 leading-relaxed">
+                        Desvio = <span className="text-[var(--dv-text)] font-bold">Realizado − {baselineLabel}</span> acumulado até a data status. Valores negativos indicam <span className="text-red-400 font-bold">atraso</span> em relação ao planejado; positivos indicam <span className="text-cyan-300 font-bold">adiantamento</span>.
                     </p>
 
                     {/* KPI CARDS */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl">
-                            <p className="text-[10px] font-black text-gray-500 uppercase mb-1 flex items-center gap-1"><ListChecks size={12} /> Itens Analisados</p>
-                            <h3 className="text-4xl font-black text-white">{summary.total}</h3>
-                            <p className="text-[10px] text-gray-600 mt-1 font-bold uppercase">{summary.emDia} em dia</p>
+                        <div className="p-6 bg-[var(--dv-surface)] border border-[var(--dv-border)] rounded-3xl shadow-2xl">
+                            <p className="text-[10px] font-black text-[var(--dv-text-muted)] uppercase mb-1 flex items-center gap-1"><ListChecks size={12} /> Itens Analisados</p>
+                            <h3 className="text-4xl font-black text-[var(--dv-text-strong)]">{summary.total}</h3>
+                            <p className="text-[10px] text-[var(--dv-text-faint)] mt-1 font-bold uppercase">{summary.emDia} em dia</p>
                         </div>
-                        <div className="p-6 bg-[#0a0f18] border border-orange-500/20 rounded-3xl shadow-2xl">
+                        <div className="p-6 bg-[var(--dv-surface)] border border-orange-500/20 rounded-3xl shadow-2xl">
                             <p className="text-[10px] font-black text-orange-400 uppercase mb-1 flex items-center gap-1"><AlertTriangle size={12} /> Com Desvio</p>
-                            <h3 className="text-4xl font-black text-white">{summary.comDesvio}</h3>
+                            <h3 className="text-4xl font-black text-[var(--dv-text-strong)]">{summary.comDesvio}</h3>
                             <p className="text-[10px] text-orange-400/80 mt-1 font-black">{summary.comDesvioPct.toFixed(0)}% do total</p>
                         </div>
-                        <div className="p-6 bg-[#0a0f18] border border-red-500/20 rounded-3xl shadow-2xl">
+                        <div className="p-6 bg-[var(--dv-surface)] border border-red-500/20 rounded-3xl shadow-2xl">
                             <p className="text-[10px] font-black text-red-400 uppercase mb-1 flex items-center gap-1"><TrendingDown size={12} /> Atrasados</p>
                             <h3 className="text-4xl font-black text-red-500">{summary.atrasados}</h3>
                             <p className="text-[10px] text-red-400/80 mt-1 font-black">{summary.atrasadosPct.toFixed(0)}% do total</p>
                         </div>
-                        <div className="p-6 bg-[#0a0f18] border border-cyan-500/20 rounded-3xl shadow-2xl">
+                        <div className="p-6 bg-[var(--dv-surface)] border border-cyan-500/20 rounded-3xl shadow-2xl">
                             <p className="text-[10px] font-black text-cyan-400 uppercase mb-1 flex items-center gap-1"><TrendingUp size={12} /> Adiantados</p>
                             <h3 className="text-4xl font-black text-cyan-400">{summary.adiantados}</h3>
                             <p className="text-[10px] text-cyan-400/80 mt-1 font-black">{summary.adiantadosPct.toFixed(0)}% do total</p>
                         </div>
-                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl">
-                            <p className="text-[10px] font-black text-gray-500 uppercase mb-1 flex items-center gap-1"><Gauge size={12} /> Aderência Média</p>
+                        <div className="p-6 bg-[var(--dv-surface)] border border-[var(--dv-border)] rounded-3xl shadow-2xl">
+                            <p className="text-[10px] font-black text-[var(--dv-text-muted)] uppercase mb-1 flex items-center gap-1"><Gauge size={12} /> Aderência Média</p>
                             <h3 className={`text-4xl font-black ${aderClass(summary.aderMedia)}`}>{summary.aderMedia.toFixed(1)}%</h3>
-                            <p className="text-[10px] text-gray-600 mt-1 font-bold uppercase">média dos itens</p>
+                            <p className="text-[10px] text-[var(--dv-text-faint)] mt-1 font-bold uppercase">média dos itens</p>
                         </div>
                     </div>
 
                     {summary.total === 0 ? (
-                        <div className="h-[300px] flex items-center justify-center border border-dashed border-white/10 rounded-3xl">
-                            <span className="text-gray-500 font-bold text-xs uppercase tracking-widest flex items-center gap-2"><AlertTriangle size={16} /> Nenhum item com atividade até a data status para os filtros selecionados</span>
+                        <div className="h-[300px] flex items-center justify-center border border-dashed border-[var(--dv-border)] rounded-3xl">
+                            <span className="text-[var(--dv-text-muted)] font-bold text-xs uppercase tracking-widest flex items-center gap-2"><AlertTriangle size={16} /> Nenhum item com atividade até a data status para os filtros selecionados</span>
                         </div>
                     ) : (
                     <>
                     {/* ADERÊNCIA POR SERVIÇO - CHART */}
-                    <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl mb-8">
-                        <h4 className="text-xs font-black uppercase tracking-widest text-white mb-8 flex items-center gap-2"><Gauge size={16} className="text-brand-accent" /> Aderência por Serviço (%)</h4>
+                    <div className="p-8 bg-[var(--dv-surface)] border border-[var(--dv-border)] rounded-3xl shadow-2xl mb-8">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-[var(--dv-text-strong)] mb-8 flex items-center gap-2"><Gauge size={16} className="text-brand-accent" /> Aderência por Serviço (%)</h4>
                         <div style={{ height: Math.max(220, chartData.length * 38) }}>
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 40 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" horizontal={false} />
-                                    <XAxis type="number" domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#4b5563', fontSize: 10 }} unit="%" />
+                                    <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} horizontal={false} />
+                                    <XAxis type="number" domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: chart.axis, fontSize: 10 }} unit="%" />
                                     <YAxis type="category" dataKey="name" width={185} interval={0} axisLine={false} tickLine={false} tick={(t: any) => {
                                         const { x, y, payload } = t;
-                                        return <text x={x} y={y} dy={3} textAnchor="end" fill="#9ca3af" fontSize={10} fontWeight={700}>{payload.value}</text>;
+                                        return <text x={x} y={y} dy={3} textAnchor="end" fill={chart.label} fontSize={10} fontWeight={700}>{payload.value}</text>;
                                     }} />
-                                    <Tooltip cursor={{ fill: '#ffffff08' }} contentStyle={{ backgroundColor: '#0a0f18', border: '1px solid #ffffff10', borderRadius: '12px' }} formatter={(v: any) => [`${v}%`, 'Aderência']} labelFormatter={(_, p: any) => p?.[0]?.payload?.fullName || ''} />
+                                    <Tooltip cursor={{ fill: chart.cursor }} contentStyle={{ backgroundColor: chart.tipBg, border: `1px solid ${chart.tipBorder}`, borderRadius: '12px', color: chart.tipText }} itemStyle={{ color: chart.tipText }} labelStyle={{ color: chart.tipText }} formatter={(v: any) => [`${v}%`, 'Aderência']} labelFormatter={(_, p: any) => p?.[0]?.payload?.fullName || ''} />
                                     <Bar dataKey="aderencia" radius={[0, 6, 6, 0]} barSize={20}>
                                         {chartData.map((d, i) => <Cell key={i} fill={aderHex(d.aderencia)} />)}
-                                        <LabelList dataKey="aderencia" position="right" formatter={(v: any) => `${v}%`} style={{ fill: '#9ca3af', fontSize: 10, fontWeight: 700 }} />
+                                        <LabelList dataKey="aderencia" position="right" formatter={(v: any) => `${v}%`} style={{ fill: chart.label, fontSize: 10, fontWeight: 700 }} />
                                     </Bar>
                                 </BarChart>
                             </ResponsiveContainer>
@@ -398,12 +449,12 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
                     </div>
 
                     {/* DESVIOS POR SERVIÇO - TABLE */}
-                    <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl mb-8">
-                        <h4 className="text-xs font-black uppercase tracking-widest text-white mb-6 flex items-center gap-2"><Building2 size={16} className="text-brand-accent" /> Desvios por Serviço</h4>
+                    <div className="p-8 bg-[var(--dv-surface)] border border-[var(--dv-border)] rounded-3xl shadow-2xl mb-8">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-[var(--dv-text-strong)] mb-6 flex items-center gap-2"><Building2 size={16} className="text-brand-accent" /> Desvios por Serviço</h4>
                         <div className="overflow-x-auto custom-scrollbar">
                             <table className="w-full text-left border-collapse min-w-[760px]">
                                 <thead>
-                                    <tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5">
+                                    <tr className="text-[10px] font-black text-[var(--dv-text-muted)] uppercase border-b border-[var(--dv-border)]">
                                         <th className="pb-4">Serviço</th>
                                         <th className="pb-4 text-center">Itens</th>
                                         <th className="pb-4 text-center">Atrasados</th>
@@ -414,18 +465,18 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
                                         <th className="pb-4 w-[160px]">Status</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-white/5">
+                                <tbody className="divide-y divide-[var(--dv-border)]">
                                     {byService.map(s => (
-                                        <tr key={s.service} onClick={() => setDetailService(s.service)} title="Ver detalhe por vão / apoio" className="group cursor-pointer hover:bg-white/5 transition-colors">
-                                            <td className="py-3 font-bold text-xs"><span className="inline-flex items-center gap-1.5"><ChevronRight size={13} className="text-gray-600 group-hover:text-brand-accent transition-colors" />{s.service} <span className="text-[9px] text-gray-500 font-normal">({s.unit})</span></span></td>
-                                            <td className="py-3 text-center text-xs font-semibold text-gray-400">{s.total}</td>
+                                        <tr key={s.service} onClick={() => setDetailService(s.service)} title="Ver detalhe por vão / apoio" className="group cursor-pointer hover:bg-[var(--dv-hover)] transition-colors">
+                                            <td className="py-3 font-bold text-xs"><span className="inline-flex items-center gap-1.5"><ChevronRight size={13} className="text-[var(--dv-text-faint)] group-hover:text-brand-accent transition-colors" />{s.service} <span className="text-[9px] text-[var(--dv-text-muted)] font-normal">({s.unit})</span></span></td>
+                                            <td className="py-3 text-center text-xs font-semibold text-[var(--dv-text-soft)]">{s.total}</td>
                                             <td className="py-3 text-center text-xs font-black text-red-500">{s.atrasados || '-'}</td>
-                                            <td className="py-3 text-right text-xs font-semibold text-gray-400">{fmt(s.planned)}</td>
+                                            <td className="py-3 text-right text-xs font-semibold text-[var(--dv-text-soft)]">{fmt(s.planned)}</td>
                                             <td className="py-3 text-right text-xs font-black text-brand-accent">{fmt(s.real)}</td>
-                                            <td className={`py-3 text-right text-xs font-black ${s.desvio < -0.01 ? 'text-red-500' : s.desvio > 0.01 ? 'text-cyan-400' : 'text-gray-400'}`}>{fmtSigned(s.desvio)}</td>
+                                            <td className={`py-3 text-right text-xs font-black ${s.desvio < -0.01 ? 'text-red-500' : s.desvio > 0.01 ? 'text-cyan-400' : 'text-[var(--dv-text-soft)]'}`}>{fmtSigned(s.desvio)}</td>
                                             <td className={`py-3 text-right pr-2 text-xs font-black ${aderClass(s.aderencia)}`}>{s.aderencia.toFixed(0)}%</td>
                                             <td className="py-3">
-                                                <div className="h-2 w-full rounded-full bg-white/5 overflow-hidden">
+                                                <div className="h-2 w-full rounded-full bg-[var(--dv-subtle)] overflow-hidden">
                                                     <div className="h-full rounded-full" style={{ width: `${Math.min(100, s.aderencia)}%`, background: aderHex(s.aderencia) }} />
                                                 </div>
                                             </td>
@@ -438,15 +489,15 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
 
                     <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-8">
                         {/* ITENS CRÍTICOS */}
-                        <div className="p-8 bg-[#0a0f18] border border-red-500/10 rounded-3xl shadow-2xl lg:col-span-3 flex flex-col">
-                            <h4 className="text-xs font-black uppercase tracking-widest text-white mb-6 flex items-center gap-2"><TrendingDown size={16} className="text-red-500" /> Itens Críticos · Maiores Atrasos</h4>
+                        <div className="p-8 bg-[var(--dv-surface)] border border-red-500/10 rounded-3xl shadow-2xl lg:col-span-3 flex flex-col">
+                            <h4 className="text-xs font-black uppercase tracking-widest text-[var(--dv-text-strong)] mb-6 flex items-center gap-2"><TrendingDown size={16} className="text-red-500" /> Itens Críticos · Maiores Atrasos</h4>
                             {criticalItems.length === 0 ? (
-                                <div className="flex-1 flex items-center justify-center text-gray-600 text-xs font-bold uppercase tracking-widest py-10">Nenhum item atrasado 🎉</div>
+                                <div className="flex-1 flex items-center justify-center text-[var(--dv-text-faint)] text-xs font-bold uppercase tracking-widest py-10">Nenhum item atrasado 🎉</div>
                             ) : (
                                 <div className="overflow-x-auto custom-scrollbar">
                                     <table className="w-full text-left border-collapse min-w-[520px]">
                                         <thead>
-                                            <tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5">
+                                            <tr className="text-[10px] font-black text-[var(--dv-text-muted)] uppercase border-b border-[var(--dv-border)]">
                                                 <th className="pb-4">Obra / Apoio</th>
                                                 <th className="pb-4">Serviço</th>
                                                 <th className="pb-4 text-right">Prev ({baselineLabel})</th>
@@ -455,12 +506,12 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
                                                 <th className="pb-4 text-right pr-1">Ader.</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-white/5">
+                                        <tbody className="divide-y divide-[var(--dv-border)]">
                                             {criticalItems.map((c, i) => (
-                                                <tr key={c.row.id + i} className="hover:bg-white/5">
-                                                    <td className="py-3 font-bold text-xs truncate max-w-[140px]">{c.row.oae} <span className="text-[9px] text-gray-500 font-normal">({c.row.apoio || '—'})</span><br /><span className="text-[9px] text-gray-600 font-normal">{c.row.responsible || 'N/A'}</span></td>
-                                                    <td className="py-3 text-[10px] text-gray-400 font-semibold uppercase">{c.row.service}</td>
-                                                    <td className="py-3 text-right text-xs font-semibold text-gray-400">{fmt(c.planned)}</td>
+                                                <tr key={c.row.id + i} className="hover:bg-[var(--dv-hover)]">
+                                                    <td className="py-3 font-bold text-xs truncate max-w-[140px]">{c.row.oae} <span className="text-[9px] text-[var(--dv-text-muted)] font-normal">({c.row.apoio || '—'})</span><br /><span className="text-[9px] text-[var(--dv-text-faint)] font-normal">{c.row.responsible || 'N/A'}</span></td>
+                                                    <td className="py-3 text-[10px] text-[var(--dv-text-soft)] font-semibold uppercase">{c.row.service}</td>
+                                                    <td className="py-3 text-right text-xs font-semibold text-[var(--dv-text-soft)]">{fmt(c.planned)}</td>
                                                     <td className="py-3 text-right text-xs font-black text-brand-accent">{fmt(c.real)}</td>
                                                     <td className="py-3 text-right text-xs font-black text-red-500">{fmtSigned(c.desvio)}</td>
                                                     <td className={`py-3 text-right pr-1 text-xs font-black ${aderClass(c.aderencia)}`}>{c.aderencia.toFixed(0)}%</td>
@@ -473,23 +524,23 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
                         </div>
 
                         {/* POR ENGENHEIRO */}
-                        <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl lg:col-span-2 flex flex-col">
-                            <h4 className="text-xs font-black uppercase tracking-widest text-white mb-6 flex items-center gap-2"><User size={16} className="text-brand-accent" /> Desvios por Engenheiro</h4>
+                        <div className="p-8 bg-[var(--dv-surface)] border border-[var(--dv-border)] rounded-3xl shadow-2xl lg:col-span-2 flex flex-col">
+                            <h4 className="text-xs font-black uppercase tracking-widest text-[var(--dv-text-strong)] mb-6 flex items-center gap-2"><User size={16} className="text-brand-accent" /> Desvios por Engenheiro</h4>
                             <div className="overflow-x-auto custom-scrollbar">
                                 <table className="w-full text-left border-collapse min-w-[360px]">
                                     <thead>
-                                        <tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5">
+                                        <tr className="text-[10px] font-black text-[var(--dv-text-muted)] uppercase border-b border-[var(--dv-border)]">
                                             <th className="pb-4">Engenheiro</th>
                                             <th className="pb-4 text-center">Itens</th>
                                             <th className="pb-4 text-center">Atras.</th>
                                             <th className="pb-4 text-right pr-1">Aderência</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-white/5">
+                                    <tbody className="divide-y divide-[var(--dv-border)]">
                                         {byEngineer.map(e => (
-                                            <tr key={e.eng} className="hover:bg-white/5">
-                                                <td className="py-3 font-bold text-xs truncate max-w-[140px] text-gray-300">{e.eng}</td>
-                                                <td className="py-3 text-center text-xs font-semibold text-gray-400">{e.total}</td>
+                                            <tr key={e.eng} className="hover:bg-[var(--dv-hover)]">
+                                                <td className="py-3 font-bold text-xs truncate max-w-[140px] text-[var(--dv-text)]">{e.eng}</td>
+                                                <td className="py-3 text-center text-xs font-semibold text-[var(--dv-text-soft)]">{e.total}</td>
                                                 <td className="py-3 text-center text-xs font-black text-red-500">{e.atrasados || '-'}</td>
                                                 <td className={`py-3 text-right pr-1 text-xs font-black ${aderClass(e.aderencia)}`}>{e.aderencia.toFixed(0)}%</td>
                                             </tr>
@@ -507,53 +558,53 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
             {/* MODAL DETALHE POR VÃO / APOIO */}
             {detailService && detailSummary && (
                 <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm" role="presentation" onClick={() => setDetailService(null)}>
-                    <div role="dialog" aria-modal="true" className="w-full max-w-4xl max-h-[88vh] flex flex-col rounded-2xl border border-white/15 bg-[#0f1624] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                    <div role="dialog" aria-modal="true" className="w-full max-w-4xl max-h-[88vh] flex flex-col rounded-2xl border border-[var(--dv-border-strong)] bg-[var(--dv-surface-2)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
                         {/* Cabeçalho */}
-                        <div className="flex items-start justify-between gap-4 p-6 border-b border-white/10">
+                        <div className="flex items-start justify-between gap-4 p-6 border-b border-[var(--dv-border)]">
                             <div>
                                 <div className="flex items-center gap-2 mb-1">
                                     <div className="p-1.5 bg-brand-accent/20 rounded-lg text-brand-accent"><Building2 size={16} /></div>
-                                    <h2 className="text-lg font-black uppercase italic tracking-tight text-white">{detailService} <span className="text-xs text-gray-500 not-italic">({detailSummary.unit})</span></h2>
+                                    <h2 className="text-lg font-black uppercase italic tracking-tight text-[var(--dv-text-strong)]">{detailService} <span className="text-xs text-[var(--dv-text-muted)] not-italic">({detailSummary.unit})</span></h2>
                                 </div>
-                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Detalhe de desvios por vão / apoio · acumulado até {cutDateLabel}</p>
+                                <p className="text-[10px] text-[var(--dv-text-muted)] font-bold uppercase tracking-wider">Detalhe de desvios por vão / apoio · acumulado até {cutDateLabel}</p>
                             </div>
-                            <button type="button" onClick={() => setDetailService(null)} className="shrink-0 p-2 rounded-lg border border-white/10 text-gray-400 hover:bg-white/10 hover:text-white transition-colors" title="Fechar (Esc)"><X size={16} /></button>
+                            <button type="button" onClick={() => setDetailService(null)} className="shrink-0 p-2 rounded-lg border border-[var(--dv-border)] text-[var(--dv-text-soft)] hover:bg-[var(--dv-hover)] hover:text-[var(--dv-text-strong)] transition-colors" title="Fechar (Esc)"><X size={16} /></button>
                         </div>
 
                         {/* Resumo do serviço */}
-                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-5 border-b border-white/5">
-                            <div className="text-center"><p className="text-[9px] font-black text-gray-500 uppercase mb-0.5">Itens</p><p className="text-lg font-black text-white">{detailSummary.total}</p></div>
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-5 border-b border-[var(--dv-border)]">
+                            <div className="text-center"><p className="text-[9px] font-black text-[var(--dv-text-muted)] uppercase mb-0.5">Itens</p><p className="text-lg font-black text-[var(--dv-text-strong)]">{detailSummary.total}</p></div>
                             <div className="text-center"><p className="text-[9px] font-black text-red-400 uppercase mb-0.5">Atrasados</p><p className="text-lg font-black text-red-500">{fmt(Math.max(0, detailSummary.planned - detailSummary.real))}</p></div>
-                            <div className="text-center"><p className="text-[9px] font-black text-gray-500 uppercase mb-0.5">Prev ({baselineLabel})</p><p className="text-lg font-black text-gray-300">{fmt(detailSummary.planned)}</p></div>
+                            <div className="text-center"><p className="text-[9px] font-black text-[var(--dv-text-muted)] uppercase mb-0.5">Prev ({baselineLabel})</p><p className="text-lg font-black text-[var(--dv-text)]">{fmt(detailSummary.planned)}</p></div>
                             <div className="text-center"><p className="text-[9px] font-black text-brand-accent uppercase mb-0.5">Realizado</p><p className="text-lg font-black text-brand-accent">{fmt(detailSummary.real)}</p></div>
-                            <div className="text-center"><p className="text-[9px] font-black text-gray-500 uppercase mb-0.5">Aderência</p><p className={`text-lg font-black ${aderClass(detailSummary.aderencia)}`}>{detailSummary.aderencia.toFixed(0)}%</p></div>
+                            <div className="text-center"><p className="text-[9px] font-black text-[var(--dv-text-muted)] uppercase mb-0.5">Aderência</p><p className={`text-lg font-black ${aderClass(detailSummary.aderencia)}`}>{detailSummary.aderencia.toFixed(0)}%</p></div>
                         </div>
 
                         {/* Tabela de vãos */}
                         <div className="flex-1 overflow-y-auto custom-scrollbar px-5 pb-5">
                             <table className="w-full text-left border-collapse min-w-[560px]">
-                                <thead className="sticky top-0 z-20 bg-[#0f1624] shadow-[0_1px_0_0_rgba(255,255,255,0.08)]">
-                                    <tr className="text-[10px] font-black text-gray-500 uppercase">
-                                        <th className="pt-5 pb-3 bg-[#0f1624]">Obra / Vão</th>
-                                        <th className="pt-5 pb-3 bg-[#0f1624]">Engenheiro</th>
-                                        <th className="pt-5 pb-3 text-right bg-[#0f1624]">Prev ({baselineLabel})</th>
-                                        <th className="pt-5 pb-3 text-right bg-[#0f1624]">Real</th>
-                                        <th className="pt-5 pb-3 text-right bg-[#0f1624]">Desvio</th>
-                                        <th className="pt-5 pb-3 text-right pr-1 bg-[#0f1624]">Ader.</th>
-                                        <th className="pt-5 pb-3 w-[110px] bg-[#0f1624]">Status</th>
+                                <thead className="sticky top-0 z-20 bg-[var(--dv-surface-2)] shadow-[0_1px_0_0_rgba(255,255,255,0.08)]">
+                                    <tr className="text-[10px] font-black text-[var(--dv-text-muted)] uppercase">
+                                        <th className="pt-5 pb-3 bg-[var(--dv-surface-2)]">Obra / Vão</th>
+                                        <th className="pt-5 pb-3 bg-[var(--dv-surface-2)]">Engenheiro</th>
+                                        <th className="pt-5 pb-3 text-right bg-[var(--dv-surface-2)]">Prev ({baselineLabel})</th>
+                                        <th className="pt-5 pb-3 text-right bg-[var(--dv-surface-2)]">Real</th>
+                                        <th className="pt-5 pb-3 text-right bg-[var(--dv-surface-2)]">Desvio</th>
+                                        <th className="pt-5 pb-3 text-right pr-1 bg-[var(--dv-surface-2)]">Ader.</th>
+                                        <th className="pt-5 pb-3 w-[110px] bg-[var(--dv-surface-2)]">Status</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-white/5">
+                                <tbody className="divide-y divide-[var(--dv-border)]">
                                     {detailItems.map((d, i) => (
-                                        <tr key={d.row.id + i} className="hover:bg-white/5">
+                                        <tr key={d.row.id + i} className="hover:bg-[var(--dv-hover)]">
                                             <td className="py-2.5 font-bold text-xs">{d.row.oae || '—'} <span className="text-[9px] text-blue-400 font-black">{d.row.apoio || ''}</span></td>
-                                            <td className="py-2.5 text-[10px] text-gray-400 font-semibold">{d.row.responsible || 'N/A'}</td>
-                                            <td className="py-2.5 text-right text-xs font-semibold text-gray-400">{fmt(d.planned)}</td>
+                                            <td className="py-2.5 text-[10px] text-[var(--dv-text-soft)] font-semibold">{d.row.responsible || 'N/A'}</td>
+                                            <td className="py-2.5 text-right text-xs font-semibold text-[var(--dv-text-soft)]">{fmt(d.planned)}</td>
                                             <td className="py-2.5 text-right text-xs font-black text-brand-accent">{fmt(d.real)}</td>
-                                            <td className={`py-2.5 text-right text-xs font-black ${d.desvio < -0.01 ? 'text-red-500' : d.desvio > 0.01 ? 'text-cyan-400' : 'text-gray-400'}`}>{fmtSigned(d.desvio)}</td>
+                                            <td className={`py-2.5 text-right text-xs font-black ${d.desvio < -0.01 ? 'text-red-500' : d.desvio > 0.01 ? 'text-cyan-400' : 'text-[var(--dv-text-soft)]'}`}>{fmtSigned(d.desvio)}</td>
                                             <td className={`py-2.5 text-right pr-1 text-xs font-black ${aderClass(d.aderencia)}`}>{d.aderencia.toFixed(0)}%</td>
                                             <td className="py-2.5">
-                                                <div className="h-2 w-full rounded-full bg-white/5 overflow-hidden">
+                                                <div className="h-2 w-full rounded-full bg-[var(--dv-subtle)] overflow-hidden">
                                                     <div className="h-full rounded-full" style={{ width: `${Math.min(100, d.aderencia)}%`, background: aderHex(d.aderencia) }} />
                                                 </div>
                                             </td>
