@@ -201,6 +201,6 @@ export interface MonitoringRow {
   oae: string;
   apoio: string;
   responsible?: string;
-  daily_data: Record<string, { prev: number; real: number }>;
+  daily_data: Record<string, { prev: number; real: number; lb05?: number }>;
   updated_at?: string;
 }

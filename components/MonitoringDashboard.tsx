@@ -62,6 +62,8 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
     const [selectedEng, setSelectedEng] = useState('ALL');
     const [dateRange, setDateRange] = useState<[number, number]>([0, 0]);
     const [statusDate, setStatusDate] = useState('');
+    const [visibleSeries, setVisibleSeries] = useState<{ lb04: boolean; real: boolean; lb05: boolean }>({ lb04: true, real: true, lb05: false });
+    const toggleSeries = (key: 'lb04' | 'real' | 'lb05') => setVisibleSeries(prev => ({ ...prev, [key]: !prev[key] }));
 
     useEffect(() => {
         const load = async () => {
@@ -299,8 +301,8 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
     };
 
     const weeklyData = useMemo(() => {
-        let cumPrev = 0, cumReal = 0;
-        const weekMap: Record<string, { prev: number, real: number }> = {};
+        let cumPrev = 0, cumReal = 0, cumLb05 = 0;
+        const weekMap: Record<string, { prev: number, real: number, lb05: number }> = {};
         const getSaturdayEnd = (dStr: string) => {
             const d = new Date(dStr + 'T12:00:00');
             const day = d.getDay();
@@ -311,19 +313,20 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
         };
         uniqueDates.filter(d => d >= startDate && d <= endDate).forEach(date => {
             const sat = getSaturdayEnd(date);
-            if (!weekMap[sat]) weekMap[sat] = { prev: 0, real: 0 };
+            if (!weekMap[sat]) weekMap[sat] = { prev: 0, real: 0, lb05: 0 };
             filteredRows.forEach(r => {
                 const val = r.daily_data[date];
                 if (val) {
                     weekMap[sat].prev += val.prev || 0;
                     weekMap[sat].real += val.real || 0;
+                    weekMap[sat].lb05 += val.lb05 || 0;
                 }
             });
         });
         return Object.keys(weekMap).sort().map(satKey => {
             const w = weekMap[satKey];
-            cumPrev += w.prev; cumReal += w.real;
-            return { name: satKey.split('-').reverse().slice(0, 2).join('/'), prev: w.prev, real: w.real, cumPrev, cumReal };
+            cumPrev += w.prev; cumReal += w.real; cumLb05 += w.lb05;
+            return { name: satKey.split('-').reverse().slice(0, 2).join('/'), prev: w.prev, real: w.real, lb05: w.lb05, cumPrev, cumReal, cumLb05 };
         });
     }, [filteredRows, startDate, endDate, uniqueDates]);
 
@@ -422,6 +425,32 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                         </div>
                     </div>
 
+                    <div className="flex flex-wrap items-center gap-3 p-4 bg-[#0a0f18]/80 backdrop-blur-3xl border border-white/5 rounded-3xl mb-8 shadow-2xl">
+                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider mr-1">Comparar Linhas Base:</span>
+                        {([
+                            { key: 'lb04' as const, label: 'LB04 (Prev.)', color: '#9ca3af', activeBg: 'bg-gray-500/15', activeBorder: 'border-gray-400/60', activeText: 'text-gray-200' },
+                            { key: 'real' as const, label: 'Real', color: '#e35a10', activeBg: 'bg-brand-accent/15', activeBorder: 'border-brand-accent/60', activeText: 'text-brand-accent' },
+                            { key: 'lb05' as const, label: 'LB05', color: '#22d3ee', activeBg: 'bg-cyan-500/15', activeBorder: 'border-cyan-400/60', activeText: 'text-cyan-300' },
+                        ]).map(opt => {
+                            const active = visibleSeries[opt.key];
+                            return (
+                                <button
+                                    key={opt.key}
+                                    type="button"
+                                    onClick={() => toggleSeries(opt.key)}
+                                    aria-pressed={active}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-[11px] font-black uppercase tracking-wide transition-all active:scale-95 ${active ? `${opt.activeBg} ${opt.activeBorder} ${opt.activeText}` : 'bg-black/30 border-white/10 text-gray-600 hover:border-white/20'}`}
+                                >
+                                    <span className={`flex h-4 w-4 items-center justify-center rounded border ${active ? 'border-transparent' : 'border-gray-600'}`} style={active ? { background: opt.color } : undefined}>
+                                        {active && <CheckCircle2 size={12} className="text-black/70" strokeWidth={3} />}
+                                    </span>
+                                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: opt.color, opacity: active ? 1 : 0.3 }} />
+                                    {opt.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+
                     {selectedService === 'ALL' && (
                         <div className="mb-6 flex justify-center">
                             <span className="text-brand-accent bg-[#e35a10]/10 px-4 py-2 rounded-full font-black uppercase text-xs tracking-widest animate-pulse flex items-center gap-2 border border-brand-accent/20">
@@ -456,9 +485,12 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                                         <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{fill: '#e35a10', fontSize: 10}} />
                                         <Tooltip contentStyle={{backgroundColor: '#0a0f18', border: '1px solid #ffffff10', borderRadius: '16px'}} />
                                         <Legend verticalAlign="top" height={36}/>
-                                        <Bar yAxisId="left" dataKey="prev" name="Previsto Semanal" fill="#374151" radius={[4, 4, 0, 0]} barSize={25}><LabelList dataKey="prev" position="top" content={(props: any) => {const { x, y, width, value, index } = props; if (index === undefined || !weeklyData[index] || value === 0 || value === weeklyData[index].real) return null; return <text x={x + width / 2} y={y - 5} fill="#4b5563" fontSize={9} fontWeight="bold" textAnchor="middle">{Number.isInteger(value) ? value : Number(value).toFixed(2)}</text>; }} /></Bar>
-                                        <Bar yAxisId="left" dataKey="real" name="Realizado Semanal" fill="#ea580c" radius={[4, 4, 0, 0]} barSize={25}><LabelList dataKey="real" position="top" style={{fontSize: 9, fill: '#ea580c', fontWeight: 'bold'}} formatter={(val: any) => typeof val === 'number' ? (Number.isInteger(val) ? val : Number(val).toFixed(2)) : val} /></Bar>
-                                        <Area yAxisId="right" type="monotone" dataKey="cumPrev" stroke="#6b7280" strokeWidth={1} strokeDasharray="4 4" fill="transparent" dot={false} /><Area yAxisId="right" type="monotone" dataKey="cumReal" stroke="#e35a10" strokeWidth={2} fill="transparent" dot={false} />
+                                        {visibleSeries.lb04 && <Bar yAxisId="left" dataKey="prev" name="Previsto LB04" fill="#374151" radius={[4, 4, 0, 0]} barSize={25}><LabelList dataKey="prev" position="top" content={(props: any) => {const { x, y, width, value, index } = props; if (index === undefined || !weeklyData[index] || value === 0 || value === weeklyData[index].real) return null; return <text x={x + width / 2} y={y - 5} fill="#4b5563" fontSize={9} fontWeight="bold" textAnchor="middle">{Number.isInteger(value) ? value : Number(value).toFixed(2)}</text>; }} /></Bar>}
+                                        {visibleSeries.real && <Bar yAxisId="left" dataKey="real" name="Realizado" fill="#ea580c" radius={[4, 4, 0, 0]} barSize={25}><LabelList dataKey="real" position="top" style={{fontSize: 9, fill: '#ea580c', fontWeight: 'bold'}} formatter={(val: any) => typeof val === 'number' ? (Number.isInteger(val) ? val : Number(val).toFixed(2)) : val} /></Bar>}
+                                        {visibleSeries.lb05 && <Bar yAxisId="left" dataKey="lb05" name="Previsto LB05" fill="#0e7490" radius={[4, 4, 0, 0]} barSize={25}><LabelList dataKey="lb05" position="top" style={{fontSize: 9, fill: '#22d3ee', fontWeight: 'bold'}} formatter={(val: any) => typeof val === 'number' ? (val === 0 ? '' : (Number.isInteger(val) ? val : Number(val).toFixed(2))) : val} /></Bar>}
+                                        {visibleSeries.lb04 && <Area yAxisId="right" type="monotone" dataKey="cumPrev" name="Acum. LB04" stroke="#6b7280" strokeWidth={1} strokeDasharray="4 4" fill="transparent" dot={false} />}
+                                        {visibleSeries.real && <Area yAxisId="right" type="monotone" dataKey="cumReal" name="Acum. Real" stroke="#e35a10" strokeWidth={2} fill="transparent" dot={false} />}
+                                        {visibleSeries.lb05 && <Area yAxisId="right" type="monotone" dataKey="cumLb05" name="Acum. LB05" stroke="#22d3ee" strokeWidth={1.5} strokeDasharray="6 3" fill="transparent" dot={false} />}
                                     </ComposedChart>
                                 </ResponsiveContainer>
                             </div>

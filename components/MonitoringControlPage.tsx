@@ -162,26 +162,26 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
         return days;
     };
 
-    const getMonthTotal = (row: MonitoringRow, monthKey: string, type: 'prev' | 'real') => {
+    const getMonthTotal = (row: MonitoringRow, monthKey: string, type: 'prev' | 'real' | 'lb05') => {
         let sum = 0;
         const days = getMonthDays(monthKey);
         days.forEach(d => sum += row.daily_data?.[d]?.[type] || 0);
         return sum;
     };
 
-    const getGrandTotal = (row: MonitoringRow, type: 'prev' | 'real') => {
+    const getGrandTotal = (row: MonitoringRow, type: 'prev' | 'real' | 'lb05') => {
         let sum = 0;
         Object.values(row.daily_data || {}).forEach(vals => sum += (vals as any)[type] || 0);
         return sum;
     };
 
-    const handleCellChange = (rowId: string, dateKey: string, type: 'prev' | 'real', value: string) => {
+    const handleCellChange = (rowId: string, dateKey: string, type: 'prev' | 'real' | 'lb05', value: string) => {
         const val = value.replace(',', '.');
         const num = parseFloat(val);
         setMonitoringRows(prev => prev.map(r => {
             if (r.id === rowId) {
                 const newData = { ...r.daily_data };
-                if (!newData[dateKey]) newData[dateKey] = { prev: 0, real: 0 };
+                if (!newData[dateKey]) newData[dateKey] = { prev: 0, real: 0, lb05: 0 };
                 newData[dateKey] = { ...newData[dateKey], [type]: isNaN(num) ? 0 : num };
                 return { ...r, daily_data: newData };
             }
@@ -408,11 +408,11 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                 </thead>
 
                                 <tbody>
-                                    {/* TOTAL GERAL ROW - PREV — sticky individual nas cells */}
+                                    {/* TOTAL GERAL ROW - LB04 (PREV) — sticky individual nas cells */}
                                     <tr style={{background: '#1a1f2c'}} className="h-8">
                                         <td style={{left: 0, top: 60, width: W_OAE, background: '#1a1f2c'}} className="sticky z-[160] px-2 pt-4 pb-0 border-r text-brand-accent text-center font-black uppercase text-[11px] align-bottom">TOTAL</td>
                                         <td style={{left: W_OAE, top: 60, width: W_APOIO + W_RESP, background: '#1a1f2c', minWidth: W_APOIO + W_RESP}} colSpan={2} className="sticky z-[160] px-2 pt-4 pb-0 border-r text-brand-accent text-center font-black uppercase text-[11px] align-bottom">GERAL</td>
-                                        <td style={{left: W_OAE + W_APOIO + W_RESP, top: 60, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b border-white/10 text-center text-[9px] font-black text-gray-200 uppercase">PREV</td>
+                                        <td style={{left: W_OAE + W_APOIO + W_RESP, top: 60, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b border-white/10 text-center text-[9px] font-black text-gray-200 uppercase">LB04</td>
                                         <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO, top: 60, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b border-brand-accent/30 text-center text-gray-100 font-black text-[11px]">
                                             {filteredRows.reduce((a, r) => a + getGrandTotal(r, 'prev'), 0).toLocaleString('pt-BR')}
                                         </td>
@@ -429,20 +429,39 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                     </tr>
                                     {/* TOTAL GERAL ROW - REAL */}
                                     <tr style={{background: '#1a1f2c'}} className="h-8">
-                                        <td style={{left: 0, top: 92, width: W_OAE, background: '#1a1f2c'}} className="sticky z-[160] px-2 pt-0 pb-4 border-r border-b-2 border-brand-accent/30"></td>
-                                        <td style={{left: W_OAE, top: 92, width: W_APOIO + W_RESP, background: '#1a1f2c', minWidth: W_APOIO + W_RESP}} colSpan={2} className="sticky z-[160] px-2 pt-0 pb-4 border-r border-b-2 border-brand-accent/30"></td>
-                                        <td style={{left: W_OAE + W_APOIO + W_RESP, top: 92, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b-2 border-brand-accent/30 text-center text-[8px] font-black text-brand-accent uppercase">REAL</td>
-                                        <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO, top: 92, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b-2 border-brand-accent/30 text-center text-brand-accent font-black text-[11px]">
+                                        <td style={{left: 0, top: 92, width: W_OAE, background: '#1a1f2c'}} className="sticky z-[160] px-2 py-0 border-r border-brand-accent/30"></td>
+                                        <td style={{left: W_OAE, top: 92, width: W_APOIO + W_RESP, background: '#1a1f2c', minWidth: W_APOIO + W_RESP}} colSpan={2} className="sticky z-[160] px-2 py-0 border-r border-brand-accent/30"></td>
+                                        <td style={{left: W_OAE + W_APOIO + W_RESP, top: 92, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b border-brand-accent/30 text-center text-[8px] font-black text-brand-accent uppercase">REAL</td>
+                                        <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO, top: 92, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b border-brand-accent/30 text-center text-brand-accent font-black text-[11px]">
                                             {filteredRows.reduce((a, r) => a + getGrandTotal(r, 'real'), 0).toLocaleString('pt-BR')}
                                         </td>
-                                        <td style={{left: LEFT_STICKY_DEL, top: 92, width: W_DEL, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b-2 border-brand-accent/30" aria-hidden />
+                                        <td style={{left: LEFT_STICKY_DEL, top: 92, width: W_DEL, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b border-brand-accent/30" aria-hidden />
                                         {availableMonths.map(m => {
                                             const exp = expandedMonths.has(m);
                                             const monthSum = filteredRows.reduce((a, r) => a + getMonthTotal(r, m, 'real'), 0);
-                                            if (!exp) return <td key={`GR-${m}`} style={{top: 92, background: '#1a1f2c'}} className="sticky z-[120] p-1 border-r border-b-2 border-brand-accent/30 text-center font-black text-brand-accent text-[11px]">{monthSum.toLocaleString('pt-BR')}</td>;
+                                            if (!exp) return <td key={`GR-${m}`} style={{top: 92, background: '#1a1f2c'}} className="sticky z-[120] p-1 border-r border-b border-brand-accent/30 text-center font-black text-brand-accent text-[11px]">{monthSum.toLocaleString('pt-BR')}</td>;
                                             return <React.Fragment key={`GR-exp-${m}`}>
-                                                <td style={{top: 92, background: '#2a1810'}} className="sticky z-[120] p-1 border-r border-b-2 border-brand-accent/40 text-center text-brand-accent font-black text-[11px]">{monthSum.toLocaleString('pt-BR')}</td>
-                                                {getMonthDays(m).map(d => <td key={`GR-d-${d}`} style={{top: 92, background: '#1a1f2c'}} className="sticky z-[120] p-1 border-r border-b-2 border-white/10 text-center text-brand-accent font-black">{filteredRows.reduce((a, r) => a + (r.daily_data?.[d]?.real || 0), 0)}</td>)}
+                                                <td style={{top: 92, background: '#2a1810'}} className="sticky z-[120] p-1 border-r border-b border-brand-accent/40 text-center text-brand-accent font-black text-[11px]">{monthSum.toLocaleString('pt-BR')}</td>
+                                                {getMonthDays(m).map(d => <td key={`GR-d-${d}`} style={{top: 92, background: '#1a1f2c'}} className="sticky z-[120] p-1 border-r border-b border-white/10 text-center text-brand-accent font-black">{filteredRows.reduce((a, r) => a + (r.daily_data?.[d]?.real || 0), 0)}</td>)}
+                                            </React.Fragment>;
+                                        })}
+                                    </tr>
+                                    {/* TOTAL GERAL ROW - LB05 */}
+                                    <tr style={{background: '#1a1f2c'}} className="h-8">
+                                        <td style={{left: 0, top: 124, width: W_OAE, background: '#1a1f2c'}} className="sticky z-[160] px-2 pt-0 pb-4 border-r border-b-2 border-brand-accent/30"></td>
+                                        <td style={{left: W_OAE, top: 124, width: W_APOIO + W_RESP, background: '#1a1f2c', minWidth: W_APOIO + W_RESP}} colSpan={2} className="sticky z-[160] px-2 pt-0 pb-4 border-r border-b-2 border-brand-accent/30"></td>
+                                        <td style={{left: W_OAE + W_APOIO + W_RESP, top: 124, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b-2 border-cyan-500/40 text-center text-[8px] font-black text-cyan-400 uppercase">LB05</td>
+                                        <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO, top: 124, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b-2 border-cyan-500/40 text-center text-cyan-400 font-black text-[11px]">
+                                            {filteredRows.reduce((a, r) => a + getGrandTotal(r, 'lb05'), 0).toLocaleString('pt-BR')}
+                                        </td>
+                                        <td style={{left: LEFT_STICKY_DEL, top: 124, width: W_DEL, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b-2 border-cyan-500/40" aria-hidden />
+                                        {availableMonths.map(m => {
+                                            const exp = expandedMonths.has(m);
+                                            const monthSum = filteredRows.reduce((a, r) => a + getMonthTotal(r, m, 'lb05'), 0);
+                                            if (!exp) return <td key={`GL-${m}`} style={{top: 124, background: '#1a1f2c'}} className="sticky z-[120] p-1 border-r border-b-2 border-cyan-500/30 text-center font-black text-cyan-400 text-[11px]">{monthSum.toLocaleString('pt-BR')}</td>;
+                                            return <React.Fragment key={`GL-exp-${m}`}>
+                                                <td style={{top: 124, background: '#0f2a3a'}} className="sticky z-[120] p-1 border-r border-b-2 border-cyan-500/40 text-center text-cyan-400 font-black text-[11px]">{monthSum.toLocaleString('pt-BR')}</td>
+                                                {getMonthDays(m).map(d => <td key={`GL-d-${d}`} style={{top: 124, background: '#1a1f2c'}} className="sticky z-[120] p-1 border-r border-b-2 border-white/10 text-center text-cyan-400 font-black">{filteredRows.reduce((a, r) => a + (r.daily_data?.[d]?.lb05 || 0), 0)}</td>)}
                                             </React.Fragment>;
                                         })}
                                     </tr>
@@ -466,7 +485,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                                     <input type="text" value={row.responsible ?? ''} onChange={(e) => handleMetaChange(row.id, 'responsible', e.target.value)} placeholder="—"
                                                         className="w-full min-w-0 px-2 py-1 bg-transparent border-none outline-none text-gray-300 font-semibold text-[10px] focus:bg-white/10 rounded placeholder:text-gray-600" />
                                                 </td>
-                                                <td style={{left: W_OAE + W_APOIO + W_RESP, background: bg}} className="sticky z-[140] p-1 border-r border-b border-blue-500/30 text-center text-[8px] font-black text-blue-500 uppercase group-hover:!bg-[#1a2b4b]">Prev</td>
+                                                <td style={{left: W_OAE + W_APOIO + W_RESP, background: bg}} className="sticky z-[140] p-1 border-r border-b border-blue-500/30 text-center text-[8px] font-black text-blue-500 uppercase group-hover:!bg-[#1a2b4b]">LB04</td>
                                                 <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO, background: bg}} className="sticky z-[140] p-1 border-r border-b border-white/10 text-center font-bold text-gray-400 group-hover:!bg-[#1a2b4b]">{getGrandTotal(row, 'prev')}</td>
                                                 <td style={{left: LEFT_STICKY_DEL, background: bg}} className="sticky z-[140] p-0.5 border-r border-b border-white/10 text-center align-bottom group-hover:!bg-[#1a2b4b]">
                                                     <button
@@ -495,24 +514,47 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                                     </React.Fragment>;
                                                 })}
                                             </tr>
-                                            {/* REAL ROW — mesma cor bg nas 3 primeiras (simula merge) */}
+                                            {/* REAL ROW — linha do meio, mesma cor bg nas 3 primeiras (simula merge) */}
                                             <tr style={{background: bg}} className="group transition-colors">
-                                                <td style={{left: 0, background: bg}} className="sticky z-[140] px-2 pt-0 pb-4 border-r border-b-2 border-white/10 group-hover:!bg-[#243b5e]"></td>
-                                                <td style={{left: W_OAE, background: bg}} className="sticky z-[140] px-2 pt-0 pb-4 border-r border-b-2 border-white/10 group-hover:!bg-[#243b5e]"></td>
-                                                <td style={{left: W_OAE + W_APOIO, background: bg}} className="sticky z-[140] px-2 pt-0 pb-4 border-r border-b-2 border-white/10 group-hover:!bg-[#243b5e]"></td>
-                                                <td style={{left: W_OAE + W_APOIO + W_RESP, background: bg}} className="sticky z-[140] p-1 border-r border-b-2 border-brand-accent/30 text-center text-[8px] font-black text-brand-accent uppercase group-hover:!bg-[#243b5e]">Real</td>
-                                                <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO, background: bg}} className="sticky z-[140] p-1 border-r border-b-2 border-brand-accent/30 text-center font-black text-brand-accent group-hover:!bg-[#243b5e]">{getGrandTotal(row, 'real')}</td>
-                                                <td style={{left: LEFT_STICKY_DEL, background: bg}} className="sticky z-[140] p-1 border-r border-b-2 border-brand-accent/30 group-hover:!bg-[#243b5e]" aria-hidden />
+                                                <td style={{left: 0, background: bg}} className="sticky z-[140] px-2 py-0 border-r border-white/10 group-hover:!bg-[#243b5e]"></td>
+                                                <td style={{left: W_OAE, background: bg}} className="sticky z-[140] px-2 py-0 border-r border-white/10 group-hover:!bg-[#243b5e]"></td>
+                                                <td style={{left: W_OAE + W_APOIO, background: bg}} className="sticky z-[140] px-2 py-0 border-r border-white/10 group-hover:!bg-[#243b5e]"></td>
+                                                <td style={{left: W_OAE + W_APOIO + W_RESP, background: bg}} className="sticky z-[140] p-1 border-r border-b border-brand-accent/30 text-center text-[8px] font-black text-brand-accent uppercase group-hover:!bg-[#243b5e]">Real</td>
+                                                <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO, background: bg}} className="sticky z-[140] p-1 border-r border-b border-brand-accent/30 text-center font-black text-brand-accent group-hover:!bg-[#243b5e]">{getGrandTotal(row, 'real')}</td>
+                                                <td style={{left: LEFT_STICKY_DEL, background: bg}} className="sticky z-[140] p-1 border-r border-b border-brand-accent/30 group-hover:!bg-[#243b5e]" aria-hidden />
                                                 {availableMonths.map(m => {
                                                     const exp = expandedMonths.has(m);
                                                     const total = getMonthTotal(row, m, 'real');
-                                                    if (!exp) return <td key={`r-s-${m}`} className="p-1 border-r border-b-2 border-white/10 text-center text-brand-accent/80 bg-brand-accent/10 font-bold">{total}</td>;
+                                                    if (!exp) return <td key={`r-s-${m}`} className="p-1 border-r border-b border-white/10 text-center text-brand-accent/80 bg-brand-accent/10 font-bold">{total}</td>;
                                                     return <React.Fragment key={`r-e-${m}`}>
-                                                        <td className="p-1 border-r border-b-2 border-brand-accent/20 text-center bg-brand-accent/20 text-brand-accent font-black">{total}</td>
+                                                        <td className="p-1 border-r border-b border-brand-accent/20 text-center bg-brand-accent/20 text-brand-accent font-black">{total}</td>
                                                         {getMonthDays(m).map(d => (
-                                                            <td key={d} className="p-0 border-r border-b-2 border-white/10 w-[28px] bg-brand-accent/5">
+                                                            <td key={d} className="p-0 border-r border-b border-white/10 w-[28px] bg-brand-accent/5">
                                                                 <input type="text" value={row.daily_data?.[d]?.real || ''} onChange={(e) => handleCellChange(row.id, d, 'real', e.target.value)}
                                                                     className="w-full h-8 text-center bg-transparent border-none outline-none text-white font-bold text-[10px] focus:bg-brand-accent/20" />
+                                                            </td>
+                                                        ))}
+                                                    </React.Fragment>;
+                                                })}
+                                            </tr>
+                                            {/* LB05 ROW — linha inferior que fecha o grupo, editável e salva na base */}
+                                            <tr style={{background: bg}} className="group transition-colors">
+                                                <td style={{left: 0, background: bg}} className="sticky z-[140] px-2 pt-0 pb-4 border-r border-b-2 border-white/10 group-hover:!bg-[#10303f]"></td>
+                                                <td style={{left: W_OAE, background: bg}} className="sticky z-[140] px-2 pt-0 pb-4 border-r border-b-2 border-white/10 group-hover:!bg-[#10303f]"></td>
+                                                <td style={{left: W_OAE + W_APOIO, background: bg}} className="sticky z-[140] px-2 pt-0 pb-4 border-r border-b-2 border-white/10 group-hover:!bg-[#10303f]"></td>
+                                                <td style={{left: W_OAE + W_APOIO + W_RESP, background: bg}} className="sticky z-[140] p-1 border-r border-b-2 border-cyan-500/40 text-center text-[8px] font-black text-cyan-400 uppercase group-hover:!bg-[#10303f]">LB05</td>
+                                                <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO, background: bg}} className="sticky z-[140] p-1 border-r border-b-2 border-cyan-500/40 text-center font-black text-cyan-400 group-hover:!bg-[#10303f]">{getGrandTotal(row, 'lb05')}</td>
+                                                <td style={{left: LEFT_STICKY_DEL, background: bg}} className="sticky z-[140] p-1 border-r border-b-2 border-cyan-500/40 group-hover:!bg-[#10303f]" aria-hidden />
+                                                {availableMonths.map(m => {
+                                                    const exp = expandedMonths.has(m);
+                                                    const total = getMonthTotal(row, m, 'lb05');
+                                                    if (!exp) return <td key={`l-s-${m}`} className="p-1 border-r border-b-2 border-cyan-500/20 text-center text-cyan-400/80 bg-cyan-500/10 font-bold">{total}</td>;
+                                                    return <React.Fragment key={`l-e-${m}`}>
+                                                        <td className="p-1 border-r border-b-2 border-cyan-500/20 text-center bg-cyan-500/15 text-cyan-400 font-black">{total}</td>
+                                                        {getMonthDays(m).map(d => (
+                                                            <td key={d} className="p-0 border-r border-b-2 border-white/10 w-[28px] bg-cyan-500/5">
+                                                                <input type="text" value={row.daily_data?.[d]?.lb05 || ''} onChange={(e) => handleCellChange(row.id, d, 'lb05', e.target.value)}
+                                                                    className="w-full h-8 text-center bg-transparent border-none outline-none text-cyan-300 font-bold text-[10px] focus:bg-cyan-500/20" />
                                                             </td>
                                                         ))}
                                                     </React.Fragment>;
