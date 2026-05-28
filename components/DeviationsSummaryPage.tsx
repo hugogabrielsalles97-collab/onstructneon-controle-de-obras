@@ -11,6 +11,8 @@ import {
     Target,
     LayoutDashboard,
     ListChecks,
+    ChevronRight,
+    X,
 } from 'lucide-react';
 import {
     ResponsiveContainer,
@@ -83,6 +85,7 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
     const [baselineKey, setBaselineKey] = useState<'prev' | 'lb05'>('prev');
     const [selectedService, setSelectedService] = useState('ALL');
     const [selectedEng, setSelectedEng] = useState('ALL');
+    const [detailService, setDetailService] = useState<string | null>(null);
 
     const baselineLabel = baselineKey === 'lb05' ? 'LB05' : 'LB04';
 
@@ -261,6 +264,23 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
         aderencia: Number(s.aderencia.toFixed(1)),
     })), [byService]);
 
+    /** Detalhe por vão/apoio do serviço selecionado no modal. */
+    const detailItems = useMemo(() => {
+        if (!detailService) return [];
+        return analyzed
+            .filter(a => a.row.service === detailService)
+            .sort((a, b) => a.aderencia - b.aderencia || a.desvio - b.desvio);
+    }, [detailService, analyzed]);
+
+    const detailSummary = useMemo(() => byService.find(s => s.service === detailService) || null, [byService, detailService]);
+
+    useEffect(() => {
+        if (!detailService) return;
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setDetailService(null); };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [detailService]);
+
     if (!user) return null;
     if (isLoading) return <div className="flex bg-[#060a12] h-screen items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-brand-accent" /></div>;
 
@@ -396,8 +416,8 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
                                     {byService.map(s => (
-                                        <tr key={s.service} className="hover:bg-white/5">
-                                            <td className="py-3 font-bold text-xs">{s.service} <span className="text-[9px] text-gray-500 font-normal">({s.unit})</span></td>
+                                        <tr key={s.service} onClick={() => setDetailService(s.service)} title="Ver detalhe por vão / apoio" className="group cursor-pointer hover:bg-white/5 transition-colors">
+                                            <td className="py-3 font-bold text-xs"><span className="inline-flex items-center gap-1.5"><ChevronRight size={13} className="text-gray-600 group-hover:text-brand-accent transition-colors" />{s.service} <span className="text-[9px] text-gray-500 font-normal">({s.unit})</span></span></td>
                                             <td className="py-3 text-center text-xs font-semibold text-gray-400">{s.total}</td>
                                             <td className="py-3 text-center text-xs font-black text-red-500">{s.atrasados || '-'}</td>
                                             <td className="py-3 text-right text-xs font-semibold text-gray-400">{fmt(s.planned)}</td>
@@ -483,6 +503,68 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
                     )}
                 </div>
             </main>
+
+            {/* MODAL DETALHE POR VÃO / APOIO */}
+            {detailService && detailSummary && (
+                <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm" role="presentation" onClick={() => setDetailService(null)}>
+                    <div role="dialog" aria-modal="true" className="w-full max-w-4xl max-h-[88vh] flex flex-col rounded-2xl border border-white/15 bg-[#0f1624] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                        {/* Cabeçalho */}
+                        <div className="flex items-start justify-between gap-4 p-6 border-b border-white/10">
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <div className="p-1.5 bg-brand-accent/20 rounded-lg text-brand-accent"><Building2 size={16} /></div>
+                                    <h2 className="text-lg font-black uppercase italic tracking-tight text-white">{detailService} <span className="text-xs text-gray-500 not-italic">({detailSummary.unit})</span></h2>
+                                </div>
+                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Detalhe de desvios por vão / apoio · acumulado até {cutDateLabel}</p>
+                            </div>
+                            <button type="button" onClick={() => setDetailService(null)} className="shrink-0 p-2 rounded-lg border border-white/10 text-gray-400 hover:bg-white/10 hover:text-white transition-colors" title="Fechar (Esc)"><X size={16} /></button>
+                        </div>
+
+                        {/* Resumo do serviço */}
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-5 border-b border-white/5">
+                            <div className="text-center"><p className="text-[9px] font-black text-gray-500 uppercase mb-0.5">Itens</p><p className="text-lg font-black text-white">{detailSummary.total}</p></div>
+                            <div className="text-center"><p className="text-[9px] font-black text-red-400 uppercase mb-0.5">Atrasados</p><p className="text-lg font-black text-red-500">{detailSummary.atrasados}</p></div>
+                            <div className="text-center"><p className="text-[9px] font-black text-gray-500 uppercase mb-0.5">Prev ({baselineLabel})</p><p className="text-lg font-black text-gray-300">{fmt(detailSummary.planned)}</p></div>
+                            <div className="text-center"><p className="text-[9px] font-black text-brand-accent uppercase mb-0.5">Realizado</p><p className="text-lg font-black text-brand-accent">{fmt(detailSummary.real)}</p></div>
+                            <div className="text-center"><p className="text-[9px] font-black text-gray-500 uppercase mb-0.5">Aderência</p><p className={`text-lg font-black ${aderClass(detailSummary.aderencia)}`}>{detailSummary.aderencia.toFixed(0)}%</p></div>
+                        </div>
+
+                        {/* Tabela de vãos */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar p-5">
+                            <table className="w-full text-left border-collapse min-w-[560px]">
+                                <thead className="sticky top-0 bg-[#0f1624] z-10">
+                                    <tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/10">
+                                        <th className="pb-3">Obra / Vão</th>
+                                        <th className="pb-3">Engenheiro</th>
+                                        <th className="pb-3 text-right">Prev ({baselineLabel})</th>
+                                        <th className="pb-3 text-right">Real</th>
+                                        <th className="pb-3 text-right">Desvio</th>
+                                        <th className="pb-3 text-right pr-1">Ader.</th>
+                                        <th className="pb-3 w-[110px]">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {detailItems.map((d, i) => (
+                                        <tr key={d.row.id + i} className="hover:bg-white/5">
+                                            <td className="py-2.5 font-bold text-xs">{d.row.oae || '—'} <span className="text-[9px] text-blue-400 font-black">{d.row.apoio || ''}</span></td>
+                                            <td className="py-2.5 text-[10px] text-gray-400 font-semibold">{d.row.responsible || 'N/A'}</td>
+                                            <td className="py-2.5 text-right text-xs font-semibold text-gray-400">{fmt(d.planned)}</td>
+                                            <td className="py-2.5 text-right text-xs font-black text-brand-accent">{fmt(d.real)}</td>
+                                            <td className={`py-2.5 text-right text-xs font-black ${d.desvio < -0.01 ? 'text-red-500' : d.desvio > 0.01 ? 'text-cyan-400' : 'text-gray-400'}`}>{fmtSigned(d.desvio)}</td>
+                                            <td className={`py-2.5 text-right pr-1 text-xs font-black ${aderClass(d.aderencia)}`}>{d.aderencia.toFixed(0)}%</td>
+                                            <td className="py-2.5">
+                                                <div className="h-2 w-full rounded-full bg-white/5 overflow-hidden">
+                                                    <div className="h-full rounded-full" style={{ width: `${Math.min(100, d.aderencia)}%`, background: aderHex(d.aderencia) }} />
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
