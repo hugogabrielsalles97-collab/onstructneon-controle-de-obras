@@ -447,6 +447,36 @@
     html[data-theme="light"] [class*="bg-[#1f1212]"] { background-color: #fef2f2 !important; }
     html[data-theme="light"] [class*="border-[#0a0f18]"] { border-color: var(--lt-border) !important; }
 
+    /* ---- Telas iniciais / login: fundo preto -> claro + neutraliza gradiente escuro ---- */
+    html[data-theme="light"] [class*="bg-[#020202]"],
+    html[data-theme="light"] [class*="bg-[#050505]"],
+    html[data-theme="light"] [class*="bg-[#000000]"] { background-color: var(--lt-page) !important; }
+    html[data-theme="light"] [class*="from-[#1a1f2e]"],
+    html[data-theme="light"] [class*="from-[#050505]"] { background-image: none !important; }
+
+    /* ---- Teal da marca usado como superfície (módulo gerencial / Curva S) ---- */
+    html[data-theme="light"] [class~="bg-brand-dark"],
+    html[data-theme="light"] [class*="bg-brand-dark/"] { background-color: var(--lt-surface) !important; }
+    html[data-theme="light"] [class*="bg-brand-darkest"] { background-color: var(--lt-surface-2) !important; }
+    html[data-theme="light"] [class*="border-brand-dark"] { border-color: var(--lt-border) !important; }
+
+    /* ---- Fundos via style inline (tabelas densas com células sticky, ex.: Monitoramento) ----
+       O navegador serializa o atributo style em rgb(), então cobrimos hex E rgb. */
+    html[data-theme="light"] [style*="#0a0f18"],
+    html[data-theme="light"] [style*="rgb(10, 15, 24)"],
+    html[data-theme="light"] [style*="#0a0f1a"],
+    html[data-theme="light"] [style*="rgb(10, 15, 26)"],
+    html[data-theme="light"] [style*="#0d1421"],
+    html[data-theme="light"] [style*="rgb(13, 20, 33)"] { background-color: var(--lt-surface) !important; }
+    html[data-theme="light"] [style*="#1a1f2c"],
+    html[data-theme="light"] [style*="rgb(26, 31, 44)"] { background-color: var(--lt-surface-2) !important; }
+    html[data-theme="light"] [style*="#0a1520"],
+    html[data-theme="light"] [style*="rgb(10, 21, 32)"],
+    html[data-theme="light"] [style*="#0f2a3a"],
+    html[data-theme="light"] [style*="rgb(15, 42, 58)"] { background-color: #e0f2fe !important; }
+    html[data-theme="light"] [style*="#2a1810"],
+    html[data-theme="light"] [style*="rgb(42, 24, 16)"] { background-color: #fff7ed !important; }
+
     /* ---- Tailwind grays (texto) ---- */
     html[data-theme="light"] .text-white { color: var(--lt-text-strong) !important; }
     html[data-theme="light"] .hover\:text-white:hover { color: var(--lt-text-strong) !important; }
