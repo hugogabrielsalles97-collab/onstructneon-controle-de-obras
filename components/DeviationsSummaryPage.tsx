@@ -530,17 +530,17 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
                         </div>
 
                         {/* Tabela de vãos */}
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-5">
+                        <div className="flex-1 overflow-y-auto custom-scrollbar px-5 pb-5">
                             <table className="w-full text-left border-collapse min-w-[560px]">
-                                <thead className="sticky top-0 bg-[#0f1624] z-10">
-                                    <tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/10">
-                                        <th className="pb-3">Obra / Vão</th>
-                                        <th className="pb-3">Engenheiro</th>
-                                        <th className="pb-3 text-right">Prev ({baselineLabel})</th>
-                                        <th className="pb-3 text-right">Real</th>
-                                        <th className="pb-3 text-right">Desvio</th>
-                                        <th className="pb-3 text-right pr-1">Ader.</th>
-                                        <th className="pb-3 w-[110px]">Status</th>
+                                <thead className="sticky top-0 z-20 bg-[#0f1624] shadow-[0_1px_0_0_rgba(255,255,255,0.08)]">
+                                    <tr className="text-[10px] font-black text-gray-500 uppercase">
+                                        <th className="pt-5 pb-3 bg-[#0f1624]">Obra / Vão</th>
+                                        <th className="pt-5 pb-3 bg-[#0f1624]">Engenheiro</th>
+                                        <th className="pt-5 pb-3 text-right bg-[#0f1624]">Prev ({baselineLabel})</th>
+                                        <th className="pt-5 pb-3 text-right bg-[#0f1624]">Real</th>
+                                        <th className="pt-5 pb-3 text-right bg-[#0f1624]">Desvio</th>
+                                        <th className="pt-5 pb-3 text-right pr-1 bg-[#0f1624]">Ader.</th>
+                                        <th className="pt-5 pb-3 w-[110px] bg-[#0f1624]">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
