@@ -523,7 +523,7 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
                         {/* Resumo do serviço */}
                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-5 border-b border-white/5">
                             <div className="text-center"><p className="text-[9px] font-black text-gray-500 uppercase mb-0.5">Itens</p><p className="text-lg font-black text-white">{detailSummary.total}</p></div>
-                            <div className="text-center"><p className="text-[9px] font-black text-red-400 uppercase mb-0.5">Atrasados</p><p className="text-lg font-black text-red-500">{detailSummary.atrasados}</p></div>
+                            <div className="text-center"><p className="text-[9px] font-black text-red-400 uppercase mb-0.5">Atrasados</p><p className="text-lg font-black text-red-500">{fmt(Math.max(0, detailSummary.planned - detailSummary.real))}</p></div>
                             <div className="text-center"><p className="text-[9px] font-black text-gray-500 uppercase mb-0.5">Prev ({baselineLabel})</p><p className="text-lg font-black text-gray-300">{fmt(detailSummary.planned)}</p></div>
                             <div className="text-center"><p className="text-[9px] font-black text-brand-accent uppercase mb-0.5">Realizado</p><p className="text-lg font-black text-brand-accent">{fmt(detailSummary.real)}</p></div>
                             <div className="text-center"><p className="text-[9px] font-black text-gray-500 uppercase mb-0.5">Aderência</p><p className={`text-lg font-black ${aderClass(detailSummary.aderencia)}`}>{detailSummary.aderencia.toFixed(0)}%</p></div>
