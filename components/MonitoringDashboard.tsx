@@ -65,6 +65,11 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
     const [visibleSeries, setVisibleSeries] = useState<{ lb04: boolean; real: boolean; lb05: boolean }>({ lb04: true, real: true, lb05: false });
     const toggleSeries = (key: 'lb04' | 'real' | 'lb05') => setVisibleSeries(prev => ({ ...prev, [key]: !prev[key] }));
 
+    // Linha base ativa para os cálculos (Takt, aderência, diferenças, performance).
+    // LB05 tem prioridade quando marcada; caso contrário usa LB04 (prev).
+    const baselineKey: 'prev' | 'lb05' = visibleSeries.lb05 ? 'lb05' : 'prev';
+    const baselineLabel = visibleSeries.lb05 ? 'LB05' : 'LB04';
+
     useEffect(() => {
         const load = async () => {
             setIsLoading(true);
@@ -201,38 +206,38 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
 
         filteredRows.forEach(r => {
             Object.entries(r.daily_data || {}).forEach(([date, vals]) => {
-                const v = vals as { prev: number; real: number };
+                const v = vals as { prev: number; real: number; lb05?: number };
                 if (date >= startDate && date <= endDate) {
-                    totalPrev += v.prev || 0;
+                    totalPrev += v[baselineKey] || 0;
                     totalReal += v.real || 0;
                 }
                 if (isoStatusDate && date <= isoStatusDate) {
-                    cumPrev += v.prev || 0;
+                    cumPrev += v[baselineKey] || 0;
                     cumReal += v.real || 0;
                 }
             });
         });
         const progress = totalPrev > 0 ? (totalReal / totalPrev) * 100 : (totalReal > 0 ? 100 : 0);
-        return { 
-            totalPrev, 
-            totalReal, 
-            progress, 
-            periodGap: totalReal - totalPrev, // Back to Real - Prev
-            cumGap: cumReal - cumPrev 
+        return {
+            totalPrev,
+            totalReal,
+            progress,
+            periodGap: totalReal - totalPrev, // Real - linha base ativa
+            cumGap: cumReal - cumPrev
         };
-    }, [filteredRows, startDate, endDate, statusDate]);
+    }, [filteredRows, startDate, endDate, statusDate, baselineKey]);
 
     /** Ultimo dia com previsto (>0) nos registros filtrados: fim do indicador (ex.: CBUQ ate mai/26, nao o fim global da linha do tempo). */
     const indicatorEndDateIso = useMemo(() => {
         let max = '';
         filteredRows.forEach(r => {
             Object.entries(r.daily_data || {}).forEach(([date, vals]) => {
-                const prev = (vals as { prev: number; real: number }).prev || 0;
-                if (prev > 0 && date > max) max = date;
+                const planned = (vals as { prev: number; real: number; lb05?: number })[baselineKey] || 0;
+                if (planned > 0 && date > max) max = date;
             });
         });
         return max || null;
-    }, [filteredRows]);
+    }, [filteredRows, baselineKey]);
 
     const taktTimePerWeek = useMemo(() => {
         // statusDate vem do _CONFIG_ e pode ser DD/MM/YYYY (UI) ou YYYY-MM-DD (chaves do daily_data)
@@ -250,8 +255,8 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
         let realToCut = 0;
         filteredRows.forEach(r => {
             Object.entries(r.daily_data || {}).forEach(([date, vals]) => {
-                const v = vals as { prev: number; real: number };
-                if (date <= taktEndIso) plannedToEnd += v.prev || 0;
+                const v = vals as { prev: number; real: number; lb05?: number };
+                if (date <= taktEndIso) plannedToEnd += v[baselineKey] || 0;
                 if (date <= isoStatusDate) realToCut += v.real || 0;
             });
         });
@@ -278,9 +283,9 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
         filteredRows.forEach(r => {
             Object.entries(r.daily_data || {}).forEach(([date, vals]) => {
                 if (date <= isoStatusDate || date > taktEndIso) return;
-                const v = vals as { prev: number; real: number };
+                const v = vals as { prev: number; real: number; lb05?: number };
                 const sat = getSaturdayEnd(date);
-                futureWeekPrev[sat] = (futureWeekPrev[sat] || 0) + (v.prev || 0);
+                futureWeekPrev[sat] = (futureWeekPrev[sat] || 0) + (v[baselineKey] || 0);
             });
         });
 
@@ -288,9 +293,9 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
         const perWeek = weeks > 0 ? remaining / weeks : remaining;
 
         return { remaining, weeks, perWeek, endIso: taktEndIso };
-    }, [filteredRows, statusDate, endDate, indicatorEndDateIso]);
+    }, [filteredRows, statusDate, endDate, indicatorEndDateIso, baselineKey]);
 
-    const getPeriodTotal = (row: MonitoringRow, type: 'prev' | 'real') => {
+    const getPeriodTotal = (row: MonitoringRow, type: 'prev' | 'real' | 'lb05') => {
         let sum = 0;
         Object.entries(row.daily_data || {}).forEach(([date, vals]) => {
             if (date >= startDate && date <= endDate) {
@@ -347,17 +352,17 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
 
                 if (isoStatusDate && taktEndIso) {
                     Object.entries(r.daily_data || {}).forEach(([date, vals]) => {
-                        const v = vals as { prev: number; real: number };
-                        if (date <= taktEndIso) rPlannedToEnd += v.prev || 0;
+                        const v = vals as { prev: number; real: number; lb05?: number };
+                        if (date <= taktEndIso) rPlannedToEnd += v[baselineKey] || 0;
                         if (date <= isoStatusDate) rRealToCut += v.real || 0;
-                        
+
                         if (date > isoStatusDate && date <= taktEndIso) {
                             const d = new Date(date + 'T12:00:00');
                             const diff = 6 - d.getDay();
                             const sat = new Date(d);
                             sat.setDate(d.getDate() + diff);
                             const satStr = sat.toISOString().split('T')[0];
-                            rFutureWeekPrev[satStr] = (rFutureWeekPrev[satStr] || 0) + (v.prev || 0);
+                            rFutureWeekPrev[satStr] = (rFutureWeekPrev[satStr] || 0) + (v[baselineKey] || 0);
                         }
 
                         if (v.real > 0) {
@@ -388,11 +393,11 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                     rPotencial = rProdMedia;
                 }
 
-                return { ...r, pTotal: getPeriodTotal(r, 'prev'), rTotal: getPeriodTotal(r, 'real'), rowTakt, rProdMedia, rPotencial };
+                return { ...r, pTotal: getPeriodTotal(r, baselineKey), rTotal: getPeriodTotal(r, 'real'), rowTakt, rProdMedia, rPotencial };
             })
             .filter(r => r.pTotal > 0 || r.rTotal > 0)
             .sort((a, b) => b.rTotal - a.rTotal);
-    }, [filteredRows, startDate, endDate, statusDate, indicatorEndDateIso]);
+    }, [filteredRows, startDate, endDate, statusDate, indicatorEndDateIso, baselineKey]);
 
     if (!user) return null;
     if (isLoading) return <div className="flex bg-[#060a12] h-screen items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-brand-accent"></div></div>;
@@ -460,7 +465,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                     )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Quantidade Prevista{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</p><h3 className="text-4xl font-black text-white">{selectedService === 'ALL' ? '-' : metrics.totalPrev.toLocaleString('pt-BR')}</h3></div>
+                        <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Quantidade Prevista ({baselineLabel}){selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</p><h3 className="text-4xl font-black text-white">{selectedService === 'ALL' ? '-' : metrics.totalPrev.toLocaleString('pt-BR')}</h3></div>
                         <div className="p-6 bg-[#0a0f18] border border-brand-accent/20 rounded-3xl shadow-2xl"><p className="text-[10px] font-black text-brand-accent uppercase mb-1">Quantidade Realizada{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</p><h3 className="text-4xl font-black text-white">{selectedService === 'ALL' ? '-' : metrics.totalReal.toLocaleString('pt-BR')}</h3></div>
                         <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Aderência Médio (%)</p><h3 className={`text-4xl font-black ${selectedService === 'ALL' ? 'text-white' : metrics.progress >= 90 ? 'text-green-500' : metrics.progress >= 70 ? 'text-yellow-500' : 'text-red-500'}`}>{selectedService === 'ALL' ? '-' : `${metrics.progress.toFixed(1)}%`}</h3></div>
                         <div className="p-6 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl relative overflow-hidden group"><p className="text-[10px] font-black text-gray-500 uppercase mb-1">Diferença no período</p><h3 className={`text-4xl font-black ${selectedService === 'ALL' ? 'text-white' : metrics.periodGap < 0 ? 'text-red-500' : metrics.periodGap > 0 ? 'text-green-500' : 'text-white'}`}>{selectedService === 'ALL' ? '-' : `${metrics.periodGap > 0 ? '+' : ''}${metrics.periodGap.toLocaleString('pt-BR')}`}</h3></div>
@@ -502,7 +507,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                              <h4 className="text-xs font-black uppercase tracking-widest text-white mb-6">Performance por Obra</h4>
                              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                                 <table className="w-full text-left border-collapse">
-                                    <thead className="sticky top-0 bg-[#0a0f18] z-10 shadow-[0_1px_0_0_rgba(255,255,255,0.05)]"><tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5"><th className="pb-4">Obra / Apoio</th><th className="pb-4 text-center">Prev.{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</th><th className="pb-4 text-center">Real.{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</th><th className="pb-4 text-center">Takt (Sem)</th><th className="pb-4 text-center">Prod. Média (Sem)</th><th className="pb-4 text-center">Potencial (Sem)</th><th className="pb-4 text-right">Ader.</th></tr></thead>
+                                    <thead className="sticky top-0 bg-[#0a0f18] z-10 shadow-[0_1px_0_0_rgba(255,255,255,0.05)]"><tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5"><th className="pb-4">Obra / Apoio</th><th className="pb-4 text-center">Prev. ({baselineLabel}){selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</th><th className="pb-4 text-center">Real.{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</th><th className="pb-4 text-center">Takt (Sem)</th><th className="pb-4 text-center">Prod. Média (Sem)</th><th className="pb-4 text-center">Potencial (Sem)</th><th className="pb-4 text-right">Ader.</th></tr></thead>
                                     <tbody className="divide-y divide-white/5">
                                         {selectedService === 'ALL' ? null : rankingRows.map(r => {
                                             const p = r.pTotal; const rv = r.rTotal;
@@ -528,11 +533,11 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                              <h4 className="text-xs font-black uppercase tracking-widest text-white mb-6">Performance por Engenheiro</h4>
                              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                                 <table className="w-full text-left border-collapse">
-                                    <thead className="sticky top-0 bg-[#0a0f18] z-10 shadow-[0_1px_0_0_rgba(255,255,255,0.05)]"><tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5"><th className="pb-4">Engenheiro</th><th className="pb-4 text-center">Prev.{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</th><th className="pb-4 text-center">Real.{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</th><th className="pb-4 text-right">%</th></tr></thead>
+                                    <thead className="sticky top-0 bg-[#0a0f18] z-10 shadow-[0_1px_0_0_rgba(255,255,255,0.05)]"><tr className="text-[10px] font-black text-gray-500 uppercase border-b border-white/5"><th className="pb-4">Engenheiro</th><th className="pb-4 text-center">Prev. ({baselineLabel}){selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</th><th className="pb-4 text-center">Real.{selectedService !== 'ALL' && ` (${getServiceUnit(selectedService)})`}</th><th className="pb-4 text-right">%</th></tr></thead>
                                     <tbody className="divide-y divide-white/5">
                                         {selectedService === 'ALL' ? null : Array.from(new Set(filteredRows.map(r => r.responsible))).filter(Boolean).map(eng => {
                                             const engRows = filteredRows.filter(r => r.responsible === eng);
-                                            const p = engRows.reduce((acc, r) => acc + getPeriodTotal(r, 'prev'), 0);const rv = engRows.reduce((acc, r) => acc + getPeriodTotal(r, 'real'), 0);
+                                            const p = engRows.reduce((acc, r) => acc + getPeriodTotal(r, baselineKey), 0);const rv = engRows.reduce((acc, r) => acc + getPeriodTotal(r, 'real'), 0);
                                             if (p === 0 && rv === 0) return null; const perc = p > 0 ? (rv / p) * 100 : (rv > 0 ? 100 : 0);
                                             return (
                                                 <tr key={eng} className="hover:bg-white/5 group">
