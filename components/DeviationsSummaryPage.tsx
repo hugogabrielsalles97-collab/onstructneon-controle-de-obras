@@ -73,8 +73,8 @@ const getServiceUnit = (service: string) => {
 
 const fmt = (n: number) => Number.isInteger(n) ? n.toLocaleString('pt-BR') : Number(n).toFixed(1);
 const fmtSigned = (n: number) => `${n > 0 ? '+' : ''}${fmt(n)}`;
-const aderClass = (p: number) => p >= 90 ? 'text-green-500' : p >= 70 ? 'text-yellow-500' : 'text-red-500';
-const aderHex = (p: number) => p >= 90 ? '#22c55e' : p >= 70 ? '#eab308' : '#ef4444';
+const aderClass = (p: number) => p > 95 ? 'text-green-500' : p >= 80 ? 'text-yellow-500' : 'text-red-500';
+const aderHex = (p: number) => p > 95 ? '#22c55e' : p >= 80 ? '#eab308' : '#ef4444';
 
 const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
     const { currentUser: user } = useData();
