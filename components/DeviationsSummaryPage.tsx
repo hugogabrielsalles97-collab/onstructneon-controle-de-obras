@@ -256,7 +256,7 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
     }, [analyzed]);
 
     const chartData = useMemo(() => byService.map(s => ({
-        name: s.service.length > 14 ? s.service.slice(0, 13) + '…' : s.service,
+        name: s.service,
         fullName: s.service,
         aderencia: Number(s.aderencia.toFixed(1)),
     })), [byService]);
@@ -363,7 +363,10 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
                                 <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 40 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" horizontal={false} />
                                     <XAxis type="number" domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#4b5563', fontSize: 10 }} unit="%" />
-                                    <YAxis type="category" dataKey="name" width={130} axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 10, fontWeight: 700 }} />
+                                    <YAxis type="category" dataKey="name" width={185} interval={0} axisLine={false} tickLine={false} tick={(t: any) => {
+                                        const { x, y, payload } = t;
+                                        return <text x={x} y={y} dy={3} textAnchor="end" fill="#9ca3af" fontSize={10} fontWeight={700}>{payload.value}</text>;
+                                    }} />
                                     <Tooltip cursor={{ fill: '#ffffff08' }} contentStyle={{ backgroundColor: '#0a0f18', border: '1px solid #ffffff10', borderRadius: '12px' }} formatter={(v: any) => [`${v}%`, 'Aderência']} labelFormatter={(_, p: any) => p?.[0]?.payload?.fullName || ''} />
                                     <Bar dataKey="aderencia" radius={[0, 6, 6, 0]} barSize={20}>
                                         {chartData.map((d, i) => <Cell key={i} fill={aderHex(d.aderencia)} />)}
