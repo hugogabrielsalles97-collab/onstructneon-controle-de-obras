@@ -382,8 +382,8 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
                             <p className="text-[10px] font-black text-red-400 uppercase mb-1 flex items-center gap-1"><TrendingDown size={12} /> Atrasados</p>
                             {isAllServices ? (
                                 <>
-                                    <h3 className="text-4xl font-black text-red-500">{summary.atrasadosShortPct.toFixed(1)}<span className="text-2xl">%</span></h3>
-                                    <p className="text-[10px] text-red-400/80 mt-1 font-black uppercase">atraso médio · {summary.atrasados} {summary.atrasados === 1 ? 'item' : 'itens'}</p>
+                                    <h3 className="text-4xl font-black text-[var(--dv-text-faint)]">—</h3>
+                                    <p className="text-[10px] text-[var(--dv-text-muted)] mt-1 font-black uppercase">selecione um serviço</p>
                                 </>
                             ) : (
                                 <>
@@ -396,8 +396,8 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
                             <p className="text-[10px] font-black text-cyan-400 uppercase mb-1 flex items-center gap-1"><TrendingUp size={12} /> Adiantados</p>
                             {isAllServices ? (
                                 <>
-                                    <h3 className="text-4xl font-black text-cyan-400">{summary.adiantadosSurplusPct.toFixed(1)}<span className="text-2xl">%</span></h3>
-                                    <p className="text-[10px] text-cyan-400/80 mt-1 font-black uppercase">adiantamento médio · {summary.adiantados} {summary.adiantados === 1 ? 'item' : 'itens'}</p>
+                                    <h3 className="text-4xl font-black text-[var(--dv-text-faint)]">—</h3>
+                                    <p className="text-[10px] text-[var(--dv-text-muted)] mt-1 font-black uppercase">selecione um serviço</p>
                                 </>
                             ) : (
                                 <>
