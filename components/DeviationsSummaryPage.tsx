@@ -201,6 +201,20 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
         const emDia = total - comDesvio;
         const aderMedia = total > 0 ? analyzed.reduce((s, a) => s + a.aderencia, 0) / total : 0;
         const pct = (n: number) => total > 0 ? (n / total) * 100 : 0;
+
+        // Quantidade em unidade própria — válida apenas quando há serviço único selecionado.
+        const atrasadosQty = atrasados.reduce((s, a) => s + Math.abs(a.desvio), 0);
+        const adiantadosQty = adiantados.reduce((s, a) => s + a.desvio, 0);
+
+        // Percentual médio de atraso / adiantamento — métrica unitless para comparar entre serviços
+        // com unidades diferentes. Usa shortfall (100 − aderência) e surplus (aderência − 100) por item.
+        const atrasadosShortPct = atrasados.length > 0
+            ? atrasados.reduce((s, a) => s + Math.max(0, 100 - a.aderencia), 0) / atrasados.length
+            : 0;
+        const adiantadosSurplusPct = adiantados.length > 0
+            ? adiantados.reduce((s, a) => s + Math.max(0, a.aderencia - 100), 0) / adiantados.length
+            : 0;
+
         return {
             total,
             comDesvio, comDesvioPct: pct(comDesvio),
@@ -208,8 +222,13 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
             adiantados: adiantados.length, adiantadosPct: pct(adiantados.length),
             emDia, emDiaPct: pct(emDia),
             aderMedia,
+            atrasadosQty, adiantadosQty,
+            atrasadosShortPct, adiantadosSurplusPct,
         };
     }, [analyzed]);
+
+    const isAllServices = selectedService === 'ALL';
+    const selectedUnit = isAllServices ? '' : getServiceUnit(selectedService);
 
     /** Agrupamento por serviço (cada serviço tem unidade própria, quantidades são válidas). */
     const byService = useMemo(() => {
@@ -361,13 +380,31 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
                         </div>
                         <div className="p-6 bg-[var(--dv-surface)] border border-red-500/20 rounded-3xl shadow-2xl">
                             <p className="text-[10px] font-black text-red-400 uppercase mb-1 flex items-center gap-1"><TrendingDown size={12} /> Atrasados</p>
-                            <h3 className="text-4xl font-black text-red-500">{summary.atrasados}</h3>
-                            <p className="text-[10px] text-red-400/80 mt-1 font-black">{summary.atrasadosPct.toFixed(0)}% do total</p>
+                            {isAllServices ? (
+                                <>
+                                    <h3 className="text-4xl font-black text-red-500">{summary.atrasadosShortPct.toFixed(1)}<span className="text-2xl">%</span></h3>
+                                    <p className="text-[10px] text-red-400/80 mt-1 font-black uppercase">atraso médio · {summary.atrasados} {summary.atrasados === 1 ? 'item' : 'itens'}</p>
+                                </>
+                            ) : (
+                                <>
+                                    <h3 className="text-4xl font-black text-red-500">{fmt(summary.atrasadosQty)} <span className="text-lg text-red-400/80">{selectedUnit}</span></h3>
+                                    <p className="text-[10px] text-red-400/80 mt-1 font-black uppercase">em {summary.atrasados} {summary.atrasados === 1 ? 'item' : 'itens'} · {summary.atrasadosPct.toFixed(0)}% do total</p>
+                                </>
+                            )}
                         </div>
                         <div className="p-6 bg-[var(--dv-surface)] border border-cyan-500/20 rounded-3xl shadow-2xl">
                             <p className="text-[10px] font-black text-cyan-400 uppercase mb-1 flex items-center gap-1"><TrendingUp size={12} /> Adiantados</p>
-                            <h3 className="text-4xl font-black text-cyan-400">{summary.adiantados}</h3>
-                            <p className="text-[10px] text-cyan-400/80 mt-1 font-black">{summary.adiantadosPct.toFixed(0)}% do total</p>
+                            {isAllServices ? (
+                                <>
+                                    <h3 className="text-4xl font-black text-cyan-400">{summary.adiantadosSurplusPct.toFixed(1)}<span className="text-2xl">%</span></h3>
+                                    <p className="text-[10px] text-cyan-400/80 mt-1 font-black uppercase">adiantamento médio · {summary.adiantados} {summary.adiantados === 1 ? 'item' : 'itens'}</p>
+                                </>
+                            ) : (
+                                <>
+                                    <h3 className="text-4xl font-black text-cyan-400">{fmt(summary.adiantadosQty)} <span className="text-lg text-cyan-400/80">{selectedUnit}</span></h3>
+                                    <p className="text-[10px] text-cyan-400/80 mt-1 font-black uppercase">em {summary.adiantados} {summary.adiantados === 1 ? 'item' : 'itens'} · {summary.adiantadosPct.toFixed(0)}% do total</p>
+                                </>
+                            )}
                         </div>
                         <div className="p-6 bg-[var(--dv-surface)] border border-[var(--dv-border)] rounded-3xl shadow-2xl">
                             <p className="text-[10px] font-black text-[var(--dv-text-muted)] uppercase mb-1 flex items-center gap-1"><Gauge size={12} /> Aderência Média</p>
