@@ -16,7 +16,6 @@ import UserManagementModal from './UserManagementModal';
 import ChangePasswordModal from './ChangePasswordModal';
 import Toast from './Toast';
 import { useData } from '../context/DataProvider';
-import { useNavigation } from '../context/NavigationContext';
 import { useNotifications, markNotificationAsRead, clearAllNotifications } from '../hooks/dataHooks';
 
 interface HeaderProps {
@@ -31,7 +30,6 @@ interface HeaderProps {
   onNavigateToLean?: () => void;
   onNavigateToLeanConstruction?: () => void;
   onNavigateToMonitoringControl?: () => void;
-  onNavigateToLineOfBalance?: () => void;
   onNavigateToPodcast?: () => void;
   onNavigateToCost?: () => void;
   onNavigateToCheckoutSummary?: () => void;
@@ -54,7 +52,6 @@ const Header: React.FC<HeaderProps> = ({
   onNavigateToLean,
   onNavigateToLeanConstruction,
   onNavigateToMonitoringControl,
-  onNavigateToLineOfBalance,
   onNavigateToPodcast,
   onNavigateToCost,
   onNavigateToCheckoutSummary,
@@ -65,8 +62,6 @@ const Header: React.FC<HeaderProps> = ({
   activeScreen = 'dashboard'
 }) => {
   const { allUsers } = useData();
-  const nav = useNavigation();
-  const goLineOfBalance = onNavigateToLineOfBalance || nav.navigateToLineOfBalance;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -134,14 +129,6 @@ const Header: React.FC<HeaderProps> = ({
           <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
         </svg>
       ), onClick: onNavigateToMonitoringControl, show: showFullMenu && !isOrgModule
-    },
-    {
-      id: 'lineOfBalance', label: 'Linha de Balanço', icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-emerald-400">
-          <path d="M3 3v18h18" />
-          <path d="M7 16l4-6 4 3 5-8" />
-        </svg>
-      ), onClick: goLineOfBalance, show: showFullMenu && !isOrgModule && !!goLineOfBalance
     },
     {
       id: 'podcast', label: 'Podcast da obra', icon: (
