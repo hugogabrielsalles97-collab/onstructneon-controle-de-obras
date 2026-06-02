@@ -65,6 +65,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
     const [statusDate, setStatusDate] = useState('');
     const [visibleSeries, setVisibleSeries] = useState<{ lb04: boolean; real: boolean; lb05: boolean }>({ lb04: true, real: true, lb05: false });
     const toggleSeries = (key: 'lb04' | 'real' | 'lb05') => setVisibleSeries(prev => ({ ...prev, [key]: !prev[key] }));
+    const [chartPeriod, setChartPeriod] = useState<'weekly' | 'monthly'>('weekly');
 
     // Linha base ativa para os cálculos (Takt, aderência, diferenças, performance).
     // LB05 tem prioridade quando marcada; caso contrário usa LB04 (prev).
@@ -308,7 +309,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
 
     const weeklyData = useMemo(() => {
         let cumPrev = 0, cumReal = 0, cumLb05 = 0;
-        const weekMap: Record<string, { prev: number, real: number, lb05: number }> = {};
+        const bucketMap: Record<string, { prev: number, real: number, lb05: number }> = {};
         const getSaturdayEnd = (dStr: string) => {
             const d = new Date(dStr + 'T12:00:00');
             const day = d.getDay();
@@ -317,24 +318,33 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
             sat.setDate(d.getDate() + diff);
             return sat.toISOString().split('T')[0];
         };
+        const getMonthKey = (dStr: string) => dStr.slice(0, 7); // YYYY-MM
+        const getBucket = chartPeriod === 'monthly' ? getMonthKey : getSaturdayEnd;
         uniqueDates.filter(d => d >= startDate && d <= endDate).forEach(date => {
-            const sat = getSaturdayEnd(date);
-            if (!weekMap[sat]) weekMap[sat] = { prev: 0, real: 0, lb05: 0 };
+            const key = getBucket(date);
+            if (!bucketMap[key]) bucketMap[key] = { prev: 0, real: 0, lb05: 0 };
             filteredRows.forEach(r => {
                 const val = r.daily_data[date];
                 if (val) {
-                    weekMap[sat].prev += val.prev || 0;
-                    weekMap[sat].real += val.real || 0;
-                    weekMap[sat].lb05 += val.lb05 || 0;
+                    bucketMap[key].prev += val.prev || 0;
+                    bucketMap[key].real += val.real || 0;
+                    bucketMap[key].lb05 += val.lb05 || 0;
                 }
             });
         });
-        return Object.keys(weekMap).sort().map(satKey => {
-            const w = weekMap[satKey];
+        return Object.keys(bucketMap).sort().map(key => {
+            const w = bucketMap[key];
             cumPrev += w.prev; cumReal += w.real; cumLb05 += w.lb05;
-            return { name: satKey.split('-').reverse().slice(0, 2).join('/'), prev: w.prev, real: w.real, lb05: w.lb05, cumPrev, cumReal, cumLb05 };
+            let name: string;
+            if (chartPeriod === 'monthly') {
+                const [y, m] = key.split('-');
+                name = new Date(parseInt(y), parseInt(m) - 1).toLocaleString('pt-BR', { month: 'short', year: '2-digit' });
+            } else {
+                name = key.split('-').reverse().slice(0, 2).join('/');
+            }
+            return { name, prev: w.prev, real: w.real, lb05: w.lb05, cumPrev, cumReal, cumLb05 };
         });
-    }, [filteredRows, startDate, endDate, uniqueDates]);
+    }, [filteredRows, startDate, endDate, uniqueDates, chartPeriod]);
 
     const rankingRows = useMemo(() => {
         let isoStatusDate = statusDate;
@@ -479,7 +489,28 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                     </div>
 
                     <div className="p-8 bg-[#0a0f18] border border-white/5 rounded-3xl shadow-2xl mb-8">
-                        <h4 className="text-xs font-black uppercase tracking-widest text-white mb-8 flex items-center gap-2"><TrendingUp size={16} className="text-brand-accent" /> Evolução Semanal vs Acumulado</h4>
+                        <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
+                            <h4 className="text-xs font-black uppercase tracking-widest text-white flex items-center gap-2"><TrendingUp size={16} className="text-brand-accent" /> Evolução {chartPeriod === 'monthly' ? 'Mensal' : 'Semanal'} vs Acumulado</h4>
+                            <div className="inline-flex items-center rounded-xl border border-white/10 bg-black/30 p-1">
+                                {([
+                                    { key: 'weekly' as const, label: 'Semanal' },
+                                    { key: 'monthly' as const, label: 'Mensal' },
+                                ]).map(opt => {
+                                    const active = chartPeriod === opt.key;
+                                    return (
+                                        <button
+                                            key={opt.key}
+                                            type="button"
+                                            onClick={() => setChartPeriod(opt.key)}
+                                            aria-pressed={active}
+                                            className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${active ? 'bg-brand-accent text-white shadow-lg shadow-brand-accent/20' : 'text-gray-500 hover:text-gray-300'}`}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
                         {selectedService === 'ALL' ? (
                             <div className="h-[450px] flex items-center justify-center border border-dashed border-white/10 rounded-2xl">
                                 <span className="text-gray-500 font-bold text-xs uppercase tracking-widest flex items-center gap-2">
