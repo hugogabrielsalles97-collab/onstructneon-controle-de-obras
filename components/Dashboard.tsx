@@ -24,6 +24,7 @@ import { exportWeeklyReportToExcel } from '../utils/excelExport';
 import { useOrgMembers } from '../hooks/dataHooks';
 import { getAnchorDue, getAnchorStart, isTaskOverdueByInitialPlan, resolveBaselineTask, taskCurrentDiffersFromInitialPlan } from '../utils/taskPlanning';
 import { normalizeString, normalizeName, buildEngineerDescendants, getTreeEngineerLabels, getEngineersForTask as getEngineersForTaskUtil } from '../utils/engineerMapping';
+import PpcTicker from './PpcTicker';
 
 type SortKey = keyof Task | 'none';
 type SortDirection = 'asc' | 'desc';
@@ -287,6 +288,74 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     [orgChartEngineerDescendants]
   );
 
+  // Ticker estilo bolsa: PPC da semana anterior (última fechada) por engenheiro,
+  // comparado à média geral do próprio engenheiro (todas as semanas fechadas).
+  const engineerPpcTicker = useMemo(() => {
+    const ymd = (dt: Date) =>
+      `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+
+    const now = new Date();
+    const lastClosedSaturday = new Date(now);
+    lastClosedSaturday.setDate(now.getDate() - (now.getDay() + 1)); // último sábado fechado
+    lastClosedSaturday.setHours(23, 59, 59, 999);
+    const lastClosedKey = ymd(lastClosedSaturday);
+
+    // engenheiro → semana → { planejadas, cumpridas no prazo }
+    const map = new Map<string, Map<string, { planned: number; completed: number }>>();
+
+    tasks.forEach(t => {
+      if (!t.dueDate) return;
+      const due = new Date(t.dueDate + 'T23:59:59');
+      const sun = new Date(due);
+      sun.setDate(sun.getDate() - sun.getDay()); // domingo
+      const weekEnd = new Date(sun);
+      weekEnd.setDate(sun.getDate() + 6);          // sábado
+      weekEnd.setHours(23, 59, 59, 999);
+      if (weekEnd.getTime() > lastClosedSaturday.getTime()) return; // só semanas fechadas
+      const weekKey = ymd(weekEnd);
+
+      const engs = getEngineersForTask(t);
+      if (engs.length === 0) return;
+
+      const onTime =
+        t.status === TaskStatus.Completed &&
+        !!t.actualEndDate &&
+        new Date(t.actualEndDate + 'T00:00:00').getTime() <= new Date(t.dueDate + 'T23:59:59').getTime();
+
+      engs.forEach(eng => {
+        if (!map.has(eng)) map.set(eng, new Map());
+        const wk = map.get(eng)!;
+        if (!wk.has(weekKey)) wk.set(weekKey, { planned: 0, completed: 0 });
+        const cell = wk.get(weekKey)!;
+        cell.planned += 1;
+        if (onTime) cell.completed += 1;
+      });
+    });
+
+    const items: { engineer: string; lastWeekPpc: number; avg: number; delta: number }[] = [];
+    map.forEach((wk, eng) => {
+      let sum = 0;
+      let n = 0;
+      let lastWeekPpc: number | null = null;
+      wk.forEach((cell, key) => {
+        const ppc = cell.planned > 0 ? (cell.completed / cell.planned) * 100 : 0;
+        sum += ppc;
+        n += 1;
+        if (key === lastClosedKey) lastWeekPpc = ppc;
+      });
+      if (lastWeekPpc === null) return; // engenheiro sem tarefas na última semana fechada
+      const avg = n > 0 ? sum / n : 0;
+      items.push({
+        engineer: eng,
+        lastWeekPpc: Math.round(lastWeekPpc),
+        avg: Math.round(avg),
+        delta: Math.round(lastWeekPpc - avg),
+      });
+    });
+
+    return items.sort((a, b) => a.engineer.localeCompare(b.engineer));
+  }, [tasks, getEngineersForTask]);
+
   const uniqueOptions = useMemo(() => {
     const assignees = new Set<string>();
     const disciplines = new Set<string>();
@@ -513,7 +582,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
 
         <div className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-8 animate-slide-up animate-stagger-2">
           <div className="max-w-screen-2xl mx-auto space-y-8">
-            
+
+            {/* Ticker de PPC por engenheiro (semana anterior) */}
+            <PpcTicker items={engineerPpcTicker} />
+
             {/* Cabeçalho exclusivo para Impressão */}
             <div className="hidden print-only-header flex justify-between items-end border-b-2 border-gray-300 pb-4 mb-6">
               <div>
