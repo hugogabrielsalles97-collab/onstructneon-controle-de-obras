@@ -153,15 +153,6 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                                 />
                             )}
                             {showFullMenu && (
-                                <NavButton
-                                    active={activeScreen === 'checkoutSummary'}
-                                    icon={<HistoryIcon className="w-5 h-5 text-brand-accent" />}
-                                    label="Resumo Checkout"
-                                    onClick={onNavigateToCheckoutSummary}
-                                    isCostModule={isCostModule}
-                                />
-                            )}
-                            {showFullMenu && (
                                 <>
                                     <NavButton
                                         active={activeScreen === 'leanConstruction'}

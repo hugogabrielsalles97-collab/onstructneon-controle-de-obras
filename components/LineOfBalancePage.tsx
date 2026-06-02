@@ -102,7 +102,7 @@ const LineOfBalancePage: React.FC<LineOfBalancePageProps> = (props) => {
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
                                 <div className="w-1.5 h-6 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.3)]"></div>
-                                <h3 className="text-sm font-black text-white uppercase tracking-widest">Diagrama Tempo × Nível</h3>
+                                <h3 className="text-sm font-black text-white uppercase tracking-widest">Diagrama Tempo × Local (OAE)</h3>
                             </div>
                             <span className="text-[10px] font-bold text-brand-med-gray bg-white/5 px-2 py-1 rounded-full">
                                 {filteredTasks.length} atividades
@@ -118,10 +118,13 @@ const LineOfBalancePage: React.FC<LineOfBalancePageProps> = (props) => {
                         )}
 
                         <p className="text-[10px] text-brand-med-gray mt-4 leading-relaxed">
-                            Cada ponto é uma atividade posicionada pela <span className="text-emerald-400 font-bold">data de início</span> (eixo
-                            horizontal) e pelo <span className="text-emerald-400 font-bold">nível</span> (eixo vertical). As linhas ligam
-                            atividades da mesma disciplina, revelando o ritmo e possíveis cruzamentos/conflitos de frente. Os dados vêm das
-                            mesmas atividades da Programação Semanal.
+                            Cada paralelogramo é uma atividade, posicionada pelo <span className="text-emerald-400 font-bold">período</span> (eixo
+                            horizontal, datas) e pelo <span className="text-emerald-400 font-bold">local / OAE</span> (eixo vertical). As cores
+                            representam as equipes de Obras de Arte — <span className="text-amber-400 font-bold">Estaca</span>,
+                            <span className="text-red-400 font-bold"> Arrasamento</span>, <span className="text-blue-400 font-bold">Armação</span>,
+                            <span className="text-purple-400 font-bold"> Forma/Desforma</span> e <span className="text-emerald-400 font-bold">Concreto</span> —
+                            revelando o ritmo de cada equipe entre as frentes. A linha clara é a <span className="text-gray-200 font-bold">Curva S</span> de
+                            avanço acumulado. Os dados vêm das mesmas atividades da Programação Semanal.
                         </p>
                     </div>
                 </div>

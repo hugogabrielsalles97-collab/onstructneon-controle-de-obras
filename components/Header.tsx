@@ -120,7 +120,6 @@ const Header: React.FC<HeaderProps> = ({
       ]
     : [
     { id: 'dashboard', label: 'Programação Semanal', icon: <ChartIcon className="w-5 h-5" />, onClick: onNavigateToDashboard, show: !isOrgModule },
-    { id: 'checkoutSummary', label: 'Resumo Checkout', icon: <HistoryIcon className="w-5 h-5 text-brand-accent" />, onClick: onNavigateToCheckoutSummary, show: !isOrgModule },
     { id: 'leanConstruction', label: 'Lean Construction', icon: <LeanConstructionIcon className="w-5 h-5 text-cyan-400" />, onClick: onNavigateToLeanConstruction, show: showFullMenu && !isOrgModule },
     { id: 'lean', label: 'Sistema LPS', icon: <LeanIcon className="w-5 h-5" />, onClick: onNavigateToLean, show: showFullMenu && !isOrgModule },
     { id: 'orgSummary', label: 'Resumo Organograma', icon: <BriefcaseIcon className="w-5 h-5 text-cyan-400" />, onClick: onNavigateToOrgSummary, show: isOrgModule },
