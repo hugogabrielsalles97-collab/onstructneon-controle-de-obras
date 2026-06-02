@@ -360,13 +360,26 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     return null;
   }, []);
 
+  // Nível "Pátio de Pré Moldados" é fabricado no pátio (fora da OAE) e sempre
+  // responde ao Matheus Ramos, independente da OAE de destino da peça.
+  const isPatioPreMoldadosLevel = useCallback((level: string | undefined): boolean => {
+    if (!level) return false;
+    const norm = normalizeString(level);
+    return norm.includes('patio') && norm.includes('pre') && norm.includes('moldad');
+  }, []);
+
   // Retorna a lista de engenheiros associados a uma tarefa (pode ser mais de um)
-  const getEngineersForTask = useCallback((task: { location?: string; assignee?: string }): string[] => {
+  const getEngineersForTask = useCallback((task: { location?: string; assignee?: string; level?: string }): string[] => {
     const result: string[] = [];
 
-    // 1. Por localização (OAE) — Bruno Bastos, Matheus Ramos, Rafael Requiao
-    const locEng = getEngineerForLocation(task.location);
-    if (locEng) result.push(locEng);
+    // 0. Override: nível Pátio de Pré Moldados → sempre Matheus Ramos
+    if (isPatioPreMoldadosLevel(task.level)) {
+      result.push('Matheus Ramos');
+    } else {
+      // 1. Por localização (OAE) — Bruno Bastos, Matheus Ramos, Rafael Requiao
+      const locEng = getEngineerForLocation(task.location);
+      if (locEng) result.push(locEng);
+    }
 
     // 2. Por árvore do organograma — ex.: Rodrigo Marota = gestor de todos os responsáveis abaixo dele na árvore
     if (task.assignee) {
@@ -379,7 +392,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     }
 
     return result;
-  }, [getEngineerForLocation, orgChartEngineerDescendants]);
+  }, [getEngineerForLocation, orgChartEngineerDescendants, isPatioPreMoldadosLevel]);
 
   const uniqueOptions = useMemo(() => {
     const assignees = new Set<string>();

@@ -490,7 +490,19 @@ const WAR_ROOM_OAE_LIST = [
     { id: 'OAE D24', label: 'D24', engineer: 'Rafael Requiao' },
     { id: 'Quadratum', label: 'Quadratum', engineer: 'Bruno Bastos' },
     { id: 'Pátio de vigas', label: 'Pátio de vigas', engineer: 'Matheus Ramos' },
+    { id: 'Pátio de Pré Moldados', label: 'Pátio de Pré Moldados', engineer: 'Matheus Ramos' },
 ];
+
+const WR_PATIO_PRE_MOLDADOS_ID = 'Pátio de Pré Moldados';
+const wrIsPatioPreMoldadosLevel = (level: string | undefined): boolean => {
+    if (!level) return false;
+    const norm = level
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .trim();
+    return norm.includes('patio') && norm.includes('pre') && norm.includes('moldad');
+};
 
 const WR_ENGINEER_COLORS: Record<string, { bg: string; border: string; text: string; dot: string }> = {
     'Bruno Bastos': { bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.5)', text: '#93c5fd', dot: '#3b82f6' },
@@ -509,6 +521,7 @@ const SlideVisualControl: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
 
         WAR_ROOM_OAE_LIST.forEach(oae => {
             const matchingTasks: { title: string; assignee: string; support?: string; shift?: string }[] = [];
+            const isPatioIndicator = oae.id === WR_PATIO_PRE_MOLDADOS_ID;
 
             tasks.forEach(task => {
                 if (!task.location) return;
@@ -516,19 +529,28 @@ const SlideVisualControl: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
                 const taskEnd = new Date(task.dueDate + 'T23:59:59');
                 if (today < taskStart || today > taskEnd) return;
 
-                const loc = task.location.toUpperCase().trim();
-                if (
-                    loc.includes(oae.id.toUpperCase()) ||
-                    loc.includes(oae.label) ||
-                    loc === oae.id.toUpperCase()
-                ) {
-                    matchingTasks.push({
-                        title: task.title,
-                        assignee: task.assignee || '',
-                        support: task.support || undefined,
-                        shift: task.shift || undefined,
-                    });
+                const isPatioTask = wrIsPatioPreMoldadosLevel(task.level);
+
+                // Pátio de Pré Moldados: tarefa só conta para o indicador do pátio,
+                // nunca para o indicador da OAE de destino da peça.
+                if (isPatioIndicator) {
+                    if (!isPatioTask) return;
+                } else {
+                    if (isPatioTask) return;
+                    const loc = task.location.toUpperCase().trim();
+                    if (!(
+                        loc.includes(oae.id.toUpperCase()) ||
+                        loc.includes(oae.label) ||
+                        loc === oae.id.toUpperCase()
+                    )) return;
                 }
+
+                matchingTasks.push({
+                    title: task.title,
+                    assignee: task.assignee || '',
+                    support: task.support || undefined,
+                    shift: task.shift || undefined,
+                });
             });
 
             if (matchingTasks.length > 0) {

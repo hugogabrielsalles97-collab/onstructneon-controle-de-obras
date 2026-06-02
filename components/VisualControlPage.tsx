@@ -51,7 +51,20 @@ const OAE_LIST: OAEConfig[] = [
     { id: 'OAE D24', label: 'D24', engineer: 'Rafael Requiao', x: 50, y: 65 },
     { id: 'Quadratum', label: 'Quadratum', engineer: 'Bruno Bastos', x: 75, y: 45 },
     { id: 'Pátio de vigas', label: 'Pátio de vigas', engineer: 'Matheus Ramos', x: 75, y: 55 },
+    { id: 'Pátio de Pré Moldados', label: 'Pátio de Pré Moldados', engineer: 'Matheus Ramos', x: 75, y: 60 },
 ];
+
+// Tarefas com este nível pertencem ao pátio de fabricação, não à OAE de destino.
+const PATIO_PRE_MOLDADOS_ID = 'Pátio de Pré Moldados';
+const isPatioPreMoldadosLevel = (level: string | undefined): boolean => {
+    if (!level) return false;
+    const norm = level
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .trim();
+    return norm.includes('patio') && norm.includes('pre') && norm.includes('moldad');
+};
 
 // Color per engineer
 const ENGINEER_COLORS: Record<string, { bg: string; border: string; text: string; dot: string }> = {
@@ -278,12 +291,23 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
 
             if (selected < taskStart || selected > taskEnd) return;
 
+            // Tarefas de Pátio de Pré Moldados são fabricadas no pátio,
+            // então vão para o indicador próprio mesmo que a location seja uma OAE.
+            if (isPatioPreMoldadosLevel(task.level) && result[PATIO_PRE_MOLDADOS_ID]) {
+                const entry = result[PATIO_PRE_MOLDADOS_ID];
+                entry.tasks.push(task);
+                if (task.assignee) entry.assignees.add(task.assignee);
+                return;
+            }
+
             // Match task location to OAE
             const loc = task.location.toUpperCase().trim();
             const matchingOAE = OAE_LIST.find(oae =>
-                loc.includes(oae.id.toUpperCase()) ||
-                loc.includes(oae.label) ||
-                loc === oae.id.toUpperCase()
+                oae.id === PATIO_PRE_MOLDADOS_ID ? false : (
+                    loc.includes(oae.id.toUpperCase()) ||
+                    loc.includes(oae.label) ||
+                    loc === oae.id.toUpperCase()
+                )
             );
 
             if (matchingOAE && result[matchingOAE.id]) {
@@ -295,14 +319,29 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
 
         // 2) Acumular contagem de trabalhadores a partir da RPC leve
         if (workerRows && workerRows.length > 0) {
+            // Index leve task_id -> level para roteamento do Pátio de Pré Moldados
+            const taskLevelById = new Map<string, string | undefined>();
+            tasks.forEach(t => { taskLevelById.set(t.id, t.level); });
+
             workerRows.forEach((row: VisualControlWorkerRow) => {
                 if (!row.task_location) return;
 
+                // Pátio de Pré Moldados: roteia para o indicador próprio
+                if (isPatioPreMoldadosLevel(taskLevelById.get(row.task_id)) && result[PATIO_PRE_MOLDADOS_ID]) {
+                    const entry = result[PATIO_PRE_MOLDADOS_ID];
+                    const normalizedRole = row.manpower_role.trim().toUpperCase();
+                    entry.workersByRole[normalizedRole] = (entry.workersByRole[normalizedRole] || 0) + row.manpower_qty;
+                    entry.totalWorkers += row.manpower_qty;
+                    return;
+                }
+
                 const loc = row.task_location.toUpperCase().trim();
                 const matchingOAE = OAE_LIST.find(oae =>
-                    loc.includes(oae.id.toUpperCase()) ||
-                    loc.includes(oae.label) ||
-                    loc === oae.id.toUpperCase()
+                    oae.id === PATIO_PRE_MOLDADOS_ID ? false : (
+                        loc.includes(oae.id.toUpperCase()) ||
+                        loc.includes(oae.label) ||
+                        loc === oae.id.toUpperCase()
+                    )
                 );
 
                 if (matchingOAE && result[matchingOAE.id]) {
