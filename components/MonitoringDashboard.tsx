@@ -415,7 +415,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
 
     return (
         <div className="flex h-screen bg-[#060a12] overflow-hidden text-gray-100 font-sans">
-            <Sidebar user={user} activeScreen="monitoringControl" {...props} />
+            <Sidebar user={user} activeScreen="management" {...props} />
             <main className="flex-1 overflow-y-auto relative custom-scrollbar">
                 <div className="p-8 pb-4">
                     <div className="flex items-center justify-between mb-8">

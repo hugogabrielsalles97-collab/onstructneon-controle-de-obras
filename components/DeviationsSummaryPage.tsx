@@ -312,7 +312,7 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
 
     return (
         <div className="flex h-screen bg-[var(--dv-page)] overflow-hidden text-[var(--dv-text)] font-sans">
-            <Sidebar user={user} activeScreen="monitoringControl" {...props} />
+            <Sidebar user={user} activeScreen="management" {...props} />
             <main className="flex-1 overflow-y-auto relative custom-scrollbar">
                 <div className="p-8 pb-12">
                     {/* HEADER */}
