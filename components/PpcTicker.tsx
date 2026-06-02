@@ -32,21 +32,21 @@ const PpcTicker: React.FC<{ items: PpcTickerItem[] }> = ({ items }) => {
                 </span>
 
                 <div className="relative flex-1 overflow-hidden">
-                    <div className="ppc-ticker-track flex gap-8 whitespace-nowrap will-change-transform py-2.5 pl-8">
+                    <div className="ppc-ticker-track flex whitespace-nowrap will-change-transform py-2.5">
                         {loop.map((it, i) => {
                             const up = it.delta > 0;
                             const down = it.delta < 0;
                             const color = up ? 'text-emerald-400' : down ? 'text-red-400' : 'text-gray-400';
                             const arrow = up ? '▲' : down ? '▼' : '—';
                             return (
-                                <span key={i} className="flex items-center gap-2 text-xs font-bold">
+                                <span key={i} className="flex items-center gap-2 text-xs font-bold mr-8">
                                     <span className="text-gray-200 uppercase tracking-tight">{it.engineer}</span>
                                     <span className="font-black text-white font-mono">{it.lastWeekPpc}%</span>
                                     <span className={`flex items-center gap-0.5 font-black font-mono ${color}`}>
-                                        {arrow} {it.delta > 0 ? '+' : ''}{it.delta} p.p.
+                                        {arrow} {it.delta > 0 ? '+' : ''}{it.delta}
                                     </span>
                                     <span className="text-[9px] text-brand-med-gray font-mono">méd {it.avg}%</span>
-                                    <span className="text-white/15">|</span>
+                                    <span className="text-white/15 pl-2">|</span>
                                 </span>
                             );
                         })}
