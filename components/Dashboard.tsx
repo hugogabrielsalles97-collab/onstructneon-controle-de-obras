@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { User, Task, TaskStatus } from '../types';
 import { useData } from '../context/DataProvider';
 import Header from './Header';
@@ -65,6 +65,11 @@ interface DashboardProps {
   onAddTask?: () => void;
   showToast: (message: string, type: 'success' | 'error') => void;
 }
+
+// Quantas linhas a tabela desenha por vez. Evita travar o navegador ao
+// renderizar milhares de tarefas de uma só vez (a lista completa continua
+// disponível para resumo, filtros e exportação — só a tabela é paginada).
+const PAGE_SIZE = 100;
 
 const initialFilters = {
   status: 'all' as StatusFilter,
@@ -512,6 +517,21 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     return filtered;
   }, [filteredTasksWithoutStatus, baselineById, filters.status, sortConfig]);
 
+  // ==== Paginação no cliente ====
+  // Renderiza só as primeiras N tarefas; "Carregar mais" revela o próximo bloco.
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  // Sempre que o resultado muda (filtros/ordenação), volta a mostrar o 1º bloco.
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [filters, sortConfig]);
+
+  const visibleTasks2 = useMemo(
+    () => filteredAndSortedTasks.slice(0, visibleCount),
+    [filteredAndSortedTasks, visibleCount]
+  );
+  const hasMoreTasks = visibleCount < filteredAndSortedTasks.length;
+
   const handleSort = (key: SortKey) => {
     let direction: SortDirection = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -832,7 +852,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
               <div className="flex items-center gap-3 px-6 pt-5 pb-3 border-b border-white/5">
                 <div className="w-1.5 h-6 bg-brand-accent rounded-full"></div>
                 <h3 className="text-lg font-black text-white uppercase tracking-wide">Programação Semanal</h3>
-                <span className="text-[10px] font-bold text-brand-med-gray bg-white/5 px-2 py-1 rounded-full">{filteredAndSortedTasks.length} tarefas</span>
+                <span className="text-[10px] font-bold text-brand-med-gray bg-white/5 px-2 py-1 rounded-full">
+                  {hasMoreTasks
+                    ? `${visibleTasks2.length} de ${filteredAndSortedTasks.length} tarefas`
+                    : `${filteredAndSortedTasks.length} tarefas`}
+                </span>
               </div>
               {isLoadingTasks && tasks.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -841,7 +865,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
                 </div>
               ) : (
                 <TaskListView
-                  tasks={filteredAndSortedTasks}
+                  tasks={visibleTasks2}
                   baselineTasks={baselineTasks}
                   onEditTask={onOpenModal}
                   onDeleteTask={handleDeleteTask}
@@ -850,6 +874,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
                   userRole={user.role}
                   allUsers={allUsers}
                 />
+              )}
+              {hasMoreTasks && (
+                <div className="flex flex-col items-center gap-2 py-6 non-printable">
+                  <button
+                    onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+                    className="flex items-center gap-2 bg-brand-accent/10 text-brand-accent px-6 py-3 rounded-xl hover:bg-brand-accent hover:text-white transition-all duration-300 font-bold border border-brand-accent/20 shadow-xl shadow-brand-accent/5"
+                  >
+                    Carregar mais ({filteredAndSortedTasks.length - visibleTasks2.length} restantes)
+                  </button>
+                  <button
+                    onClick={() => setVisibleCount(filteredAndSortedTasks.length)}
+                    className="text-[10px] font-bold text-brand-med-gray hover:text-white transition-colors uppercase tracking-widest"
+                  >
+                    Mostrar todas
+                  </button>
+                </div>
               )}
             </div>
           </div>
