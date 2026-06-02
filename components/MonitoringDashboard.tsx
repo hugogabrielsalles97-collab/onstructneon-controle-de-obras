@@ -422,7 +422,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                         <div>
                             <div className="flex items-center gap-3 mb-2">
                                 <div className="p-2 bg-brand-accent/20 rounded-lg text-brand-accent"><LayoutDashboard size={24} /></div>
-                                <h1 className="text-3xl font-black tracking-tight uppercase italic underline decoration-brand-accent decoration-4 underline-offset-8">Dashboard Operacional</h1>
+                                <h1 className="text-3xl font-black tracking-tight uppercase italic underline decoration-brand-accent decoration-4 underline-offset-8">Serviços Notáveis</h1>
                             </div>
                             <p className="text-brand-med-gray text-[10px] font-bold uppercase tracking-[0.2em] opacity-60">Monitoramento e Controle de Obras</p>
                         </div>
@@ -430,8 +430,8 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
                             <button onClick={props.onNavigateToMonitoringDeviations} className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-red-600/90 to-orange-600/90 hover:from-red-500 hover:to-orange-500 rounded-xl border border-red-400/30 transition-all font-black text-[10px] uppercase tracking-wider shadow-2xl shadow-red-900/30">
                                 <AlertTriangle size={14} /> Resumo Desvios
                             </button>
-                            <button onClick={props.onNavigateToMonitoringControl} className="flex items-center gap-2 px-6 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-all font-black text-[10px] uppercase tracking-wider shadow-2xl">
-                                <ArrowLeft size={14} /> Voltar para Planilha
+                            <button onClick={props.onNavigateToAnalysis} className="flex items-center gap-2 px-6 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-all font-black text-[10px] uppercase tracking-wider shadow-2xl">
+                                <ArrowLeft size={14} /> Voltar ao Painel
                             </button>
                         </div>
                     </div>

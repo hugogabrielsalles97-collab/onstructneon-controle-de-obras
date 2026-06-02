@@ -326,10 +326,10 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
                         </div>
                         <div className="flex items-center gap-3">
                             <button onClick={props.onNavigateToMonitoringDashboard} className="flex items-center gap-2 px-6 py-2.5 bg-blue-600/90 hover:bg-blue-500 rounded-xl border border-blue-400/20 transition-all font-black text-[10px] uppercase tracking-wider shadow-2xl text-white">
-                                <LayoutDashboard size={14} /> Analítico
+                                <LayoutDashboard size={14} /> Serviços Notáveis
                             </button>
-                            <button onClick={props.onNavigateToMonitoringControl} className="flex items-center gap-2 px-6 py-2.5 bg-[var(--dv-subtle)] hover:bg-[var(--dv-hover)] rounded-xl border border-[var(--dv-border)] transition-all font-black text-[10px] uppercase tracking-wider shadow-2xl">
-                                <ArrowLeft size={14} /> Voltar para Planilha
+                            <button onClick={props.onNavigateToAnalysis} className="flex items-center gap-2 px-6 py-2.5 bg-[var(--dv-subtle)] hover:bg-[var(--dv-hover)] rounded-xl border border-[var(--dv-border)] transition-all font-black text-[10px] uppercase tracking-wider shadow-2xl">
+                                <ArrowLeft size={14} /> Voltar ao Painel
                             </button>
                         </div>
                     </div>

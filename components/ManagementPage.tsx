@@ -30,6 +30,8 @@ interface ManagementPageProps {
     onNavigateToLean: () => void;
     onNavigateToLeanConstruction: () => void;
   onNavigateToMonitoringControl?: () => void;
+    onNavigateToMonitoringDashboard?: () => void;
+    onNavigateToMonitoringDeviations?: () => void;
     onNavigateToWarRoom: () => void;
     onNavigateToPodcast: () => void;
     onNavigateToCost: () => void;
@@ -54,6 +56,8 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
     onNavigateToAnalysis,
     onNavigateToLean,
     onNavigateToLeanConstruction, onNavigateToMonitoringControl,
+    onNavigateToMonitoringDashboard,
+    onNavigateToMonitoringDeviations,
     onNavigateToWarRoom,
     onNavigateToPodcast,
     onNavigateToCost,
@@ -635,6 +639,46 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                 <p className="text-[10px] text-brand-med-gray uppercase font-bold tracking-widest ml-11">Controle de Cronograma</p>
                             </div>
 
+                        </div>
+
+                        {/* Quadros selecionáveis: Serviços Notáveis e Resumo dos Desvios */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 non-printable">
+                            <button
+                                onClick={onNavigateToMonitoringDashboard}
+                                disabled={!onNavigateToMonitoringDashboard}
+                                className="group flex items-center gap-4 text-left p-5 rounded-2xl bg-[#111827]/60 border border-white/10 hover:border-blue-500/50 hover:bg-[#111827] transition-all duration-300 shadow-xl hover:shadow-blue-900/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                <div className="w-12 h-12 rounded-xl bg-blue-600/15 border border-blue-500/30 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400">
+                                        <path d="M3 3v18h18" />
+                                        <path d="M7 14l3-3 3 3 5-6" />
+                                    </svg>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="text-sm font-black text-white uppercase tracking-wide">Serviços Notáveis</h3>
+                                    <p className="text-[11px] text-brand-med-gray">Curvas e indicadores operacionais por serviço / OAE</p>
+                                </div>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-brand-med-gray group-hover:text-blue-400 group-hover:translate-x-1 transition-all shrink-0">
+                                    <path d="M9 18l6-6-6-6" />
+                                </svg>
+                            </button>
+
+                            <button
+                                onClick={onNavigateToMonitoringDeviations}
+                                disabled={!onNavigateToMonitoringDeviations}
+                                className="group flex items-center gap-4 text-left p-5 rounded-2xl bg-[#111827]/60 border border-white/10 hover:border-red-500/50 hover:bg-[#111827] transition-all duration-300 shadow-xl hover:shadow-red-900/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                <div className="w-12 h-12 rounded-xl bg-red-600/15 border border-red-500/30 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                                    <AlertIcon className="w-6 h-6 text-red-400" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="text-sm font-black text-white uppercase tracking-wide">Resumo dos Desvios</h3>
+                                    <p className="text-[11px] text-brand-med-gray">Análise de desvios e causas de impacto</p>
+                                </div>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-brand-med-gray group-hover:text-red-400 group-hover:translate-x-1 transition-all shrink-0">
+                                    <path d="M9 18l6-6-6-6" />
+                                </svg>
+                            </button>
                         </div>
 
                         {/* Resumo Gerencial */}

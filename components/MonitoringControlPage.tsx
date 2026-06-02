@@ -362,7 +362,6 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                 <input type="text" placeholder="Filtrar planilha..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="bg-brand-dark/40 border border-white/10 rounded-lg py-2 pl-9 pr-4 text-sm w-64 outline-none focus:border-brand-accent transition-all" />
                             </div>
                             <button type="button" onClick={handleAddRow} className="flex items-center gap-2 px-5 py-2 bg-emerald-700 hover:bg-emerald-600 rounded-xl font-bold text-xs uppercase shadow-xl transition-all active:scale-95"><Plus size={14} /> Nova linha</button>
-                            <button onClick={onNavigateToMonitoringDashboard} className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-xs uppercase shadow-xl transition-all active:scale-95"><LayoutDashboard size={14} /> Analítico</button>
                             <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 px-6 py-2 bg-brand-accent hover:bg-brand-accent/90 rounded-xl font-bold text-xs uppercase shadow-xl transition-all active:scale-95">{isSaving ? '...' : 'Salvar Tudo'}</button>
                         </div>
                     </header>
