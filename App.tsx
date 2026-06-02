@@ -36,9 +36,10 @@ const SystemPage = lazy(() => import('./components/SystemPage'));
 const WarRoomTVPage = lazy(() => import('./components/WarRoomTVPage'));
 const MonitoringDashboard = lazy(() => import('./components/MonitoringDashboard'));
 const DeviationsSummaryPage = lazy(() => import('./components/DeviationsSummaryPage'));
+const LineOfBalancePage = lazy(() => import('./components/LineOfBalancePage'));
 
 
-type Screen = 'landing' | 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'monitoringControl' | 'monitoringDashboard' | 'monitoringDeviations' | 'restrictions' | 'cost' | 'podcast' | 'checkoutSummary' | 'orgChart' | 'orgSummary' | 'visualControl' | 'system' | 'warRoomTV';
+type Screen = 'landing' | 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'monitoringControl' | 'monitoringDashboard' | 'monitoringDeviations' | 'lineOfBalance' | 'restrictions' | 'cost' | 'podcast' | 'checkoutSummary' | 'orgChart' | 'orgSummary' | 'visualControl' | 'system' | 'warRoomTV';
 
 const AppContent: React.FC = () => {
   const {
@@ -290,6 +291,7 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
       onNavigateToMonitoringControl: () => setScreen('monitoringControl'),
       onNavigateToMonitoringDashboard: () => setScreen('monitoringDashboard'),
       onNavigateToMonitoringDeviations: () => setScreen('monitoringDeviations'),
+      onNavigateToLineOfBalance: () => setScreen('lineOfBalance'),
       onNavigateToWarRoom: () => setScreen('warRoomTV'),
       onNavigateToPodcast: () => setScreen('podcast'),
       onNavigateToCost: () => setScreen('cost'),
@@ -330,6 +332,8 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
         return <MonitoringDashboard {...navigationProps} showToast={showToast} />;
       case 'monitoringDeviations':
         return <DeviationsSummaryPage {...navigationProps} showToast={showToast} />;
+      case 'lineOfBalance':
+        return <LineOfBalancePage {...navigationProps} showToast={showToast} />;
       case 'podcast': return <PodcastPage {...navigationProps} user={currentUser} showToast={showToast} signOut={signOut} />;
       case 'cost': return (
         <CostPage

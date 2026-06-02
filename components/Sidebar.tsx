@@ -24,6 +24,7 @@ interface SidebarProps {
     onNavigateToLean?: () => void;
     onNavigateToLeanConstruction?: () => void;
     onNavigateToMonitoringControl?: () => void;
+    onNavigateToLineOfBalance?: () => void;
     onNavigateToCost?: () => void;
     onNavigateToPodcast?: () => void;
     onNavigateToCheckoutSummary: () => void;
@@ -37,7 +38,7 @@ interface SidebarProps {
     onAddTask?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome, onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToMonitoringControl, onNavigateToPodcast, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToWarRoom, onNavigateToSystem, onUpgradeClick, onAddTask }) => {
+const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome, onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToMonitoringControl, onNavigateToLineOfBalance, onNavigateToPodcast, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToWarRoom, onNavigateToSystem, onUpgradeClick, onAddTask }) => {
     const { theme, toggleTheme } = useTheme();
     const showFullMenu = user.role !== 'Executor' && user.role !== 'Visualizador';
     const isCostModule = activeScreen === 'cost';
@@ -130,6 +131,20 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                                     }
                                     label="Monitoramento e Controle"
                                     onClick={onNavigateToMonitoringControl}
+                                    isCostModule={isCostModule}
+                                />
+                            )}
+                            {(user.role === 'Master' || user.role === 'Gerenciador' || user.role === 'Planejador') && onNavigateToLineOfBalance && (
+                                <NavButton
+                                    active={activeScreen === 'lineOfBalance'}
+                                    icon={
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-emerald-400">
+                                            <path d="M3 3v18h18" />
+                                            <path d="M7 16l4-6 4 3 5-8" />
+                                        </svg>
+                                    }
+                                    label="Linha de Balanço"
+                                    onClick={onNavigateToLineOfBalance}
                                     isCostModule={isCostModule}
                                 />
                             )}
