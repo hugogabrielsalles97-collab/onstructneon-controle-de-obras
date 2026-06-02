@@ -23,6 +23,7 @@ import ConfirmModal from './ConfirmModal';
 import { exportWeeklyReportToExcel } from '../utils/excelExport';
 import { useOrgMembers } from '../hooks/dataHooks';
 import { getAnchorDue, getAnchorStart, isTaskOverdueByInitialPlan, resolveBaselineTask, taskCurrentDiffersFromInitialPlan } from '../utils/taskPlanning';
+import { normalizeString, normalizeName, buildEngineerDescendants, getTreeEngineerLabels, getEngineersForTask as getEngineersForTaskUtil } from '../utils/engineerMapping';
 
 type SortKey = keyof Task | 'none';
 type SortDirection = 'asc' | 'desc';
@@ -126,23 +127,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
   const [showAvailability, setShowAvailability] = useState(false);
   const [availabilityDate, setAvailabilityDate] = useState('');
   const [availabilityEngineer, setAvailabilityEngineer] = useState('');
-
-  // Normalização de nomes — unifica duplicatas no organograma
-  // Se o banco tem "Rafael Arouca" mas o correto é "Rafael Requiao", mapeia aqui.
-  const NAME_NORMALIZATION_MAP: Record<string, string> = {
-    'Rafael Arouca': 'Rafael Requiao',
-  };
-
-  // Remove acentos e caracteres especiais para comparações robustas
-  const normalizeString = (str: string): string => {
-    return str
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .trim();
-  };
-
-  const normalizeName = (name: string): string => NAME_NORMALIZATION_MAP[name] || name;
 
   const engineersList = useMemo(() => {
     if (!orgMembers) return [];
@@ -290,114 +274,18 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
   };
 
 
-  // Mapeamento OAE → Engenheiro (mesma lógica do Controle Visual)
-  const OAE_ENGINEER_MAP: Record<string, string> = {
-    'S01': 'Bruno Bastos', 'S02': 'Bruno Bastos', 'S03': 'Bruno Bastos',
-    'S04': 'Bruno Bastos', 'S05': 'Bruno Bastos', 'S06': 'Bruno Bastos',
-    'S07': 'Bruno Bastos', 'S08': 'Bruno Bastos', 'S09': 'Bruno Bastos',
-    'S10': 'Matheus Ramos', 'S11': 'Matheus Ramos', 'S12': 'Matheus Ramos',
-    'S13': 'Rafael Requiao', 'S14': 'Rafael Requiao',
-    'D15': 'Bruno Bastos', 'D16': 'Bruno Bastos', 'D17': 'Bruno Bastos', 'D18': 'Bruno Bastos',
-    'D19': 'Matheus Ramos', 'D20': 'Matheus Ramos', 'D21': 'Matheus Ramos',
-    'D22': 'Rafael Requiao', 'D23': 'Rafael Requiao', 'D24': 'Rafael Requiao',
-    'QUADRATUM': 'Bruno Bastos',
-    'PÁTIO DE VIGAS': 'Matheus Ramos',
-  };
+  // Nomes exibidos no filtro (sempre presentes), mesmo sem tarefa que associe o engenheiro por árvore.
+  const treeEngineerFilterLabels = useMemo(() => getTreeEngineerLabels(orgMembers || []), [orgMembers]);
 
-  // Mapeamento Engenheiro → Nomes dos descendentes (via árvore do organograma)
-  // SOMENTE Rodrigo Marota usa essa lógica — os demais usam OAE_ENGINEER_MAP por localização.
-  const TREE_BASED_ENGINEERS = ['rodrigo marota'];
+  // Mapa Engenheiro (árvore do organograma) → descendentes; ver utils/engineerMapping.ts
+  const orgChartEngineerDescendants = useMemo(() => buildEngineerDescendants(orgMembers || []), [orgMembers]);
 
-  /** Nomes exibidos no filtro (sempre presentes), mesmo sem tarefa que já associe o engenheiro por árvore. */
-  const treeEngineerFilterLabels = useMemo(() => {
-    if (!orgMembers) return [] as string[];
-    return orgMembers
-      .filter(m => {
-        const normalizedName = normalizeString(normalizeName(m.name || ''));
-        return TREE_BASED_ENGINEERS.includes(normalizedName);
-      })
-      .map(m => normalizeName(m.name || '').trim())
-      .filter(Boolean);
-  }, [orgMembers]);
-
-  const orgChartEngineerDescendants = useMemo(() => {
-    if (!orgMembers) return new Map<string, Set<string>>();
-    const result = new Map<string, Set<string>>();
-
-    // Busca EXCLUSIVAMENTE os engenheiros listados em TREE_BASED_ENGINEERS no organograma
-    // Para esses casos, não exigimos que o role contenha "engenheiro", pois podem ser gestores/coordenadores.
-    const treeEngineers = orgMembers.filter(m => {
-      const normalizedName = normalizeString(normalizeName(m.name || ''));
-      return TREE_BASED_ENGINEERS.includes(normalizedName);
-    });
-
-    treeEngineers.forEach(eng => {
-      const finalEngName = normalizeName(eng.name || '').trim();
-      if (!finalEngName) return;
-
-      const descendants = new Set<string>();
-      // Próprio gestor: tarefas com ele como responsável também entram no filtro dele
-      descendants.add(normalizeString(normalizeName(eng.name || '')));
-
-      const findDescendants = (parentId: string) => {
-        const children = orgMembers.filter(m => m.parent_id === parentId);
-        children.forEach(child => {
-          if (child.name) {
-            descendants.add(normalizeString(normalizeName(child.name)));
-          }
-          findDescendants(child.id);
-        });
-      };
-
-      findDescendants(eng.id);
-      result.set(finalEngName, descendants);
-    });
-
-    return result;
-  }, [orgMembers]);
-
-  const getEngineerForLocation = useCallback((location: string | undefined): string | null => {
-    if (!location) return null;
-    const loc = location.toUpperCase().trim();
-    for (const [oaeLabel, engineer] of Object.entries(OAE_ENGINEER_MAP)) {
-      if (loc.includes(oaeLabel)) return engineer;
-    }
-    return null;
-  }, []);
-
-  // Nível "Pátio de Pré Moldados" é fabricado no pátio (fora da OAE) e sempre
-  // responde ao Matheus Ramos, independente da OAE de destino da peça.
-  const isPatioPreMoldadosLevel = useCallback((level: string | undefined): boolean => {
-    if (!level) return false;
-    const norm = normalizeString(level);
-    return norm.includes('patio') && norm.includes('pre') && norm.includes('moldad');
-  }, []);
-
-  // Retorna a lista de engenheiros associados a uma tarefa (pode ser mais de um)
-  const getEngineersForTask = useCallback((task: { location?: string; assignee?: string; level?: string }): string[] => {
-    const result: string[] = [];
-
-    // 0. Override: nível Pátio de Pré Moldados → sempre Matheus Ramos
-    if (isPatioPreMoldadosLevel(task.level)) {
-      result.push('Matheus Ramos');
-    } else {
-      // 1. Por localização (OAE) — Bruno Bastos, Matheus Ramos, Rafael Requiao
-      const locEng = getEngineerForLocation(task.location);
-      if (locEng) result.push(locEng);
-    }
-
-    // 2. Por árvore do organograma — ex.: Rodrigo Marota = gestor de todos os responsáveis abaixo dele na árvore
-    if (task.assignee) {
-      const assigneeKey = normalizeString(normalizeName(task.assignee));
-      orgChartEngineerDescendants.forEach((descendants, engName) => {
-        if (descendants.has(assigneeKey)) {
-          result.push(engName);
-        }
-      });
-    }
-
-    return result;
-  }, [getEngineerForLocation, orgChartEngineerDescendants, isPatioPreMoldadosLevel]);
+  // Retorna a lista de engenheiros associados a uma tarefa (OAE + árvore). Fonte única no util.
+  const getEngineersForTask = useCallback(
+    (task: { location?: string; assignee?: string; level?: string }): string[] =>
+      getEngineersForTaskUtil(task, orgChartEngineerDescendants),
+    [orgChartEngineerDescendants]
+  );
 
   const uniqueOptions = useMemo(() => {
     const assignees = new Set<string>();

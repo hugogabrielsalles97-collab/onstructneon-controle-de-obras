@@ -10,6 +10,8 @@ import InfoIcon from './icons/InfoIcon';
 import CumulativeProgressChart from './CumulativeProgressChart';
 import Sidebar from './Sidebar';
 import { exportTasksToExcel } from '../utils/excelExport';
+import { useOrgMembers } from '../hooks/dataHooks';
+import { buildEngineerDescendants, getTreeEngineerLabels, getEngineersForTask, normalizeString, normalizeName } from '../utils/engineerMapping';
 import ManagementMonthlyProgress from './ManagementMonthlyProgress';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
@@ -77,6 +79,8 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
         enableScheduleLoading,
     } = useData();
 
+    const { data: orgMembers } = useOrgMembers();
+
     // Ativar carregamento do cronograma vigente ao montar a página
     useEffect(() => {
         enableScheduleLoading();
@@ -88,6 +92,8 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
     const [dateFilters, setDateFilters] = React.useState({ startDate: '', endDate: '' });
     // Filtro de nível aplicado aos painéis de PPC ('' = todos os níveis)
     const [ppcLevelFilter, setPpcLevelFilter] = React.useState('');
+    // Filtro de engenheiro aplicado aos painéis de PPC ('' = todos os engenheiros)
+    const [ppcEngineerFilter, setPpcEngineerFilter] = React.useState('');
     const [impactDateFilters, setImpactDateFilters] = React.useState({ startDate: '', endDate: '' });
     const [selectedImpactCategory, setSelectedImpactCategory] = React.useState<string | null>(null);
     const [editingImpactTaskId, setEditingImpactTaskId] = React.useState<string | null>(null);
@@ -137,6 +143,19 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
         }
         return Array.from(levels).sort((a, b) => a.localeCompare(b));
     }, [tasks]);
+
+    // Mapa engenheiro→descendentes (árvore do organograma), igual ao Dashboard
+    const engineerDescendants = useMemo(() => buildEngineerDescendants(orgMembers || []), [orgMembers]);
+
+    // Engenheiros disponíveis para o filtro dos painéis de PPC (OAE + árvore)
+    const ppcEngineerOptions = useMemo(() => {
+        const engineers = new Set<string>();
+        for (const t of tasks) {
+            getEngineersForTask(t, engineerDescendants).forEach(e => engineers.add(e));
+        }
+        getTreeEngineerLabels(orgMembers || []).forEach(e => engineers.add(e));
+        return Array.from(engineers).sort((a, b) => a.localeCompare(b));
+    }, [tasks, engineerDescendants, orgMembers]);
 
     const analysisData = useMemo(() => {
         const today = new Date();
@@ -378,8 +397,13 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
         lastClosedSaturday.setDate(now.getDate() - (now.getDay() + 1));
         lastClosedSaturday.setHours(23, 59, 59, 999);
 
+        const engineerKey = ppcEngineerFilter ? normalizeString(normalizeName(ppcEngineerFilter)) : '';
         const tasksToUse = tasks.filter(t => {
             if (ppcLevelFilter && t.level !== ppcLevelFilter) return false;
+            if (engineerKey) {
+                const engs = getEngineersForTask(t, engineerDescendants);
+                if (!engs.some(e => normalizeString(normalizeName(e)) === engineerKey)) return false;
+            }
             if (!dateFilters.startDate && !dateFilters.endDate) return true;
             const tDate = new Date(t.dueDate + 'T00:00:00');
             const start = dateFilters.startDate ? new Date(dateFilters.startDate + 'T00:00:00') : null;
@@ -438,7 +462,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 name: `${week}`,
                 ppc: weeks[week].planned > 0 ? Math.round((weeks[week].completed / weeks[week].planned) * 100) : 0,
             }));
-    }, [tasks, dateFilters, ppcLevelFilter]);
+    }, [tasks, dateFilters, ppcLevelFilter, ppcEngineerFilter, engineerDescendants]);
 
     const averagePpc = useMemo(() => {
         if (weeklyPpcData.length === 0) return 0;
@@ -454,8 +478,13 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
 
         const projectStart = new Date('2026-02-15T00:00:00'); // Início da análise em 21/02
 
+        const engineerKey = ppcEngineerFilter ? normalizeString(normalizeName(ppcEngineerFilter)) : '';
         const tasksToUse = tasks.filter(t => {
             if (ppcLevelFilter && t.level !== ppcLevelFilter) return false;
+            if (engineerKey) {
+                const engs = getEngineersForTask(t, engineerDescendants);
+                if (!engs.some(e => normalizeString(normalizeName(e)) === engineerKey)) return false;
+            }
             const tDate = new Date(t.dueDate + 'T00:00:00');
             if (tDate < projectStart) return false;
 
@@ -529,7 +558,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
             
             return data;
         });
-    }, [tasks, dateFilters, ppcLevelFilter]);
+    }, [tasks, dateFilters, ppcLevelFilter, ppcEngineerFilter, engineerDescendants]);
 
     const globalStats = useMemo(() => {
         const total = analysisData.length;
@@ -633,25 +662,45 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                             </div>
                         )}
 
-                        {/* Filtro de Nível dos painéis de PPC */}
-                        <div className="flex items-center gap-3 non-printable">
-                            <label htmlFor="ppc-level-filter" className="text-[10px] font-black text-brand-med-gray uppercase tracking-widest">
-                                PPC por Nível
-                            </label>
-                            <select
-                                id="ppc-level-filter"
-                                value={ppcLevelFilter}
-                                onChange={e => setPpcLevelFilter(e.target.value)}
-                                className="bg-[#0a0f18] border border-white/10 rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/50 shadow-inner appearance-none custom-select min-w-[180px]"
-                            >
-                                <option value="">Todos os níveis</option>
-                                {ppcLevelOptions.map(lvl => (
-                                    <option key={lvl} value={lvl}>{lvl}</option>
-                                ))}
-                            </select>
-                            {ppcLevelFilter && (
+                        {/* Filtros dos painéis de PPC */}
+                        <div className="flex items-center gap-4 non-printable flex-wrap">
+                            <div className="flex items-center gap-3">
+                                <label htmlFor="ppc-level-filter" className="text-[10px] font-black text-brand-med-gray uppercase tracking-widest">
+                                    PPC por Nível
+                                </label>
+                                <select
+                                    id="ppc-level-filter"
+                                    value={ppcLevelFilter}
+                                    onChange={e => setPpcLevelFilter(e.target.value)}
+                                    className="bg-[#0a0f18] border border-white/10 rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/50 shadow-inner appearance-none custom-select min-w-[180px]"
+                                >
+                                    <option value="">Todos os níveis</option>
+                                    {ppcLevelOptions.map(lvl => (
+                                        <option key={lvl} value={lvl}>{lvl}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <label htmlFor="ppc-engineer-filter" className="text-[10px] font-black text-brand-med-gray uppercase tracking-widest">
+                                    Engenheiro
+                                </label>
+                                <select
+                                    id="ppc-engineer-filter"
+                                    value={ppcEngineerFilter}
+                                    onChange={e => setPpcEngineerFilter(e.target.value)}
+                                    className="bg-[#0a0f18] border border-white/10 rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/50 shadow-inner appearance-none custom-select min-w-[180px]"
+                                >
+                                    <option value="">Todos os engenheiros</option>
+                                    {ppcEngineerOptions.map(eng => (
+                                        <option key={eng} value={eng}>{eng}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {(ppcLevelFilter || ppcEngineerFilter) && (
                                 <button
-                                    onClick={() => setPpcLevelFilter('')}
+                                    onClick={() => { setPpcLevelFilter(''); setPpcEngineerFilter(''); }}
                                     className="text-[10px] font-bold text-brand-med-gray hover:text-white transition-colors uppercase tracking-widest"
                                 >
                                     Limpar
