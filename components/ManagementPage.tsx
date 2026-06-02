@@ -86,6 +86,8 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
     const [visibleItemCount, setVisibleItemCount] = useState(20);
     const [selectedStatuses, setSelectedStatuses] = React.useState<string[]>(['Concluída', 'Em Andamento', 'Não Iniciada', 'Atrasada']);
     const [dateFilters, setDateFilters] = React.useState({ startDate: '', endDate: '' });
+    // Filtro de nível aplicado aos painéis de PPC ('' = todos os níveis)
+    const [ppcLevelFilter, setPpcLevelFilter] = React.useState('');
     const [impactDateFilters, setImpactDateFilters] = React.useState({ startDate: '', endDate: '' });
     const [selectedImpactCategory, setSelectedImpactCategory] = React.useState<string | null>(null);
     const [editingImpactTaskId, setEditingImpactTaskId] = React.useState<string | null>(null);
@@ -125,6 +127,15 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
             else map.set(bid, [t]);
         }
         return map;
+    }, [tasks]);
+
+    // Níveis disponíveis para o filtro dos painéis de PPC
+    const ppcLevelOptions = useMemo(() => {
+        const levels = new Set<string>();
+        for (const t of tasks) {
+            if (t.level) levels.add(t.level);
+        }
+        return Array.from(levels).sort((a, b) => a.localeCompare(b));
     }, [tasks]);
 
     const analysisData = useMemo(() => {
@@ -368,13 +379,14 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
         lastClosedSaturday.setHours(23, 59, 59, 999);
 
         const tasksToUse = tasks.filter(t => {
+            if (ppcLevelFilter && t.level !== ppcLevelFilter) return false;
             if (!dateFilters.startDate && !dateFilters.endDate) return true;
             const tDate = new Date(t.dueDate + 'T00:00:00');
             const start = dateFilters.startDate ? new Date(dateFilters.startDate + 'T00:00:00') : null;
             const end = dateFilters.endDate ? new Date(dateFilters.endDate + 'T23:59:59') : null;
             return (!start || tDate >= start) && (!end || tDate <= end);
         });
-        
+
         if (tasksToUse.length === 0) return [];
 
         const start = new Date(Math.min(...tasksToUse.map(t => new Date(t.startDate).getTime())));
@@ -426,7 +438,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 name: `${week}`,
                 ppc: weeks[week].planned > 0 ? Math.round((weeks[week].completed / weeks[week].planned) * 100) : 0,
             }));
-    }, [tasks, dateFilters]);
+    }, [tasks, dateFilters, ppcLevelFilter]);
 
     const averagePpc = useMemo(() => {
         if (weeklyPpcData.length === 0) return 0;
@@ -443,6 +455,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
         const projectStart = new Date('2026-02-15T00:00:00'); // Início da análise em 21/02
 
         const tasksToUse = tasks.filter(t => {
+            if (ppcLevelFilter && t.level !== ppcLevelFilter) return false;
             const tDate = new Date(t.dueDate + 'T00:00:00');
             if (tDate < projectStart) return false;
 
@@ -516,7 +529,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
             
             return data;
         });
-    }, [tasks, dateFilters]);
+    }, [tasks, dateFilters, ppcLevelFilter]);
 
     const globalStats = useMemo(() => {
         const total = analysisData.length;
@@ -619,6 +632,32 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                 </div>
                             </div>
                         )}
+
+                        {/* Filtro de Nível dos painéis de PPC */}
+                        <div className="flex items-center gap-3 non-printable">
+                            <label htmlFor="ppc-level-filter" className="text-[10px] font-black text-brand-med-gray uppercase tracking-widest">
+                                PPC por Nível
+                            </label>
+                            <select
+                                id="ppc-level-filter"
+                                value={ppcLevelFilter}
+                                onChange={e => setPpcLevelFilter(e.target.value)}
+                                className="bg-[#0a0f18] border border-white/10 rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/50 shadow-inner appearance-none custom-select min-w-[180px]"
+                            >
+                                <option value="">Todos os níveis</option>
+                                {ppcLevelOptions.map(lvl => (
+                                    <option key={lvl} value={lvl}>{lvl}</option>
+                                ))}
+                            </select>
+                            {ppcLevelFilter && (
+                                <button
+                                    onClick={() => setPpcLevelFilter('')}
+                                    className="text-[10px] font-bold text-brand-med-gray hover:text-white transition-colors uppercase tracking-widest"
+                                >
+                                    Limpar
+                                </button>
+                            )}
+                        </div>
 
                         {/* Indicadores de PPC (Percentual de Plano Cumprido) */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 non-printable mb-8">
