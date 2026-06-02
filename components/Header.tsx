@@ -16,6 +16,7 @@ import UserManagementModal from './UserManagementModal';
 import ChangePasswordModal from './ChangePasswordModal';
 import Toast from './Toast';
 import { useData } from '../context/DataProvider';
+import { useNavigation } from '../context/NavigationContext';
 import { useNotifications, markNotificationAsRead, clearAllNotifications } from '../hooks/dataHooks';
 
 interface HeaderProps {
@@ -64,6 +65,8 @@ const Header: React.FC<HeaderProps> = ({
   activeScreen = 'dashboard'
 }) => {
   const { allUsers } = useData();
+  const nav = useNavigation();
+  const goLineOfBalance = onNavigateToLineOfBalance || nav.navigateToLineOfBalance;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -139,7 +142,7 @@ const Header: React.FC<HeaderProps> = ({
           <path d="M3 3v18h18" />
           <path d="M7 16l4-6 4 3 5-8" />
         </svg>
-      ), onClick: onNavigateToLineOfBalance, show: showFullMenu && !isOrgModule && !!onNavigateToLineOfBalance
+      ), onClick: goLineOfBalance, show: showFullMenu && !isOrgModule && !!goLineOfBalance
     },
     {
       id: 'podcast', label: 'Podcast da obra', icon: (

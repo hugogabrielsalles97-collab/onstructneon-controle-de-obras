@@ -2,6 +2,7 @@
 import React from 'react';
 import { User } from '../types';
 import { useTheme } from '../utils/theme';
+import { useNavigation } from '../context/NavigationContext';
 import ConstructionIcon from './icons/ConstructionIcon';
 import ChartIcon from './icons/ChartIcon';
 import BaselineIcon from './icons/BaselineIcon';
@@ -40,6 +41,9 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome, onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToMonitoringControl, onNavigateToLineOfBalance, onNavigateToPodcast, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToWarRoom, onNavigateToSystem, onUpgradeClick, onAddTask }) => {
     const { theme, toggleTheme } = useTheme();
+    const nav = useNavigation();
+    // Navegação da Linha de Balanço: usa a prop se a página repassar, senão o contexto global
+    const goLineOfBalance = onNavigateToLineOfBalance || nav.navigateToLineOfBalance;
     const showFullMenu = user.role !== 'Executor' && user.role !== 'Visualizador';
     const isCostModule = activeScreen === 'cost';
     const isOrgModule = activeScreen === 'orgSummary' || activeScreen === 'orgChart';
@@ -134,7 +138,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                                     isCostModule={isCostModule}
                                 />
                             )}
-                            {(user.role === 'Master' || user.role === 'Gerenciador' || user.role === 'Planejador') && onNavigateToLineOfBalance && (
+                            {(user.role === 'Master' || user.role === 'Gerenciador' || user.role === 'Planejador') && goLineOfBalance && (
                                 <NavButton
                                     active={activeScreen === 'lineOfBalance'}
                                     icon={
@@ -144,7 +148,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                                         </svg>
                                     }
                                     label="Linha de Balanço"
-                                    onClick={onNavigateToLineOfBalance}
+                                    onClick={goLineOfBalance}
                                     isCostModule={isCostModule}
                                 />
                             )}
