@@ -19,7 +19,7 @@ export const taskTitleOptions: Record<string, Record<string, string[]>> = {
 
 export const oaeLocations = ['S01', 'S02', 'S03', 'S04', 'S05', 'S06', 'S07', 'S08', 'S09', 'S10', 'S11', 'S12', 'S13', 'S14', 'S25', 'D15', 'D16', 'D17', 'D18', 'D19', 'D20', 'D21', 'D22', 'D23', 'D24'];
 export const frentes = ['FT01A', 'FT01B', 'FT02', 'FT03A', 'FT03B', 'FT03C', 'FT04', 'FT05', 'FT06', 'FT07', 'FT08', 'FT09', 'FT10', 'FT11', 'FT12', 'FT13', 'FT14', 'FT15', 'FT16', 'FT17', 'FT18', 'FT19', 'FT20', 'FT21', 'FT22', 'FT23', 'FT24', 'FT25', 'FT26', 'FT27', 'FT28A', 'FT28B', 'FT29', 'FT30', 'FT32', 'FT32A', 'FT32B', 'FT33', 'FT34'];
-export const apoios = ['E0', 'E1', 'P0', 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'P10', 'E2'];
-export const vaos = ['E1-P0', 'E1-P1', 'P0-P1', 'P1-P2', 'P2-P3', 'P3-P4', 'P4-P5', 'P5-P6', 'P6-P7', 'P7-P8', 'P8-P9', 'P9-P10', 'P10-E2', 'P9-E2', 'P8-E2', 'P7-E2', 'P6-E2', 'P5-E2', 'P4-E2', 'P3-E2', 'P2-E2', 'E1-P1'];
+export const apoios = ['E0', 'E1', 'P0', 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'P10', 'E2', 'E3'];
+export const vaos = ['E1-P0', 'E1-P1', 'P0-P1', 'P1-P2', 'P2-P3', 'P3-P4', 'P4-P5', 'P5-P6', 'P6-P7', 'P7-P8', 'P8-P9', 'P9-P10', 'P10-E2', 'P9-E2', 'P8-E2', 'P7-E2', 'P6-E2', 'P5-E2', 'P4-E2', 'P3-E2', 'P2-E2', 'E1-P1', 'E2-E3', 'P10-E3', 'P9-E3', 'P8-E3', 'P7-E3', 'P6-E3', 'P5-E3', 'P4-E3', 'P3-E3', 'P2-E3'];
 export const sideOptions = ['Esquerdo', 'Direito', 'Ambos'];
 export const unitOptions = ['un', 'm', 'm²', 'm³', 'kg', 't'];
