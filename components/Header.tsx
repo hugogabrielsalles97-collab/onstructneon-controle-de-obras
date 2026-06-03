@@ -97,23 +97,7 @@ const Header: React.FC<HeaderProps> = ({
 
   const isOrgModule = activeScreen === 'orgSummary' || activeScreen === 'orgChart';
 
-  const menuItems = isWarRoomOnlyProfile && onNavigateToWarRoom
-    ? [
-        {
-          id: 'warRoomTV',
-          label: 'War Room TV',
-          icon: (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-rose-400">
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-              <line x1="8" y1="21" x2="16" y2="21" />
-              <line x1="12" y1="17" x2="12" y2="21" />
-            </svg>
-          ),
-          onClick: onNavigateToWarRoom,
-          show: true,
-        },
-      ]
-    : [
+  const menuItems = [
     { id: 'dashboard', label: 'Programação Semanal', icon: <ChartIcon className="w-5 h-5" />, onClick: onNavigateToDashboard, show: !isOrgModule },
     { id: 'leanConstruction', label: 'Lean Construction', icon: <LeanConstructionIcon className="w-5 h-5 text-cyan-400" />, onClick: onNavigateToLeanConstruction, show: showFullMenu && !isOrgModule },
     { id: 'lean', label: 'Sistema LPS', icon: <LeanIcon className="w-5 h-5" />, onClick: onNavigateToLean, show: showFullMenu && !isOrgModule },
@@ -129,29 +113,6 @@ const Header: React.FC<HeaderProps> = ({
           <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
         </svg>
       ), onClick: onNavigateToMonitoringControl, show: showFullMenu && !isOrgModule
-    },
-    {
-      id: 'podcast', label: 'Podcast da obra', icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-purple-400">
-          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-          <line x1="12" y1="19" x2="12" y2="23" />
-          <line x1="8" y1="23" x2="16" y2="23" />
-        </svg>
-      ), onClick: onNavigateToPodcast, show: showFullMenu && !isOrgModule
-    },
-    {
-      id: 'warRoomTV',
-      label: 'War Room TV',
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-rose-400">
-          <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-          <line x1="8" y1="21" x2="16" y2="21" />
-          <line x1="12" y1="17" x2="12" y2="21" />
-        </svg>
-      ),
-      onClick: onNavigateToWarRoom,
-      show: user.role === 'Master' && !!onNavigateToWarRoom && !isOrgModule,
     },
   ];
 
