@@ -454,10 +454,12 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 }
                 
                 weeks[weekKey].planned += 1;
+                // Só conta como cumprida se foi concluída dentro da própria semana programada
                 if (task.status === TaskStatus.Completed && task.actualEndDate) {
-                    const actualEnd = new Date(task.actualEndDate + 'T00:00:00');
-                    const dueLimit = new Date(task.dueDate + 'T23:59:59');
-                    if (actualEnd <= dueLimit) {
+                    const weekStart = new Date(d);
+                    weekStart.setHours(0, 0, 0, 0);
+                    const actualEnd = new Date(task.actualEndDate + 'T12:00:00');
+                    if (actualEnd >= weekStart && actualEnd <= weekEnd) {
                         weeks[weekKey].completed += 1;
                     }
                 }
@@ -509,9 +511,15 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
             const dueDateTs = new Date(task.dueDate + 'T00:00:00').getTime();
             let completedOnTime = false;
             if (task.status === TaskStatus.Completed && task.actualEndDate) {
-                const actualEnd = new Date(task.actualEndDate + 'T00:00:00').getTime();
-                const dueLimit = new Date(task.dueDate + 'T23:59:59').getTime();
-                completedOnTime = actualEnd <= dueLimit;
+                // Concluída dentro da própria semana programada (domingo→sábado do dueDate)
+                const weekStart = new Date(task.dueDate + 'T12:00:00');
+                weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+                weekStart.setHours(0, 0, 0, 0);
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekStart.getDate() + 6);
+                weekEnd.setHours(23, 59, 59, 999);
+                const actualEnd = new Date(task.actualEndDate + 'T12:00:00');
+                completedOnTime = actualEnd >= weekStart && actualEnd <= weekEnd;
             }
             return { dueDateTs, completedOnTime };
         }).sort((a, b) => a.dueDateTs - b.dueDateTs);

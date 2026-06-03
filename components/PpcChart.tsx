@@ -31,15 +31,17 @@ const PpcChart: React.FC<PpcChartProps> = ({ tasks, baselineTasks, startDate, en
                 if (!weeks[weekKey]) weeks[weekKey] = { planned: 0, completed: 0 };
                 weeks[weekKey].planned += 1;
 
-                // Check if completed on time (or completed generally? PPC usually means on time)
-                // Assuming PPC = Plan Percent Complete (Completed On Time / Planned)
-                // Strict PPC: Completed on or before Due Date
-
+                // PPC = Plan Percent Complete: só conta como cumprida se foi
+                // concluída dentro da própria semana programada (domingo→sábado).
                 if (task.status === 'Concluído' && task.actualEndDate) {
-                    const actualEnd = new Date(task.actualEndDate + 'T00:00:00'); // Start of day comparison
-                    const dueLimit = new Date(task.dueDate + 'T23:59:59');
+                    const weekEnd = new Date(d);
+                    weekEnd.setHours(23, 59, 59, 999);
+                    const weekStart = new Date(d);
+                    weekStart.setDate(d.getDate() - 6);
+                    weekStart.setHours(0, 0, 0, 0);
+                    const actualEnd = new Date(task.actualEndDate + 'T12:00:00');
 
-                    if (actualEnd <= dueLimit) {
+                    if (actualEnd >= weekStart && actualEnd <= weekEnd) {
                         weeks[weekKey].completed += 1;
                     }
                 }

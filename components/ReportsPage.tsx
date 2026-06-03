@@ -192,10 +192,15 @@ const ReportsPage: React.FC<ReportsPageProps> = ({
         const weekKey = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
         if (!weeks[weekKey]) weeks[weekKey] = { planned: 0, completed: 0 };
         weeks[weekKey].planned += 1;
+        // Só conta como cumprida se foi concluída dentro da própria semana programada
         if (task.status === TaskStatus.Completed && task.actualEndDate) {
-          const actualEnd = new Date(task.actualEndDate + 'T00:00:00');
-          const dueLimit = new Date(task.dueDate + 'T23:59:59');
-          if (actualEnd <= dueLimit) {
+          const weekStart = new Date(d);
+          weekStart.setHours(0, 0, 0, 0);
+          const weekEnd = new Date(d);
+          weekEnd.setDate(d.getDate() + 6);
+          weekEnd.setHours(23, 59, 59, 999);
+          const actualEnd = new Date(task.actualEndDate + 'T12:00:00');
+          if (actualEnd >= weekStart && actualEnd <= weekEnd) {
             weeks[weekKey].completed += 1;
           }
         }

@@ -317,10 +317,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
       const engs = getEngineersForTask(t);
       if (engs.length === 0) return;
 
+      // Só conta como cumprida se foi concluída dentro da própria semana programada
+      const weekStart = new Date(sun);
+      weekStart.setHours(0, 0, 0, 0);
+      const actualEndTs = t.actualEndDate ? new Date(t.actualEndDate + 'T12:00:00').getTime() : 0;
       const onTime =
         t.status === TaskStatus.Completed &&
         !!t.actualEndDate &&
-        new Date(t.actualEndDate + 'T00:00:00').getTime() <= new Date(t.dueDate + 'T23:59:59').getTime();
+        actualEndTs >= weekStart.getTime() &&
+        actualEndTs <= weekEnd.getTime();
 
       engs.forEach(eng => {
         if (!map.has(eng)) map.set(eng, new Map());
