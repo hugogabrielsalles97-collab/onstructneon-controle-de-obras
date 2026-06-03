@@ -110,6 +110,9 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
     const [respondingToTaskId, setRespondingToTaskId] = useState<string | null>(null);
     const [responseText, setResponseText] = useState('');
 
+    // Visão ativa do painel: KPIs Cronograma Master ou KPIs Programação Semanal
+    const [activeKpiView, setActiveKpiView] = useState<'master' | 'semanal'>('master');
+
     if (!user) return null;
 
     const handleLogout = async () => {
@@ -641,7 +644,67 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
 
                         </div>
 
-                        {/* Quadros selecionáveis: Serviços Notáveis e Resumo dos Desvios */}
+                        {/* Quadros grandes selecionáveis: KPIs Cronograma Master e KPIs Programação Semanal */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 non-printable">
+                            <button
+                                onClick={() => setActiveKpiView('master')}
+                                className={`group relative flex flex-col gap-4 text-left p-7 rounded-3xl border transition-all duration-300 shadow-2xl overflow-hidden ${
+                                    activeKpiView === 'master'
+                                        ? 'bg-gradient-to-br from-blue-600/20 to-[#111827] border-blue-500/60 ring-1 ring-blue-500/40 shadow-blue-900/30'
+                                        : 'bg-[#111827]/60 border-white/10 hover:border-blue-500/40 hover:bg-[#111827]'
+                                }`}
+                            >
+                                <div className="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"></div>
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110 ${
+                                        activeKpiView === 'master' ? 'bg-blue-600/25 border border-blue-500/50' : 'bg-blue-600/15 border border-blue-500/30'
+                                    }`}>
+                                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400">
+                                            <path d="M3 3v18h18" />
+                                            <path d="M7 14l3-3 3 3 5-6" />
+                                        </svg>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="text-lg font-black text-white uppercase tracking-tight">KPIs Cronograma Master</h3>
+                                        <p className="text-[11px] text-brand-med-gray mt-1">Serviços notáveis, resumo dos desvios e Curva S</p>
+                                    </div>
+                                    {activeKpiView === 'master' && (
+                                        <span className="px-2.5 py-1 bg-blue-500/20 border border-blue-500/40 rounded-lg text-[9px] font-black text-blue-300 uppercase tracking-widest shrink-0">Ativo</span>
+                                    )}
+                                </div>
+                            </button>
+
+                            <button
+                                onClick={() => setActiveKpiView('semanal')}
+                                className={`group relative flex flex-col gap-4 text-left p-7 rounded-3xl border transition-all duration-300 shadow-2xl overflow-hidden ${
+                                    activeKpiView === 'semanal'
+                                        ? 'bg-gradient-to-br from-brand-accent/20 to-[#111827] border-brand-accent/60 ring-1 ring-brand-accent/40 shadow-orange-900/30'
+                                        : 'bg-[#111827]/60 border-white/10 hover:border-brand-accent/40 hover:bg-[#111827]'
+                                }`}
+                            >
+                                <div className="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-brand-accent/50 to-transparent"></div>
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110 ${
+                                        activeKpiView === 'semanal' ? 'bg-brand-accent/25 border border-brand-accent/50' : 'bg-brand-accent/15 border border-brand-accent/30'
+                                    }`}>
+                                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-accent">
+                                            <path d="M3 3v18h18" />
+                                            <path d="M18 9l-5 5-3-3-4 4" />
+                                        </svg>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="text-lg font-black text-white uppercase tracking-tight">KPIs Programação Semanal</h3>
+                                        <p className="text-[11px] text-brand-med-gray mt-1">Curvas de PPC e causas de não cumprimento</p>
+                                    </div>
+                                    {activeKpiView === 'semanal' && (
+                                        <span className="px-2.5 py-1 bg-brand-accent/20 border border-brand-accent/40 rounded-lg text-[9px] font-black text-brand-accent uppercase tracking-widest shrink-0">Ativo</span>
+                                    )}
+                                </div>
+                            </button>
+                        </div>
+
+                        {/* Sub-acessos do KPIs Cronograma Master: Serviços Notáveis e Resumo dos Desvios */}
+                        {activeKpiView === 'master' && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 non-printable">
                             <button
                                 onClick={onNavigateToMonitoringDashboard}
@@ -680,9 +743,10 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                 </svg>
                             </button>
                         </div>
+                        )}
 
                         {/* Resumo Gerencial */}
-                        {globalStats && (
+                        {activeKpiView === 'master' && globalStats && (
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 non-printable">
                                 <div className="bg-brand-dark/80 p-4 rounded-lg border border-brand-darkest shadow-lg">
                                     <p className="text-[10px] text-brand-med-gray uppercase font-bold">Itens Filtrados</p>
@@ -706,6 +770,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                             </div>
                         )}
 
+                        {activeKpiView === 'semanal' && (<>
                         {/* Filtros dos painéis de PPC */}
                         <div className="flex items-center gap-4 non-printable flex-wrap">
                             <div className="flex items-center gap-3">
@@ -965,143 +1030,18 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                 </div>
                             </div>
                         </div>
+                        </>)}
 
                         {/* Planejamento Mensal e Curva S */}
-                        <ManagementMonthlyProgress 
+                        {activeKpiView === 'master' && (
+                        <ManagementMonthlyProgress
                             data={monthlyPlanning}
                             onSave={setMonthlyPlanning}
                             canEdit={user && (user.role === 'Master' || user.role === 'Planejador')}
                         />
+                        )}
 
-                        {/* Performance por Responsável (Ranking de Eficiência) */}
-                        {(() => {
-                            const todayNum = new Date().setHours(0, 0, 0, 0);
-
-                            const assigneeMap: { [key: string]: { total: number; onTime: number; late: number; overdue: number; open: number } } = {};
-
-                            tasks.forEach(task => {
-                                const assignee = task.assignee || 'Sem Responsável';
-                                if (!assigneeMap[assignee]) assigneeMap[assignee] = { total: 0, onTime: 0, late: 0, overdue: 0, open: 0 };
-                                assigneeMap[assignee].total++;
-
-                                if (task.status === TaskStatus.Completed) {
-                                    if (task.actualEndDate && task.dueDate) {
-                                        const actualEnd = new Date(task.actualEndDate + 'T00:00:00').getTime();
-                                        const dueLimit = new Date(task.dueDate + 'T23:59:59').getTime();
-                                        if (actualEnd <= dueLimit) {
-                                            assigneeMap[assignee].onTime++;
-                                        } else {
-                                            assigneeMap[assignee].late++;
-                                        }
-                                    } else {
-                                        assigneeMap[assignee].onTime++;
-                                    }
-                                } else if (new Date(task.dueDate + 'T00:00:00').getTime() < todayNum) {
-                                    assigneeMap[assignee].overdue++;
-                                } else {
-                                    assigneeMap[assignee].open++;
-                                }
-                            });
-
-                            const performanceData = Object.entries(assigneeMap)
-                                .map(([name, stats]) => {
-                                    const resolved = stats.onTime + stats.late + stats.overdue;
-                                    const onTimeRate = resolved > 0 ? Math.round((stats.onTime / resolved) * 100) : (stats.open > 0 ? 100 : 0);
-                                    return {
-                                        name: name.length > 20 ? name.substring(0, 20) + '…' : name,
-                                        fullName: name,
-                                        noPrazo: stats.onTime,
-                                        foraDoPrazo: stats.late,
-                                        emAberto: stats.open,
-                                        atrasadas: stats.overdue,
-                                        total: stats.total,
-                                        totalCompleted: stats.onTime + stats.late,
-                                        resolved,
-                                        onTimeRate,
-                                    };
-                                })
-                                .filter(item => item.resolved > 0 || item.total >= 3) // Mostra só quem tem relevância
-                                .sort((a, b) => b.onTimeRate - a.onTimeRate || a.atrasadas - b.atrasadas || b.noPrazo - a.noPrazo)
-                                .slice(0, 12);
-
-                            if (performanceData.length === 0) return null;
-
-                            return (
-                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 non-printable">
-                                    {/* Gráfico de Barras */}
-                                    <div className="lg:col-span-2 bg-[#111827]/40 backdrop-blur-sm p-6 rounded-2xl border border-white/5 shadow-xl hover-shine relative overflow-hidden">
-                                        <div className="flex justify-between items-center mb-6">
-                                            <div>
-                                                <h4 className="text-xs font-black text-brand-accent uppercase tracking-widest border-b border-white/5 pb-2">Performance por Responsável</h4>
-                                                <p className="text-[9px] text-brand-med-gray mt-2 italic">Ranking por atividades cumpridas dentro do prazo — por executor individual</p>
-                                            </div>
-                                            <div className="flex items-center gap-4 text-[9px] font-bold uppercase tracking-wider">
-                                                <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-green-500"></div><span className="text-green-400">No Prazo</span></div>
-                                                <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-yellow-500"></div><span className="text-yellow-400">Fora do Prazo</span></div>
-                                                <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div><span className="text-blue-400">Em Aberto</span></div>
-                                                <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-red-500"></div><span className="text-red-400">Atrasadas</span></div>
-                                            </div>
-                                        </div>
-                                        <div className="h-[400px]">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart data={performanceData} layout="vertical" margin={{ top: 5, right: 30, left: 5, bottom: 5 }}>
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" horizontal={false} />
-                                                    <XAxis type="number" stroke="#94a3b8" fontSize={10} fontWeight={800} axisLine={false} tickLine={false} />
-                                                    <YAxis type="category" dataKey="name" width={140} stroke="#94a3b8" fontSize={10} fontWeight={700} axisLine={false} tickLine={false} />
-                                                    <Tooltip
-                                                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '11px' }}
-                                                        itemStyle={{ fontWeight: 'bold' }}
-                                                        formatter={(value: any, name: string) => {
-                                                            const labels: Record<string, string> = { noPrazo: 'No Prazo', foraDoPrazo: 'Fora do Prazo', emAberto: 'Em Aberto', atrasadas: 'Atrasadas' };
-                                                            return [value, labels[name] || name];
-                                                        }}
-                                                    />
-                                                    <Bar dataKey="noPrazo" stackId="a" fill="#22c55e" radius={[0, 0, 0, 0]} />
-                                                    <Bar dataKey="foraDoPrazo" stackId="a" fill="#eab308" />
-                                                    <Bar dataKey="emAberto" stackId="a" fill="#3b82f6" />
-                                                    <Bar dataKey="atrasadas" stackId="a" fill="#ef4444" radius={[0, 6, 6, 0]} />
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </div>
-
-                                    {/* Ranking Tabela */}
-                                    <div className="bg-[#111827]/40 backdrop-blur-sm p-6 rounded-2xl border border-white/5 shadow-xl flex flex-col">
-                                        <h4 className="text-xs font-black text-brand-accent uppercase tracking-widest border-b border-white/5 pb-2 mb-4">🏆 Ranking — No Prazo</h4>
-                                        <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar">
-                                            {performanceData.map((item, idx) => {
-                                                const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}º`;
-                                                const barColor = item.onTimeRate >= 80 ? 'bg-green-500' : item.onTimeRate >= 50 ? 'bg-yellow-500' : 'bg-red-500';
-                                                return (
-                                                    <div key={item.fullName} className="bg-white/5 rounded-xl p-3 border border-white/5 hover:border-brand-accent/20 transition-all">
-                                                        <div className="flex items-center justify-between mb-1.5">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-base">{medal}</span>
-                                                                <span className="text-xs font-bold text-white truncate max-w-[120px]">{item.fullName}</span>
-                                                            </div>
-                                                            <div className="text-right">
-                                                                <span className={`text-lg font-black ${item.onTimeRate >= 80 ? 'text-green-400' : item.onTimeRate >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>{item.onTimeRate}%</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="w-full bg-brand-darkest rounded-full h-1.5 overflow-hidden">
-                                                            <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${item.onTimeRate}%` }}></div>
-                                                        </div>
-                                                        <div className="flex justify-between mt-1.5 text-[8px] text-brand-med-gray font-bold uppercase">
-                                                            <span>✅ {item.noPrazo}/{item.resolved} no prazo</span>
-                                                            <span>{item.atrasadas > 0 ? `🔴 ${item.atrasadas} atrasadas` : '🟢 0 atrasadas'}</span>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                        <div className="mt-4 pt-3 border-t border-white/5 text-[9px] text-brand-med-gray font-medium italic">
-                                            Critério: entregas no prazo ÷ (concluídas + atrasadas). Tarefas em aberto não penalizam.
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })()}
-
+                        {activeKpiView === 'master' && (
                         <div className="grid grid-cols-1 gap-4">
                             {currentScheduleTasks.length === 0 ? (
                                 <div className="bg-brand-dark/70 p-12 rounded-lg text-center">
@@ -1289,6 +1229,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                 </button>
                             )}
                         </div>
+                        )}
                     </div>
                 </div>
             </main>
