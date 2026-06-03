@@ -1043,15 +1043,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
 
                         {activeKpiView === 'master' && (
                         <div className="grid grid-cols-1 gap-4">
-                            {currentScheduleTasks.length === 0 ? (
-                                <div className="bg-brand-dark/70 p-12 rounded-lg text-center">
-                                    <div className="flex flex-col items-center gap-4">
-                                        <div className="w-10 h-10 border-4 border-brand-accent/30 border-t-brand-accent rounded-full animate-spin"></div>
-                                        <p className="text-brand-med-gray text-sm font-bold uppercase tracking-widest">Carregando cronograma vigente...</p>
-                                        <p className="text-brand-med-gray/50 text-xs">Os dados do cronograma estão sendo carregados do banco de dados.</p>
-                                    </div>
-                                </div>
-                            ) : analysisData.length === 0 ? (
+                            {analysisData.length === 0 ? (
                                 <div className="bg-brand-dark/70 p-12 rounded-lg text-center text-brand-med-gray">
                                     Nenhum item macro corresponde aos filtros selecionados.
                                 </div>
