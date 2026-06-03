@@ -130,30 +130,50 @@ export const fetchTaskIdsWithPhotos = async (): Promise<Set<string>> => {
             return new Set(rpcData.map((r: any) => r.id));
         }
 
-        // Fallback: busca id e apenas o 1º elemento de photos (arrow JSONB)
-        // Se photos->0 não for null, a tarefa tem pelo menos 1 foto
-        const { data, error } = await supabase
-            .from('tasks')
-            .select('id, first_photo:photos->0');
+        // Fallback: busca id e apenas o 1º elemento de photos (arrow JSONB).
+        // IMPORTANTE: pagina em blocos (range) — sem isso o PostgREST corta em
+        // ~1000 linhas e o olhinho some para tarefas além desse limite.
+        // Se photos->0 não for null, a tarefa tem pelo menos 1 foto.
+        const step = 500;
+        const ids = new Set<string>();
+        let from = 0;
+        let hasMore = true;
+        let arrowFailed = false;
 
-        if (error) {
-            // Se o arrow não funcionar, busca tudo e filtra localmente
-            const { data: fullData, error: fullError } = await supabase
+        while (hasMore) {
+            const { data, error } = await supabase
                 .from('tasks')
-                .select('id, photos');
-            if (fullError) throw fullError;
+                .select('id, first_photo:photos->0')
+                .range(from, from + step - 1);
 
-            const ids = (fullData || [])
-                .filter((r: any) => r.photos && Array.isArray(r.photos) && r.photos.length > 0)
-                .map((r: any) => r.id);
-            return new Set(ids);
+            if (error) {
+                arrowFailed = true;
+                break;
+            }
+
+            const rows = data || [];
+            for (const r of rows as any[]) {
+                if (r.first_photo !== null && r.first_photo !== undefined) ids.add(r.id);
+            }
+
+            if (rows.length < step) {
+                hasMore = false;
+            } else {
+                from += step;
+                await new Promise(r => setTimeout(r, 0));
+            }
         }
 
-        const ids = (data || [])
-            .filter((r: any) => r.first_photo !== null && r.first_photo !== undefined)
-            .map((r: any) => r.id);
+        if (!arrowFailed) {
+            return ids;
+        }
 
-        return new Set(ids);
+        // Se o arrow JSONB não funcionar, busca id + photos completos (paginado) e filtra localmente
+        const fullRows = await fetchAllRows('tasks', 'id, photos');
+        const fullIds = fullRows
+            .filter((r: any) => r.photos && Array.isArray(r.photos) && r.photos.length > 0)
+            .map((r: any) => r.id);
+        return new Set(fullIds);
     } catch (err) {
         console.warn('Erro ao verificar quais tarefas têm fotos:', err);
         return new Set();
