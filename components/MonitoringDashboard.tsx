@@ -154,7 +154,8 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
             'LANCAMENTO VIGA', 'TRANSVERSINA', 'LANCAMENTO PRELAJE', 
             'LAJE', 'LAJE ELASTICA', 'LAJE DE APROXIMACAO', 
             'FABRICACAO VIGA', 'FABRICACAO PRELAJE',
-            'CORTINA ATIRANTADA', 'SOLO GRAMPEADO', 'CBUQ'
+            'CORTINA ATIRANTADA', 'SOLO GRAMPEADO',
+            'MACADAME', 'BGTC', 'BGMC', 'BGS', 'CBUQ'
         ];
         const srvs = Array.from(new Set(rows.map(r => r.service)) as Set<string>).sort((a, b) => {
             const idxA = serviceOrder.indexOf(a);
@@ -167,10 +168,10 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = (props) => {
         return ['ALL', ...srvs];
     }, [rows]);
     const corteServices = ['CORTINA ATIRANTADA', 'SOLO GRAMPEADO'];
-    const trechoServices = ['CBUQ'];
+    const trechoServices = ['CBUQ', 'MACADAME', 'BGTC', 'BGMC', 'BGS'];
     const getServiceUnit = (service: string) => {
         if (['SOLO GRAMPEADO', 'CORTINA ATIRANTADA', 'PILAR'].includes(service)) return 'm';
-        if (['CBUQ'].includes(service)) return 't';
+        if (['CBUQ', 'MACADAME', 'BGTC', 'BGMC', 'BGS'].includes(service)) return 't';
         return 'un';
     };
     const localizacoes = useMemo(() => {

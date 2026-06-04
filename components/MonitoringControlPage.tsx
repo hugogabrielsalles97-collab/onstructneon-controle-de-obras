@@ -295,7 +295,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
         'MACADAME', 'BGTC', 'BGMC', 'BGS'
     ];
 
-    const isTrechoService = selectedService === 'CBUQ';
+    const isTrechoService = ['CBUQ', 'MACADAME', 'BGTC', 'BGMC', 'BGS'].includes(selectedService);
     const isCorteService = selectedService === 'CORTINA ATIRANTADA' || selectedService === 'SOLO GRAMPEADO';
     const col1Label = isTrechoService ? 'Trecho' : (isCorteService ? 'Corte' : 'OAE');
     const col2Label = isCorteService || isTrechoService ? 'FT' : 'Apoio';
