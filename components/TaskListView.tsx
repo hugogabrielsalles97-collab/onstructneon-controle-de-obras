@@ -145,7 +145,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEdi
             <HeaderCell label="Datas" sortKey="dueDate" onSort={onSort} sortConfig={sortConfig} centered={true} />
             <HeaderCell label="Status" sortKey="status" onSort={onSort} sortConfig={sortConfig} />
             <th className="px-4 py-4 text-left text-[10px] font-black text-brand-med-gray uppercase tracking-widest">Avanço</th>
-            <th className="px-4 py-4 text-right text-[10px] font-black text-brand-med-gray uppercase tracking-widest non-printable sticky right-0 z-20 bg-[#111827]">Ações</th>
+            <th className="px-4 py-4 text-right text-[10px] font-black text-brand-med-gray uppercase tracking-widest non-printable sticky right-0 z-20 bg-[#111827]/40">Ações</th>
           </tr>
         </thead>
         <tbody>
@@ -269,7 +269,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, baselineTasks, onEdi
                       <span className={`text-[10px] font-black w-8 text-right font-mono ${progressTextColorConfig[display.status]}`}>{task.progress}%</span>
                     </div>
                   </td>
-                  <td className="px-5 py-5 rounded-r-2xl border-r border-t border-b border-white/5 align-middle text-right non-printable sticky right-0 z-10 bg-[#111827]">
+                  <td className="px-5 py-5 rounded-r-2xl border-r border-t border-b border-white/5 align-middle text-right non-printable sticky right-0 z-10 bg-[#111827]/40 group-hover:bg-[#111827]/80">
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => onEditTask(task)}
