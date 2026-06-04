@@ -281,11 +281,18 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
     if (isLoadingData) return <div className="flex bg-[#060a12] h-screen items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-brand-accent"></div></div>;
 
     const serviceOrder = [
-        'ESTACA', 'BLOCO', 'PILAR', 'TRAVESSA', 'PILAR PROVISORIO', 
-        'LANCAMENTO VIGA', 'TRANSVERSINA', 'LANCAMENTO PRELAJE', 
-        'LAJE', 'LAJE ELASTICA', 'LAJE DE APROXIMACAO', 
+        'ESTACA', 'BLOCO', 'PILAR', 'TRAVESSA', 'PILAR PROVISORIO',
+        'LANCAMENTO VIGA', 'TRANSVERSINA', 'LANCAMENTO PRELAJE',
+        'LAJE', 'LAJE ELASTICA', 'LAJE DE APROXIMACAO',
         'FABRICACAO VIGA', 'FABRICACAO PRELAJE',
-        'CORTINA ATIRANTADA', 'SOLO GRAMPEADO', 'CBUQ'
+        'CORTINA ATIRANTADA', 'SOLO GRAMPEADO',
+        'MACADAME', 'BGTC', 'BGMC', 'BGS', 'CBUQ'
+    ];
+
+    // Serviços que sempre aparecem como abas, mesmo sem linhas cadastradas,
+    // para permitir adicionar as linhas de distribuição depois.
+    const baseServices = [
+        'MACADAME', 'BGTC', 'BGMC', 'BGS'
     ];
 
     const isTrechoService = selectedService === 'CBUQ';
@@ -293,7 +300,7 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
     const col1Label = isTrechoService ? 'Trecho' : (isCorteService ? 'Corte' : 'OAE');
     const col2Label = isCorteService || isTrechoService ? 'FT' : 'Apoio';
 
-    const services = Array.from(new Set(monitoringRows.map(r => r.service)) as Set<string>).sort((a, b) => {
+    const services = Array.from(new Set([...monitoringRows.map(r => r.service), ...baseServices]) as Set<string>).sort((a, b) => {
         const idxA = serviceOrder.indexOf(a);
         const idxB = serviceOrder.indexOf(b);
         if (idxA === -1 && idxB === -1) return a.localeCompare(b);
