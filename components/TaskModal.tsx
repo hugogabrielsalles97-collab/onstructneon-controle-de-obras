@@ -123,6 +123,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
     // Pavimentação: estacas inicial/final que compõem a Localização ("30891 - 30950")
     const [estInicial, setEstInicial] = useState('');
     const [estFinal, setEstFinal] = useState('');
+    // Mensagem da caixa de conflito de trecho (mesma tarefa em trecho sobreposto)
+    const [conflictMsg, setConflictMsg] = useState<string | null>(null);
     const [conflictingTasks, setConflictingTasks] = useState<Task[]>([]);
     const [plannedWeather, setPlannedWeather] = useState<string | null>(null);
     const [actualWeather, setActualWeather] = useState<string | null>(null);
@@ -829,6 +831,34 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Pavimentação: bloqueia salvar a MESMA tarefa em um trecho de estacas que se sobrepõe a outro já cadastrado
+        const isPav = formData.discipline === 'Pavimentação';
+        if (isPav) {
+            const currentRange = parseEstacaRange(formData.location);
+            const currentTitle = (formData.title || '').trim().toLowerCase();
+            if (currentRange && currentTitle) {
+                const [lo, hi] = currentRange;
+                const conflito = tasks.find(t => {
+                    if (t.id === task?.id) return false; // ignora a própria tarefa ao editar
+                    if ((t.title || '').trim().toLowerCase() !== currentTitle) return false;
+                    const r = parseEstacaRange(t.location) || parseEstacaRange(t.corte);
+                    if (!r) return false;
+                    return lo <= r[1] && r[0] <= hi; // há sobreposição de trechos
+                });
+                if (conflito) {
+                    const r = (parseEstacaRange(conflito.location) || parseEstacaRange(conflito.corte))!;
+                    setConflictMsg(
+                        `Já existe um cadastro de "${formData.title}" em parte deste trecho.\n\n` +
+                        `Trecho já cadastrado: ${r[0]} - ${r[1]}\n` +
+                        `Trecho informado: ${lo} - ${hi}\n\n` +
+                        `Esta tarefa já foi executada em parte deste trecho. Ajuste as estacas para não sobrepor um trecho já cadastrado.`
+                    );
+                    return;
+                }
+            }
+        }
+
         let finalStatus: TaskStatus;
         if (formData.progress >= 100 && formData.actualEndDate) {
             finalStatus = TaskStatus.Completed;
@@ -940,6 +970,32 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+            {conflictMsg && (
+                <div
+                    className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in"
+                    onClick={() => setConflictMsg(null)}
+                >
+                    <div
+                        className="bg-[#180d05] border border-red-500/40 rounded-3xl w-full max-w-md p-8 shadow-[0_0_80px_-20px_rgba(239,68,68,0.5)]"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-11 h-11 rounded-2xl bg-red-500/15 flex items-center justify-center text-red-400 text-2xl font-black">!</div>
+                            <h3 className="text-lg font-black text-white uppercase tracking-tight">Trecho já cadastrado</h3>
+                        </div>
+                        <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">{conflictMsg}</p>
+                        <div className="mt-6 flex justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setConflictMsg(null)}
+                                className="px-6 py-2.5 rounded-xl bg-brand-accent text-white font-black text-sm uppercase tracking-wide hover:bg-orange-600 transition-colors"
+                            >
+                                Entendi
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div
                 className="bg-[#0a0f18]/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] w-full max-w-4xl shadow-[0_0_100px_-20px_rgba(227,90,16,0.3)] max-h-[92vh] flex flex-col overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
