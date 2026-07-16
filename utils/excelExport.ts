@@ -273,6 +273,9 @@ export const exportWeeklyReportToExcel = async (
                     'Responsável': task.assignee || '',
                     'Localização': task.location || '',
                     'Apoio': task.support || '',
+                    'Quantidade': task.quantity
+                        ? `${task.quantity}${task.unit ? ' ' + task.unit : ''}`
+                        : '',
                 };
 
                 // Colunas dinâmicas: uma por função normalizada com a quantidade agregada
@@ -308,6 +311,7 @@ export const exportWeeklyReportToExcel = async (
             { wch: 28 },  // Responsável
             { wch: 22 },  // Localização
             { wch: 15 },  // Apoio
+            { wch: 16 },  // Quantidade
         ];
         const roleCols = rolesList.map(r => ({ wch: Math.max(r.length + 4, 16) }));
         const totalCol = [{ wch: 20 }];
