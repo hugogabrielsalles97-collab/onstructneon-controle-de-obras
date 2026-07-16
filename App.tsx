@@ -32,13 +32,14 @@ const OrgChartPage = lazy(() => import('./components/OrgChartPage'));
 const OrgSummaryPage = lazy(() => import('./components/OrgSummaryPage'));
 const TeamsPage = lazy(() => import('./components/TeamsPage'));
 const VisualControlPage = lazy(() => import('./components/VisualControlPage'));
+const VisualPavimentoPage = lazy(() => import('./components/VisualPavimentoPage'));
 const SystemPage = lazy(() => import('./components/SystemPage'));
 const WarRoomTVPage = lazy(() => import('./components/WarRoomTVPage'));
 const MonitoringDashboard = lazy(() => import('./components/MonitoringDashboard'));
 const DeviationsSummaryPage = lazy(() => import('./components/DeviationsSummaryPage'));
 
 
-type Screen = 'landing' | 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'monitoringControl' | 'monitoringDashboard' | 'monitoringDeviations' | 'restrictions' | 'cost' | 'podcast' | 'checkoutSummary' | 'orgChart' | 'orgSummary' | 'visualControl' | 'system' | 'warRoomTV';
+type Screen = 'landing' | 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'monitoringControl' | 'monitoringDashboard' | 'monitoringDeviations' | 'restrictions' | 'cost' | 'podcast' | 'checkoutSummary' | 'orgChart' | 'orgSummary' | 'visualControl' | 'visualPavimento' | 'system' | 'warRoomTV';
 
 const AppContent: React.FC = () => {
   const {
@@ -298,6 +299,7 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
       onNavigateToOrgSummary: () => setScreen('orgSummary'),
       onNavigateToTeams: () => setScreen('teams'),
       onNavigateToVisualControl: () => setScreen('visualControl'),
+      onNavigateToVisualPavimento: () => setScreen('visualPavimento'),
       onNavigateToSystem: () => setScreen('system'),
       onUpgradeClick: () => setIsUpgradeModalOpen(true),
       onNavigateToHome: handleNavigateToHome,
@@ -391,6 +393,12 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
       );
       case 'visualControl': return (
         <VisualControlPage
+          {...navigationProps}
+          showToast={showToast}
+        />
+      );
+      case 'visualPavimento': return (
+        <VisualPavimentoPage
           {...navigationProps}
           showToast={showToast}
         />

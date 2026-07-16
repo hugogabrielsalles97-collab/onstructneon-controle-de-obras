@@ -63,6 +63,7 @@ interface DashboardProps {
   onNavigateToOrgSummary?: () => void;
   onNavigateToTeams?: () => void;
   onNavigateToVisualControl?: () => void;
+  onNavigateToVisualPavimento?: () => void;
   onNavigateToSystem?: () => void;
   onUpgradeClick: () => void;
   onAddTask?: () => void;
@@ -90,7 +91,7 @@ const initialFilters = {
   estFinal: '',
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToHome, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToMonitoringControl, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToSystem, onUpgradeClick, onAddTask, showToast }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToHome, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToMonitoringControl, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToVisualPavimento, onNavigateToSystem, onUpgradeClick, onAddTask, showToast }) => {
   const { currentUser: user, tasks, allUsers, baselineTasks, signOut, deleteTask, isLoadingTasks } = useData();
   const { data: orgMembers } = useOrgMembers();
   const [filters, setFilters] = useState(initialFilters);
@@ -580,6 +581,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
         onNavigateToOrgChart={onNavigateToOrgChart}
         onNavigateToOrgSummary={onNavigateToOrgSummary}
         onNavigateToVisualControl={onNavigateToVisualControl}
+        onNavigateToVisualPavimento={onNavigateToVisualPavimento}
         onNavigateToTeams={onNavigateToTeams}
         onNavigateToSystem={onNavigateToSystem}
         onUpgradeClick={onUpgradeClick}

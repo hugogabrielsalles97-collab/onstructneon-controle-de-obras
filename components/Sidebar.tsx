@@ -31,13 +31,14 @@ interface SidebarProps {
     onNavigateToOrgSummary?: () => void;
     onNavigateToTeams?: () => void;
     onNavigateToVisualControl?: () => void;
+    onNavigateToVisualPavimento?: () => void;
     onNavigateToWarRoom?: () => void;
     onNavigateToSystem?: () => void;
     onUpgradeClick: () => void;
     onAddTask?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome, onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToMonitoringControl, onNavigateToPodcast, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToWarRoom, onNavigateToSystem, onUpgradeClick, onAddTask }) => {
+const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome, onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToMonitoringControl, onNavigateToPodcast, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToVisualPavimento, onNavigateToWarRoom, onNavigateToSystem, onUpgradeClick, onAddTask }) => {
     const { theme, toggleTheme } = useTheme();
     const showFullMenu = user.role !== 'Executor' && user.role !== 'Visualizador';
     const isCostModule = activeScreen === 'cost';
@@ -145,6 +146,24 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                                             }
                                             label="Controle Visual"
                                             onClick={onNavigateToVisualControl}
+                                            isCostModule={isCostModule}
+                                        />
+                                    )}
+
+                                    {onNavigateToVisualPavimento && (
+                                        <NavButton
+                                            active={activeScreen === 'visualPavimento'}
+                                            icon={
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-orange-400">
+                                                    <path d="M4 19 L9 5" />
+                                                    <path d="M20 19 L15 5" />
+                                                    <line x1="12" y1="6" x2="12" y2="8" />
+                                                    <line x1="12" y1="11" x2="12" y2="13" />
+                                                    <line x1="12" y1="16" x2="12" y2="18" />
+                                                </svg>
+                                            }
+                                            label="Visual Pavimento"
+                                            onClick={onNavigateToVisualPavimento}
                                             isCostModule={isCostModule}
                                         />
                                     )}
