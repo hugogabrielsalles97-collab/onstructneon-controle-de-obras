@@ -23,3 +23,31 @@ export const apoios = ['E0', 'E1', 'P0', 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7
 export const vaos = ['E1-P0', 'E1-P1', 'P0-P1', 'P1-P2', 'P2-P3', 'P3-P4', 'P4-P5', 'P5-P6', 'P6-P7', 'P7-P8', 'P8-P9', 'P9-P10', 'P10-E2', 'P9-E2', 'P8-E2', 'P7-E2', 'P6-E2', 'P5-E2', 'P4-E2', 'P3-E2', 'P2-E2', 'E1-P1', 'E2-E3', 'P10-E3', 'P9-E3', 'P8-E3', 'P7-E3', 'P6-E3', 'P5-E3', 'P4-E3', 'P3-E3', 'P2-E3'];
 export const sideOptions = ['Esquerdo', 'Direito', 'Ambos'];
 export const unitOptions = ['un', 'm', 'm²', 'm³', 'kg', 't'];
+
+// ─── Pavimentação: estacas selecionáveis (EST INICIAL / EST FINAL) ───
+// Dois trechos, de 1 em 1: 30891–31275 e 40895–41271.
+const estacaRange = (start: number, end: number): string[] => {
+    const out: string[] = [];
+    for (let i = start; i <= end; i++) out.push(String(i));
+    return out;
+};
+
+export const pavimentacaoEstacas: string[] = [
+    ...estacaRange(30891, 31275),
+    ...estacaRange(40895, 41271),
+];
+
+/**
+ * Extrai o par de estacas [inicial, final] de um texto de Pavimentação.
+ * Tolerante a prefixos/rótulos: pega as duas primeiras estacas de 5–6 dígitos.
+ * Cobre o formato novo ("30891 - 30950") e os legados em `corte`
+ * ("Est. 31094-31100", "Est. Est. 31100-31108"). Uma só estaca vira um ponto [n, n].
+ * Retorna null quando não há estaca (ex.: uma frente como "FT25").
+ */
+export const parseEstacaRange = (value: string | null | undefined): [number, number] | null => {
+    if (!value) return null;
+    const nums = (value.match(/\d{5,6}/g) || []).map(n => parseInt(n, 10)).filter(n => !Number.isNaN(n));
+    if (nums.length === 0) return null;
+    if (nums.length === 1) return [nums[0], nums[0]];
+    return [Math.min(nums[0], nums[1]), Math.max(nums[0], nums[1])];
+};

@@ -18,6 +18,7 @@ import FileTextIcon from './icons/FileTextIcon';
 import Sidebar from './Sidebar';
 import FilterInput from './ui/FilterInput';
 import FilterSelect from './ui/FilterSelect';
+import { pavimentacaoEstacas, parseEstacaRange } from '../utils/constants';
 import AlertIcon from './icons/AlertIcon';
 import ConfirmModal from './ConfirmModal';
 import { exportWeeklyReportToExcel } from '../utils/excelExport';
@@ -84,6 +85,8 @@ const initialFilters = {
   startDate: '',
   endDate: '',
   engineer: '',
+  estInicial: '',
+  estFinal: '',
 };
 
 const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToHome, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToMonitoringControl, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToSystem, onUpgradeClick, onAddTask, showToast }) => {
@@ -263,7 +266,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
+    setFilters(prev => {
+      const next = { ...prev, [name]: value };
+      // Ao sair de Pavimentação, zera os filtros de estaca para não filtrar silenciosamente
+      if (name === 'discipline' && !value.toLowerCase().includes('paviment')) {
+        next.estInicial = '';
+        next.estFinal = '';
+      }
+      return next;
+    });
   };
 
   const handleStatusSelect = (status: StatusFilter) => {
@@ -406,6 +417,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
       if (filters.corte && (!task.corte || !task.corte.toLowerCase().includes(filters.corte.toLowerCase()))) return false;
       if (filters.support && !task.support.toLowerCase().includes(filters.support.toLowerCase())) return false;
 
+      // Pavimentação: só tarefas cujo trecho de estacas esteja totalmente contido em [estInicial, estFinal]
+      if (filters.estInicial && filters.estFinal) {
+        const f1 = parseInt(filters.estInicial, 10);
+        const f2 = parseInt(filters.estFinal, 10);
+        const lo = Math.min(f1, f2);
+        const hi = Math.max(f1, f2);
+        // Novo formato grava as estacas em location; legados guardam em corte ("Est. 31094-31100")
+        const range = parseEstacaRange(task.location) || parseEstacaRange(task.corte);
+        if (!range || range[0] < lo || range[1] > hi) return false;
+      }
+
       if (filterStartDateNum) {
         const taskStartNum = new Date(getAnchorStart(task, bl) + 'T00:00:00').getTime();
         if (taskStartNum < filterStartDateNum) return false;
@@ -424,7 +446,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
 
       return true;
     });
-  }, [visibleTasks, baselineById, filters.assignee, filters.discipline, filters.level, filters.location, filters.corte, filters.support, filters.startDate, filters.endDate, filters.engineer, getEngineersForTask]);
+  }, [visibleTasks, baselineById, filters.assignee, filters.discipline, filters.level, filters.location, filters.corte, filters.support, filters.startDate, filters.endDate, filters.engineer, filters.estInicial, filters.estFinal, getEngineersForTask]);
 
   const filteredAndSortedTasks = useMemo(() => {
     const todayNum = new Date().setHours(0, 0, 0, 0);
@@ -797,6 +819,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
                 <div className="flex-1 min-w-[120px]">
                   <FilterSelect name="discipline" label="Disc." value={filters.discipline} onChange={handleFilterChange} options={uniqueOptions.discipline} />
                 </div>
+                {filters.discipline.toLowerCase().includes('paviment') && (
+                  <>
+                    <div className="flex-1 min-w-[110px]">
+                      <FilterSelect name="estInicial" label="Est. Inicial" value={filters.estInicial} onChange={handleFilterChange} options={pavimentacaoEstacas} />
+                    </div>
+                    <div className="flex-1 min-w-[110px]">
+                      <FilterSelect name="estFinal" label="Est. Final" value={filters.estFinal} onChange={handleFilterChange} options={pavimentacaoEstacas} />
+                    </div>
+                  </>
+                )}
                 <div className="flex-1 min-w-[100px]">
                   <FilterSelect name="level" label="Nível" value={filters.level} onChange={handleFilterChange} options={uniqueOptions.level} />
                 </div>

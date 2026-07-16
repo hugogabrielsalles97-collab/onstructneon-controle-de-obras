@@ -14,7 +14,7 @@ import ConstructionIcon from './icons/ConstructionIcon';
 import ManagementIcon from './icons/ManagementIcon';
 import WhatsAppIcon from './icons/WhatsAppIcon';
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { disciplineOptions, taskTitleOptions, oaeLocations, frentes, apoios, vaos, sideOptions, unitOptions } from '../utils/constants';
+import { disciplineOptions, taskTitleOptions, oaeLocations, frentes, apoios, vaos, sideOptions, unitOptions, pavimentacaoEstacas, parseEstacaRange } from '../utils/constants';
 import AIRestrictedAccess from './AIRestrictedAccess';
 import ConfirmModal from './ConfirmModal';
 import EyeIcon from './icons/EyeIcon';
@@ -120,6 +120,9 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
     const [formData, setFormData] = useState<Omit<Task, 'id' | 'status'>>(getInitialFormData());
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [isMappingBaseline, setIsMappingBaseline] = useState(false);
+    // Pavimentação: estacas inicial/final que compõem a Localização ("30891 - 30950")
+    const [estInicial, setEstInicial] = useState('');
+    const [estFinal, setEstFinal] = useState('');
     const [conflictingTasks, setConflictingTasks] = useState<Task[]>([]);
     const [plannedWeather, setPlannedWeather] = useState<string | null>(null);
     const [actualWeather, setActualWeather] = useState<string | null>(null);
@@ -289,6 +292,18 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
         }
     }, [formData.discipline, formData.level]);
 
+    // Pavimentação: ao abrir/editar, extrai as estacas inicial/final da localização gravada
+    useEffect(() => {
+        if (task && task.discipline === 'Pavimentação') {
+            const range = parseEstacaRange(task.location);
+            setEstInicial(range ? String(range[0]) : '');
+            setEstFinal(range ? String(range[1]) : '');
+        } else {
+            setEstInicial('');
+            setEstFinal('');
+        }
+    }, [isOpen, task?.id]);
+
     useEffect(() => {
         if (!task && formData.title && formData.startDate && formData.dueDate) {
             const newStartDate = new Date(formData.startDate);
@@ -414,6 +429,11 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                 alert("Não é permitido inserir uma data futura para o avanço real.");
                 return;
             }
+        }
+
+        if (name === 'discipline') {
+            setEstInicial('');
+            setEstFinal('');
         }
 
         setFormData(prev => {
@@ -905,6 +925,15 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
 
     const isOAE = formData.discipline === 'Obras de arte especiais';
     const isOAESuperestrutura = isOAE && formData.level === 'Superestrutura';
+    const isPavimentacao = formData.discipline === 'Pavimentação';
+
+    // Atualiza uma das estacas e recompõe a Localização ("inicial - final"); vazia até as duas serem escolhidas
+    const updateEstaca = (which: 'inicial' | 'final', value: string) => {
+        const ini = which === 'inicial' ? value : estInicial;
+        const fim = which === 'final' ? value : estFinal;
+        if (which === 'inicial') setEstInicial(value); else setEstFinal(value);
+        setFormData(prev => ({ ...prev, location: ini && fim ? `${ini} - ${fim}` : '' }));
+    };
 
     const levelOptions = allLevelOptions;
     const specificTaskOptions = allActivityOptions;
@@ -1027,20 +1056,48 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
 
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">Localização</label>
-                                    <select
-                                        name="location"
-                                        value={formData.location}
-                                        onChange={handleChange}
-                                        required
-                                        disabled={isReadOnlyPlanning}
-                                        className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all font-bold"
-                                    >
-                                        <option value="">Selecione o Local</option>
-                                        {(isOAE ? oaeLocations : frentes).map(loc => <option key={loc} value={loc}>{loc}</option>)}
-                                    </select>
+                                    {isPavimentacao ? (
+                                        <div className="flex items-center gap-2">
+                                            <select
+                                                value={estInicial}
+                                                onChange={e => updateEstaca('inicial', e.target.value)}
+                                                required
+                                                disabled={isReadOnlyPlanning}
+                                                aria-label="Estaca inicial"
+                                                className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all appearance-none font-bold"
+                                            >
+                                                <option value="">EST INICIAL</option>
+                                                {pavimentacaoEstacas.map(est => <option key={est} value={est}>{est}</option>)}
+                                            </select>
+                                            <span className="text-brand-med-gray font-black shrink-0">-</span>
+                                            <select
+                                                value={estFinal}
+                                                onChange={e => updateEstaca('final', e.target.value)}
+                                                required
+                                                disabled={isReadOnlyPlanning}
+                                                aria-label="Estaca final"
+                                                className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all appearance-none font-bold"
+                                            >
+                                                <option value="">EST FINAL</option>
+                                                {pavimentacaoEstacas.map(est => <option key={est} value={est}>{est}</option>)}
+                                            </select>
+                                        </div>
+                                    ) : (
+                                        <select
+                                            name="location"
+                                            value={formData.location}
+                                            onChange={handleChange}
+                                            required
+                                            disabled={isReadOnlyPlanning}
+                                            className="w-full bg-[#111827]/40 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-brand-accent/50 focus:outline-none transition-all font-bold"
+                                        >
+                                            <option value="">Selecione o Local</option>
+                                            {(isOAE ? oaeLocations : frentes).map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                                        </select>
+                                    )}
                                 </div>
 
-                                <div className="space-y-4">
+                                <div className={`space-y-4 ${isPavimentacao ? 'hidden' : ''}`}>
                                     <div className={`grid grid-cols-1 ${(formData.level === 'Fundação' || formData.level === 'Mesoestrutura') ? 'md:grid-cols-2' : ''} gap-6 transition-all duration-300`}>
                                         <div className="space-y-2">
                                             <label className="text-[10px] font-black text-brand-med-gray uppercase tracking-[2px] ml-1">
