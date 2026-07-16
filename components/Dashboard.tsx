@@ -76,6 +76,7 @@ const PAGE_SIZE = 100;
 
 const initialFilters = {
   status: 'all' as StatusFilter,
+  title: '',
   assignee: '',
   discipline: '',
   level: '',
@@ -373,6 +374,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
   }, [tasks, getEngineersForTask]);
 
   const uniqueOptions = useMemo(() => {
+    const titles = new Set<string>();
     const assignees = new Set<string>();
     const disciplines = new Set<string>();
     const levels = new Set<string>();
@@ -382,6 +384,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     const engineers = new Set<string>();
 
     visibleTasks.forEach(task => {
+      if (task.title) titles.add(task.title);
       if (task.assignee) assignees.add(task.assignee);
       if (task.discipline) disciplines.add(task.discipline);
       if (task.level) levels.add(task.level);
@@ -393,6 +396,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     });
 
     return {
+      title: Array.from(titles).sort(),
       assignee: Array.from(assignees).sort(),
       discipline: Array.from(disciplines).sort(),
       level: Array.from(levels).sort(),
@@ -410,6 +414,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
     return visibleTasks.filter(task => {
       const bl = resolveBaselineTask(task, baselineById);
 
+      if (filters.title && !task.title.toLowerCase().includes(filters.title.toLowerCase())) return false;
       if (filters.assignee && !task.assignee.toLowerCase().includes(filters.assignee.toLowerCase())) return false;
       if (filters.discipline && !task.discipline.toLowerCase().includes(filters.discipline.toLowerCase())) return false;
       if (filters.level && !task.level.toLowerCase().includes(filters.level.toLowerCase())) return false;
@@ -446,7 +451,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
 
       return true;
     });
-  }, [visibleTasks, baselineById, filters.assignee, filters.discipline, filters.level, filters.location, filters.corte, filters.support, filters.startDate, filters.endDate, filters.engineer, filters.estInicial, filters.estFinal, getEngineersForTask]);
+  }, [visibleTasks, baselineById, filters.title, filters.assignee, filters.discipline, filters.level, filters.location, filters.corte, filters.support, filters.startDate, filters.endDate, filters.engineer, filters.estInicial, filters.estFinal, getEngineersForTask]);
 
   const filteredAndSortedTasks = useMemo(() => {
     const todayNum = new Date().setHours(0, 0, 0, 0);
@@ -809,6 +814,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
                 </div>
                 <div className="flex-1 min-w-[120px]">
                   <FilterInput name="endDate" label="Fim" value={filters.endDate} onChange={handleFilterChange} type="date" />
+                </div>
+                <div className="flex-1 min-w-[160px]">
+                  <FilterSelect name="title" label="Tarefa" value={filters.title} onChange={handleFilterChange} options={uniqueOptions.title} />
                 </div>
                 <div className="flex-1 min-w-[140px]">
                   <FilterSelect name="engineer" label="Engenheiro" value={filters.engineer} onChange={handleFilterChange} options={uniqueOptions.engineer} />
