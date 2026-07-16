@@ -26,7 +26,14 @@ const VisualPavimentoPage: React.FC<any> = (props) => {
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [cal, setCal] = useState<Calibration | null>(null);
+    const [renderScale, setRenderScale] = useState(1.4);
+    const [rendering, setRendering] = useState(false);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const mapWrapRef = useRef<HTMLDivElement>(null);
+    const renderTaskRef = useRef<any>(null);
+    const pageRef = useRef<any>(null);
+    const baseSizeRef = useRef<{ w: number; h: number } | null>(null);
+    const MAX_RENDER_SCALE = 2.6; // limite de memória (~8800px de largura de raster)
 
     // Pan / zoom
     const [scale, setScale] = useState(1);
@@ -45,25 +52,33 @@ const VisualPavimentoPage: React.FC<any> = (props) => {
     }, []);
 
     // ── Renderiza o mapa (PDF → imagem) uma vez ──
+    // Renderiza (ou re-renderiza em HD) o mapa na resolução `renderScale`.
+    // Pinta num canvas offscreen e só então copia para o visível — assim a tela
+    // atual continua visível durante um re-render em HD (sem piscar).
     useEffect(() => {
         let cancelled = false;
-        const render = async () => {
+        const run = async () => {
             try {
-                setIsLoading(true);
+                setRendering(true);
                 setLoadError(null);
-                const pdf = await pdfjsLib.getDocument('/mapa-geral.pdf').promise;
-                const page = await pdf.getPage(1);
-                const base = page.getViewport({ scale: 1 });
-                setAspect(base.height / base.width);
-                const renderScale = Math.min(1.3, 3800 / base.width); // resolução equilibrada; zoom é vetorial
+                let page = pageRef.current;
+                if (!page) {
+                    const pdf = await pdfjsLib.getDocument('/mapa-geral.pdf').promise;
+                    page = await pdf.getPage(1);
+                    pageRef.current = page;
+                    const base = page.getViewport({ scale: 1 });
+                    baseSizeRef.current = { w: base.width, h: base.height };
+                    setAspect(base.height / base.width);
+                }
                 const viewport = page.getViewport({ scale: renderScale });
-                // Renderiza num canvas offscreen próprio (evita conflito de render duplo do StrictMode)
                 const off = document.createElement('canvas');
                 off.width = viewport.width;
                 off.height = viewport.height;
                 const offCtx = off.getContext('2d');
                 if (!offCtx) return;
-                await page.render({ canvasContext: offCtx, viewport, canvas: off } as any).promise;
+                const task = page.render({ canvasContext: offCtx, viewport, canvas: off });
+                renderTaskRef.current = task;
+                await task.promise;
                 if (cancelled) return;
                 await new Promise(r => requestAnimationFrame(() => r(null)));
                 const vis = canvasRef.current;
@@ -73,15 +88,31 @@ const VisualPavimentoPage: React.FC<any> = (props) => {
                 vis.getContext('2d')?.drawImage(off, 0, 0);
                 setReady(true);
             } catch (err: any) {
+                if (err?.name === 'RenderingCancelledException') return;
                 console.error('Erro ao renderizar mapa de pavimento:', err);
                 if (!cancelled) setLoadError(err?.message || 'Erro ao carregar o mapa.');
             } finally {
-                if (!cancelled) setIsLoading(false);
+                if (!cancelled) { setRendering(false); setIsLoading(false); }
             }
         };
-        render();
-        return () => { cancelled = true; };
-    }, []);
+        run();
+        return () => { cancelled = true; try { renderTaskRef.current?.cancel(); } catch { } };
+    }, [renderScale]);
+
+    // Re-renderiza em HD conforme o zoom: mede a largura real do mapa na tela e
+    // ajusta a resolução do raster (debounce para não re-renderizar a cada passo).
+    useEffect(() => {
+        const id = setTimeout(() => {
+            const base = baseSizeRef.current;
+            const el = mapWrapRef.current;
+            if (!base || !el) return;
+            const onScreenW = el.getBoundingClientRect().width; // já inclui o zoom (transform)
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            const desired = Math.max(1.4, Math.min(MAX_RENDER_SCALE, (onScreenW * dpr) / base.w));
+            if (Math.abs(desired - renderScale) > 0.25) setRenderScale(+desired.toFixed(2));
+        }, 450);
+        return () => clearTimeout(id);
+    }, [scale, renderScale]);
 
     // ── Pan / zoom handlers ──
     const handleMouseDown = (e: React.MouseEvent) => {
@@ -131,10 +162,18 @@ const VisualPavimentoPage: React.FC<any> = (props) => {
             const [a, b] = range;
             const lane = laneOf(a);
             if (!lane) continue;
+            const lanePts = laneMap[lane];
+            if (!lanePts.length) continue;
+            // Só pinta dentro do trecho calibrado (evita pintar "no vazio" além da via mapeada)
+            const laneMin = lanePts[0].est;
+            const laneMax = lanePts[lanePts.length - 1].est;
+            if (b < laneMin || a > laneMax) continue;
             const progress = Math.max(0, Math.min(100, Number((t as any).progress) || 0));
             if (progress <= 0) continue;
-            const paintedTo = a + (b - a) * (progress / 100);
-            const pts = pathBetween(laneMap[lane], a, paintedTo);
+            const start = Math.max(a, laneMin);
+            const paintedTo = Math.min(a + (b - a) * (progress / 100), laneMax);
+            if (paintedTo <= start) continue;
+            const pts = pathBetween(lanePts, start, paintedTo);
             if (pts.length < 2) continue;
             out.push({ color: SERVICE_LAYERS[layer].color, layer, points: pts });
         }
@@ -213,6 +252,12 @@ const VisualPavimentoPage: React.FC<any> = (props) => {
                                 <p className="text-xs text-brand-med-gray">{loadError}</p>
                             </div>
                         )}
+                        {rendering && !isLoading && (
+                            <div className="absolute top-3 right-3 z-10 flex items-center gap-2 bg-black/60 border border-white/10 rounded-lg px-3 py-1.5">
+                                <div className="w-3 h-3 border-2 border-brand-accent border-t-transparent rounded-full animate-spin"></div>
+                                <span className="text-[10px] font-bold text-brand-med-gray">Renderizando HD…</span>
+                            </div>
+                        )}
                         <div
                             className="absolute top-1/2 left-1/2"
                             style={{
@@ -223,7 +268,7 @@ const VisualPavimentoPage: React.FC<any> = (props) => {
                                 visibility: ready ? 'visible' : 'hidden',
                             }}
                         >
-                            <div className="relative w-full">
+                            <div className="relative w-full" ref={mapWrapRef}>
                                 <canvas
                                     ref={canvasRef}
                                     className="w-full block pointer-events-none"

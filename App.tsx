@@ -12,6 +12,7 @@ import Toast from './components/Toast';
 import ConstructionIcon from './components/icons/ConstructionIcon';
 import { Task, Restriction } from './types';
 import { DataProvider, useData } from './context/DataProvider';
+import { NavExtrasContext } from './context/navExtras';
 import { userIsWarRoomOnlyViewer, userCanAccessWarRoomTV } from './utils/userAccess';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
@@ -450,6 +451,7 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
   );
 
   return (
+    <NavExtrasContext.Provider value={{ onNavigateToVisualPavimento: () => setScreen('visualPavimento') }}>
     <div className="min-h-screen bg-brand-darkest text-gray-100">
       <Suspense fallback={loadingFallback}>
         {renderContent()}
@@ -502,6 +504,7 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
       )}
       {useData().isDevToolsOpen && <ReactQueryDevtools initialIsOpen={true} />}
     </div>
+    </NavExtrasContext.Provider>
   );
 };
 

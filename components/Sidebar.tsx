@@ -1,7 +1,8 @@
 
-import React from 'react';
+import React, { useContext } from 'react';
 import { User } from '../types';
 import { useTheme } from '../utils/theme';
+import { NavExtrasContext } from '../context/navExtras';
 import ConstructionIcon from './icons/ConstructionIcon';
 import ChartIcon from './icons/ChartIcon';
 import BaselineIcon from './icons/BaselineIcon';
@@ -40,6 +41,8 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome, onNavigateToDashboard, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToMonitoringControl, onNavigateToPodcast, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToVisualPavimento, onNavigateToWarRoom, onNavigateToSystem, onUpgradeClick, onAddTask }) => {
     const { theme, toggleTheme } = useTheme();
+    const navExtras = useContext(NavExtrasContext);
+    const goVisualPavimento = onNavigateToVisualPavimento || navExtras.onNavigateToVisualPavimento;
     const showFullMenu = user.role !== 'Executor' && user.role !== 'Visualizador';
     const isCostModule = activeScreen === 'cost';
     const isOrgModule = activeScreen === 'orgSummary' || activeScreen === 'orgChart';
@@ -150,7 +153,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                                         />
                                     )}
 
-                                    {onNavigateToVisualPavimento && (
+                                    {goVisualPavimento && (
                                         <NavButton
                                             active={activeScreen === 'visualPavimento'}
                                             icon={
@@ -163,7 +166,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                                                 </svg>
                                             }
                                             label="Visual Pavimento"
-                                            onClick={onNavigateToVisualPavimento}
+                                            onClick={goVisualPavimento}
                                             isCostModule={isCostModule}
                                         />
                                     )}
