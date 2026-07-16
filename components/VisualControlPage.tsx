@@ -7,10 +7,18 @@ import Header from './Header';
 import Sidebar from './Sidebar';
 import { Task, Resource } from '../types';
 import * as pdfjsLib from 'pdfjs-dist';
-// @ts-ignore - Vite ?url import
-import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+// Polyfill para Uint8Array.toHex/toBase64 (proposta TC39) na thread principal.
+// Sem ele, o pdf.js quebra em navegadores < Chrome 140 (ex.: tablets de obra).
+import '../utils/uint8Polyfill';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
+// Usa workerPort com o nosso wrapper (utils/pdfWorker) para que o polyfill exista
+// também DENTRO do escopo do worker — é lá que o pdf.js chama Uint8Array.toHex().
+// O padrão new URL + import.meta.url faz o Vite empacotar o worker e resolver o
+// import do pdfjs-dist, tanto em dev quanto no build de produção.
+pdfjsLib.GlobalWorkerOptions.workerPort = new Worker(
+    new URL('../utils/pdfWorker.ts', import.meta.url),
+    { type: 'module' }
+);
 
 // ─── OAE DATA ───────────────────────────────────────────────────
 interface OAEConfig {
