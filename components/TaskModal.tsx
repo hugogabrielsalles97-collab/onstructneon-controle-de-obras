@@ -844,7 +844,9 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                     if ((t.title || '').trim().toLowerCase() !== currentTitle) return false;
                     const r = parseEstacaRange(t.location) || parseEstacaRange(t.corte);
                     if (!r) return false;
-                    return lo <= r[1] && r[0] <= hi; // há sobreposição de trechos
+                    // Sobreposição REAL: trechos que só se encostam na ponta (fim de um = início do outro)
+                    // não são conflito. Ex.: 30891-30892 e 30892-30895 são permitidos (compartilham só o ponto 30892).
+                    return lo < r[1] && r[0] < hi;
                 });
                 if (conflito) {
                     const r = (parseEstacaRange(conflito.location) || parseEstacaRange(conflito.corte))!;
