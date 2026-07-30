@@ -89,7 +89,7 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
     const [detailService, setDetailService] = useState<string | null>(null);
     const { theme } = useTheme();
 
-    const baselineLabel = baselineKey === 'lb05' ? 'LB05' : 'LB04';
+    const baselineLabel = baselineKey === 'lb05' ? 'LB06' : 'LB04';
 
     useEffect(() => {
         const load = async () => {
@@ -341,7 +341,7 @@ const DeviationsSummaryPage: React.FC<DeviationsSummaryPageProps> = (props) => {
                             <div className="flex gap-2">
                                 {(['prev', 'lb05'] as const).map(k => {
                                     const active = baselineKey === k;
-                                    const label = k === 'prev' ? 'LB04' : 'LB05';
+                                    const label = k === 'prev' ? 'LB04' : 'LB06';
                                     return (
                                         <button key={k} onClick={() => setBaselineKey(k)} className={`flex-1 px-3 py-2.5 rounded-xl border text-xs font-black uppercase tracking-wide transition-all ${active ? (k === 'lb05' ? 'bg-cyan-500/15 border-cyan-400/60 text-cyan-300' : 'bg-gray-500/15 border-gray-400/60 text-[var(--dv-text-strong)]') : 'bg-[var(--dv-input)] border-[var(--dv-border)] text-[var(--dv-text-faint)] hover:border-[var(--dv-border-strong)]'}`}>{label}</button>
                                     );

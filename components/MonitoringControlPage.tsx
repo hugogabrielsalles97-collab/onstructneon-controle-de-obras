@@ -452,11 +452,11 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                             </React.Fragment>;
                                         })}
                                     </tr>
-                                    {/* TOTAL GERAL ROW - LB05 */}
+                                    {/* TOTAL GERAL ROW - LB06 */}
                                     <tr style={{background: '#1a1f2c'}} className="h-8">
                                         <td style={{left: 0, top: 124, width: W_OAE, background: '#1a1f2c'}} className="sticky z-[160] px-2 pt-0 pb-4 border-r border-b-2 border-brand-accent/30"></td>
                                         <td style={{left: W_OAE, top: 124, width: W_APOIO + W_RESP, background: '#1a1f2c', minWidth: W_APOIO + W_RESP}} colSpan={2} className="sticky z-[160] px-2 pt-0 pb-4 border-r border-b-2 border-brand-accent/30"></td>
-                                        <td style={{left: W_OAE + W_APOIO + W_RESP, top: 124, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b-2 border-cyan-500/40 text-center text-[8px] font-black text-cyan-400 uppercase">LB05</td>
+                                        <td style={{left: W_OAE + W_APOIO + W_RESP, top: 124, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b-2 border-cyan-500/40 text-center text-[8px] font-black text-cyan-400 uppercase">LB06</td>
                                         <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO, top: 124, background: '#1a1f2c'}} className="sticky z-[160] p-1 border-r border-b-2 border-cyan-500/40 text-center text-cyan-400 font-black text-[11px]">
                                             {filteredRows.reduce((a, r) => a + getGrandTotal(r, 'lb05'), 0).toLocaleString('pt-BR')}
                                         </td>
@@ -543,12 +543,12 @@ const MonitoringControlPage: React.FC<MonitoringControlPageProps> = (props) => {
                                                     </React.Fragment>;
                                                 })}
                                             </tr>
-                                            {/* LB05 ROW — linha inferior que fecha o grupo, editável e salva na base */}
+                                            {/* LB06 ROW — linha inferior que fecha o grupo, editável e salva na base */}
                                             <tr style={{background: bg}} className="group transition-colors">
                                                 <td style={{left: 0, background: bg}} className="sticky z-[140] px-2 pt-0 pb-4 border-r border-b-2 border-white/10 group-hover:!bg-[#10303f]"></td>
                                                 <td style={{left: W_OAE, background: bg}} className="sticky z-[140] px-2 pt-0 pb-4 border-r border-b-2 border-white/10 group-hover:!bg-[#10303f]"></td>
                                                 <td style={{left: W_OAE + W_APOIO, background: bg}} className="sticky z-[140] px-2 pt-0 pb-4 border-r border-b-2 border-white/10 group-hover:!bg-[#10303f]"></td>
-                                                <td style={{left: W_OAE + W_APOIO + W_RESP, background: bg}} className="sticky z-[140] p-1 border-r border-b-2 border-cyan-500/40 text-center text-[8px] font-black text-cyan-400 uppercase group-hover:!bg-[#10303f]">LB05</td>
+                                                <td style={{left: W_OAE + W_APOIO + W_RESP, background: bg}} className="sticky z-[140] p-1 border-r border-b-2 border-cyan-500/40 text-center text-[8px] font-black text-cyan-400 uppercase group-hover:!bg-[#10303f]">LB06</td>
                                                 <td style={{left: W_OAE + W_APOIO + W_RESP + W_INFO, background: bg}} className="sticky z-[140] p-1 border-r border-b-2 border-cyan-500/40 text-center font-black text-cyan-400 group-hover:!bg-[#10303f]">{getGrandTotal(row, 'lb05')}</td>
                                                 <td style={{left: LEFT_STICKY_DEL, background: bg}} className="sticky z-[140] p-1 border-r border-b-2 border-cyan-500/40 group-hover:!bg-[#10303f]" aria-hidden />
                                                 {availableMonths.map(m => {
