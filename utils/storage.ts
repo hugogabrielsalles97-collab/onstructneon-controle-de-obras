@@ -83,6 +83,17 @@ export const keyFromSupabaseUrl = (url: string): string =>
 export async function ensurePhotoInR2(key: string): Promise<string | null> {
     if (!isPhotoStorageConfigured) return null;
 
+    try {
+        // Verifica antes de copiar: a maioria das fotos já foi migrada em lote,
+        // e o HEAD é barato e dispensa sessão. Evita um POST por foto.
+        const existing = await fetch(photoUrlFor(key), { method: 'HEAD' });
+        if (existing.ok && existing.headers.get('X-Photo-Source') === 'r2') {
+            return photoUrlFor(key);
+        }
+    } catch {
+        return null;
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) return null;
 
