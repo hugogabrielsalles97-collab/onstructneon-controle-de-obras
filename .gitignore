@@ -24,3 +24,13 @@ dist-ssr
 *.sw?
 
 .env
+
+# Estado da migração de fotos para o R2 (lista chaves do bucket)
+scripts/.migration-state.json
+scripts/.copy-state.json
+.wrangler
+scripts/.verify-report.json
+.vercel
+.env*
+# .env* (acrescentado pelo Vercel CLI) casaria com o modelo — mantê-lo versionado.
+!.env.example

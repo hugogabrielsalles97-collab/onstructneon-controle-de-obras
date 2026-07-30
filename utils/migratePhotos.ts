@@ -1,4 +1,11 @@
 import { supabase } from '../supabaseClient';
+import {
+    uploadPhoto,
+    ensurePhotoInR2,
+    isSupabaseHostedPhoto,
+    keyFromSupabaseUrl,
+    isPhotoStorageConfigured,
+} from './storage';
 
 /**
  * Verifica se existem fotos em Base64 no banco e as migra para o Supabase Storage.
@@ -66,24 +73,10 @@ export const migratePhotosToStorage = async (
                             const byteArray = new Uint8Array(byteNumbers);
                             const blob = new Blob([byteArray], { type: mimeType });
 
-                            // Gerar nome único
+                            // Destino é o R2, não o Storage do Supabase — que está
+                            // acima da cota do plano gratuito.
                             const fileExt = mimeType.split('/')[1] || 'jpg';
-                            const fileName = `migrated-${task.id}-${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-
-                            // Upload para Storage
-                            const { error: uploadError } = await supabase.storage
-                                .from('task-photos')
-                                .upload(fileName, blob, {
-                                    contentType: mimeType,
-                                    upsert: true
-                                });
-
-                            if (uploadError) throw uploadError;
-
-                            // Obter URL pública
-                            const { data: { publicUrl } } = supabase.storage
-                                .from('task-photos')
-                                .getPublicUrl(fileName);
+                            const publicUrl = await uploadPhoto(blob, fileExt);
 
                             newPhotos.push(publicUrl);
                             hasChanges = true;
@@ -125,6 +118,80 @@ export const migratePhotosToStorage = async (
 };
 
 /**
+ * Move para o R2 as fotos que ainda estão no Storage do Supabase.
+ *
+ * Roda com a sessão do usuário logado, sob RLS — nenhuma chave privilegiada
+ * envolvida. Os bytes não passam pelo navegador: o Worker faz a cópia
+ * servidor-a-servidor e só então a URL é reescrita no banco.
+ *
+ * Nada é apagado do Supabase aqui. Uma foto que falhe mantém a URL original,
+ * que continua funcionando normalmente.
+ */
+export const migrateSupabasePhotosToR2 = async (
+    onProgress?: (migrated: number) => void
+): Promise<{ migrated: number; failed: number }> => {
+    let migrated = 0;
+    let failed = 0;
+
+    const pageSize = 50;
+    let offset = 0;
+
+    while (true) {
+        const { data: tasks, error } = await supabase
+            .from('tasks')
+            .select('id, photos')
+            .order('id', { ascending: true })
+            .range(offset, offset + pageSize - 1);
+
+        if (error) throw error;
+        if (!tasks || tasks.length === 0) break;
+
+        for (const task of tasks) {
+            if (!Array.isArray(task.photos) || task.photos.length === 0) continue;
+            if (!task.photos.some(isSupabaseHostedPhoto)) continue;
+
+            const newPhotos: string[] = [];
+            let changed = false;
+
+            for (const photo of task.photos) {
+                if (!isSupabaseHostedPhoto(photo)) {
+                    newPhotos.push(photo as string);
+                    continue;
+                }
+
+                const newUrl = await ensurePhotoInR2(keyFromSupabaseUrl(photo));
+
+                if (newUrl) {
+                    newPhotos.push(newUrl);
+                    changed = true;
+                    migrated++;
+                    if (onProgress) onProgress(migrated);
+                } else {
+                    newPhotos.push(photo); // mantém a original — nada se perde
+                    failed++;
+                }
+            }
+
+            if (changed) {
+                const { error: updateError } = await supabase
+                    .from('tasks')
+                    .update({ photos: newPhotos })
+                    .eq('id', task.id);
+
+                if (updateError) {
+                    console.warn(`[R2] Falha ao atualizar tarefa ${task.id}:`, updateError.message);
+                    failed++;
+                }
+            }
+        }
+
+        offset += pageSize;
+    }
+
+    return { migrated, failed };
+};
+
+/**
  * Migração automática silenciosa — roda em background após login.
  * Não bloqueia a interface, não mostra erros ao usuário.
  * Apenas loga no console.
@@ -149,6 +216,22 @@ export const runAutoMigration = async (): Promise<void> => {
 
         if (result.errors.length > 0) {
             console.warn(`[AutoMigration] ⚠️ ${result.errors.length} erro(s) durante a migração:`, result.errors);
+        }
+
+        // Segunda etapa: tirar do Supabase o que já está lá em formato de URL.
+        if (isPhotoStorageConfigured) {
+            console.log('[AutoMigration] Verificando fotos ainda hospedadas no Supabase...');
+            const r2 = await migrateSupabasePhotosToR2();
+
+            if (r2.migrated > 0) {
+                console.log(`[AutoMigration] ✅ ${r2.migrated} foto(s) movida(s) para o R2.`);
+            } else {
+                console.log('[AutoMigration] ✅ Nenhuma foto pendente no Supabase.');
+            }
+
+            if (r2.failed > 0) {
+                console.warn(`[AutoMigration] ⚠️ ${r2.failed} foto(s) não migrada(s) — seguem servidas pelo Supabase.`);
+            }
         }
     } catch (err) {
         console.warn('[AutoMigration] Erro inesperado na migração automática:', err);

@@ -5,6 +5,7 @@ import { Task, TaskStatus, Resource, User, OrgMember } from '../types';
 import { useOrgMembers, CatalogItem, fetchTaskHeavyData, createNotification } from '../hooks/dataHooks';
 import { useData } from '../context/DataProvider';
 import { supabase } from '../supabaseClient';
+import { uploadPhoto } from '../utils/storage';
 import XIcon from './icons/XIcon';
 import PlusIcon from './icons/PlusIcon';
 import SparkleIcon from './icons/SparkleIcon';
@@ -535,44 +536,44 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                     if (!ctx) return reject('Failed to get 2d context');
 
                     ctx.drawImage(img, 0, 0, width, height);
+                    // WebP economiza ~25-30% sobre JPEG na mesma qualidade. Navegador
+                    // que não suporta devolve outro tipo, e aí caímos no JPEG.
                     canvas.toBlob(
-                        (blob) => {
-                            if (blob) resolve(blob);
-                            else reject(new Error('Canvas to Blob failed'));
+                        (webpBlob) => {
+                            if (webpBlob && webpBlob.type === 'image/webp') {
+                                resolve(webpBlob);
+                                return;
+                            }
+                            canvas.toBlob(
+                                (jpegBlob) => {
+                                    if (jpegBlob) resolve(jpegBlob);
+                                    else reject(new Error('Canvas to Blob failed'));
+                                },
+                                'image/jpeg',
+                                0.7 // 70% de qualidade - redução massiva de tamanho!
+                            );
                         },
-                        'image/jpeg',
-                        0.7 // 70% de qualidade - redução massiva de tamanho!
+                        'image/webp',
+                        0.72
                     );
                 };
                 img.onerror = error => reject(error);
             });
         };
 
+        const failures: string[] = [];
+
         const uploadPromises = files.map(async (file: File) => {
             try {
                 // Comprime o arquivo original (10MB -> ~200KB)
                 const compressedBlob = await compressImage(file);
+                const fileExt = compressedBlob.type === 'image/webp' ? 'webp' : 'jpg';
 
-                // Gerar um nome único para o arquivo: timestamp-nome
-                const fileExt = 'jpg';
-                const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-                const filePath = `${fileName}`;
-
-                // Upload para o Bucket 'task-photos' com o blob comprimido
-                const { data, error } = await supabase.storage
-                    .from('task-photos')
-                    .upload(filePath, compressedBlob, { contentType: 'image/jpeg' });
-
-                if (error) throw error;
-
-                // Obter a URL pública
-                const { data: { publicUrl } } = supabase.storage
-                    .from('task-photos')
-                    .getPublicUrl(filePath);
-
-                return publicUrl;
+                // Sobe para o R2 (Worker obras-fotos) e devolve a URL pública.
+                return await uploadPhoto(compressedBlob, fileExt);
             } catch (error) {
                 console.error('Erro no upload ou compressão da foto:', error);
+                failures.push(`${file.name}: ${error instanceof Error ? error.message : String(error)}`);
                 return null;
             }
         });
@@ -585,6 +586,11 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, ta
                 ...prev,
                 photos: [...(prev.photos || []), ...validUrls]
             }));
+        }
+
+        // Antes as falhas sumiam no console e a foto simplesmente não aparecia.
+        if (failures.length > 0) {
+            alert(`Não foi possível enviar ${failures.length} foto(s):\n\n${failures.join('\n')}`);
         }
 
         e.target.value = '';

@@ -1,0 +1,19 @@
+name = "obras-fotos"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# Binding do bucket: o Worker acessa o R2 sem chave de acesso.
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "obras-fotos"
+
+[vars]
+SUPABASE_URL = "https://wnsiwqurkesrnpvlefyc.supabase.co"
+# Origens autorizadas a fazer PUT pelo navegador (separadas por vírgula).
+# Deploys de preview da Vercel usam subdomínios variáveis; se precisar subir
+# foto a partir de um preview, acrescente a URL específica aqui.
+ALLOWED_ORIGINS = "https://onstructneon-controle-de-obras.vercel.app,http://localhost:5173,http://localhost:4173"
+
+# Segredos — NÃO ficam neste arquivo. Defina com:
+#   wrangler secret put SUPABASE_ANON_KEY
+#   wrangler secret put MIGRATION_TOKEN
