@@ -20,10 +20,12 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { PHOTO_TABLES, BUCKET } from './photo-tables.mjs';
 
-const BUCKET = 'task-photos';
 const PAGE_SIZE = 50;
 const DELETE_BATCH = 100;
+const VERIFY_CONCURRENCY = 24;
+const UPDATE_CONCURRENCY = 8;
 
 const DO_DELETE = process.argv.includes('--delete');
 const DRY_RUN = process.argv.includes('--dry-run');
@@ -51,75 +53,132 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE, {
 
 const keyFromUrl = (url) => decodeURIComponent(url.slice(SUPABASE_PREFIX.length).split('?')[0]);
 
-/** Verificação estrita: o objeto está mesmo no R2? (HEAD não faz fallback.) */
-async function isInR2(key) {
-    try {
-        const res = await fetch(`${PHOTO_BASE_URL}/${encodeURIComponent(key)}`, { method: 'HEAD' });
-        return res.ok && res.headers.get('X-Photo-Source') === 'r2';
-    } catch {
-        return false;
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+/**
+ * Verificação estrita: o objeto está mesmo no R2? (HEAD não faz fallback.)
+ * Repete em falha de rede — uma conexão instável não pode fazer uma foto
+ * parecer ausente, porque é esta resposta que libera apagar o original.
+ */
+async function isInR2(key, attempts = 4) {
+    for (let i = 0; i < attempts; i++) {
+        try {
+            const res = await fetch(`${PHOTO_BASE_URL}/${encodeURIComponent(key)}`, { method: 'HEAD' });
+            return res.ok && res.headers.get('X-Photo-Source') === 'r2';
+        } catch {
+            await sleep(300 * 2 ** i);
+        }
     }
+    return false;
 }
 
-/** Reescreve as URLs do Supabase para o Worker, uma tarefa por vez. */
+/** Roda `fn` sobre `items` com N execuções simultâneas. */
+async function pool(items, size, fn) {
+    let cursor = 0;
+    const runners = Array.from({ length: Math.min(size, items.length) }, async () => {
+        while (cursor < items.length) await fn(items[cursor++]);
+    });
+    await Promise.all(runners);
+}
+
+/**
+ * Reescreve as URLs do Supabase para o Worker.
+ *
+ * Em três fases, para não fazer uma requisição de rede por foto em série:
+ * junta as tarefas afetadas, confirma as chaves no R2 em paralelo, e só então
+ * grava. A verificação por chave continua obrigatória — o que mudou é que ela
+ * acontece uma vez por chave distinta, concorrentemente, e não embutida no laço.
+ */
 async function rewriteUrls() {
-    let offset = 0;
+    // Fase 1: varrer todas as tabelas com foto e juntar o que precisa mudar.
+    const affected = [];
+    const keys = new Set();
+
+    for (const table of PHOTO_TABLES) {
+        let offset = 0;
+
+        while (true) {
+            const { data: rows, error } = await supabase
+                .from(table)
+                .select('id, photos')
+                .order('id', { ascending: true })
+                .range(offset, offset + PAGE_SIZE - 1);
+
+            if (error) throw error;
+            if (!rows || rows.length === 0) break;
+
+            for (const row of rows) {
+                if (!Array.isArray(row.photos)) continue;
+                if (!row.photos.some(p => typeof p === 'string' && p.startsWith(SUPABASE_PREFIX))) continue;
+
+                affected.push({ ...row, table });
+                for (const photo of row.photos) {
+                    if (typeof photo === 'string' && photo.startsWith(SUPABASE_PREFIX)) keys.add(keyFromUrl(photo));
+                }
+            }
+
+            offset += PAGE_SIZE;
+        }
+    }
+
+    console.log(`  ${affected.length} linha(s) com foto ainda no Supabase, ${keys.size} chave(s) distinta(s).`);
+
+    if (affected.length === 0) return { rewritten: 0, skipped: 0, tasksTouched: 0 };
+
+    // Fase 2: confirmar cada chave no R2, em paralelo.
+    const verified = new Set();
+    let checked = 0;
+
+    await pool([...keys], VERIFY_CONCURRENCY, async (key) => {
+        if (await isInR2(key)) verified.add(key);
+        checked++;
+        if (checked % 500 === 0) console.log(`  verificadas ${checked}/${keys.size}`);
+    });
+
+    console.log(`  ${verified.size}/${keys.size} confirmada(s) no R2.`);
+
+    // Fase 3: gravar, consultando só a memória.
     let rewritten = 0;
     let skipped = 0;
     let tasksTouched = 0;
 
-    while (true) {
-        const { data: tasks, error } = await supabase
-            .from('tasks')
-            .select('id, photos')
-            .order('id', { ascending: true })
-            .range(offset, offset + PAGE_SIZE - 1);
+    await pool(affected, UPDATE_CONCURRENCY, async (row) => {
+        const newPhotos = [];
+        let changed = false;
 
-        if (error) throw error;
-        if (!tasks || tasks.length === 0) break;
-
-        for (const task of tasks) {
-            if (!Array.isArray(task.photos)) continue;
-            if (!task.photos.some(p => typeof p === 'string' && p.startsWith(SUPABASE_PREFIX))) continue;
-
-            const newPhotos = [];
-            let changed = false;
-
-            for (const photo of task.photos) {
-                if (typeof photo !== 'string' || !photo.startsWith(SUPABASE_PREFIX)) {
-                    newPhotos.push(photo);
-                    continue;
-                }
-
-                const key = keyFromUrl(photo);
-
-                if (await isInR2(key)) {
-                    newPhotos.push(`${PHOTO_BASE_URL}/${key}`);
-                    changed = true;
-                    rewritten++;
-                } else {
-                    newPhotos.push(photo); // ainda não copiada — fica como está
-                    skipped++;
-                }
+        for (const photo of row.photos) {
+            if (typeof photo !== 'string' || !photo.startsWith(SUPABASE_PREFIX)) {
+                newPhotos.push(photo);
+                continue;
             }
 
-            if (changed && !DRY_RUN) {
-                const { error: updateError } = await supabase
-                    .from('tasks')
-                    .update({ photos: newPhotos })
-                    .eq('id', task.id);
+            const key = keyFromUrl(photo);
 
-                if (updateError) {
-                    console.error(`  ERRO na tarefa ${task.id}: ${updateError.message}`);
-                    continue;
-                }
-                tasksTouched++;
+            if (verified.has(key)) {
+                newPhotos.push(`${PHOTO_BASE_URL}/${key}`);
+                changed = true;
+                rewritten++;
+            } else {
+                newPhotos.push(photo); // ainda não copiada — fica como está
+                skipped++;
             }
         }
 
-        offset += PAGE_SIZE;
-        console.log(`  ...${offset} tarefa(s) examinada(s), ${rewritten} URL(s) reescrita(s)`);
-    }
+        if (!changed || DRY_RUN) return;
+
+        const { error: updateError } = await supabase
+            .from(row.table)
+            .update({ photos: newPhotos })
+            .eq('id', row.id);
+
+        if (updateError) {
+            console.error(`  ERRO em ${row.table}/${row.id}: ${updateError.message}`);
+            return;
+        }
+
+        tasksTouched++;
+        if (tasksTouched % 200 === 0) console.log(`  ${tasksTouched}/${affected.length} linha(s) gravada(s)`);
+    });
 
     return { rewritten, skipped, tasksTouched };
 }
@@ -127,28 +186,31 @@ async function rewriteUrls() {
 /** Junta todas as chaves ainda referenciadas em formato Supabase no banco. */
 async function keysStillReferenced() {
     const referenced = new Set();
-    let offset = 0;
 
-    while (true) {
-        const { data: tasks, error } = await supabase
-            .from('tasks')
-            .select('photos')
-            .order('id', { ascending: true })
-            .range(offset, offset + PAGE_SIZE - 1);
+    for (const table of PHOTO_TABLES) {
+        let offset = 0;
 
-        if (error) throw error;
-        if (!tasks || tasks.length === 0) break;
+        while (true) {
+            const { data: rows, error } = await supabase
+                .from(table)
+                .select('id, photos')
+                .order('id', { ascending: true })
+                .range(offset, offset + PAGE_SIZE - 1);
 
-        for (const task of tasks) {
-            if (!Array.isArray(task.photos)) continue;
-            for (const photo of task.photos) {
-                if (typeof photo === 'string' && photo.startsWith(SUPABASE_PREFIX)) {
-                    referenced.add(keyFromUrl(photo));
+            if (error) throw error;
+            if (!rows || rows.length === 0) break;
+
+            for (const row of rows) {
+                if (!Array.isArray(row.photos)) continue;
+                for (const photo of row.photos) {
+                    if (typeof photo === 'string' && photo.startsWith(SUPABASE_PREFIX)) {
+                        referenced.add(keyFromUrl(photo));
+                    }
                 }
             }
-        }
 
-        offset += PAGE_SIZE;
+            offset += PAGE_SIZE;
+        }
     }
 
     return referenced;
@@ -159,7 +221,28 @@ async function deleteOriginals() {
     const stillReferenced = await keysStillReferenced();
     console.log(`${stillReferenced.size} chave(s) ainda referenciada(s) — essas NÃO serão tocadas.`);
 
-    let offset = 0;
+    // Listar TUDO antes de apagar. Paginar por offset enquanto se remove faz a
+    // listagem deslocar sob os pés do laço, e metade dos objetos passa batido.
+    console.log('Listando o bucket...');
+    const allKeys = [];
+    let listOffset = 0;
+
+    while (true) {
+        const { data: objects, error } = await supabase.storage
+            .from(BUCKET)
+            .list('', { limit: 100, offset: listOffset, sortBy: { column: 'name', order: 'asc' } });
+
+        if (error) throw error;
+        if (!objects || objects.length === 0) break;
+
+        for (const obj of objects) if (obj?.name) allKeys.push(obj.name);
+
+        listOffset += 100;
+        if (objects.length < 100) break;
+    }
+
+    console.log(`${allKeys.length} objeto(s) no bucket.`);
+
     let deleted = 0;
     let held = 0;
     let batch = [];
@@ -180,26 +263,26 @@ async function deleteOriginals() {
         batch = [];
     };
 
-    while (true) {
-        const { data: objects, error } = await supabase.storage
-            .from(BUCKET)
-            .list('', { limit: 100, offset, sortBy: { column: 'name', order: 'asc' } });
+    // Descarta o que ainda é referenciado, confirma o resto no R2 em paralelo.
+    const candidates = allKeys.filter(k => !stillReferenced.has(k));
+    held += allKeys.length - candidates.length;
 
-        if (error) throw error;
-        if (!objects || objects.length === 0) break;
+    const confirmed = [];
+    let checked = 0;
 
-        for (const obj of objects) {
-            const key = obj.name;
+    await pool(candidates, VERIFY_CONCURRENCY, async (key) => {
+        if (await isInR2(key)) confirmed.push(key);
+        else held++;
 
-            if (stillReferenced.has(key)) { held++; continue; }
-            if (!(await isInR2(key))) { held++; continue; }
+        checked++;
+        if (checked % 500 === 0) console.log(`  confirmadas ${checked}/${candidates.length}`);
+    });
 
-            batch.push(key);
-            if (batch.length >= DELETE_BATCH) await flush();
-        }
+    console.log(`${confirmed.length} confirmada(s) no R2 e sem referencia — apagando.`);
 
-        offset += 100;
-        if (objects.length < 100) break;
+    for (const key of confirmed) {
+        batch.push(key);
+        if (batch.length >= DELETE_BATCH) await flush();
     }
 
     await flush();
