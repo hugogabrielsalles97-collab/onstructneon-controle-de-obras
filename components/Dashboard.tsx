@@ -44,6 +44,14 @@ const isChecklistTask = (t: Task) => {
 };
 
 
+interface DashboardNavigationFilters {
+  startDate?: string;
+  endDate?: string;
+  level?: string;
+  engineer?: string;
+  ppcWeek?: boolean;
+}
+
 interface DashboardProps {
   onOpenModal: (task: Task | null) => void;
   onOpenRdoModal: () => void;
@@ -68,6 +76,7 @@ interface DashboardProps {
   onUpgradeClick: () => void;
   onAddTask?: () => void;
   showToast: (message: string, type: 'success' | 'error') => void;
+  initialFilters?: DashboardNavigationFilters;
 }
 
 // Quantas linhas a tabela desenha por vez. Evita travar o navegador ao
@@ -91,10 +100,11 @@ const initialFilters = {
   estFinal: '',
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToHome, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToMonitoringControl, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToVisualPavimento, onNavigateToSystem, onUpgradeClick, onAddTask, showToast }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNavigateToHome, onNavigateToReports, onNavigateToBaseline, onNavigateToCurrentSchedule, onNavigateToAnalysis, onNavigateToLean, onNavigateToLeanConstruction, onNavigateToMonitoringControl, onNavigateToWarRoom, onNavigateToPodcast, onNavigateToCost, onNavigateToCheckoutSummary, onNavigateToOrgChart, onNavigateToOrgSummary, onNavigateToTeams, onNavigateToVisualControl, onNavigateToVisualPavimento, onNavigateToSystem, onUpgradeClick, onAddTask, showToast, initialFilters: navigationFilters }) => {
   const { currentUser: user, tasks, allUsers, baselineTasks, signOut, deleteTask, isLoadingTasks } = useData();
   const { data: orgMembers } = useOrgMembers();
-  const [filters, setFilters] = useState(initialFilters);
+  const [filters, setFilters] = useState(() => ({ ...initialFilters, ...navigationFilters }));
+  const [isPpcWeekFilter, setIsPpcWeekFilter] = useState(Boolean(navigationFilters?.ppcWeek));
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'dueDate', direction: 'asc' });
 
   if (!user) return null;
@@ -268,6 +278,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    if (name === 'startDate' || name === 'endDate') setIsPpcWeekFilter(false);
     setFilters(prev => {
       const next = { ...prev, [name]: value };
       // Ao sair de Pavimentação, zera os filtros de estaca para não filtrar silenciosamente
@@ -285,6 +296,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
 
   const clearFilters = () => {
     setFilters(initialFilters);
+    setIsPpcWeekFilter(false);
   };
 
 
@@ -434,13 +446,21 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
         if (!range || range[0] < lo || range[1] > hi) return false;
       }
 
-      if (filterStartDateNum) {
-        const taskStartNum = new Date(getAnchorStart(task, bl) + 'T00:00:00').getTime();
-        if (taskStartNum < filterStartDateNum) return false;
-      }
-      if (filterEndDateNum) {
+      if (isPpcWeekFilter) {
+        // O PPC agrupa tarefas pela data de término; o drill-down deve usar a
+        // mesma regra para mostrar exatamente as tarefas que formaram a barra.
         const anchorDueNum = new Date(getAnchorDue(task, bl) + 'T00:00:00').getTime();
-        if (anchorDueNum > filterEndDateNum) return false;
+        if (filterStartDateNum && anchorDueNum < filterStartDateNum) return false;
+        if (filterEndDateNum && anchorDueNum > filterEndDateNum) return false;
+      } else {
+        if (filterStartDateNum) {
+          const taskStartNum = new Date(getAnchorStart(task, bl) + 'T00:00:00').getTime();
+          if (taskStartNum < filterStartDateNum) return false;
+        }
+        if (filterEndDateNum) {
+          const anchorDueNum = new Date(getAnchorDue(task, bl) + 'T00:00:00').getTime();
+          if (anchorDueNum > filterEndDateNum) return false;
+        }
       }
 
       if (filters.engineer) {
@@ -452,7 +472,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenModal, onOpenRdoModal, onNa
 
       return true;
     });
-  }, [visibleTasks, baselineById, filters.title, filters.assignee, filters.discipline, filters.level, filters.location, filters.corte, filters.support, filters.startDate, filters.endDate, filters.engineer, filters.estInicial, filters.estFinal, getEngineersForTask]);
+  }, [visibleTasks, baselineById, filters.title, filters.assignee, filters.discipline, filters.level, filters.location, filters.corte, filters.support, filters.startDate, filters.endDate, filters.engineer, filters.estInicial, filters.estFinal, getEngineersForTask, isPpcWeekFilter]);
 
   const filteredAndSortedTasks = useMemo(() => {
     const todayNum = new Date().setHours(0, 0, 0, 0);

@@ -42,6 +42,14 @@ const DeviationsSummaryPage = lazy(() => import('./components/DeviationsSummaryP
 
 type Screen = 'landing' | 'login' | 'register' | 'moduleSelection' | 'dashboard' | 'reports' | 'baseline' | 'currentSchedule' | 'management' | 'lean' | 'leanConstruction' | 'monitoringControl' | 'monitoringDashboard' | 'monitoringDeviations' | 'restrictions' | 'cost' | 'podcast' | 'checkoutSummary' | 'orgChart' | 'orgSummary' | 'visualControl' | 'visualPavimento' | 'system' | 'warRoomTV';
 
+type DashboardNavigationFilters = {
+  startDate?: string;
+  endDate?: string;
+  level?: string;
+  engineer?: string;
+  ppcWeek?: boolean;
+};
+
 const AppContent: React.FC = () => {
   const {
     session, currentUser, allUsers, tasks, baselineTasks, restrictions, costItems, measurements, cashFlow, isLoading,
@@ -52,6 +60,7 @@ const AppContent: React.FC = () => {
   const canAccessWarRoomTV = userCanAccessWarRoomTV(currentUser, session);
 
   const [screen, setScreen] = useState<Screen>('moduleSelection');
+  const [dashboardNavigationFilters, setDashboardNavigationFilters] = useState<DashboardNavigationFilters | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isRdoModalOpen, setIsRdoModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -282,7 +291,10 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
     const handleNavigateToHome = () => setScreen('moduleSelection');
 
     const navigationProps = {
-      onNavigateToDashboard: () => setScreen('dashboard'),
+      onNavigateToDashboard: (filters?: DashboardNavigationFilters) => {
+        setDashboardNavigationFilters(filters || null);
+        setScreen('dashboard');
+      },
       onNavigateToReports: () => setScreen('reports'),
       onNavigateToBaseline: () => setScreen('baseline'),
       onNavigateToCurrentSchedule: () => setScreen('currentSchedule'),
@@ -317,7 +329,7 @@ Olá, *${task.assignee}*! Uma nova tarefa foi planejada para você no ELOS.
             showToast={showToast}
           />
         );
-      case 'dashboard': return <Dashboard onOpenModal={handleOpenTaskModal} onOpenRdoModal={handleOpenRdoModal} {...navigationProps} showToast={showToast} />;
+      case 'dashboard': return <Dashboard onOpenModal={handleOpenTaskModal} onOpenRdoModal={handleOpenRdoModal} {...navigationProps} initialFilters={dashboardNavigationFilters || undefined} showToast={showToast} />;
       case 'reports': return <ReportsPage {...navigationProps} showToast={showToast} />;
       case 'baseline': return <BaselinePage {...navigationProps} showToast={showToast} />;
       case 'currentSchedule': return <CurrentSchedulePage {...navigationProps} showToast={showToast} />;

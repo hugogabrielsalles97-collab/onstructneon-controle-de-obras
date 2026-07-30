@@ -22,7 +22,13 @@ import AlertIcon from './icons/AlertIcon';
 import ConfirmModal from './ConfirmModal';
 
 interface ManagementPageProps {
-    onNavigateToDashboard: () => void;
+    onNavigateToDashboard: (filters?: {
+        startDate?: string;
+        endDate?: string;
+        level?: string;
+        engineer?: string;
+        ppcWeek?: boolean;
+    }) => void;
     onNavigateToReports: () => void;
     onNavigateToBaseline: () => void;
     onNavigateToCurrentSchedule: () => void;
@@ -164,6 +170,20 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
         return Array.from(engineers).sort((a, b) => a.localeCompare(b));
     }, [tasks, engineerDescendants, orgMembers]);
 
+    // Fonte única para todos os indicadores da visão semanal. Assim, nível e
+    // engenheiro afetam PPC, acumulado, Pareto, tendência e detalhamento.
+    const ppcFilteredTasks = useMemo(() => {
+        const engineerKey = ppcEngineerFilter ? normalizeString(normalizeName(ppcEngineerFilter)) : '';
+        return tasks.filter(t => {
+            if (ppcLevelFilter && t.level !== ppcLevelFilter) return false;
+            if (engineerKey) {
+                const engineers = getEngineersForTask(t, engineerDescendants);
+                if (!engineers.some(e => normalizeString(normalizeName(e)) === engineerKey)) return false;
+            }
+            return true;
+        });
+    }, [tasks, ppcLevelFilter, ppcEngineerFilter, engineerDescendants]);
+
     const analysisData = useMemo(() => {
         const today = new Date();
         const cutOffDate = new Date(currentScheduleCutOffDateStr + 'T00:00:00Z');
@@ -284,7 +304,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
             'Interferências': 0
         };
 
-        tasks.forEach(t => {
+        ppcFilteredTasks.forEach(t => {
             const tDateStr = t.dueDate || t.actualEndDate || '';
             if (impactDateFilters.startDate || impactDateFilters.endDate) {
                 const tDate = new Date(tDateStr + 'T00:00:00');
@@ -323,13 +343,13 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 abc
             };
         });
-    }, [tasks, impactDateFilters]);
+    }, [ppcFilteredTasks, impactDateFilters]);
 
     const weeklyImpactData = useMemo(() => {
         const weekMap: Record<string, { values: Record<string, number>, weekNum: number }> = {};
         const categories = IMPACT_CATEGORIES;
 
-        tasks.forEach(t => {
+        ppcFilteredTasks.forEach(t => {
             const tDateStr = t.dueDate || t.actualEndDate || '';
             if (impactDateFilters.startDate || impactDateFilters.endDate) {
                 const tDate = new Date(tDateStr + 'T00:00:00');
@@ -394,7 +414,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                 ...data.values
             }))
             .slice(-20);
-    }, [tasks, impactDateFilters]);
+    }, [ppcFilteredTasks, impactDateFilters]);
 
     // --- LÓGICA PPC SEMANAL (Semanas Fechadas) ---
     const weeklyPpcData = useMemo(() => {
@@ -404,13 +424,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
         lastClosedSaturday.setDate(now.getDate() - (now.getDay() + 1));
         lastClosedSaturday.setHours(23, 59, 59, 999);
 
-        const engineerKey = ppcEngineerFilter ? normalizeString(normalizeName(ppcEngineerFilter)) : '';
-        const tasksToUse = tasks.filter(t => {
-            if (ppcLevelFilter && t.level !== ppcLevelFilter) return false;
-            if (engineerKey) {
-                const engs = getEngineersForTask(t, engineerDescendants);
-                if (!engs.some(e => normalizeString(normalizeName(e)) === engineerKey)) return false;
-            }
+        const tasksToUse = ppcFilteredTasks.filter(t => {
             if (!dateFilters.startDate && !dateFilters.endDate) return true;
             const tDate = new Date(t.dueDate + 'T00:00:00');
             const start = dateFilters.startDate ? new Date(dateFilters.startDate + 'T00:00:00') : null;
@@ -470,8 +484,22 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
             .map(week => ({
                 name: `${week}`,
                 ppc: weeks[week].planned > 0 ? Math.round((weeks[week].completed / weeks[week].planned) * 100) : 0,
+                weekStart: (() => {
+                    const value = new Date(weeks[week].weekEnd);
+                    value.setDate(value.getDate() - 6);
+                    return [
+                        value.getFullYear(),
+                        String(value.getMonth() + 1).padStart(2, '0'),
+                        String(value.getDate()).padStart(2, '0')
+                    ].join('-');
+                })(),
+                weekEnd: [
+                    weeks[week].weekEnd.getFullYear(),
+                    String(weeks[week].weekEnd.getMonth() + 1).padStart(2, '0'),
+                    String(weeks[week].weekEnd.getDate()).padStart(2, '0')
+                ].join('-'),
             }));
-    }, [tasks, dateFilters, ppcLevelFilter, ppcEngineerFilter, engineerDescendants]);
+    }, [ppcFilteredTasks, dateFilters]);
 
     const averagePpc = useMemo(() => {
         if (weeklyPpcData.length === 0) return 0;
@@ -487,13 +515,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
 
         const projectStart = new Date('2026-02-15T00:00:00'); // Início da análise em 21/02
 
-        const engineerKey = ppcEngineerFilter ? normalizeString(normalizeName(ppcEngineerFilter)) : '';
-        const tasksToUse = tasks.filter(t => {
-            if (ppcLevelFilter && t.level !== ppcLevelFilter) return false;
-            if (engineerKey) {
-                const engs = getEngineersForTask(t, engineerDescendants);
-                if (!engs.some(e => normalizeString(normalizeName(e)) === engineerKey)) return false;
-            }
+        const tasksToUse = ppcFilteredTasks.filter(t => {
             const tDate = new Date(t.dueDate + 'T00:00:00');
             if (tDate < projectStart) return false;
 
@@ -573,7 +595,17 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
             
             return data;
         });
-    }, [tasks, dateFilters, ppcLevelFilter, ppcEngineerFilter, engineerDescendants]);
+    }, [ppcFilteredTasks, dateFilters]);
+
+    const navigateToPpcWeek = (week: typeof weeklyPpcData[number]) => {
+        onNavigateToDashboard({
+            startDate: week.weekStart,
+            endDate: week.weekEnd,
+            level: ppcLevelFilter,
+            engineer: ppcEngineerFilter,
+            ppcWeek: true,
+        });
+    };
 
     const globalStats = useMemo(() => {
         const total = analysisData.length;
@@ -842,7 +874,31 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart data={weeklyPpcData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-                                            <XAxis dataKey="name" stroke="#475569" fontSize={10} fontWeight={700} axisLine={false} tickLine={false} />
+                                            <XAxis
+                                                dataKey="name"
+                                                stroke="#475569"
+                                                fontSize={10}
+                                                fontWeight={700}
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tick={(props: any) => {
+                                                    const week = weeklyPpcData.find(item => item.name === props.payload.value);
+                                                    return (
+                                                        <text
+                                                            x={props.x}
+                                                            y={props.y + 12}
+                                                            textAnchor="middle"
+                                                            fill="#64748b"
+                                                            fontSize={10}
+                                                            fontWeight={700}
+                                                            className="cursor-pointer hover:fill-brand-accent"
+                                                            onClick={() => week && navigateToPpcWeek(week)}
+                                                        >
+                                                            {props.payload.value}
+                                                        </text>
+                                                    );
+                                                }}
+                                            />
                                             <YAxis stroke="#475569" fontSize={10} fontWeight={700} domain={[0, 100]} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
                                             <Tooltip
                                                 cursor={{ fill: 'rgba(255,255,255,0.02)' }}
@@ -850,7 +906,17 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                                 itemStyle={{ fontWeight: 'bold' }}
                                             />
                                             <ReferenceLine y={averagePpc} stroke="#e35a10" strokeDasharray="4 4" strokeWidth={1.5} />
-                                            <Bar dataKey="ppc" name="PPC %" radius={[4, 4, 0, 0]} barSize={30}>
+                                            <Bar
+                                                dataKey="ppc"
+                                                name="PPC %"
+                                                radius={[4, 4, 0, 0]}
+                                                barSize={30}
+                                                className="cursor-pointer"
+                                                onClick={(entry: any) => {
+                                                    const week = entry?.payload || entry;
+                                                    if (week?.weekStart && week?.weekEnd) navigateToPpcWeek(week);
+                                                }}
+                                            >
                                                 {weeklyPpcData.map((entry, index) => (
                                                     <Cell key={`cell-${index}`} fill={entry.ppc >= 80 ? '#10b981' : entry.ppc >= 60 ? '#f59e0b' : '#ef4444'} />
                                                 ))}
@@ -1311,7 +1377,7 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                         
                         <div className="flex-1 overflow-y-auto p-8 space-y-4 custom-scrollbar">
                             {(() => {
-                                const list = tasks.filter(t => {
+                                const list = ppcFilteredTasks.filter(t => {
                                     if (!(t.observations || '').includes(`[${selectedImpactCategory}]`)) return false;
                                     
                                     const tDateStr = t.dueDate || t.actualEndDate || '';
