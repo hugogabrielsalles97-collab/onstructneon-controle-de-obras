@@ -2,10 +2,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import ViewerCamadas, { Camada, PRESETS, idsDoPreset, lerLayouts } from './ViewerCamadas';
-import { pintarPavimentacao, limparPintura } from './viewerPavimentacao';
+import { limparPintura } from './viewerPavimentacao';
 import { carregarTarefasPavimentacao, localizarEstacas, pintarAvanco, ResumoAvanco } from './viewerAvanco';
-
-export type ModoCor = 'nenhum' | 'projeto' | 'avanco';
 
 /**
  * Visualizador do modelo federado (NWD) via Autodesk Platform Services.
@@ -55,7 +53,6 @@ const loadOnce = (() => {
 })();
 
 const CHAVE_OCULTOS = 'elos.viewer.camadasOcultas';
-const CHAVE_MONO = 'elos.viewer.monocromatico';
 
 /**
  * Monta a lista de camadas em dois níveis: arquivo de origem e, dentro dele,
@@ -136,66 +133,34 @@ const ModelViewer: React.FC = () => {
     const [ocultos, setOcultos] = useState<Set<number>>(() => lerOcultos());
     const [painelAberto, setPainelAberto] = useState(false);
 
-    // Monocromático por padrão: o federado vem com cores de 77 arquivos
-    // diferentes, e a leitura de conjunto melhora sem elas.
-    const [monocromatico, setMonocromatico] = useState(
-        () => (typeof localStorage !== 'undefined' ? localStorage.getItem(CHAVE_MONO) !== '0' : true)
-    );
 
-    const alternarMono = () => {
-        setMonocromatico(atual => {
-            const proximo = !atual;
-            try { localStorage.setItem(CHAVE_MONO, proximo ? '1' : '0'); } catch { /* modo privado */ }
-            return proximo;
-        });
-    };
-
-    const [modoCor, setModoCor] = useState<ModoCor>('nenhum');
-    const [contagemPav, setContagemPav] = useState<Record<string, number>>({});
     const [resumoAvanco, setResumoAvanco] = useState<ResumoAvanco | null>(null);
     const [carregandoCor, setCarregandoCor] = useState(false);
     const [erroCor, setErroCor] = useState<string | null>(null);
 
-    const aplicarModoCor = async (modo: ModoCor) => {
+    /**
+     * Pinta o avanço real. O modelo fica todo cinza e só o executado ganha cor,
+     * então esta é a leitura padrão da tela — não um modo a ser ligado.
+     */
+    const aplicarAvanco = async () => {
         const viewer = viewerRef.current;
         if (!viewer || carregandoCor) return;
 
         setErroCor(null);
-        setContagemPav({});
-        setResumoAvanco(null);
-
-        if (modo === 'nenhum') {
-            limparPintura(viewer);
-            setModoCor('nenhum');
-            return;
-        }
-
-        // O filtro monocromático age sobre o canvas inteiro e dessaturaria
-        // justamente as cores que estamos prestes a pintar.
-        if (monocromatico) {
-            setMonocromatico(false);
-            try { localStorage.setItem(CHAVE_MONO, '0'); } catch { /* modo privado */ }
-        }
-
-        if (modo === 'projeto') {
-            setContagemPav(pintarPavimentacao(viewer));
-            setModoCor('projeto');
-            return;
-        }
-
         setCarregandoCor(true);
+
         try {
-            const [tarefas, pontos] = [await carregarTarefasPavimentacao(), localizarEstacas(viewer)];
+            const tarefas = await carregarTarefasPavimentacao();
+            const pontos = localizarEstacas(viewer);
 
             if (pontos.length === 0) {
                 throw new Error('Nenhum rótulo de estaca localizado no modelo — o mapa de avanço precisa deles.');
             }
 
             setResumoAvanco(pintarAvanco(viewer, tarefas, pontos));
-            setModoCor('avanco');
         } catch (err) {
             limparPintura(viewer);
-            setModoCor('nenhum');
+            setResumoAvanco(null);
             setErroCor(err instanceof Error ? err.message : String(err));
         } finally {
             setCarregandoCor(false);
@@ -359,7 +324,10 @@ const ModelViewer: React.FC = () => {
                         );
 
                         viewer.loadDocumentNode(doc, view).then(() => {
-                            if (!cancelado) setStatus('pronto');
+                            if (cancelado) return;
+                            setStatus('pronto');
+                            // O avanço é a leitura padrão da tela, não uma opção.
+                            aplicarAvanco();
                         });
                     },
                     (code: any, msg: any) => {
@@ -388,19 +356,7 @@ const ModelViewer: React.FC = () => {
 
     return (
         <div className="relative w-full h-full bg-brand-darkest">
-            {/* Dessatura o que o Viewer desenha, sem tocar na barra de
-                ferramentas dele. Pintar 683 mil elementos um a um seria
-                inviável; o filtro resolve no compositor da GPU. */}
-            <style>{`
-                .elos-viewer-mono canvas {
-                    filter: grayscale(1) contrast(1.12) brightness(0.98);
-                }
-            `}</style>
-
-            <div
-                ref={containerRef}
-                className={`absolute inset-0 ${monocromatico ? 'elos-viewer-mono' : ''}`}
-            />
+            <div ref={containerRef} className="absolute inset-0" />
 
             {status === 'pronto' && camadas.length > 0 && !painelAberto && (
                 <button
@@ -419,14 +375,10 @@ const ModelViewer: React.FC = () => {
                     ocultos={ocultos}
                     onAlternar={alternarCamada}
                     onPreset={aplicarPreset}
-                    monocromatico={monocromatico}
-                    onAlternarMono={alternarMono}
-                    modoCor={modoCor}
-                    onModoCor={aplicarModoCor}
-                    contagemPavimentacao={contagemPav}
                     resumoAvanco={resumoAvanco}
                     carregandoCor={carregandoCor}
                     erroCor={erroCor}
+                    onRecarregarAvanco={aplicarAvanco}
                     aberto={painelAberto}
                     onFechar={() => setPainelAberto(false)}
                 />

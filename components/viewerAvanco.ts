@@ -175,6 +175,15 @@ export function pintarAvanco(
 
     viewer.clearThemingColors(model);
 
+    // Cinza em todo o modelo antes de qualquer cor, para o avanço ser a única
+    // informação colorida na tela.
+    //
+    // Feito por theming e não por filtro CSS: o filtro age sobre o canvas
+    // inteiro e dessaturaria também as cores do avanço — os dois nunca
+    // poderiam aparecer juntos. Aqui a chamada é recursiva, então tinge os
+    // 683 mil elementos de uma vez, e as cores pintadas depois prevalecem.
+    viewer.setThemingColor(tree.getRootId(), new THREE.Vector4(0.62, 0.62, 0.62, 1), model, true);
+
     const visitar = (id: number) => {
         const nome = tree.getNodeName(id) || '';
         const servico = servicoDaCamada(nome);
