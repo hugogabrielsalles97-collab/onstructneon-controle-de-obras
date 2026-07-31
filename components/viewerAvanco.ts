@@ -49,6 +49,10 @@ export interface ResumoAvanco {
     porPropriedade: number;
     /** Peças que precisaram de projeção geométrica por falta desse dado. */
     porGeometria: number;
+    /** Peças pintadas em pedaços, por fragmento. */
+    pintadasPorFragmento: number;
+    /** Peças de fragmento único, que só podem receber uma cor. */
+    pintadasInteiras: number;
 }
 
 /** Mesma regra do utils/constants: duas primeiras estacas de 5–6 dígitos. */
@@ -199,7 +203,7 @@ const PADRAO_TABULEIRO = /CCR_Pavimento/i;
  * pegou, e isso precisa aparecer em vez de virar uma tela colorida sem
  * explicação.
  */
-export function aplicarBaseCinza(viewer: any): number {
+export function aplicarBaseCinza(viewer: any, excluir?: Set<number>): number {
     const THREE = (window as any).THREE;
     const model = viewer?.model;
     const tree = model?.getInstanceTree?.();
@@ -220,6 +224,9 @@ export function aplicarBaseCinza(viewer: any): number {
         raiz,
         (id: number) => {
             if (!semFilhos(id)) return;
+            // As peças de pavimento ficam de fora: elas são pintadas por
+            // fragmento, e a cor de elemento sobrepõe a de fragmento.
+            if (excluir?.has(id)) return;
             viewer.setThemingColor(id, cinza, model, false);
             pintados++;
         },
@@ -346,6 +353,35 @@ export interface AmostraFragmento {
 }
 
 /**
+ * Ordena os fragmentos ao longo da peça.
+ *
+ * O eixo dominante da caixa envolvente do conjunto diz em que direção a peça se
+ * estende; ordenar por essa coordenada aproxima a ordem construtiva, que é o
+ * que permite mapear cada fragmento a um pedaço do intervalo de estacas.
+ */
+function ordenarFragmentosPorEixo(fragmentos: number[], frags: any, THREE: any): number[] {
+    const centros = new Map<number, any>();
+    const total = new THREE.Box3();
+
+    for (const fragId of fragmentos) {
+        const caixa = new THREE.Box3();
+        frags.getWorldBounds(fragId, caixa);
+        if (caixa.isEmpty()) continue;
+        centros.set(fragId, caixa.getCenter(new THREE.Vector3()));
+        total.union(caixa);
+    }
+
+    if (centros.size === 0) return fragmentos;
+
+    const tamanho = total.getSize(new THREE.Vector3());
+    const eixo = tamanho.x >= tamanho.y ? 'x' : 'y';
+
+    return [...centros.entries()]
+        .sort((a, b) => a[1][eixo] - b[1][eixo])
+        .map(([fragId]) => fragId);
+}
+
+/**
  * Estaca de cada fragmento de um elemento.
  *
  * Só pontos sobre a geometria servem. O centro da caixa envolvente de uma peça
@@ -445,6 +481,8 @@ export function pintarAvanco(
         tabuleirosPintados: 0,
         porPropriedade: 0,
         porGeometria: 0,
+        pintadasPorFragmento: 0,
+        pintadasInteiras: 0,
     };
 
     if (!THREE || !tree || !frags || pontos.length === 0) return resumo;
@@ -456,6 +494,7 @@ export function pintarAvanco(
     resumo.cinzaAplicado = aplicarBaseCinza(viewer);
 
     const eixos = montarEixos(pontos);
+    const podeFragmento = typeof frags.setThemingColor === 'function';
 
     const corDe = (servico: string, cheia: boolean) => {
         const def = SERVICOS_PAVIMENTACAO.find(s => s.servico === servico)!;
@@ -509,20 +548,53 @@ export function pintarAvanco(
                 resumo.porPropriedade++;
             }
 
-            // Amostra o intervalo declarado, estaca a estaca quando ele é curto.
+            // Fragmentos da peça, cada um com sua posição relativa ao longo dela.
+            const fragmentos: number[] = [];
+            try {
+                tree.enumNodeFragments(folha, (fragId: number) => fragmentos.push(fragId), true);
+            } catch { /* segue com a peça inteira */ }
+
+            if (podeFragmento && fragmentos.length > 1) {
+                // Vários fragmentos: cada um recebe a cor do seu próprio pedaço
+                // do intervalo, o que permite pintar só o trecho executado
+                // dentro de uma peça longa.
+                const ordenados = ordenarFragmentosPorEixo(fragmentos, frags, THREE);
+                let algum = false;
+
+                ordenados.forEach((fragId, indice) => {
+                    const posicaoRelativa = ordenados.length === 1 ? 0 : indice / (ordenados.length - 1);
+                    const estaca = Math.round(faixa![0] + posicaoRelativa * (faixa![1] - faixa![0]));
+                    const estagio = estagioDaEstaca(estaca);
+
+                    if (estagio) {
+                        frags.setThemingColor(fragId, corDe(estagio.servico, estagio.concluido));
+                        algum = true;
+                        const c = resumo.porServico[estagio.servico];
+                        if (estagio.concluido) c.concluido++; else c.andamento++;
+                    } else {
+                        frags.setThemingColor(fragId, new THREE.Vector4(...CINZA_BASE, 1));
+                    }
+                });
+
+                if (algum) {
+                    resumo.pintadasPorFragmento++;
+                    if (contarComoTabuleiro) resumo.tabuleirosPintados++;
+                } else {
+                    resumo.porServico[SERVICO_SUPERFICIE].semTarefa++;
+                }
+
+                return;
+            }
+
+            // Peça de fragmento único: é indivisível, então ou a tarefa cobre a
+            // maior parte dela, ou não pintamos. Só exigir alguma cobertura
+            // pintava 220 m por causa de uma estaca encostada na ponta.
             const amostrados: ({ servico: string; concluido: boolean } | null)[] = [];
             const passo = Math.max(1, Math.ceil((faixa[1] - faixa[0]) / 40));
 
             for (let e = faixa[0]; e <= faixa[1]; e += passo) amostrados.push(estagioDaEstaca(e));
             amostrados.push(estagioDaEstaca(faixa[1]));
 
-            // Vence o estágio mais avançado que cubra a maior parte da peça.
-            //
-            // Só exigir alguma cobertura pintava a peça inteira quando ela
-            // apenas encostava na tarefa: uma peça de 41145 a 41156 tocava o
-            // fim de uma tarefa numa única estaca e ganhava cor nos 220 m. Como
-            // a peça é indivisível, ou a tarefa responde pela maior parte dela,
-            // ou ela não deve ser pintada.
             const dominante = (() => {
                 for (let i = ORDEM_SERVICOS.length * 2 - 1; i >= 0; i--) {
                     const cobertos = amostrados.filter(e => e && posicaoDoEstagio(e) >= i).length;
@@ -534,9 +606,14 @@ export function pintarAvanco(
                 return null;
             })();
 
-            if (!dominante) { resumo.porServico[SERVICO_SUPERFICIE].semTarefa++; return; }
+            if (!dominante) {
+                viewer.setThemingColor(folha, new THREE.Vector4(...CINZA_BASE, 1), model, true);
+                resumo.porServico[SERVICO_SUPERFICIE].semTarefa++;
+                return;
+            }
 
             viewer.setThemingColor(folha, corDe(dominante.servico, dominante.concluido), model, true);
+            resumo.pintadasInteiras++;
 
             const contagem = resumo.porServico[dominante.servico];
             if (dominante.concluido) contagem.concluido++; else contagem.andamento++;
