@@ -31,6 +31,9 @@ export const PADRAO_CADASTRO = /-M[BF]-(C1|D4|F1|Q1|Z9)-/i;
 /** Camadas volumosas que são projeto, mas atrapalham a leitura de conjunto. */
 export const PADRAO_RUIDO = /TACHAS|LEGENDAS|LOGO|HACHURA/i;
 
+/** Pavimentação (I2) e obras de arte especiais (L2 e L4). */
+export const PADRAO_PISTAS_OAE = /-M[BF]-(I2|L2|L4)-/i;
+
 /**
  * Ids do preset "só projeto novo": arquivos de cadastro inteiros, mais as
  * camadas de ruído que estão dentro de arquivos de projeto.
@@ -44,6 +47,58 @@ export function idsSoProjetoNovo(camadas: Camada[]): number[] {
     }
 
     return ids;
+}
+
+/** Esconde tudo que não for pista ou OAE. */
+export function idsPistasEOae(camadas: Camada[]): number[] {
+    return camadas.filter(c => !PADRAO_PISTAS_OAE.test(c.nome)).map(c => c.id);
+}
+
+export interface Preset {
+    chave: string;
+    rotulo: string;
+    descricao: string;
+    calcular: (camadas: Camada[]) => number[];
+}
+
+export const PRESETS: Preset[] = [
+    {
+        chave: 'projeto-novo',
+        rotulo: 'Só projeto novo',
+        descricao: 'Tira cadastro, anotação e as 316.402 tachas',
+        calcular: idsSoProjetoNovo,
+    },
+    {
+        chave: 'pistas-oae',
+        rotulo: 'Pistas e OAEs',
+        descricao: 'Só pavimentação e obras de arte especiais',
+        calcular: idsPistasEOae,
+    },
+    {
+        chave: 'sem-cadastro',
+        rotulo: 'Sem cadastro',
+        descricao: 'Tira só os arquivos de levantamento existente',
+        calcular: (camadas) => camadas.filter(c => PADRAO_CADASTRO.test(c.nome)).map(c => c.id),
+    },
+    {
+        chave: 'tudo',
+        rotulo: 'Mostrar tudo',
+        descricao: 'Nenhuma camada oculta',
+        calcular: () => [],
+    },
+];
+
+const mesmoConjunto = (a: Set<number>, b: number[]) =>
+    a.size === b.length && b.every(id => a.has(id));
+
+/**
+ * Qual preset corresponde ao estado atual. Comparar o conjunto, em vez de
+ * lembrar o último botão clicado, mantém a indicação honesta quando o usuário
+ * mexe numa camada solta.
+ */
+export function presetAtivo(camadas: Camada[], ocultos: Set<number>): string | null {
+    for (const p of PRESETS) if (mesmoConjunto(ocultos, p.calcular(camadas))) return p.chave;
+    return null;
 }
 
 const formatar = (n: number) => n.toLocaleString('pt-BR');
@@ -65,12 +120,7 @@ const ViewerCamadas: React.FC<Props> = ({ camadas, ocultos, onAlternar, onPreset
             .filter(Boolean) as Camada[];
     }, [camadas, busca]);
 
-    const idsCadastro = useMemo(
-        () => camadas.filter(c => PADRAO_CADASTRO.test(c.nome)).map(c => c.id),
-        [camadas]
-    );
-
-    const idsProjetoNovo = useMemo(() => idsSoProjetoNovo(camadas), [camadas]);
+    const ativo = useMemo(() => presetAtivo(camadas, ocultos), [camadas, ocultos]);
 
     if (!aberto) return null;
 
@@ -99,25 +149,35 @@ const ViewerCamadas: React.FC<Props> = ({ camadas, ocultos, onAlternar, onPreset
                 <button onClick={onFechar} className="text-gray-500 hover:text-gray-200" aria-label="Fechar">✕</button>
             </div>
 
-            <div className="flex flex-wrap gap-2 border-b border-gray-800 px-4 py-3">
-                <button
-                    onClick={() => onPreset(idsProjetoNovo)}
-                    className="rounded bg-cyan-600/20 px-2 py-1 text-[11px] text-cyan-300 hover:bg-cyan-600/30"
-                >
-                    Só projeto novo
-                </button>
-                <button
-                    onClick={() => onPreset(idsCadastro)}
-                    className="rounded bg-gray-800 px-2 py-1 text-[11px] text-gray-300 hover:bg-gray-700"
-                >
-                    Sem cadastro
-                </button>
-                <button
-                    onClick={() => onPreset([])}
-                    className="rounded bg-gray-800 px-2 py-1 text-[11px] text-gray-300 hover:bg-gray-700"
-                >
-                    Mostrar tudo
-                </button>
+            <div className="border-b border-gray-800 px-4 py-3">
+                <div className="grid grid-cols-2 gap-1.5">
+                    {PRESETS.map(p => {
+                        const selecionado = ativo === p.chave;
+
+                        return (
+                            <button
+                                key={p.chave}
+                                onClick={() => onPreset(p.calcular(camadas))}
+                                title={p.descricao}
+                                aria-pressed={selecionado}
+                                className={`flex items-center gap-1.5 rounded px-2 py-1.5 text-[11px] transition-colors ${
+                                    selecionado
+                                        ? 'bg-cyan-600/25 text-cyan-200 ring-1 ring-cyan-500'
+                                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                                }`}
+                            >
+                                <span className={selecionado ? 'text-cyan-400' : 'text-transparent'}>●</span>
+                                <span className="truncate">{p.rotulo}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {ativo === null && (
+                    <p className="mt-2 text-[10px] text-gray-500">
+                        Personalizado — você ajustou camadas soltas
+                    </p>
+                )}
             </div>
 
             <div className="border-b border-gray-800 px-4 py-2">

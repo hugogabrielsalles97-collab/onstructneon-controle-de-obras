@@ -207,6 +207,12 @@ const ModelViewer: React.FC = () => {
                 const codigo = viewer.start();
                 if (codigo > 0) throw new Error('Não foi possível iniciar o Viewer neste navegador.');
 
+                // Por padrão o Viewer deixa um vulto translúcido no lugar do que
+                // foi ocultado. Numa vista geral com dezenas de milhares de
+                // elementos escondidos, esse cinza vira uma nuvem que atrapalha
+                // mais do que os objetos originais.
+                viewer.setGhosting(false);
+
                 viewerRef.current = viewer;
 
                 Autodesk.Viewing.Document.load(
