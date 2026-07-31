@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { SERVICOS_PAVIMENTACAO } from './viewerPavimentacao';
 
 /**
  * Painel de camadas do federado.
@@ -159,6 +160,9 @@ interface Props {
     onPreset: (ids: number[]) => void;
     monocromatico: boolean;
     onAlternarMono: () => void;
+    pavimentacao: boolean;
+    onAlternarPavimentacao: () => void;
+    contagemPavimentacao: Record<string, number>;
     aberto: boolean;
     onFechar: () => void;
 }
@@ -166,7 +170,8 @@ interface Props {
 const formatar = (n: number) => n.toLocaleString('pt-BR');
 
 const ViewerCamadas: React.FC<Props> = ({
-    camadas, ocultos, onAlternar, onPreset, monocromatico, onAlternarMono, aberto, onFechar,
+    camadas, ocultos, onAlternar, onPreset, monocromatico, onAlternarMono,
+    pavimentacao, onAlternarPavimentacao, contagemPavimentacao, aberto, onFechar,
 }) => {
     const [busca, setBusca] = useState('');
     const [expandido, setExpandido] = useState<Set<number>>(new Set());
@@ -280,6 +285,42 @@ const ViewerCamadas: React.FC<Props> = ({
                     <button onClick={restaurarPadroes} className="mt-2 text-[10px] text-gray-600 underline hover:text-gray-400">
                         Restaurar layouts originais
                     </button>
+                )}
+            </div>
+
+            <div className="border-b border-gray-800 px-4 py-2">
+                <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-gray-400">Pavimentação por serviço</span>
+                    <button
+                        onClick={onAlternarPavimentacao}
+                        role="switch"
+                        aria-checked={pavimentacao}
+                        className={`relative h-5 w-9 rounded-full transition-colors ${pavimentacao ? 'bg-cyan-600' : 'bg-gray-700'}`}
+                    >
+                        <span
+                            className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                                pavimentacao ? 'translate-x-4' : 'translate-x-0.5'
+                            }`}
+                        />
+                    </button>
+                </div>
+
+                {pavimentacao && (
+                    <ul className="mt-2 space-y-1">
+                        {SERVICOS_PAVIMENTACAO.map(s => {
+                            const qtd = contagemPavimentacao[s.servico] || 0;
+
+                            return (
+                                <li key={s.servico} className="flex items-center gap-2 text-[10px]">
+                                    <span className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: s.cor }} />
+                                    <span className={qtd ? 'text-gray-300' : 'text-gray-600'}>{s.servico}</span>
+                                    <span className="ml-auto text-gray-600">
+                                        {qtd ? formatar(qtd) : 'não encontrado'}
+                                    </span>
+                                </li>
+                            );
+                        })}
+                    </ul>
                 )}
             </div>
 

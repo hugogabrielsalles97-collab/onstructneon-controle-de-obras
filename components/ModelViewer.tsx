@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import ViewerCamadas, { Camada, PRESETS, idsDoPreset, lerLayouts } from './ViewerCamadas';
+import { pintarPavimentacao, limparPintura } from './viewerPavimentacao';
 
 /**
  * Visualizador do modelo federado (NWD) via Autodesk Platform Services.
@@ -144,6 +145,31 @@ const ModelViewer: React.FC = () => {
             try { localStorage.setItem(CHAVE_MONO, proximo ? '1' : '0'); } catch { /* modo privado */ }
             return proximo;
         });
+    };
+
+    const [pavimentacao, setPavimentacao] = useState(false);
+    const [contagemPav, setContagemPav] = useState<Record<string, number>>({});
+
+    const alternarPavimentacao = () => {
+        const viewer = viewerRef.current;
+        if (!viewer) return;
+
+        if (pavimentacao) {
+            limparPintura(viewer);
+            setContagemPav({});
+            setPavimentacao(false);
+            return;
+        }
+
+        setContagemPav(pintarPavimentacao(viewer));
+        setPavimentacao(true);
+
+        // O filtro monocromático é aplicado sobre o canvas inteiro, então
+        // dessaturaria justamente as cores que acabamos de pintar.
+        if (monocromatico) {
+            setMonocromatico(false);
+            try { localStorage.setItem(CHAVE_MONO, '0'); } catch { /* modo privado */ }
+        }
     };
 
     /** Aplica o conjunto inteiro de uma vez: mostrar tudo e reesconder é mais
@@ -365,6 +391,9 @@ const ModelViewer: React.FC = () => {
                     onPreset={aplicarPreset}
                     monocromatico={monocromatico}
                     onAlternarMono={alternarMono}
+                    pavimentacao={pavimentacao}
+                    onAlternarPavimentacao={alternarPavimentacao}
+                    contagemPavimentacao={contagemPav}
                     aberto={painelAberto}
                     onFechar={() => setPainelAberto(false)}
                 />
