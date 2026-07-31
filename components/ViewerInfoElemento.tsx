@@ -63,7 +63,7 @@ const ViewerInfoElemento: React.FC<Props> = ({ selecao, onFechar }) => {
                         </p>
                         {selecao.faixa && selecao.faixa[1] - selecao.faixa[0] > 5 && (
                             <p className="text-[10px] text-gray-500">
-                                Peça longa: cada trecho dela é pintado pelo seu próprio estágio.
+                                Peça longa: recebe uma cor só, a do estágio predominante.
                             </p>
                         )}
                         <p className="text-[10px] text-gray-500">

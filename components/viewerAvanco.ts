@@ -464,10 +464,6 @@ export function pintarAvanco(
         return null;
     };
 
-    // Pintura por fragmento quando o Viewer permite: uma faixa longitudinal é
-    // uma peça só, mas seus fragmentos acompanham o traçado, o que dá
-    // resolução por trecho em vez de uma cor para centenas de metros.
-    const podeFragmento = typeof frags.setThemingColor === 'function';
 
     /** Pinta cada folha da subárvore conforme o estágio no seu trecho. */
     const pintarSuperficie = (raiz: number, contarComoTabuleiro: boolean) => {
@@ -485,26 +481,26 @@ export function pintarAvanco(
 
             if (comEstagio.length === 0) { resumo.porServico[SERVICO_SUPERFICIE].semTarefa++; return; }
 
-            if (podeFragmento) {
-                for (const f of comEstagio) {
-                    frags.setThemingColor(f.fragId, corDe(f.estagio!.servico, f.estagio!.concluido));
-                }
-            } else {
-                // Sem pintura por fragmento, vale o estágio mais frequente na
-                // peça — melhor que um ponto escolhido ao acaso.
-                const votos = new Map<string, number>();
-                for (const f of comEstagio) {
-                    const chave = `${f.estagio!.servico}|${f.estagio!.concluido}`;
-                    votos.set(chave, (votos.get(chave) || 0) + 1);
-                }
-
-                const vencedor = [...votos.entries()].sort((a, b) => b[1] - a[1])[0][0];
-                const [servicoVencedor, concluidoTexto] = vencedor.split('|');
-                viewer.setThemingColor(folha, corDe(servicoVencedor, concluidoTexto === 'true'), model, true);
+            // Estágio predominante entre os fragmentos da peça.
+            //
+            // A pintura é por elemento, e não por fragmento: `setThemingColor`
+            // da lista de fragmentos existe, mas não produz efeito visível
+            // aqui, e uma tela sem cor nenhuma é pior que uma cor por peça.
+            // Como duas faixas paralelas têm fragmentos distribuídos ao longo
+            // do mesmo trecho, o predominante coincide entre elas — que é o
+            // que mantém a seção com uma cor só.
+            const votos = new Map<string, number>();
+            for (const f of comEstagio) {
+                const chave = `${f.estagio!.servico}|${f.estagio!.concluido}`;
+                votos.set(chave, (votos.get(chave) || 0) + 1);
             }
 
-            // A contagem é por peça, pelo estágio predominante nela.
-            const dominante = comEstagio[Math.floor(comEstagio.length / 2)].estagio!;
+            const vencedor = [...votos.entries()].sort((a, b) => b[1] - a[1])[0][0];
+            const [servicoVencedor, concluidoTexto] = vencedor.split('|');
+            const dominante = { servico: servicoVencedor, concluido: concluidoTexto === 'true' };
+
+            viewer.setThemingColor(folha, corDe(dominante.servico, dominante.concluido), model, true);
+
             const contagem = resumo.porServico[dominante.servico];
             if (dominante.concluido) contagem.concluido++; else contagem.andamento++;
             if (contarComoTabuleiro) resumo.tabuleirosPintados++;
