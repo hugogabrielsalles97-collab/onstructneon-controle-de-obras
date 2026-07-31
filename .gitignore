@@ -34,3 +34,5 @@ scripts/.verify-report.json
 .env*
 # .env* (acrescentado pelo Vercel CLI) casaria com o modelo — mantê-lo versionado.
 !.env.example
+scripts/.aps-state.json
+scripts/.aps-manifest.json

@@ -1,0 +1,16 @@
+name = "elos-aps"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+[vars]
+SUPABASE_URL = "https://wnsiwqurkesrnpvlefyc.supabase.co"
+ALLOWED_ORIGINS = "https://onstructneon-controle-de-obras.vercel.app,http://localhost:5173,http://localhost:4173"
+
+# urn do modelo traduzido. Trocar aqui quando publicar uma revisão nova.
+MODEL_URN = "dXJuOmFkc2sub2JqZWN0czpvcy5vYmplY3Q6ZWxvcy1tb2RlbG9zLWYybG5rd2V0anZveS9SU1AtMTE2UkotMjE4LTIyNi1BQ0EtRVhFLU1GLVo5LTAwMS1SMDBfMjBfX18xXy5ud2Q"
+MODEL_NAME = "RSP-116RJ-218-226-ACA-EXE-MF-Z9-001-R00"
+
+# Segredos — NAO ficam neste arquivo. Definidos com `wrangler secret put`:
+#   APS_CLIENT_ID
+#   APS_CLIENT_SECRET
+#   SUPABASE_ANON_KEY
