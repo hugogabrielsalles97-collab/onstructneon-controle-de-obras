@@ -90,6 +90,44 @@ export async function carregarTarefasPavimentacao(): Promise<TarefaPavimentacao[
     return tarefas;
 }
 
+/** Cinza do modelo: tudo que não for informação de avanço fica assim. */
+const CINZA_BASE: [number, number, number] = [0.62, 0.62, 0.62];
+
+/**
+ * Deixa o modelo inteiro cinza, para o avanço ser a única informação colorida.
+ *
+ * Feito por theming e não por filtro CSS: o filtro age sobre o canvas inteiro
+ * e dessaturaria também as cores do avanço — os dois nunca poderiam aparecer
+ * juntos.
+ *
+ * A chamada recursiva tinge a subárvore inteira de uma vez. Aplicada também
+ * em cada arquivo de origem porque a propagação a partir da raiz depende da
+ * versão do Viewer, e um cinza que não pega deixa o modelo cru na tela.
+ */
+export function aplicarBaseCinza(viewer: any) {
+    const THREE = (window as any).THREE;
+    const model = viewer?.model;
+    const tree = model?.getInstanceTree?.();
+    if (!THREE || !tree) return;
+
+    const cinza = new THREE.Vector4(...CINZA_BASE, 1);
+    const raiz = tree.getRootId();
+
+    viewer.setThemingColor(raiz, cinza, model, true);
+
+    tree.enumNodeChildren(raiz, (filho: number) => {
+        if (filho === raiz) return;
+        viewer.setThemingColor(filho, cinza, model, true);
+
+        tree.enumNodeChildren(filho, (neto: number) => {
+            if (neto === filho) return;
+            viewer.setThemingColor(neto, cinza, model, true);
+        }, false);
+    }, false);
+
+    viewer.impl.invalidate(true);
+}
+
 interface PontoEstaca { estaca: number; x: number; y: number; }
 
 /**
@@ -173,16 +211,7 @@ export function pintarAvanco(
         resumo.porServico[s.servico] = { concluido: 0, andamento: 0, semTarefa: 0 };
     }
 
-    viewer.clearThemingColors(model);
-
-    // Cinza em todo o modelo antes de qualquer cor, para o avanço ser a única
-    // informação colorida na tela.
-    //
-    // Feito por theming e não por filtro CSS: o filtro age sobre o canvas
-    // inteiro e dessaturaria também as cores do avanço — os dois nunca
-    // poderiam aparecer juntos. Aqui a chamada é recursiva, então tinge os
-    // 683 mil elementos de uma vez, e as cores pintadas depois prevalecem.
-    viewer.setThemingColor(tree.getRootId(), new THREE.Vector4(0.62, 0.62, 0.62, 1), model, true);
+    aplicarBaseCinza(viewer);
 
     const visitar = (id: number) => {
         const nome = tree.getNodeName(id) || '';

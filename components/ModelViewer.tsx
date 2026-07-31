@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import ViewerCamadas, { Camada, PRESETS, idsDoPreset, lerLayouts } from './ViewerCamadas';
 import { limparPintura } from './viewerPavimentacao';
-import { carregarTarefasPavimentacao, localizarEstacas, pintarAvanco, ResumoAvanco } from './viewerAvanco';
+import { aplicarBaseCinza, carregarTarefasPavimentacao, localizarEstacas, pintarAvanco, ResumoAvanco } from './viewerAvanco';
 
 /**
  * Visualizador do modelo federado (NWD) via Autodesk Platform Services.
@@ -149,6 +149,10 @@ const ModelViewer: React.FC = () => {
         setErroCor(null);
         setCarregandoCor(true);
 
+        // O cinza vem antes e fica mesmo se o cruzamento falhar: o modelo cru,
+        // com as cores de 77 arquivos, é pior que um modelo cinza sem avanço.
+        aplicarBaseCinza(viewer);
+
         try {
             const tarefas = await carregarTarefasPavimentacao();
             const pontos = localizarEstacas(viewer);
@@ -159,7 +163,6 @@ const ModelViewer: React.FC = () => {
 
             setResumoAvanco(pintarAvanco(viewer, tarefas, pontos));
         } catch (err) {
-            limparPintura(viewer);
             setResumoAvanco(null);
             setErroCor(err instanceof Error ? err.message : String(err));
         } finally {
@@ -323,11 +326,19 @@ const ModelViewer: React.FC = () => {
                             { once: true }
                         );
 
+                        // Esperar a geometria, e não o loadDocumentNode: ele
+                        // resolve quando o modelo entra na cena, antes dos
+                        // fragmentos existirem. Sem fragmentos, as caixas
+                        // envolventes vêm vazias e o cruzamento por estaca
+                        // falha inteiro.
+                        viewer.addEventListener(
+                            Autodesk.Viewing.GEOMETRY_LOADED_EVENT,
+                            () => { if (!cancelado) aplicarAvanco(); },
+                            { once: true }
+                        );
+
                         viewer.loadDocumentNode(doc, view).then(() => {
-                            if (cancelado) return;
-                            setStatus('pronto');
-                            // O avanço é a leitura padrão da tela, não uma opção.
-                            aplicarAvanco();
+                            if (!cancelado) setStatus('pronto');
                         });
                     },
                     (code: any, msg: any) => {
