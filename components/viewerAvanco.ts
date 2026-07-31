@@ -39,6 +39,8 @@ export interface ResumoAvanco {
     semEstaca: number;
     /** Elementos que receberam o cinza de base. Zero denuncia que não pegou. */
     cinzaAplicado: number;
+    /** Peças de revestimento de tabuleiro pintadas, dentro das OAEs. */
+    tabuleirosPintados: number;
 }
 
 /** Mesma regra do utils/constants: duas primeiras estacas de 5–6 dígitos. */
@@ -126,6 +128,19 @@ export const ORDEM_SERVICOS = ['CFT', 'Macadame', 'BGTC', 'BGMC', 'CBUQ'] as con
 
 /** Camada que recebe a cor: a superfície, que é o que se vê. */
 const SERVICO_SUPERFICIE = 'CBUQ';
+
+/**
+ * Revestimento sobre o tabuleiro das obras de arte.
+ *
+ * Sobre as pontes o pavimento não vem no arquivo de pavimentação: quem modelou
+ * o colocou dentro da própria OAE, como `CCR_Pavimento`. Sem isso o mapa de
+ * avanço ficava interrompido em cada viaduto, mesmo com o CBUQ executado.
+ *
+ * Deliberadamente não inclui `CCR_LajeMoldadaInLoco` nem `CCR_LajeDeLigacao`:
+ * são a laje estrutural sob o revestimento, e pintá-las coloriria a estrutura
+ * como se fosse pavimento.
+ */
+const PADRAO_TABULEIRO = /CCR_Pavimento/i;
 
 /**
  * Deixa o modelo inteiro cinza, para o avanço ser a única informação colorida.
@@ -294,6 +309,7 @@ export function pintarAvanco(
         estacasLocalizadas: pontos.length,
         semEstaca: 0,
         cinzaAplicado: 0,
+        tabuleirosPintados: 0,
     };
 
     if (!THREE || !tree || !frags || pontos.length === 0) return resumo;
@@ -334,20 +350,9 @@ export function pintarAvanco(
         return null;
     };
 
-    // Só a camada de superfície recebe cor: as demais ficam por baixo dela e
-    // pintá-las não mudaria nada na tela.
-    const visitar = (id: number) => {
-        const nome = tree.getNodeName(id) || '';
-        const servico = servicoDaCamada(nome);
-
-        if (!servico) {
-            tree.enumNodeChildren(id, visitar, false);
-            return;
-        }
-
-        if (servico.servico !== SERVICO_SUPERFICIE) return;
-
-        tree.enumNodeChildren(id, (folha: number) => {
+    /** Pinta cada folha da subárvore conforme o estágio no seu trecho. */
+    const pintarSuperficie = (raiz: number, contarComoTabuleiro: boolean) => {
+        tree.enumNodeChildren(raiz, (folha: number) => {
             let temFilho = false;
             tree.enumNodeChildren(folha, () => { temFilho = true; }, false);
             if (temFilho) return;
@@ -372,7 +377,24 @@ export function pintarAvanco(
 
             const contagem = resumo.porServico[estagio.servico];
             if (estagio.concluido) contagem.concluido++; else contagem.andamento++;
+            if (contarComoTabuleiro) resumo.tabuleirosPintados++;
         }, true);
+    };
+
+    // Só a superfície recebe cor: as camadas por baixo dela não aparecem na
+    // tela, e a estrutura das OAEs não é pavimento.
+    const visitar = (id: number) => {
+        const nome = tree.getNodeName(id) || '';
+
+        if (PADRAO_TABULEIRO.test(nome)) { pintarSuperficie(id, true); return; }
+
+        const servico = servicoDaCamada(nome);
+        if (servico) {
+            if (servico.servico === SERVICO_SUPERFICIE) pintarSuperficie(id, false);
+            return;
+        }
+
+        tree.enumNodeChildren(id, visitar, false);
     };
 
     visitar(tree.getRootId());

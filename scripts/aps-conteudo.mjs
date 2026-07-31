@@ -48,7 +48,9 @@ for (const arquivo of raiz.objects) {
         grupos.set(t, (grupos.get(t) || 0) + 1);
     }
 
-    const top = [...grupos.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+    const todos = process.argv.includes('--todos');
+    const ordenados = [...grupos.entries()].sort((a, b) => b[1] - a[1]);
+    const top = todos ? ordenados : ordenados.slice(0, 10);
 
     console.log(`\n=== ${arquivo.name} — ${nomes.length} elemento(s) ===`);
     for (const [tipo, qtd] of top) console.log(`  ${String(qtd).padStart(6)}x  ${tipo}`);

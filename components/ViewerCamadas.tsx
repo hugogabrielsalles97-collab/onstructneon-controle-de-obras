@@ -339,6 +339,8 @@ const ViewerCamadas: React.FC<Props> = ({
 
                         <p className="mt-1 text-[10px] text-gray-600">
                             {resumoAvanco.tarefasUsadas} tarefa(s) e {resumoAvanco.estacasLocalizadas} estaca(s) cruzadas.
+                            {resumoAvanco.tabuleirosPintados > 0 &&
+                                ` Inclui ${formatar(resumoAvanco.tabuleirosPintados)} peça(s) de tabuleiro de OAE.`}
                         </p>
 
                         <p className={`mt-1 text-[10px] ${resumoAvanco.cinzaAplicado ? 'text-gray-600' : 'text-amber-500'}`}>
