@@ -65,19 +65,39 @@ const supabaseObjectUrl = (env, key) =>
  * Vale para chaves JWT simétricas e assimétricas — não precisamos
  * espelhar o segredo de assinatura aqui.
  */
-async function isValidSupabaseUser(token, env) {
-    if (!token || !env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) return false;
+/**
+ * Valida o token do usuário contra o próprio Supabase.
+ * Devolve o motivo da recusa — sem um 401 explicado, um upload quebrado em
+ * produção vira adivinhação.
+ */
+async function checkSupabaseUser(token, env) {
+    if (!token) return { ok: false, reason: 'sem token no cabecalho Authorization' };
+    if (!env.SUPABASE_URL) return { ok: false, reason: 'SUPABASE_URL ausente no Worker' };
+    if (!env.SUPABASE_ANON_KEY) return { ok: false, reason: 'SUPABASE_ANON_KEY ausente no Worker' };
+
+    // trim() obrigatório: um secret gravado via pipe pode carregar a quebra de
+    // linha do shell, e uma quebra de linha dentro de um valor de header faz o
+    // fetch lançar — o que viraria um 401 silencioso e inexplicável.
+    const supabaseUrl = env.SUPABASE_URL.trim().replace(/\/+$/, '');
+    const anonKey = env.SUPABASE_ANON_KEY.trim();
 
     try {
-        const res = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
+        const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
             headers: {
-                Authorization: `Bearer ${token}`,
-                apikey: env.SUPABASE_ANON_KEY,
+                Authorization: `Bearer ${token.trim()}`,
+                apikey: anonKey,
             },
         });
-        return res.ok;
-    } catch {
-        return false;
+
+        if (res.ok) return { ok: true };
+
+        const body = await res.text().catch(() => '');
+        let msg = body.slice(0, 200);
+        try { const j = JSON.parse(body); msg = j.msg || j.message || j.error_description || msg; } catch { /* texto cru */ }
+
+        return { ok: false, reason: `supabase respondeu ${res.status}: ${msg}`, upstream: res.status };
+    } catch (err) {
+        return { ok: false, reason: `erro ao falar com o supabase: ${err.message}` };
     }
 }
 
@@ -87,12 +107,13 @@ async function authorizeWrite(request, env) {
     const migrationToken = (request.headers.get('X-Migration-Token') || '').trim();
     const expectedToken = (env.MIGRATION_TOKEN || '').trim();
     if (migrationToken && expectedToken && migrationToken === expectedToken) {
-        return true;
+        return { ok: true };
     }
+    if (migrationToken) return { ok: false, reason: 'token de migracao nao confere' };
 
     const auth = request.headers.get('Authorization') || '';
     const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-    return isValidSupabaseUser(token, env);
+    return checkSupabaseUser(token, env);
 }
 
 /**
@@ -130,8 +151,9 @@ export default {
 
         // --- Cópia forçada Supabase -> R2 (migração)
         if (request.method === 'POST' && url.pathname === '/_copy') {
-            if (!(await authorizeWrite(request, env))) {
-                return json(401, { error: 'Não autorizado.' }, cors);
+            const auth = await authorizeWrite(request, env);
+            if (!auth.ok) {
+                return json(401, { error: 'Não autorizado.', motivo: auth.reason }, cors);
             }
 
             const { key } = await request.json().catch(() => ({}));
@@ -220,8 +242,9 @@ export default {
         }
 
         if (request.method === 'PUT') {
-            if (!(await authorizeWrite(request, env))) {
-                return json(401, { error: 'Não autorizado.' }, cors);
+            const auth = await authorizeWrite(request, env);
+            if (!auth.ok) {
+                return json(401, { error: 'Não autorizado.', motivo: auth.reason }, cors);
             }
 
             const contentType = (request.headers.get('Content-Type') || '').split(';')[0].trim();
