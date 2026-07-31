@@ -1,18 +1,18 @@
-﻿/**
- * Mapa de avanÃ§o real: pinta o pavimento conforme o que jÃ¡ foi executado.
+/**
+ * Mapa de avanço real: pinta o pavimento conforme o que já foi executado.
  *
- * Cruza trÃªs coisas:
- *   1. os rÃ³tulos de estaca do modelo (utils/estacasModelo.ts)
- *   2. a posiÃ§Ã£o de cada elemento de pavimento, pela caixa envolvente
- *   3. as tarefas de pavimentaÃ§Ã£o do ELOS, que trabalham por faixa de estacas
+ * Cruza três coisas:
+ *   1. os rótulos de estaca do modelo (utils/estacasModelo.ts)
+ *   2. a posição de cada elemento de pavimento, pela caixa envolvente
+ *   3. as tarefas de pavimentação do ELOS, que trabalham por faixa de estacas
  *
- * O resultado Ã© a obra pintada por serviÃ§o concluÃ­do, em vez do projeto.
+ * O resultado é a obra pintada por serviço concluído, em vez do projeto.
  */
 
 import { supabase } from '../supabaseClient';
 import { ESTACAS_MODELO } from '../utils/estacasModelo';
 import { SERVICOS_PAVIMENTACAO, servicoDaCamada } from './viewerPavimentacao';
-import { PropriedadesPeca } from './viewerPropriedades';
+import { PropriedadesPeca, faixaDeclarada } from './viewerPropriedades';
 
 export interface TarefaPavimentacao {
     id: string;
@@ -31,7 +31,7 @@ export interface TarefaPavimentacao {
     unidade: string | null;
     observacoes: string | null;
     fotos: string[];
-    /** Faixa lida de cada campo, para expor divergÃªncias entre eles. */
+    /** Faixa lida de cada campo, para expor divergências entre eles. */
     fontes: { titulo: [number, number] | null; local: [number, number] | null; corte: [number, number] | null };
     divergente: boolean;
 }
@@ -41,21 +41,17 @@ export interface ResumoAvanco {
     tarefasUsadas: number;
     estacasLocalizadas: number;
     semEstaca: number;
-    /** Elementos que receberam o cinza de base. Zero denuncia que nÃ£o pegou. */
+    /** Elementos que receberam o cinza de base. Zero denuncia que não pegou. */
     cinzaAplicado: number;
-    /** PeÃ§as de revestimento de tabuleiro pintadas, dentro das OAEs. */
+    /** Peças de revestimento de tabuleiro pintadas, dentro das OAEs. */
     tabuleirosPintados: number;
-    /** PeÃ§as posicionadas pelo estaqueamento declarado no prÃ³prio projeto. */
+    /** Peças posicionadas pelo estaqueamento declarado no próprio projeto. */
     porPropriedade: number;
-    /** PeÃ§as que precisaram de projeÃ§Ã£o geomÃ©trica por falta desse dado. */
+    /** Peças que precisaram de projeção geométrica por falta desse dado. */
     porGeometria: number;
-    /** PeÃ§as pintadas em pedaÃ§os, por fragmento. */
-    pintadasPorFragmento: number;
-    /** PeÃ§as de fragmento Ãºnico, que sÃ³ podem receber uma cor. */
-    pintadasInteiras: number;
 }
 
-/** Mesma regra do utils/constants: duas primeiras estacas de 5â€“6 dÃ­gitos. */
+/** Mesma regra do utils/constants: duas primeiras estacas de 5–6 dígitos. */
 const extrairFaixa = (texto?: string | null): [number, number] | null => {
     if (!texto) return null;
     const nums = (String(texto).match(/\d{5,6}/g) || []).map(Number).filter(Number.isFinite);
@@ -64,10 +60,10 @@ const extrairFaixa = (texto?: string | null): [number, number] | null => {
     return [Math.min(nums[0], nums[1]), Math.max(nums[0], nums[1])];
 };
 
-/** Descobre o serviÃ§o a partir do tÃ­tulo da tarefa. */
+/** Descobre o serviço a partir do título da tarefa. */
 const servicoDoTitulo = (titulo: string): string | null => {
     const t = titulo.toUpperCase();
-    // CBUQ antes de BGTC/BGMC porque "CBUQ 2Âª" e afins nÃ£o devem cair em outro.
+    // CBUQ antes de BGTC/BGMC porque "CBUQ 2ª" e afins não devem cair em outro.
     if (t.includes('CBUQ') || t.includes('CAUQ')) return 'CBUQ';
     if (t.includes('BGTC')) return 'BGTC';
     if (t.includes('BGMC')) return 'BGMC';
@@ -96,13 +92,13 @@ export async function carregarTarefasPavimentacao(): Promise<TarefaPavimentacao[
             const servico = servicoDoTitulo(t.title || '');
             if (!servico) continue;
 
-            // A estaca aparece no tÃ­tulo, no location (formato novo) ou no
-            // corte (legado), e os trÃªs nem sempre concordam. Usar sÃ³ um deles
-            // encurtava trechos: uma tarefa de 31066-31085 no tÃ­tulo tinha
-            // 31066-31078 no corte, e o pedaÃ§o da frente ficava sem pintura.
+            // A estaca aparece no título, no location (formato novo) ou no
+            // corte (legado), e os três nem sempre concordam. Usar só um deles
+            // encurtava trechos: uma tarefa de 31066-31085 no título tinha
+            // 31066-31078 no corte, e o pedaço da frente ficava sem pintura.
             //
-            // A faixa usada Ã© a uniÃ£o, e a divergÃªncia fica registrada para
-            // aparecer no cartÃ£o â€” Ã© dado a corrigir no ELOS, nÃ£o a esconder.
+            // A faixa usada é a união, e a divergência fica registrada para
+            // aparecer no cartão — é dado a corrigir no ELOS, não a esconder.
             const fontes = {
                 titulo: extrairFaixa(t.title),
                 local: extrairFaixa(t.location),
@@ -147,63 +143,63 @@ export async function carregarTarefasPavimentacao(): Promise<TarefaPavimentacao[
     return tarefas;
 }
 
-/** Cinza do modelo: tudo que nÃ£o for informaÃ§Ã£o de avanÃ§o fica assim. */
+/** Cinza do modelo: tudo que não for informação de avanço fica assim. */
 const CINZA_BASE: [number, number, number] = [0.62, 0.62, 0.62];
 
 /**
  * Ordem construtiva do pavimento, de baixo para cima.
  *
- * As camadas sÃ£o empilhadas, entÃ£o de cima sÃ³ se enxerga a Ãºltima. A cor vai
- * sempre na superfÃ­cie de CBUQ, indicando o serviÃ§o mais avanÃ§ado jÃ¡ concluÃ­do
- * naquele trecho â€” Ã© isso que dÃ¡ a leitura do estÃ¡gio real da obra.
+ * As camadas são empilhadas, então de cima só se enxerga a última. A cor vai
+ * sempre na superfície de CBUQ, indicando o serviço mais avançado já concluído
+ * naquele trecho — é isso que dá a leitura do estágio real da obra.
  */
 export const ORDEM_SERVICOS = ['CFT', 'Macadame', 'BGTC', 'BGMC', 'CBUQ'] as const;
 
-/** Camada que recebe a cor: a superfÃ­cie, que Ã© o que se vÃª. */
+/** Camada que recebe a cor: a superfície, que é o que se vê. */
 const SERVICO_SUPERFICIE = 'CBUQ';
 
 /**
- * Ordena estÃ¡gios: mais adiante na sequÃªncia construtiva vence, e concluÃ­do
- * vence em andamento do mesmo serviÃ§o.
+ * Ordena estágios: mais adiante na sequência construtiva vence, e concluído
+ * vence em andamento do mesmo serviço.
  */
 const posicaoDoEstagio = (e: { servico: string; concluido: boolean }) =>
     ORDEM_SERVICOS.indexOf(e.servico as any) * 2 + (e.concluido ? 1 : 0);
 
 /**
- * FraÃ§Ã£o mÃ­nima da peÃ§a que a tarefa precisa cobrir para colori-la.
+ * Fração mínima da peça que a tarefa precisa cobrir para colori-la.
  *
- * A peÃ§a Ã© indivisÃ­vel: ou a tarefa responde pela maior parte dela, ou pintÃ¡-la
- * inteira declara avanÃ§o em metros que nÃ£o foram executados.
+ * A peça é indivisível: ou a tarefa responde pela maior parte dela, ou pintá-la
+ * inteira declara avanço em metros que não foram executados.
  */
 const COBERTURA_MINIMA = 0.5;
 
 /**
  * Revestimento sobre o tabuleiro das obras de arte.
  *
- * Sobre as pontes o pavimento nÃ£o vem no arquivo de pavimentaÃ§Ã£o: quem modelou
- * o colocou dentro da prÃ³pria OAE, como `CCR_Pavimento`. Sem isso o mapa de
- * avanÃ§o ficava interrompido em cada viaduto, mesmo com o CBUQ executado.
+ * Sobre as pontes o pavimento não vem no arquivo de pavimentação: quem modelou
+ * o colocou dentro da própria OAE, como `CCR_Pavimento`. Sem isso o mapa de
+ * avanço ficava interrompido em cada viaduto, mesmo com o CBUQ executado.
  *
- * Deliberadamente nÃ£o inclui `CCR_LajeMoldadaInLoco` nem `CCR_LajeDeLigacao`:
- * sÃ£o a laje estrutural sob o revestimento, e pintÃ¡-las coloriria a estrutura
+ * Deliberadamente não inclui `CCR_LajeMoldadaInLoco` nem `CCR_LajeDeLigacao`:
+ * são a laje estrutural sob o revestimento, e pintá-las coloriria a estrutura
  * como se fosse pavimento.
  */
 const PADRAO_TABULEIRO = /CCR_Pavimento/i;
 
 /**
- * Deixa o modelo inteiro cinza, para o avanÃ§o ser a Ãºnica informaÃ§Ã£o colorida.
+ * Deixa o modelo inteiro cinza, para o avanço ser a única informação colorida.
  *
- * Pintado elemento por elemento, e nÃ£o por propagaÃ§Ã£o recursiva a partir da
- * raiz: a propagaÃ§Ã£o depende da versÃ£o do Viewer e nÃ£o pegou aqui, deixando o
- * modelo cru com as cores dos 77 arquivos de origem. TambÃ©m nÃ£o dÃ¡ para usar
+ * Pintado elemento por elemento, e não por propagação recursiva a partir da
+ * raiz: a propagação depende da versão do Viewer e não pegou aqui, deixando o
+ * modelo cru com as cores dos 77 arquivos de origem. Também não dá para usar
  * filtro CSS de escala de cinza, porque ele age sobre o canvas inteiro e
- * dessaturaria justamente as cores do avanÃ§o.
+ * dessaturaria justamente as cores do avanço.
  *
- * Devolve quantos elementos foram pintados â€” zero significa que o cinza nÃ£o
+ * Devolve quantos elementos foram pintados — zero significa que o cinza não
  * pegou, e isso precisa aparecer em vez de virar uma tela colorida sem
- * explicaÃ§Ã£o.
+ * explicação.
  */
-export function aplicarBaseCinza(viewer: any, excluir?: Set<number>): number {
+export function aplicarBaseCinza(viewer: any): number {
     const THREE = (window as any).THREE;
     const model = viewer?.model;
     const tree = model?.getInstanceTree?.();
@@ -224,9 +220,6 @@ export function aplicarBaseCinza(viewer: any, excluir?: Set<number>): number {
         raiz,
         (id: number) => {
             if (!semFilhos(id)) return;
-            // As peÃ§as de pavimento ficam de fora: elas sÃ£o pintadas por
-            // fragmento, e a cor de elemento sobrepÃµe a de fragmento.
-            if (excluir?.has(id)) return;
             viewer.setThemingColor(id, cinza, model, false);
             pintados++;
         },
@@ -240,11 +233,11 @@ export function aplicarBaseCinza(viewer: any, excluir?: Set<number>): number {
 export interface PontoEstaca { estaca: number; x: number; y: number; }
 
 /**
- * PosiÃ§Ã£o de cada rÃ³tulo de estaca, em coordenadas do Viewer.
+ * Posição de cada rótulo de estaca, em coordenadas do Viewer.
  *
- * Lida do prÃ³prio elemento, e nÃ£o da coordenada UTM do CAD: assim nÃ£o existe
- * conversÃ£o de sistema para errar, e um deslocamento no modelo nÃ£o desalinha
- * o mapa de avanÃ§o.
+ * Lida do próprio elemento, e não da coordenada UTM do CAD: assim não existe
+ * conversão de sistema para errar, e um deslocamento no modelo não desalinha
+ * o mapa de avanço.
  */
 export function localizarEstacas(viewer: any): PontoEstaca[] {
     const THREE = (window as any).THREE;
@@ -266,7 +259,7 @@ export function localizarEstacas(viewer: any): PontoEstaca[] {
                 caixa.union(b);
                 achou = true;
             }, true);
-        } catch { /* rÃ³tulo ausente nesta versÃ£o do modelo */ }
+        } catch { /* rótulo ausente nesta versão do modelo */ }
 
         if (!achou || caixa.isEmpty()) continue;
 
@@ -278,8 +271,8 @@ export function localizarEstacas(viewer: any): PontoEstaca[] {
 }
 
 /**
- * Agrupa os rÃ³tulos por eixo e ordena por estaca, formando a poligonal de cada
- * um. O eixo Ã© o primeiro dÃ­gito do rÃ³tulo de 5 posiÃ§Ãµes.
+ * Agrupa os rótulos por eixo e ordena por estaca, formando a poligonal de cada
+ * um. O eixo é o primeiro dígito do rótulo de 5 posições.
  */
 function montarEixos(pontos: PontoEstaca[]): Map<number, PontoEstaca[]> {
     const eixos = new Map<number, PontoEstaca[]>();
@@ -295,15 +288,15 @@ function montarEixos(pontos: PontoEstaca[]): Map<number, PontoEstaca[]> {
 }
 
 /**
- * Estaca de um ponto, por projeÃ§Ã£o sobre a poligonal do eixo.
+ * Estaca de um ponto, por projeção sobre a poligonal do eixo.
  *
- * Encaixar no rÃ³tulo mais prÃ³ximo nÃ£o serve: os rÃ³tulos estÃ£o de 5 em 5
- * estacas, e uma peÃ§a na borda da pista fica lateralmente afastada do eixo â€”
- * numa curva, o rÃ³tulo mais prÃ³ximo dela pode ser o do trecho vizinho. A
- * projeÃ§Ã£o dÃ¡ a estaca correta independentemente do afastamento lateral, e
- * interpola entre rÃ³tulos em vez de arredondar.
+ * Encaixar no rótulo mais próximo não serve: os rótulos estão de 5 em 5
+ * estacas, e uma peça na borda da pista fica lateralmente afastada do eixo —
+ * numa curva, o rótulo mais próximo dela pode ser o do trecho vizinho. A
+ * projeção dá a estaca correta independentemente do afastamento lateral, e
+ * interpola entre rótulos em vez de arredondar.
  *
- * Entre os eixos, vence o de menor distÃ¢ncia perpendicular.
+ * Entre os eixos, vence o de menor distância perpendicular.
  */
 function estacaProjetada(
     eixos: Map<number, PontoEstaca[]>,
@@ -326,7 +319,7 @@ function estacaProjetada(
             const comprimento = dx * dx + dy * dy;
             if (comprimento === 0) continue;
 
-            // FraÃ§Ã£o da projeÃ§Ã£o sobre o segmento, presa ao trecho.
+            // Fração da projeção sobre o segmento, presa ao trecho.
             let t = ((x - a.x) * dx + (y - a.y) * dy) / comprimento;
             t = Math.max(0, Math.min(1, t));
 
@@ -353,19 +346,20 @@ export interface AmostraFragmento {
 }
 
 /**
- * Estaca de cada fragmento de uma peÃ§a, projetada no eixo informado.
+ * Estaca de cada fragmento de um elemento.
  *
- * Fixar o eixo pela propriedade do projeto elimina a Ãºnica fraqueza sÃ©ria da
- * projeÃ§Ã£o geomÃ©trica: onde as pistas se aproximam â€” chegam a 18 m â€”, um
- * fragmento podia cair mais perto do eixo da pista vizinha.
+ * Só pontos sobre a geometria servem. O centro da caixa envolvente de uma peça
+ * curva cai fora dela, no miolo do arco, e os cantos da caixa ficam ainda mais
+ * longe — projetá-los produzia intervalos enormes e sem sentido. O fragmento
+ * tem caixa pequena e acompanha o traçado, então o centro dele está sobre a
+ * pista, e a projeção acerta tanto a estaca quanto o eixo.
  */
-function posicoesDosFragmentos(
+function amostrarFragmentos(
     tree: any,
     frags: any,
     THREE: any,
     eixos: Map<number, PontoEstaca[]>,
-    dbId: number,
-    eixoFixo: number | null
+    dbId: number
 ): AmostraFragmento[] {
     const centros: { fragId: number; x: number; y: number }[] = [];
 
@@ -384,34 +378,52 @@ function posicoesDosFragmentos(
 
     if (centros.length === 0) return [];
 
-    // Sem eixo declarado, decide por maioria entre os fragmentos.
-    let eixo = eixoFixo;
-    if (eixo === null || !eixos.has(eixo)) {
-        const votos = new Map<number, number>();
-        for (const c of centros) {
-            const p = estacaProjetada(eixos, c.x, c.y);
-            if (p) votos.set(p.eixo, (votos.get(p.eixo) || 0) + 1);
-        }
-        if (votos.size === 0) return [];
-        eixo = [...votos.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    // Cada pista pertence inteira a um eixo — a da direita ao 3, a da esquerda
+    // ao 4. O eixo é decidido por maioria entre os fragmentos, e não pelo
+    // fragmento mais próximo: os dois eixos chegam a ficar a 18 m um do outro
+    // nos pontos de convergência, e ali um único fragmento pode cair mais
+    // perto do eixo errado. A maioria resiste a esse ponto isolado.
+    const votos = new Map<number, number>();
+
+    for (const c of centros) {
+        const projetado = estacaProjetada(eixos, c.x, c.y);
+        if (!projetado) continue;
+        votos.set(projetado.eixo, (votos.get(projetado.eixo) || 0) + 1);
     }
+
+    if (votos.size === 0) return [];
+
+    const eixoDaPeca = [...votos.entries()].sort((a, b) => b[1] - a[1])[0][0];
 
     const amostras: AmostraFragmento[] = [];
     for (const c of centros) {
-        const p = estacaProjetada(eixos, c.x, c.y, eixo);
-        if (p) amostras.push({ fragId: c.fragId, estaca: p.estaca });
+        const projetado = estacaProjetada(eixos, c.x, c.y, eixoDaPeca);
+        if (projetado) amostras.push({ fragId: c.fragId, estaca: projetado.estaca });
     }
 
     return amostras;
 }
 
+function faixaDeEstacasDoElemento(
+    tree: any,
+    frags: any,
+    THREE: any,
+    eixos: Map<number, PontoEstaca[]>,
+    dbId: number
+): [number, number] | null {
+    const amostras = amostrarFragmentos(tree, frags, THREE, eixos, dbId);
+    if (amostras.length === 0) return null;
+
+    const estacas = amostras.map(a => a.estaca);
+    return [Math.min(...estacas), Math.max(...estacas)];
+}
 
 /**
- * Pinta os elementos de pavimento conforme o serviÃ§o executado naquela estaca.
+ * Pinta os elementos de pavimento conforme o serviço executado naquela estaca.
  *
- * ConcluÃ­do fica na cor cheia; em andamento, na mesma cor esmaecida; o que nÃ£o
- * tem tarefa concluÃ­da nÃ£o recebe cor â€” some no cinza do modelo, deixando o
- * avanÃ§o legÃ­vel de longe.
+ * Concluído fica na cor cheia; em andamento, na mesma cor esmaecida; o que não
+ * tem tarefa concluída não recebe cor — some no cinza do modelo, deixando o
+ * avanço legível de longe.
  */
 export function pintarAvanco(
     viewer: any,
@@ -433,8 +445,6 @@ export function pintarAvanco(
         tabuleirosPintados: 0,
         porPropriedade: 0,
         porGeometria: 0,
-        pintadasPorFragmento: 0,
-        pintadasInteiras: 0,
     };
 
     if (!THREE || !tree || !frags || pontos.length === 0) return resumo;
@@ -446,7 +456,6 @@ export function pintarAvanco(
     resumo.cinzaAplicado = aplicarBaseCinza(viewer);
 
     const eixos = montarEixos(pontos);
-    const podeFragmento = typeof frags.setThemingColor === 'function';
 
     const corDe = (servico: string, cheia: boolean) => {
         const def = SERVICOS_PAVIMENTACAO.find(s => s.servico === servico)!;
@@ -454,15 +463,15 @@ export function pintarAvanco(
     };
 
     /**
-     * EstÃ¡gio de um trecho: o serviÃ§o mais avanÃ§ado da ordem construtiva que jÃ¡
-     * foi concluÃ­do ali. Se nenhum foi concluÃ­do, cai para o mais avanÃ§ado em
-     * andamento, que Ã© pintado esmaecido.
+     * Estágio de um trecho: o serviço mais avançado da ordem construtiva que já
+     * foi concluído ali. Se nenhum foi concluído, cai para o mais avançado em
+     * andamento, que é pintado esmaecido.
      */
     const estagioDaEstaca = (estaca: number): { servico: string; concluido: boolean } | null => {
         for (let i = ORDEM_SERVICOS.length - 1; i >= 0; i--) {
             const servico = ORDEM_SERVICOS[i];
             const cobre = tarefas.filter(t => t.servico === servico && estaca >= t.de && estaca <= t.ate);
-            if (cobre.some(t => t.status === 'ConcluÃ­do' || t.progresso >= 100)) {
+            if (cobre.some(t => t.status === 'Concluído' || t.progresso >= 100)) {
                 return { servico, concluido: true };
             }
         }
@@ -477,72 +486,43 @@ export function pintarAvanco(
     };
 
 
-    /** Pinta cada folha da subÃ¡rvore conforme o estÃ¡gio no seu trecho. */
+    /** Pinta cada folha da subárvore conforme o estágio no seu trecho. */
     const pintarSuperficie = (raiz: number, contarComoTabuleiro: boolean) => {
         tree.enumNodeChildren(raiz, (folha: number) => {
             let temFilho = false;
             tree.enumNodeChildren(folha, () => { temFilho = true; }, false);
             if (temFilho) return;
 
-            // Cada fonte no que ela Ã© boa.
-            //
-            // O eixo vem da propriedade do projeto: Ã© dado escrito, e resolve a
-            // troca de pista que a geometria errava onde as pistas se aproximam.
-            //
-            // A extensÃ£o vem da geometria: o CCR_Estaqueamento de muitas peÃ§as
-            // descreve o trecho do corredor a que ela pertence, e nÃ£o o
-            // comprimento dela â€” hÃ¡ peÃ§as declarando 186 estacas, quase 4 km.
-            // Usar isso como extensÃ£o inflava o intervalo e reprovava tudo na
-            // regra de cobertura.
-            const props = propriedades.get(folha);
-            const eixoDeclarado = props?.eixo ?? null;
+            // Faixa declarada pelo projeto na própria peça. Só quando ela não
+            // existe — acessos com numeração local, ou peça sem a propriedade
+            // preenchida — recorremos à projeção geométrica.
+            const declarada = faixaDeclarada(propriedades.get(folha));
+            let faixa = declarada;
 
-            const posicoes = posicoesDosFragmentos(tree, frags, THREE, eixos, folha, eixoDeclarado);
-            if (posicoes.length === 0) { resumo.semEstaca++; return; }
-
-            if (eixoDeclarado !== null) resumo.porPropriedade++; else resumo.porGeometria++;
-
-            const lista = posicoes.map(p => p.estaca);
-            const faixa: [number, number] = [Math.min(...lista), Math.max(...lista)];
-
-            if (podeFragmento && posicoes.length > 1) {
-                // VÃ¡rios fragmentos: cada um tem sua prÃ³pria estaca, calculada
-                // pela posiÃ§Ã£o dele, e recebe a cor do seu pedaÃ§o. Ã‰ o que
-                // permite o serviÃ§o terminar no meio de uma peÃ§a longa.
-                let algum = false;
-
-                for (const { fragId, estaca } of posicoes) {
-                    const estagio = estagioDaEstaca(estaca);
-
-                    if (estagio) {
-                        frags.setThemingColor(fragId, corDe(estagio.servico, estagio.concluido));
-                        algum = true;
-                        const c = resumo.porServico[estagio.servico];
-                        if (estagio.concluido) c.concluido++; else c.andamento++;
-                    } else {
-                        frags.setThemingColor(fragId, new THREE.Vector4(...CINZA_BASE, 1));
-                    }
-                }
-
-                if (algum) {
-                    resumo.pintadasPorFragmento++;
-                    if (contarComoTabuleiro) resumo.tabuleirosPintados++;
-                } else {
-                    resumo.porServico[SERVICO_SUPERFICIE].semTarefa++;
-                }
-
-                return;
+            if (!faixa) {
+                const amostras = amostrarFragmentos(tree, frags, THREE, eixos, folha);
+                if (amostras.length === 0) { resumo.semEstaca++; return; }
+                const lista = amostras.map(a => a.estaca);
+                faixa = [Math.min(...lista), Math.max(...lista)];
+                resumo.porGeometria++;
+            } else {
+                resumo.porPropriedade++;
             }
 
-            // PeÃ§a de fragmento Ãºnico: Ã© indivisÃ­vel, entÃ£o ou a tarefa cobre a
-            // maior parte dela, ou nÃ£o pintamos. SÃ³ exigir alguma cobertura
-            // pintava 220 m por causa de uma estaca encostada na ponta.
+            // Amostra o intervalo declarado, estaca a estaca quando ele é curto.
             const amostrados: ({ servico: string; concluido: boolean } | null)[] = [];
             const passo = Math.max(1, Math.ceil((faixa[1] - faixa[0]) / 40));
 
             for (let e = faixa[0]; e <= faixa[1]; e += passo) amostrados.push(estagioDaEstaca(e));
             amostrados.push(estagioDaEstaca(faixa[1]));
 
+            // Vence o estágio mais avançado que cubra a maior parte da peça.
+            //
+            // Só exigir alguma cobertura pintava a peça inteira quando ela
+            // apenas encostava na tarefa: uma peça de 41145 a 41156 tocava o
+            // fim de uma tarefa numa única estaca e ganhava cor nos 220 m. Como
+            // a peça é indivisível, ou a tarefa responde pela maior parte dela,
+            // ou ela não deve ser pintada.
             const dominante = (() => {
                 for (let i = ORDEM_SERVICOS.length * 2 - 1; i >= 0; i--) {
                     const cobertos = amostrados.filter(e => e && posicaoDoEstagio(e) >= i).length;
@@ -554,14 +534,9 @@ export function pintarAvanco(
                 return null;
             })();
 
-            if (!dominante) {
-                viewer.setThemingColor(folha, new THREE.Vector4(...CINZA_BASE, 1), model, true);
-                resumo.porServico[SERVICO_SUPERFICIE].semTarefa++;
-                return;
-            }
+            if (!dominante) { resumo.porServico[SERVICO_SUPERFICIE].semTarefa++; return; }
 
             viewer.setThemingColor(folha, corDe(dominante.servico, dominante.concluido), model, true);
-            resumo.pintadasInteiras++;
 
             const contagem = resumo.porServico[dominante.servico];
             if (dominante.concluido) contagem.concluido++; else contagem.andamento++;
@@ -569,8 +544,8 @@ export function pintarAvanco(
         }, true);
     };
 
-    // SÃ³ a superfÃ­cie recebe cor: as camadas por baixo dela nÃ£o aparecem na
-    // tela, e a estrutura das OAEs nÃ£o Ã© pavimento.
+    // Só a superfície recebe cor: as camadas por baixo dela não aparecem na
+    // tela, e a estrutura das OAEs não é pavimento.
     const visitar = (id: number) => {
         const nome = tree.getNodeName(id) || '';
 
@@ -592,8 +567,8 @@ export function pintarAvanco(
 }
 
 /**
- * Junta os dbIds das peÃ§as que recebem cor: a superfÃ­cie de pavimento e o
- * revestimento dos tabuleiros. Ã‰ a lista para a qual vale a pena ler as
+ * Junta os dbIds das peças que recebem cor: a superfície de pavimento e o
+ * revestimento dos tabuleiros. É a lista para a qual vale a pena ler as
  * propriedades do projeto.
  */
 export function coletarPecasDePavimento(viewer: any): number[] {
@@ -629,10 +604,10 @@ export function coletarPecasDePavimento(viewer: any): number[] {
 }
 
 /**
- * Devolve uma funÃ§Ã£o que diz a estaca de qualquer elemento do modelo.
+ * Devolve uma função que diz a estaca de qualquer elemento do modelo.
  *
- * Usa exatamente o mesmo cÃ¡lculo da pintura â€” projeÃ§Ã£o sobre o eixo â€” para que
- * a informaÃ§Ã£o mostrada no clique nunca divirja da cor que estÃ¡ na tela.
+ * Usa exatamente o mesmo cálculo da pintura — projeção sobre o eixo — para que
+ * a informação mostrada no clique nunca divirja da cor que está na tela.
  */
 export function criarLocalizadorDeEstaca(
     viewer: any,
@@ -645,35 +620,32 @@ export function criarLocalizadorDeEstaca(
     const frags = model?.getFragmentList?.();
     const eixos = montarEixos(pontos);
 
-    // Mesma composiÃ§Ã£o de fontes da pintura, para o cartÃ£o nunca discordar da
-    // cor: eixo do projeto, extensÃ£o da geometria.
+    // Mesma origem de dado da pintura, para o cartão nunca discordar da cor:
+    // primeiro o estaqueamento declarado, e só na falta dele a geometria.
     return (dbId: number): [number, number] | null => {
+        const declarada = faixaDeclarada(propriedades.get(dbId));
+        if (declarada) return declarada;
+
         if (!THREE || !tree || !frags) return null;
-
-        const eixoDeclarado = propriedades.get(dbId)?.eixo ?? null;
-        const posicoes = posicoesDosFragmentos(tree, frags, THREE, eixos, dbId, eixoDeclarado);
-        if (posicoes.length === 0) return null;
-
-        const lista = posicoes.map(p => p.estaca);
-        return [Math.min(...lista), Math.max(...lista)];
+        return faixaDeEstacasDoElemento(tree, frags, THREE, eixos, dbId);
     };
 }
 
 export interface OrigemElemento {
-    /** Camada do CAD, um nÃ­vel abaixo do arquivo de origem. */
+    /** Camada do CAD, um nível abaixo do arquivo de origem. */
     camada: string | null;
     /** Arquivo de origem dentro do federado. */
     arquivo: string | null;
-    /** ServiÃ§o de pavimentaÃ§Ã£o, quando a camada for uma das pintadas. */
+    /** Serviço de pavimentação, quando a camada for uma das pintadas. */
     servico: string | null;
 }
 
 /**
  * De onde vem um elemento: arquivo de origem e camada.
  *
- * Sempre devolve o que achou, mesmo fora das camadas de pavimentaÃ§Ã£o. Antes eu
- * sÃ³ retornava camada conhecida, e um elemento de outro arquivo aparecia sem
- * qualquer identificaÃ§Ã£o â€” o que escondia justamente o motivo de ele nÃ£o ter
+ * Sempre devolve o que achou, mesmo fora das camadas de pavimentação. Antes eu
+ * só retornava camada conhecida, e um elemento de outro arquivo aparecia sem
+ * qualquer identificação — o que escondia justamente o motivo de ele não ter
  * sido pintado.
  */
 export function camadaDoElemento(viewer: any, dbId: number): OrigemElemento {
@@ -681,7 +653,7 @@ export function camadaDoElemento(viewer: any, dbId: number): OrigemElemento {
     const vazio: OrigemElemento = { camada: null, arquivo: null, servico: null };
     if (!tree) return vazio;
 
-    // Sobe atÃ© a raiz guardando o caminho, para ler arquivo e camada por posiÃ§Ã£o.
+    // Sobe até a raiz guardando o caminho, para ler arquivo e camada por posição.
     const caminho: string[] = [];
     let atual = dbId;
 
@@ -692,7 +664,7 @@ export function camadaDoElemento(viewer: any, dbId: number): OrigemElemento {
         atual = pai;
     }
 
-    // caminho vai do elemento atÃ© a raiz; o arquivo Ã© o penÃºltimo nÃ­vel.
+    // caminho vai do elemento até a raiz; o arquivo é o penúltimo nível.
     const daRaiz = [...caminho].reverse();
     const arquivo = daRaiz.length > 1 ? daRaiz[1] : null;
     const camada = daRaiz.length > 2 ? daRaiz[2] : null;

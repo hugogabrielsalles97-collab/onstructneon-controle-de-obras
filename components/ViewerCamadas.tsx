@@ -351,11 +351,6 @@ const ViewerCamadas: React.FC<Props> = ({
                             .
                         </p>
 
-                        <p className="mt-1 text-[10px] text-gray-600">
-                            {formatar(resumoAvanco.pintadasPorFragmento)} peça(s) pintada(s) em pedaços;{' '}
-                            {formatar(resumoAvanco.pintadasInteiras)} de peça única, que só aceitam uma cor.
-                        </p>
-
                         <p className={`mt-1 text-[10px] ${resumoAvanco.cinzaAplicado ? 'text-gray-600' : 'text-amber-500'}`}>
                             {resumoAvanco.cinzaAplicado
                                 ? `${formatar(resumoAvanco.cinzaAplicado)} elemento(s) em cinza de base.`

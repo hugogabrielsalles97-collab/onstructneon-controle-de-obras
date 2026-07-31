@@ -164,13 +164,8 @@ const ModelViewer: React.FC = () => {
         // O cinza vem antes e fica mesmo se o cruzamento falhar: o modelo cru,
         // com as cores de 77 arquivos, é pior que um modelo cinza sem avanço.
         // Em try próprio para que uma falha aqui não impeça o resto nem suma.
-        //
-        // As peças de pavimento ficam de fora porque são pintadas por
-        // fragmento, e a cor de elemento sobrepõe a de fragmento.
-        const pecas = coletarPecasDePavimento(viewer);
-
         try {
-            const cinza = aplicarBaseCinza(viewer, new Set(pecas));
+            const cinza = aplicarBaseCinza(viewer);
             if (cinza === 0) setErroCor('O cinza de base não pegou em nenhum elemento.');
         } catch (err) {
             setErroCor(`Falha ao aplicar o cinza: ${err instanceof Error ? err.message : String(err)}`);
@@ -182,7 +177,7 @@ const ModelViewer: React.FC = () => {
 
             // O estaqueamento declarado pelo projeto em cada peça é a fonte
             // principal; os rótulos no eixo ficam só como reserva.
-            const propriedades = await lerPropriedades(viewer, pecas);
+            const propriedades = await lerPropriedades(viewer, coletarPecasDePavimento(viewer));
 
             if (pontos.length === 0 && propriedades.size === 0) {
                 throw new Error('Sem estaqueamento nas peças e sem rótulos no eixo — não há como localizar os trechos.');
