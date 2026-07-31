@@ -36,3 +36,4 @@ scripts/.verify-report.json
 !.env.example
 scripts/.aps-state.json
 scripts/.aps-manifest.json
+scripts/.aps-tree.json

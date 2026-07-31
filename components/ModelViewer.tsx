@@ -49,6 +49,35 @@ const loadOnce = (() => {
     };
 })();
 
+/**
+ * Prefixo das camadas de levantamento existente no federado: terreno natural,
+ * curvas de nível, lago, pistas e drenagem já implantadas. Some tudo junto
+ * porque é isso que tapa a obra nova em vista geral.
+ */
+const PREFIXO_EXISTENTE = 'T-';
+const CHAVE_PREFERENCIA = 'elos.viewer.existenteOculto';
+
+/**
+ * Junta os nós cujo nome começa com o prefixo, sem descer neles: esconder o nó
+ * pai já esconde a subárvore inteira, e percorrer 683 mil elementos um a um
+ * travaria a interface.
+ */
+function coletarNosExistentes(viewer: any): number[] {
+    const tree = viewer?.model?.getInstanceTree?.();
+    if (!tree) return [];
+
+    const encontrados: number[] = [];
+
+    const visitar = (id: number) => {
+        const nome = tree.getNodeName(id) || '';
+        if (nome.startsWith(PREFIXO_EXISTENTE)) { encontrados.push(id); return; }
+        tree.enumNodeChildren(id, visitar, false);
+    };
+
+    visitar(tree.getRootId());
+    return encontrados;
+}
+
 async function authedFetch(path: string) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) throw new Error('Sessão expirada — entre novamente para abrir o modelo.');
@@ -68,6 +97,26 @@ const ModelViewer: React.FC = () => {
     const viewerRef = useRef<any>(null);
     const [status, setStatus] = useState<'carregando' | 'pronto' | 'erro'>('carregando');
     const [mensagem, setMensagem] = useState('Preparando o modelo...');
+
+    const idsExistenteRef = useRef<number[]>([]);
+    // Na primeira visita o existente já entra escondido — foi o pedido. Depois,
+    // vale a última escolha do usuário.
+    const [existenteOculto, setExistenteOculto] = useState(
+        () => (typeof localStorage !== 'undefined' ? localStorage.getItem(CHAVE_PREFERENCIA) !== '0' : true)
+    );
+    const [qtdExistente, setQtdExistente] = useState(0);
+
+    const alternarExistente = () => {
+        const viewer = viewerRef.current;
+        const ids = idsExistenteRef.current;
+        if (!viewer || ids.length === 0) return;
+
+        const ocultarAgora = !existenteOculto;
+        if (ocultarAgora) viewer.hide(ids); else viewer.show(ids);
+
+        setExistenteOculto(ocultarAgora);
+        try { localStorage.setItem(CHAVE_PREFERENCIA, ocultarAgora ? '1' : '0'); } catch { /* modo privado */ }
+    };
 
     useEffect(() => {
         let cancelado = false;
@@ -139,6 +188,25 @@ const ModelViewer: React.FC = () => {
                             return;
                         }
 
+                        // A árvore de objetos fica pronta depois da geometria.
+                        viewer.addEventListener(
+                            Autodesk.Viewing.OBJECT_TREE_CREATED_EVENT,
+                            () => {
+                                if (cancelado) return;
+
+                                const ids = coletarNosExistentes(viewer);
+                                idsExistenteRef.current = ids;
+                                setQtdExistente(ids.length);
+
+                                // Lido aqui, e não capturado do estado: este efeito
+                                // roda uma vez só e congelaria um valor antigo.
+                                const ocultar = localStorage.getItem(CHAVE_PREFERENCIA) !== '0';
+                                setExistenteOculto(ocultar);
+                                if (ids.length && ocultar) viewer.hide(ids);
+                            },
+                            { once: true }
+                        );
+
                         viewer.loadDocumentNode(doc, view).then(() => {
                             if (!cancelado) setStatus('pronto');
                         });
@@ -170,6 +238,19 @@ const ModelViewer: React.FC = () => {
     return (
         <div className="relative w-full h-full bg-brand-darkest">
             <div ref={containerRef} className="absolute inset-0" />
+
+            {status === 'pronto' && qtdExistente > 0 && (
+                <button
+                    onClick={alternarExistente}
+                    title={`${qtdExistente} camada(s) de levantamento existente: terreno, curvas de nível, lago, pistas e drenagem já implantadas`}
+                    className="absolute top-3 right-3 z-10 px-3 py-2 rounded-md text-xs font-medium shadow-lg
+                               bg-brand-darkest/90 border border-gray-700 text-gray-200 hover:bg-gray-800
+                               backdrop-blur transition-colors"
+                >
+                    {existenteOculto ? 'Mostrar existente' : 'Ocultar existente'}
+                    <span className="ml-2 text-gray-500">{qtdExistente}</span>
+                </button>
+            )}
 
             {status !== 'pronto' && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-brand-darkest/90 text-center px-6">
