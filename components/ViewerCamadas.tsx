@@ -16,15 +16,6 @@ export interface Camada {
     filhos: Camada[];
 }
 
-interface Props {
-    camadas: Camada[];
-    ocultos: Set<number>;
-    onAlternar: (id: number) => void;
-    onPreset: (ids: number[]) => void;
-    aberto: boolean;
-    onFechar: () => void;
-}
-
 /** Disciplinas de cadastro e anotação — o que o preset "só projeto novo" tira. */
 export const PADRAO_CADASTRO = /-M[BF]-(C1|D4|F1|Q1|Z9)-/i;
 
@@ -34,10 +25,8 @@ export const PADRAO_RUIDO = /TACHAS|LEGENDAS|LOGO|HACHURA/i;
 /** Pavimentação (I2) e obras de arte especiais (L2 e L4). */
 export const PADRAO_PISTAS_OAE = /-M[BF]-(I2|L2|L4)-/i;
 
-/**
- * Ids do preset "só projeto novo": arquivos de cadastro inteiros, mais as
- * camadas de ruído que estão dentro de arquivos de projeto.
- */
+const CHAVE_LAYOUTS = 'elos.viewer.layoutsSalvos';
+
 export function idsSoProjetoNovo(camadas: Camada[]): number[] {
     const ids: number[] = [];
 
@@ -88,6 +77,33 @@ export const PRESETS: Preset[] = [
     },
 ];
 
+// --- Layouts salvos pelo usuário: sobrepõem o cálculo padrão do preset.
+
+export type LayoutsSalvos = Record<string, number[]>;
+
+export const lerLayouts = (): LayoutsSalvos => {
+    try {
+        const bruto = localStorage.getItem(CHAVE_LAYOUTS);
+        return bruto ? JSON.parse(bruto) : {};
+    } catch {
+        return {};
+    }
+};
+
+const gravarLayouts = (layouts: LayoutsSalvos) => {
+    try { localStorage.setItem(CHAVE_LAYOUTS, JSON.stringify(layouts)); } catch { /* modo privado */ }
+};
+
+/**
+ * Ids de um preset: o que o usuário salvou tem precedência sobre a regra
+ * automática. É o que permite gravar os elementos apagados um a um dentro de
+ * "Só projeto novo" e reencontrá-los na próxima visita.
+ */
+export function idsDoPreset(preset: Preset, camadas: Camada[], layouts: LayoutsSalvos): number[] {
+    const salvo = layouts[preset.chave];
+    return salvo ? salvo : preset.calcular(camadas);
+}
+
 const mesmoConjunto = (a: Set<number>, b: number[]) =>
     a.size === b.length && b.every(id => a.has(id));
 
@@ -96,16 +112,31 @@ const mesmoConjunto = (a: Set<number>, b: number[]) =>
  * lembrar o último botão clicado, mantém a indicação honesta quando o usuário
  * mexe numa camada solta.
  */
-export function presetAtivo(camadas: Camada[], ocultos: Set<number>): string | null {
-    for (const p of PRESETS) if (mesmoConjunto(ocultos, p.calcular(camadas))) return p.chave;
+export function presetAtivo(camadas: Camada[], ocultos: Set<number>, layouts: LayoutsSalvos): string | null {
+    for (const p of PRESETS) if (mesmoConjunto(ocultos, idsDoPreset(p, camadas, layouts))) return p.chave;
     return null;
+}
+
+interface Props {
+    camadas: Camada[];
+    ocultos: Set<number>;
+    onAlternar: (id: number) => void;
+    onPreset: (ids: number[]) => void;
+    monocromatico: boolean;
+    onAlternarMono: () => void;
+    aberto: boolean;
+    onFechar: () => void;
 }
 
 const formatar = (n: number) => n.toLocaleString('pt-BR');
 
-const ViewerCamadas: React.FC<Props> = ({ camadas, ocultos, onAlternar, onPreset, aberto, onFechar }) => {
+const ViewerCamadas: React.FC<Props> = ({
+    camadas, ocultos, onAlternar, onPreset, monocromatico, onAlternarMono, aberto, onFechar,
+}) => {
     const [busca, setBusca] = useState('');
     const [expandido, setExpandido] = useState<Set<number>>(new Set());
+    const [layouts, setLayouts] = useState<LayoutsSalvos>(() => lerLayouts());
+    const [salvoAgora, setSalvoAgora] = useState<string | null>(null);
 
     const filtradas = useMemo(() => {
         const termo = busca.trim().toLowerCase();
@@ -120,9 +151,22 @@ const ViewerCamadas: React.FC<Props> = ({ camadas, ocultos, onAlternar, onPreset
             .filter(Boolean) as Camada[];
     }, [camadas, busca]);
 
-    const ativo = useMemo(() => presetAtivo(camadas, ocultos), [camadas, ocultos]);
+    const ativo = useMemo(() => presetAtivo(camadas, ocultos, layouts), [camadas, ocultos, layouts]);
 
     if (!aberto) return null;
+
+    const salvarNoLayout = (chave: string) => {
+        const proximo = { ...layouts, [chave]: [...ocultos] };
+        setLayouts(proximo);
+        gravarLayouts(proximo);
+        setSalvoAgora(chave);
+        setTimeout(() => setSalvoAgora(null), 1800);
+    };
+
+    const restaurarPadroes = () => {
+        setLayouts({});
+        gravarLayouts({});
+    };
 
     const alternarExpansao = (id: number) => {
         setExpandido(prev => {
@@ -142,6 +186,8 @@ const ViewerCamadas: React.FC<Props> = ({ camadas, ocultos, onAlternar, onPreset
         </span>
     );
 
+    const temCustomizacao = Object.keys(layouts).length > 0;
+
     return (
         <div className="absolute top-0 right-0 z-20 flex h-full w-80 max-w-[85vw] flex-col border-l border-gray-800 bg-brand-darkest/95 backdrop-blur">
             <div className="flex items-center justify-between border-b border-gray-800 px-4 py-3">
@@ -153,31 +199,69 @@ const ViewerCamadas: React.FC<Props> = ({ camadas, ocultos, onAlternar, onPreset
                 <div className="grid grid-cols-2 gap-1.5">
                     {PRESETS.map(p => {
                         const selecionado = ativo === p.chave;
+                        const customizado = Boolean(layouts[p.chave]);
 
                         return (
-                            <button
+                            <div
                                 key={p.chave}
-                                onClick={() => onPreset(p.calcular(camadas))}
-                                title={p.descricao}
-                                aria-pressed={selecionado}
-                                className={`flex items-center gap-1.5 rounded px-2 py-1.5 text-[11px] transition-colors ${
-                                    selecionado
-                                        ? 'bg-cyan-600/25 text-cyan-200 ring-1 ring-cyan-500'
-                                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                                className={`flex items-center rounded transition-colors ${
+                                    selecionado ? 'bg-cyan-600/25 ring-1 ring-cyan-500' : 'bg-gray-800'
                                 }`}
                             >
-                                <span className={selecionado ? 'text-cyan-400' : 'text-transparent'}>●</span>
-                                <span className="truncate">{p.rotulo}</span>
-                            </button>
+                                <button
+                                    onClick={() => onPreset(idsDoPreset(p, camadas, layouts))}
+                                    title={customizado ? `${p.descricao} (layout salvo por você)` : p.descricao}
+                                    aria-pressed={selecionado}
+                                    className={`flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1.5 text-left text-[11px] ${
+                                        selecionado ? 'text-cyan-200' : 'text-gray-400 hover:text-gray-200'
+                                    }`}
+                                >
+                                    <span className={selecionado ? 'text-cyan-400' : 'text-transparent'}>●</span>
+                                    <span className="truncate">{p.rotulo}</span>
+                                    {customizado && <span className="text-[9px] text-amber-500" title="layout salvo">★</span>}
+                                </button>
+
+                                {p.chave !== 'tudo' && (
+                                    <button
+                                        onClick={() => salvarNoLayout(p.chave)}
+                                        title={`Gravar a vista atual (camadas e elementos apagados) em "${p.rotulo}"`}
+                                        className="px-1.5 py-1.5 text-[10px] text-gray-600 hover:text-cyan-300"
+                                    >
+                                        {salvoAgora === p.chave ? '✓' : '💾'}
+                                    </button>
+                                )}
+                            </div>
                         );
                     })}
                 </div>
 
                 {ativo === null && (
                     <p className="mt-2 text-[10px] text-gray-500">
-                        Personalizado — você ajustou camadas soltas
+                        Personalizado — use 💾 para gravar esta vista num layout
                     </p>
                 )}
+
+                {temCustomizacao && (
+                    <button onClick={restaurarPadroes} className="mt-2 text-[10px] text-gray-600 underline hover:text-gray-400">
+                        Restaurar layouts originais
+                    </button>
+                )}
+            </div>
+
+            <div className="flex items-center justify-between border-b border-gray-800 px-4 py-2">
+                <span className="text-[11px] text-gray-400">Monocromático</span>
+                <button
+                    onClick={onAlternarMono}
+                    role="switch"
+                    aria-checked={monocromatico}
+                    className={`relative h-5 w-9 rounded-full transition-colors ${monocromatico ? 'bg-cyan-600' : 'bg-gray-700'}`}
+                >
+                    <span
+                        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                            monocromatico ? 'translate-x-4' : 'translate-x-0.5'
+                        }`}
+                    />
+                </button>
             </div>
 
             <div className="border-b border-gray-800 px-4 py-2">

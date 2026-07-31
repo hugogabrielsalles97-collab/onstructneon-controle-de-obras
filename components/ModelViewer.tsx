@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '../supabaseClient';
-import ViewerCamadas, { Camada, idsSoProjetoNovo } from './ViewerCamadas';
+import ViewerCamadas, { Camada, PRESETS, idsDoPreset, lerLayouts } from './ViewerCamadas';
 
 /**
  * Visualizador do modelo federado (NWD) via Autodesk Platform Services.
@@ -51,6 +51,7 @@ const loadOnce = (() => {
 })();
 
 const CHAVE_OCULTOS = 'elos.viewer.camadasOcultas';
+const CHAVE_MONO = 'elos.viewer.monocromatico';
 
 /**
  * Monta a lista de camadas em dois níveis: arquivo de origem e, dentro dele,
@@ -130,6 +131,20 @@ const ModelViewer: React.FC = () => {
     const [camadas, setCamadas] = useState<Camada[]>([]);
     const [ocultos, setOcultos] = useState<Set<number>>(() => lerOcultos());
     const [painelAberto, setPainelAberto] = useState(false);
+
+    // Monocromático por padrão: o federado vem com cores de 77 arquivos
+    // diferentes, e a leitura de conjunto melhora sem elas.
+    const [monocromatico, setMonocromatico] = useState(
+        () => (typeof localStorage !== 'undefined' ? localStorage.getItem(CHAVE_MONO) !== '0' : true)
+    );
+
+    const alternarMono = () => {
+        setMonocromatico(atual => {
+            const proximo = !atual;
+            try { localStorage.setItem(CHAVE_MONO, proximo ? '1' : '0'); } catch { /* modo privado */ }
+            return proximo;
+        });
+    };
 
     /** Aplica o conjunto inteiro de uma vez: mostrar tudo e reesconder é mais
      *  barato e mais previsível do que reconciliar diferenças. */
@@ -275,7 +290,10 @@ const ModelViewer: React.FC = () => {
                                 // anotação, que é o que tapa a obra nova. Depois
                                 // vale sempre a escolha salva, inclusive "tudo visível".
                                 const nunca = localStorage.getItem(CHAVE_OCULTOS) === null;
-                                const alvo = nunca ? new Set(idsSoProjetoNovo(lista)) : lerOcultos();
+                                const padrao = PRESETS[0];
+                                const alvo = nunca
+                                    ? new Set(idsDoPreset(padrao, lista, lerLayouts()))
+                                    : lerOcultos();
 
                                 if (alvo.size > 0) viewer.hide([...alvo]);
                                 setOcultos(alvo);
@@ -314,7 +332,19 @@ const ModelViewer: React.FC = () => {
 
     return (
         <div className="relative w-full h-full bg-brand-darkest">
-            <div ref={containerRef} className="absolute inset-0" />
+            {/* Dessatura o que o Viewer desenha, sem tocar na barra de
+                ferramentas dele. Pintar 683 mil elementos um a um seria
+                inviável; o filtro resolve no compositor da GPU. */}
+            <style>{`
+                .elos-viewer-mono canvas {
+                    filter: grayscale(1) contrast(1.12) brightness(0.98);
+                }
+            `}</style>
+
+            <div
+                ref={containerRef}
+                className={`absolute inset-0 ${monocromatico ? 'elos-viewer-mono' : ''}`}
+            />
 
             {status === 'pronto' && camadas.length > 0 && !painelAberto && (
                 <button
@@ -333,6 +363,8 @@ const ModelViewer: React.FC = () => {
                     ocultos={ocultos}
                     onAlternar={alternarCamada}
                     onPreset={aplicarPreset}
+                    monocromatico={monocromatico}
+                    onAlternarMono={alternarMono}
                     aberto={painelAberto}
                     onFechar={() => setPainelAberto(false)}
                 />
