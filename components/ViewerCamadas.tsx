@@ -22,8 +22,17 @@ export const PADRAO_CADASTRO = /-M[BF]-(C1|D4|F1|Q1|Z9)-/i;
 /** Camadas volumosas que são projeto, mas atrapalham a leitura de conjunto. */
 export const PADRAO_RUIDO = /TACHAS|LEGENDAS|LOGO|HACHURA/i;
 
-/** Pavimentação (I2) e obras de arte especiais (L2 e L4). */
-export const PADRAO_PISTAS_OAE = /-M[BF]-(I2|L2|L4)-/i;
+/**
+ * Pavimentação (I2) e obras de arte especiais (L2).
+ *
+ * L4 fica de fora de propósito: apesar do código vizinho, esses arquivos são
+ * contenções — solo grampeado, gabião e solo reforçado. Os grampos aparecem
+ * como um leque de barras saindo do talude e poluem a vista de pista e OAE.
+ */
+export const PADRAO_PISTAS_OAE = /-M[BF]-(I2|L2)-/i;
+
+/** Contenções: solo grampeado, gabiões, solo reforçado. */
+export const PADRAO_CONTENCAO = /-M[BF]-L4-/i;
 
 const CHAVE_LAYOUTS = 'elos.viewer.layoutsSalvos';
 
@@ -60,8 +69,14 @@ export const PRESETS: Preset[] = [
     {
         chave: 'pistas-oae',
         rotulo: 'Pistas e OAEs',
-        descricao: 'Só pavimentação e obras de arte especiais',
+        descricao: 'Só pavimentação (I2) e obras de arte especiais (L2)',
         calcular: idsPistasEOae,
+    },
+    {
+        chave: 'contencoes',
+        rotulo: 'Contenções',
+        descricao: 'Só solo grampeado, gabiões e solo reforçado (L4)',
+        calcular: (camadas) => camadas.filter(c => !PADRAO_CONTENCAO.test(c.nome)).map(c => c.id),
     },
     {
         chave: 'sem-cadastro',
