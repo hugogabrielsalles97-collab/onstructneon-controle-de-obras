@@ -14,12 +14,22 @@ import { ESTACAS_MODELO } from '../utils/estacasModelo';
 import { SERVICOS_PAVIMENTACAO, servicoDaCamada } from './viewerPavimentacao';
 
 export interface TarefaPavimentacao {
+    id: string;
     servico: string;
     de: number;
     ate: number;
     status: string;
     progresso: number;
     titulo: string;
+    responsavel: string;
+    local: string;
+    inicioPrevisto: string | null;
+    fimPrevisto: string | null;
+    fimReal: string | null;
+    quantidade: number | null;
+    unidade: string | null;
+    observacoes: string | null;
+    fotos: string[];
 }
 
 export interface ResumoAvanco {
@@ -59,7 +69,7 @@ export async function carregarTarefasPavimentacao(): Promise<TarefaPavimentacao[
     while (true) {
         const { data, error } = await supabase
             .from('tasks')
-            .select('title, discipline, location, corte, status, progress')
+            .select('id, title, discipline, location, corte, status, progress, assignee, startDate, dueDate, actualEndDate, quantity, unit, observations, photos')
             .order('id', { ascending: true })
             .range(offset, offset + 499);
 
@@ -77,12 +87,22 @@ export async function carregarTarefasPavimentacao(): Promise<TarefaPavimentacao[
             if (!faixa) continue;
 
             tarefas.push({
+                id: String(t.id),
                 servico,
                 de: faixa[0],
                 ate: faixa[1],
                 status: t.status || '',
                 progresso: Number(t.progress) || 0,
                 titulo: t.title || '',
+                responsavel: t.assignee || '',
+                local: t.location || '',
+                inicioPrevisto: t.startDate || null,
+                fimPrevisto: t.dueDate || null,
+                fimReal: t.actualEndDate || null,
+                quantidade: t.quantity ?? null,
+                unidade: t.unit || null,
+                observacoes: t.observations || null,
+                fotos: Array.isArray(t.photos) ? t.photos.filter((p: unknown) => typeof p === 'string') : [],
             });
         }
 
@@ -151,7 +171,7 @@ export function aplicarBaseCinza(viewer: any): number {
     return pintados;
 }
 
-interface PontoEstaca { estaca: number; x: number; y: number; }
+export interface PontoEstaca { estaca: number; x: number; y: number; }
 
 /**
  * Posição de cada rótulo de estaca, em coordenadas do Viewer.
@@ -359,4 +379,58 @@ export function pintarAvanco(
     viewer.impl.invalidate(true);
 
     return resumo;
+}
+
+/**
+ * Devolve uma função que diz a estaca de qualquer elemento do modelo.
+ *
+ * Usa exatamente o mesmo cálculo da pintura — projeção sobre o eixo — para que
+ * a informação mostrada no clique nunca divirja da cor que está na tela.
+ */
+export function criarLocalizadorDeEstaca(viewer: any, pontos: PontoEstaca[]) {
+    const THREE = (window as any).THREE;
+    const model = viewer?.model;
+    const tree = model?.getInstanceTree?.();
+    const frags = model?.getFragmentList?.();
+    const eixos = montarEixos(pontos);
+
+    return (dbId: number): number | null => {
+        if (!THREE || !tree || !frags) return null;
+
+        const caixa = new THREE.Box3();
+        try {
+            tree.enumNodeFragments(dbId, (fragId: number) => {
+                const b = new THREE.Box3();
+                frags.getWorldBounds(fragId, b);
+                caixa.union(b);
+            }, true);
+        } catch { return null; }
+
+        if (caixa.isEmpty()) return null;
+
+        const centro = caixa.getCenter(new THREE.Vector3());
+        return estacaProjetada(eixos, centro.x, centro.y);
+    };
+}
+
+/** Nome da camada de um elemento, subindo a árvore até achar uma conhecida. */
+export function camadaDoElemento(viewer: any, dbId: number): string | null {
+    const tree = viewer?.model?.getInstanceTree?.();
+    if (!tree) return null;
+
+    let atual = dbId;
+
+    for (let i = 0; i < 8 && atual; i++) {
+        const nome = tree.getNodeName(atual) || '';
+        if (nome) {
+            const servico = servicoDaCamada(nome);
+            if (servico) return nome;
+        }
+
+        const pai = tree.getNodeParentId(atual);
+        if (!pai || pai === atual) break;
+        atual = pai;
+    }
+
+    return null;
 }

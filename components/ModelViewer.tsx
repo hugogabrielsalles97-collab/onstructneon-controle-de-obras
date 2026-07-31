@@ -3,7 +3,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import ViewerCamadas, { Camada, PRESETS, idsDoPreset, lerLayouts } from './ViewerCamadas';
 import { limparPintura } from './viewerPavimentacao';
-import { aplicarBaseCinza, carregarTarefasPavimentacao, localizarEstacas, pintarAvanco, ResumoAvanco } from './viewerAvanco';
+import {
+    aplicarBaseCinza, carregarTarefasPavimentacao, localizarEstacas, pintarAvanco,
+    criarLocalizadorDeEstaca, camadaDoElemento, ResumoAvanco, TarefaPavimentacao,
+} from './viewerAvanco';
+import ViewerInfoElemento, { SelecaoElemento } from './ViewerInfoElemento';
 
 /**
  * Visualizador do modelo federado (NWD) via Autodesk Platform Services.
@@ -137,6 +141,12 @@ const ModelViewer: React.FC = () => {
     const [resumoAvanco, setResumoAvanco] = useState<ResumoAvanco | null>(null);
     const [carregandoCor, setCarregandoCor] = useState(false);
     const [erroCor, setErroCor] = useState<string | null>(null);
+    const [selecao, setSelecao] = useState<SelecaoElemento | null>(null);
+
+    // Guardados em ref para o ouvinte de seleção, registrado uma única vez,
+    // enxergar sempre os dados da última pintura.
+    const tarefasRef = useRef<TarefaPavimentacao[]>([]);
+    const localizadorRef = useRef<((dbId: number) => number | null) | null>(null);
 
     /**
      * Pinta o avanço real. O modelo fica todo cinza e só o executado ganha cor,
@@ -168,6 +178,9 @@ const ModelViewer: React.FC = () => {
             }
 
             setResumoAvanco(pintarAvanco(viewer, tarefas, pontos));
+
+            tarefasRef.current = tarefas;
+            localizadorRef.current = criarLocalizadorDeEstaca(viewer, pontos);
         } catch (err) {
             setResumoAvanco(null);
             setErroCor(err instanceof Error ? err.message : String(err));
@@ -353,6 +366,31 @@ const ModelViewer: React.FC = () => {
                             { once: true }
                         );
 
+                        // Clique num elemento: mostra a tarefa que originou a cor.
+                        viewer.addEventListener(
+                            Autodesk.Viewing.SELECTION_CHANGED_EVENT,
+                            (evento: any) => {
+                                if (cancelado) return;
+
+                                const dbId = evento?.dbIdArray?.[0];
+                                if (dbId === undefined) { setSelecao(null); return; }
+
+                                const localizador = localizadorRef.current;
+                                const estaca = localizador ? localizador(dbId) : null;
+
+                                const tarefas = estaca === null
+                                    ? []
+                                    : tarefasRef.current.filter(t => estaca >= t.de && estaca <= t.ate);
+
+                                setSelecao({
+                                    dbId,
+                                    estaca,
+                                    camada: camadaDoElemento(viewer, dbId),
+                                    tarefas,
+                                });
+                            }
+                        );
+
                         viewer.loadDocumentNode(doc, view).then(() => {
                             if (cancelado) return;
                             setStatus('pronto');
@@ -396,6 +434,16 @@ const ModelViewer: React.FC = () => {
                     Camadas
                     {ocultos.size > 0 && <span className="ml-2 text-cyan-400">{ocultos.size} oculta(s)</span>}
                 </button>
+            )}
+
+            {status === 'pronto' && (
+                <ViewerInfoElemento
+                    selecao={selecao}
+                    onFechar={() => {
+                        setSelecao(null);
+                        viewerRef.current?.clearSelection?.();
+                    }}
+                />
             )}
 
             {status === 'pronto' && (
