@@ -325,7 +325,13 @@ const ViewerCamadas: React.FC<Props> = ({
 
                         <p className="mt-2 text-[10px] text-gray-600">
                             {resumoAvanco.tarefasUsadas} tarefa(s) e {resumoAvanco.estacasLocalizadas} estaca(s) cruzadas.
-                            Cor cheia = concluído; esmaecida = em andamento. O resto do modelo fica cinza.
+                            Cor cheia = concluído; esmaecida = em andamento.
+                        </p>
+
+                        <p className={`mt-1 text-[10px] ${resumoAvanco.cinzaAplicado ? 'text-gray-600' : 'text-amber-500'}`}>
+                            {resumoAvanco.cinzaAplicado
+                                ? `${formatar(resumoAvanco.cinzaAplicado)} elemento(s) em cinza de base.`
+                                : 'O cinza de base não foi aplicado — o modelo está com as cores originais.'}
                         </p>
                     </>
                 )}

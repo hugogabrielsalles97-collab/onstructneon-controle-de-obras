@@ -27,6 +27,8 @@ export interface ResumoAvanco {
     tarefasUsadas: number;
     estacasLocalizadas: number;
     semEstaca: number;
+    /** Elementos que receberam o cinza de base. Zero denuncia que não pegou. */
+    cinzaAplicado: number;
 }
 
 /** Mesma regra do utils/constants: duas primeiras estacas de 5–6 dígitos. */
@@ -96,36 +98,45 @@ const CINZA_BASE: [number, number, number] = [0.62, 0.62, 0.62];
 /**
  * Deixa o modelo inteiro cinza, para o avanço ser a única informação colorida.
  *
- * Feito por theming e não por filtro CSS: o filtro age sobre o canvas inteiro
- * e dessaturaria também as cores do avanço — os dois nunca poderiam aparecer
- * juntos.
+ * Pintado elemento por elemento, e não por propagação recursiva a partir da
+ * raiz: a propagação depende da versão do Viewer e não pegou aqui, deixando o
+ * modelo cru com as cores dos 77 arquivos de origem. Também não dá para usar
+ * filtro CSS de escala de cinza, porque ele age sobre o canvas inteiro e
+ * dessaturaria justamente as cores do avanço.
  *
- * A chamada recursiva tinge a subárvore inteira de uma vez. Aplicada também
- * em cada arquivo de origem porque a propagação a partir da raiz depende da
- * versão do Viewer, e um cinza que não pega deixa o modelo cru na tela.
+ * Devolve quantos elementos foram pintados — zero significa que o cinza não
+ * pegou, e isso precisa aparecer em vez de virar uma tela colorida sem
+ * explicação.
  */
-export function aplicarBaseCinza(viewer: any) {
+export function aplicarBaseCinza(viewer: any): number {
     const THREE = (window as any).THREE;
     const model = viewer?.model;
     const tree = model?.getInstanceTree?.();
-    if (!THREE || !tree) return;
+    if (!THREE || !tree) return 0;
 
     const cinza = new THREE.Vector4(...CINZA_BASE, 1);
     const raiz = tree.getRootId();
+    let pintados = 0;
 
-    viewer.setThemingColor(raiz, cinza, model, true);
+    const semFilhos = (id: number): boolean => {
+        if (typeof tree.getChildCount === 'function') return tree.getChildCount(id) === 0;
+        let tem = false;
+        tree.enumNodeChildren(id, () => { tem = true; }, false);
+        return !tem;
+    };
 
-    tree.enumNodeChildren(raiz, (filho: number) => {
-        if (filho === raiz) return;
-        viewer.setThemingColor(filho, cinza, model, true);
-
-        tree.enumNodeChildren(filho, (neto: number) => {
-            if (neto === filho) return;
-            viewer.setThemingColor(neto, cinza, model, true);
-        }, false);
-    }, false);
+    tree.enumNodeChildren(
+        raiz,
+        (id: number) => {
+            if (!semFilhos(id)) return;
+            viewer.setThemingColor(id, cinza, model, false);
+            pintados++;
+        },
+        true
+    );
 
     viewer.impl.invalidate(true);
+    return pintados;
 }
 
 interface PontoEstaca { estaca: number; x: number; y: number; }
@@ -203,6 +214,7 @@ export function pintarAvanco(
         tarefasUsadas: tarefas.length,
         estacasLocalizadas: pontos.length,
         semEstaca: 0,
+        cinzaAplicado: 0,
     };
 
     if (!THREE || !tree || !frags || pontos.length === 0) return resumo;
@@ -211,7 +223,7 @@ export function pintarAvanco(
         resumo.porServico[s.servico] = { concluido: 0, andamento: 0, semTarefa: 0 };
     }
 
-    aplicarBaseCinza(viewer);
+    resumo.cinzaAplicado = aplicarBaseCinza(viewer);
 
     const visitar = (id: number) => {
         const nome = tree.getNodeName(id) || '';
