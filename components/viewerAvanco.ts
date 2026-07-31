@@ -413,24 +413,49 @@ export function criarLocalizadorDeEstaca(viewer: any, pontos: PontoEstaca[]) {
     };
 }
 
-/** Nome da camada de um elemento, subindo a árvore até achar uma conhecida. */
-export function camadaDoElemento(viewer: any, dbId: number): string | null {
-    const tree = viewer?.model?.getInstanceTree?.();
-    if (!tree) return null;
+export interface OrigemElemento {
+    /** Camada do CAD, um nível abaixo do arquivo de origem. */
+    camada: string | null;
+    /** Arquivo de origem dentro do federado. */
+    arquivo: string | null;
+    /** Serviço de pavimentação, quando a camada for uma das pintadas. */
+    servico: string | null;
+}
 
+/**
+ * De onde vem um elemento: arquivo de origem e camada.
+ *
+ * Sempre devolve o que achou, mesmo fora das camadas de pavimentação. Antes eu
+ * só retornava camada conhecida, e um elemento de outro arquivo aparecia sem
+ * qualquer identificação — o que escondia justamente o motivo de ele não ter
+ * sido pintado.
+ */
+export function camadaDoElemento(viewer: any, dbId: number): OrigemElemento {
+    const tree = viewer?.model?.getInstanceTree?.();
+    const vazio: OrigemElemento = { camada: null, arquivo: null, servico: null };
+    if (!tree) return vazio;
+
+    // Sobe até a raiz guardando o caminho, para ler arquivo e camada por posição.
+    const caminho: string[] = [];
     let atual = dbId;
 
-    for (let i = 0; i < 8 && atual; i++) {
-        const nome = tree.getNodeName(atual) || '';
-        if (nome) {
-            const servico = servicoDaCamada(nome);
-            if (servico) return nome;
-        }
-
+    for (let i = 0; i < 32 && atual; i++) {
+        caminho.push(tree.getNodeName(atual) || `#${atual}`);
         const pai = tree.getNodeParentId(atual);
         if (!pai || pai === atual) break;
         atual = pai;
     }
 
-    return null;
+    // caminho vai do elemento até a raiz; o arquivo é o penúltimo nível.
+    const daRaiz = [...caminho].reverse();
+    const arquivo = daRaiz.length > 1 ? daRaiz[1] : null;
+    const camada = daRaiz.length > 2 ? daRaiz[2] : null;
+
+    const conhecida = caminho.find(n => servicoDaCamada(n));
+
+    return {
+        camada: conhecida || camada,
+        arquivo,
+        servico: conhecida ? servicoDaCamada(conhecida)!.servico : null,
+    };
 }

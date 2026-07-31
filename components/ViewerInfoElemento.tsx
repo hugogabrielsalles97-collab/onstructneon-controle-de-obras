@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SERVICOS_PAVIMENTACAO } from './viewerPavimentacao';
-import { ORDEM_SERVICOS, TarefaPavimentacao } from './viewerAvanco';
+import { ORDEM_SERVICOS, TarefaPavimentacao, OrigemElemento } from './viewerAvanco';
 
 /**
  * Cartão do elemento clicado: mostra a estaca e as tarefas do ELOS que
@@ -14,7 +14,7 @@ import { ORDEM_SERVICOS, TarefaPavimentacao } from './viewerAvanco';
 export interface SelecaoElemento {
     dbId: number;
     estaca: number | null;
-    camada: string | null;
+    origem: OrigemElemento;
     tarefas: TarefaPavimentacao[];
 }
 
@@ -56,7 +56,19 @@ const ViewerInfoElemento: React.FC<Props> = ({ selecao, onFechar }) => {
                         <p className="text-sm font-semibold text-gray-200">
                             {selecao.estaca !== null ? `Estaca ${selecao.estaca}` : 'Estaca não identificada'}
                         </p>
-                        {selecao.camada && <p className="text-[10px] text-gray-500">Camada {selecao.camada}</p>}
+                        <p className="text-[10px] text-gray-500">
+                            {selecao.origem.camada || 'camada desconhecida'}
+                        </p>
+                        {selecao.origem.arquivo && (
+                            <p className="text-[10px] text-gray-600" title={selecao.origem.arquivo}>
+                                {selecao.origem.arquivo}
+                            </p>
+                        )}
+                        {!selecao.origem.servico && (
+                            <p className="mt-1 text-[10px] text-amber-500">
+                                Fora das camadas de pavimentação — este elemento não recebe cor de avanço.
+                            </p>
+                        )}
                     </div>
                     <button onClick={onFechar} className="text-gray-500 hover:text-gray-200" aria-label="Fechar">✕</button>
                 </div>

@@ -385,7 +385,7 @@ const ModelViewer: React.FC = () => {
                                 setSelecao({
                                     dbId,
                                     estaca,
-                                    camada: camadaDoElemento(viewer, dbId),
+                                    origem: camadaDoElemento(viewer, dbId),
                                     tarefas,
                                 });
                             }
