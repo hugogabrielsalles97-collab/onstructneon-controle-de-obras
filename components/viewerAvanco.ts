@@ -154,6 +154,13 @@ export const ORDEM_SERVICOS = ['CFT', 'Macadame', 'BGTC', 'BGMC', 'CBUQ'] as con
 const SERVICO_SUPERFICIE = 'CBUQ';
 
 /**
+ * Ordena estágios: mais adiante na sequência construtiva vence, e concluído
+ * vence em andamento do mesmo serviço.
+ */
+const posicaoDoEstagio = (e: { servico: string; concluido: boolean }) =>
+    ORDEM_SERVICOS.indexOf(e.servico as any) * 2 + (e.concluido ? 1 : 0);
+
+/**
  * Revestimento sobre o tabuleiro das obras de arte.
  *
  * Sobre as pontes o pavimento não vem no arquivo de pavimentação: quem modelou
@@ -359,23 +366,21 @@ function amostrarFragmentos(
     if (centros.length === 0) return [];
 
     // Cada pista pertence inteira a um eixo — a da direita ao 3, a da esquerda
-    // ao 4. Sem fixar isso, fragmentos de uma mesma peça poderiam projetar em
-    // eixos diferentes onde as pistas se aproximam, e a numeração saltaria de
-    // 31xxx para 41xxx dentro da mesma faixa.
-    const distanciaPorEixo = new Map<number, number>();
+    // ao 4. O eixo é decidido por maioria entre os fragmentos, e não pelo
+    // fragmento mais próximo: os dois eixos chegam a ficar a 18 m um do outro
+    // nos pontos de convergência, e ali um único fragmento pode cair mais
+    // perto do eixo errado. A maioria resiste a esse ponto isolado.
+    const votos = new Map<number, number>();
 
     for (const c of centros) {
         const projetado = estacaProjetada(eixos, c.x, c.y);
         if (!projetado) continue;
-        const atual = distanciaPorEixo.get(projetado.eixo);
-        if (atual === undefined || projetado.distancia < atual) {
-            distanciaPorEixo.set(projetado.eixo, projetado.distancia);
-        }
+        votos.set(projetado.eixo, (votos.get(projetado.eixo) || 0) + 1);
     }
 
-    if (distanciaPorEixo.size === 0) return [];
+    if (votos.size === 0) return [];
 
-    const eixoDaPeca = [...distanciaPorEixo.entries()].sort((a, b) => a[1] - b[1])[0][0];
+    const eixoDaPeca = [...votos.entries()].sort((a, b) => b[1] - a[1])[0][0];
 
     const amostras: AmostraFragmento[] = [];
     for (const c of centros) {
@@ -481,23 +486,17 @@ export function pintarAvanco(
 
             if (comEstagio.length === 0) { resumo.porServico[SERVICO_SUPERFICIE].semTarefa++; return; }
 
-            // Estágio predominante entre os fragmentos da peça.
+            // Vence o estágio MAIS AVANÇADO entre os fragmentos da peça.
             //
-            // A pintura é por elemento, e não por fragmento: `setThemingColor`
-            // da lista de fragmentos existe, mas não produz efeito visível
-            // aqui, e uma tela sem cor nenhuma é pior que uma cor por peça.
-            // Como duas faixas paralelas têm fragmentos distribuídos ao longo
-            // do mesmo trecho, o predominante coincide entre elas — que é o
-            // que mantém a seção com uma cor só.
-            const votos = new Map<string, number>();
-            for (const f of comEstagio) {
-                const chave = `${f.estagio!.servico}|${f.estagio!.concluido}`;
-                votos.set(chave, (votos.get(chave) || 0) + 1);
-            }
-
-            const vencedor = [...votos.entries()].sort((a, b) => b[1] - a[1])[0][0];
-            const [servicoVencedor, concluidoTexto] = vencedor.split('|');
-            const dominante = { servico: servicoVencedor, concluido: concluidoTexto === 'true' };
+            // É a regra combinada: quando um serviço posterior já está pronto
+            // no trecho, ele se sobrepõe ao anterior. Um trecho com CBUQ
+            // concluído deve aparecer verde, e não rosa do BGMC que veio antes.
+            //
+            // A pintura é por elemento porque `setThemingColor` da lista de
+            // fragmentos não produz efeito visível nesta versão do Viewer.
+            const dominante = comEstagio
+                .map(f => f.estagio!)
+                .reduce((melhor, atual) => (posicaoDoEstagio(atual) > posicaoDoEstagio(melhor) ? atual : melhor));
 
             viewer.setThemingColor(folha, corDe(dominante.servico, dominante.concluido), model, true);
 
