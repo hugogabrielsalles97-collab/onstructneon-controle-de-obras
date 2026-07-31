@@ -302,8 +302,17 @@ const ViewerCamadas: React.FC<Props> = ({
                     </button>
                 </div>
 
-                {carregandoCor && <p className="mt-2 text-[10px] text-gray-500">Cruzando tarefas com estacas...</p>}
-                {erroCor && <p className="mt-2 text-[10px] text-red-400">{erroCor}</p>}
+                {/* Estado sempre visível: uma seção em branco não diz se o
+                    cruzamento falhou, está rodando ou nunca começou. */}
+                <p className="mt-1 text-[10px] text-gray-500">
+                    {carregandoCor
+                        ? 'Cruzando tarefas com estacas...'
+                        : resumoAvanco
+                            ? 'Aplicado.'
+                            : 'Ainda não executado — use ↻ para aplicar.'}
+                </p>
+
+                {erroCor && <p className="mt-1 text-[10px] text-red-400">{erroCor}</p>}
 
                 {resumoAvanco && !carregandoCor && (
                     <>
@@ -324,8 +333,12 @@ const ViewerCamadas: React.FC<Props> = ({
                         </ul>
 
                         <p className="mt-2 text-[10px] text-gray-600">
+                            A cor vai na superfície de CBUQ e indica o serviço mais avançado já
+                            concluído naquele trecho. Cor cheia = concluído; esmaecida = em andamento.
+                        </p>
+
+                        <p className="mt-1 text-[10px] text-gray-600">
                             {resumoAvanco.tarefasUsadas} tarefa(s) e {resumoAvanco.estacasLocalizadas} estaca(s) cruzadas.
-                            Cor cheia = concluído; esmaecida = em andamento.
                         </p>
 
                         <p className={`mt-1 text-[10px] ${resumoAvanco.cinzaAplicado ? 'text-gray-600' : 'text-amber-500'}`}>

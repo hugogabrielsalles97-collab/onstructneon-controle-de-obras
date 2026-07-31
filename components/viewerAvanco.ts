@@ -96,6 +96,18 @@ export async function carregarTarefasPavimentacao(): Promise<TarefaPavimentacao[
 const CINZA_BASE: [number, number, number] = [0.62, 0.62, 0.62];
 
 /**
+ * Ordem construtiva do pavimento, de baixo para cima.
+ *
+ * As camadas são empilhadas, então de cima só se enxerga a última. A cor vai
+ * sempre na superfície de CBUQ, indicando o serviço mais avançado já concluído
+ * naquele trecho — é isso que dá a leitura do estágio real da obra.
+ */
+export const ORDEM_SERVICOS = ['CFT', 'Macadame', 'BGTC', 'BGMC', 'CBUQ'] as const;
+
+/** Camada que recebe a cor: a superfície, que é o que se vê. */
+const SERVICO_SUPERFICIE = 'CBUQ';
+
+/**
  * Deixa o modelo inteiro cinza, para o avanço ser a única informação colorida.
  *
  * Pintado elemento por elemento, e não por propagação recursiva a partir da
@@ -225,6 +237,36 @@ export function pintarAvanco(
 
     resumo.cinzaAplicado = aplicarBaseCinza(viewer);
 
+    const corDe = (servico: string, cheia: boolean) => {
+        const def = SERVICOS_PAVIMENTACAO.find(s => s.servico === servico)!;
+        return new THREE.Vector4(...def.rgb, cheia ? 1 : 0.35);
+    };
+
+    /**
+     * Estágio de um trecho: o serviço mais avançado da ordem construtiva que já
+     * foi concluído ali. Se nenhum foi concluído, cai para o mais avançado em
+     * andamento, que é pintado esmaecido.
+     */
+    const estagioDaEstaca = (estaca: number): { servico: string; concluido: boolean } | null => {
+        for (let i = ORDEM_SERVICOS.length - 1; i >= 0; i--) {
+            const servico = ORDEM_SERVICOS[i];
+            const cobre = tarefas.filter(t => t.servico === servico && estaca >= t.de && estaca <= t.ate);
+            if (cobre.some(t => t.status === 'Concluído' || t.progresso >= 100)) {
+                return { servico, concluido: true };
+            }
+        }
+
+        for (let i = ORDEM_SERVICOS.length - 1; i >= 0; i--) {
+            const servico = ORDEM_SERVICOS[i];
+            const cobre = tarefas.filter(t => t.servico === servico && estaca >= t.de && estaca <= t.ate);
+            if (cobre.length > 0) return { servico, concluido: false };
+        }
+
+        return null;
+    };
+
+    // Só a camada de superfície recebe cor: as demais ficam por baixo dela e
+    // pintá-las não mudaria nada na tela.
     const visitar = (id: number) => {
         const nome = tree.getNodeName(id) || '';
         const servico = servicoDaCamada(nome);
@@ -234,12 +276,8 @@ export function pintarAvanco(
             return;
         }
 
-        const doServico = tarefas.filter(t => t.servico === servico.servico);
-        const cheia = new THREE.Vector4(...servico.rgb, 1);
-        const fraca = new THREE.Vector4(...servico.rgb, 0.35);
-        const contagem = resumo.porServico[servico.servico];
+        if (servico.servico !== SERVICO_SUPERFICIE) return;
 
-        // Dentro da camada, cada folha é uma peça de pavimento.
         tree.enumNodeChildren(id, (folha: number) => {
             let temFilho = false;
             tree.enumNodeChildren(folha, () => { temFilho = true; }, false);
@@ -258,17 +296,13 @@ export function pintarAvanco(
             const estaca = estacaMaisProxima(pontos, centro.x, centro.y);
             if (estaca === null) { resumo.semEstaca++; return; }
 
-            const cobre = doServico.filter(t => estaca >= t.de && estaca <= t.ate);
+            const estagio = estagioDaEstaca(estaca);
+            if (!estagio) { resumo.porServico[SERVICO_SUPERFICIE].semTarefa++; return; }
 
-            if (cobre.some(t => t.status === 'Concluído' || t.progresso >= 100)) {
-                viewer.setThemingColor(folha, cheia, model, true);
-                contagem.concluido++;
-            } else if (cobre.length > 0) {
-                viewer.setThemingColor(folha, fraca, model, true);
-                contagem.andamento++;
-            } else {
-                contagem.semTarefa++;
-            }
+            viewer.setThemingColor(folha, corDe(estagio.servico, estagio.concluido), model, true);
+
+            const contagem = resumo.porServico[estagio.servico];
+            if (estagio.concluido) contagem.concluido++; else contagem.andamento++;
         }, true);
     };
 

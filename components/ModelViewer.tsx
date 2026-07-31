@@ -151,7 +151,13 @@ const ModelViewer: React.FC = () => {
 
         // O cinza vem antes e fica mesmo se o cruzamento falhar: o modelo cru,
         // com as cores de 77 arquivos, é pior que um modelo cinza sem avanço.
-        aplicarBaseCinza(viewer);
+        // Em try próprio para que uma falha aqui não impeça o resto nem suma.
+        try {
+            const cinza = aplicarBaseCinza(viewer);
+            if (cinza === 0) setErroCor('O cinza de base não pegou em nenhum elemento.');
+        } catch (err) {
+            setErroCor(`Falha ao aplicar o cinza: ${err instanceof Error ? err.message : String(err)}`);
+        }
 
         try {
             const tarefas = await carregarTarefasPavimentacao();
@@ -326,19 +332,31 @@ const ModelViewer: React.FC = () => {
                             { once: true }
                         );
 
-                        // Esperar a geometria, e não o loadDocumentNode: ele
+                        // A geometria precisa estar carregada: o loadDocumentNode
                         // resolve quando o modelo entra na cena, antes dos
-                        // fragmentos existirem. Sem fragmentos, as caixas
-                        // envolventes vêm vazias e o cruzamento por estaca
-                        // falha inteiro.
+                        // fragmentos existirem, e sem eles as caixas envolventes
+                        // vêm vazias.
+                        //
+                        // O evento pode disparar antes deste registro quando o
+                        // modelo já está em cache. Por isso também checamos o
+                        // estado depois, e um sinalizador garante uma execução só.
+                        let avancoDisparado = false;
+                        const dispararAvanco = () => {
+                            if (cancelado || avancoDisparado) return;
+                            avancoDisparado = true;
+                            aplicarAvanco();
+                        };
+
                         viewer.addEventListener(
                             Autodesk.Viewing.GEOMETRY_LOADED_EVENT,
-                            () => { if (!cancelado) aplicarAvanco(); },
+                            dispararAvanco,
                             { once: true }
                         );
 
                         viewer.loadDocumentNode(doc, view).then(() => {
-                            if (!cancelado) setStatus('pronto');
+                            if (cancelado) return;
+                            setStatus('pronto');
+                            if (viewer.model?.isLoadDone?.()) dispararAvanco();
                         });
                     },
                     (code: any, msg: any) => {
