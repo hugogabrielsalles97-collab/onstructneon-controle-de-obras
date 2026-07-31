@@ -3,6 +3,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import ViewerCamadas, { Camada, PRESETS, idsDoPreset, lerLayouts } from './ViewerCamadas';
 import { pintarPavimentacao, limparPintura } from './viewerPavimentacao';
+import { carregarTarefasPavimentacao, localizarEstacas, pintarAvanco, ResumoAvanco } from './viewerAvanco';
+
+export type ModoCor = 'nenhum' | 'projeto' | 'avanco';
 
 /**
  * Visualizador do modelo federado (NWD) via Autodesk Platform Services.
@@ -147,28 +150,55 @@ const ModelViewer: React.FC = () => {
         });
     };
 
-    const [pavimentacao, setPavimentacao] = useState(false);
+    const [modoCor, setModoCor] = useState<ModoCor>('nenhum');
     const [contagemPav, setContagemPav] = useState<Record<string, number>>({});
+    const [resumoAvanco, setResumoAvanco] = useState<ResumoAvanco | null>(null);
+    const [carregandoCor, setCarregandoCor] = useState(false);
+    const [erroCor, setErroCor] = useState<string | null>(null);
 
-    const alternarPavimentacao = () => {
+    const aplicarModoCor = async (modo: ModoCor) => {
         const viewer = viewerRef.current;
-        if (!viewer) return;
+        if (!viewer || carregandoCor) return;
 
-        if (pavimentacao) {
+        setErroCor(null);
+        setContagemPav({});
+        setResumoAvanco(null);
+
+        if (modo === 'nenhum') {
             limparPintura(viewer);
-            setContagemPav({});
-            setPavimentacao(false);
+            setModoCor('nenhum');
             return;
         }
 
-        setContagemPav(pintarPavimentacao(viewer));
-        setPavimentacao(true);
-
-        // O filtro monocromático é aplicado sobre o canvas inteiro, então
-        // dessaturaria justamente as cores que acabamos de pintar.
+        // O filtro monocromático age sobre o canvas inteiro e dessaturaria
+        // justamente as cores que estamos prestes a pintar.
         if (monocromatico) {
             setMonocromatico(false);
             try { localStorage.setItem(CHAVE_MONO, '0'); } catch { /* modo privado */ }
+        }
+
+        if (modo === 'projeto') {
+            setContagemPav(pintarPavimentacao(viewer));
+            setModoCor('projeto');
+            return;
+        }
+
+        setCarregandoCor(true);
+        try {
+            const [tarefas, pontos] = [await carregarTarefasPavimentacao(), localizarEstacas(viewer)];
+
+            if (pontos.length === 0) {
+                throw new Error('Nenhum rótulo de estaca localizado no modelo — o mapa de avanço precisa deles.');
+            }
+
+            setResumoAvanco(pintarAvanco(viewer, tarefas, pontos));
+            setModoCor('avanco');
+        } catch (err) {
+            limparPintura(viewer);
+            setModoCor('nenhum');
+            setErroCor(err instanceof Error ? err.message : String(err));
+        } finally {
+            setCarregandoCor(false);
         }
     };
 
@@ -391,9 +421,12 @@ const ModelViewer: React.FC = () => {
                     onPreset={aplicarPreset}
                     monocromatico={monocromatico}
                     onAlternarMono={alternarMono}
-                    pavimentacao={pavimentacao}
-                    onAlternarPavimentacao={alternarPavimentacao}
+                    modoCor={modoCor}
+                    onModoCor={aplicarModoCor}
                     contagemPavimentacao={contagemPav}
+                    resumoAvanco={resumoAvanco}
+                    carregandoCor={carregandoCor}
+                    erroCor={erroCor}
                     aberto={painelAberto}
                     onFechar={() => setPainelAberto(false)}
                 />

@@ -37,3 +37,4 @@ scripts/.verify-report.json
 scripts/.aps-state.json
 scripts/.aps-manifest.json
 scripts/.aps-tree.json
+scripts/.estacas.json

@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { SERVICOS_PAVIMENTACAO } from './viewerPavimentacao';
+import type { ModoCor } from './ModelViewer';
+import type { ResumoAvanco } from './viewerAvanco';
 
 /**
  * Painel de camadas do federado.
@@ -160,9 +162,12 @@ interface Props {
     onPreset: (ids: number[]) => void;
     monocromatico: boolean;
     onAlternarMono: () => void;
-    pavimentacao: boolean;
-    onAlternarPavimentacao: () => void;
+    modoCor: ModoCor;
+    onModoCor: (modo: ModoCor) => void;
     contagemPavimentacao: Record<string, number>;
+    resumoAvanco: ResumoAvanco | null;
+    carregandoCor: boolean;
+    erroCor: string | null;
     aberto: boolean;
     onFechar: () => void;
 }
@@ -171,7 +176,8 @@ const formatar = (n: number) => n.toLocaleString('pt-BR');
 
 const ViewerCamadas: React.FC<Props> = ({
     camadas, ocultos, onAlternar, onPreset, monocromatico, onAlternarMono,
-    pavimentacao, onAlternarPavimentacao, contagemPavimentacao, aberto, onFechar,
+    modoCor, onModoCor, contagemPavimentacao, resumoAvanco, carregandoCor, erroCor,
+    aberto, onFechar,
 }) => {
     const [busca, setBusca] = useState('');
     const [expandido, setExpandido] = useState<Set<number>>(new Set());
@@ -289,38 +295,61 @@ const ViewerCamadas: React.FC<Props> = ({
             </div>
 
             <div className="border-b border-gray-800 px-4 py-2">
-                <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-gray-400">Pavimentação por serviço</span>
-                    <button
-                        onClick={onAlternarPavimentacao}
-                        role="switch"
-                        aria-checked={pavimentacao}
-                        className={`relative h-5 w-9 rounded-full transition-colors ${pavimentacao ? 'bg-cyan-600' : 'bg-gray-700'}`}
-                    >
-                        <span
-                            className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
-                                pavimentacao ? 'translate-x-4' : 'translate-x-0.5'
+                <p className="mb-1.5 text-[11px] text-gray-400">Pavimentação</p>
+
+                <div className="grid grid-cols-3 gap-1">
+                    {([
+                        ['nenhum', 'Sem cor'],
+                        ['projeto', 'Projeto'],
+                        ['avanco', 'Avanço real'],
+                    ] as [ModoCor, string][]).map(([modo, rotulo]) => (
+                        <button
+                            key={modo}
+                            onClick={() => onModoCor(modo)}
+                            disabled={carregandoCor}
+                            aria-pressed={modoCor === modo}
+                            className={`rounded px-1.5 py-1.5 text-[10px] transition-colors disabled:opacity-50 ${
+                                modoCor === modo
+                                    ? 'bg-cyan-600/25 text-cyan-200 ring-1 ring-cyan-500'
+                                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
                             }`}
-                        />
-                    </button>
+                        >
+                            {rotulo}
+                        </button>
+                    ))}
                 </div>
 
-                {pavimentacao && (
+                {carregandoCor && <p className="mt-2 text-[10px] text-gray-500">Cruzando tarefas com estacas...</p>}
+                {erroCor && <p className="mt-2 text-[10px] text-red-400">{erroCor}</p>}
+
+                {modoCor !== 'nenhum' && !carregandoCor && (
                     <ul className="mt-2 space-y-1">
                         {SERVICOS_PAVIMENTACAO.map(s => {
-                            const qtd = contagemPavimentacao[s.servico] || 0;
+                            const proj = contagemPavimentacao[s.servico] || 0;
+                            const av = resumoAvanco?.porServico?.[s.servico];
 
                             return (
                                 <li key={s.servico} className="flex items-center gap-2 text-[10px]">
                                     <span className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: s.cor }} />
-                                    <span className={qtd ? 'text-gray-300' : 'text-gray-600'}>{s.servico}</span>
-                                    <span className="ml-auto text-gray-600">
-                                        {qtd ? formatar(qtd) : 'não encontrado'}
+                                    <span className="text-gray-300">{s.servico}</span>
+                                    <span className="ml-auto text-gray-500">
+                                        {modoCor === 'projeto'
+                                            ? (proj ? formatar(proj) : 'não encontrado')
+                                            : av
+                                                ? `${formatar(av.concluido)} concl. · ${formatar(av.andamento)} em and.`
+                                                : '—'}
                                     </span>
                                 </li>
                             );
                         })}
                     </ul>
+                )}
+
+                {modoCor === 'avanco' && resumoAvanco && !carregandoCor && (
+                    <p className="mt-2 text-[10px] text-gray-600">
+                        {resumoAvanco.tarefasUsadas} tarefa(s) e {resumoAvanco.estacasLocalizadas} estaca(s) cruzadas.
+                        Cor cheia = concluído; esmaecida = em andamento; sem cor = sem tarefa.
+                    </p>
                 )}
             </div>
 
