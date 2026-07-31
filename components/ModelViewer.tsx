@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '../supabaseClient';
+import ViewerCamadas, { Camada, idsSoProjetoNovo } from './ViewerCamadas';
 
 /**
  * Visualizador do modelo federado (NWD) via Autodesk Platform Services.
@@ -49,34 +50,62 @@ const loadOnce = (() => {
     };
 })();
 
-/**
- * Prefixo das camadas de levantamento existente no federado: terreno natural,
- * curvas de nível, lago, pistas e drenagem já implantadas. Some tudo junto
- * porque é isso que tapa a obra nova em vista geral.
- */
-const PREFIXO_EXISTENTE = 'T-';
-const CHAVE_PREFERENCIA = 'elos.viewer.existenteOculto';
+const CHAVE_OCULTOS = 'elos.viewer.camadasOcultas';
 
 /**
- * Junta os nós cujo nome começa com o prefixo, sem descer neles: esconder o nó
- * pai já esconde a subárvore inteira, e percorrer 683 mil elementos um a um
- * travaria a interface.
+ * Monta a lista de camadas em dois níveis: arquivo de origem e, dentro dele,
+ * as camadas do CAD.
+ *
+ * Só descemos dois níveis de propósito. Abaixo disso são os 683 mil elementos
+ * individuais, que não cabem num painel nem interessam para ligar/desligar.
  */
-function coletarNosExistentes(viewer: any): number[] {
+function construirCamadas(viewer: any): Camada[] {
     const tree = viewer?.model?.getInstanceTree?.();
     if (!tree) return [];
 
-    const encontrados: number[] = [];
-
-    const visitar = (id: number) => {
-        const nome = tree.getNodeName(id) || '';
-        if (nome.startsWith(PREFIXO_EXISTENTE)) { encontrados.push(id); return; }
-        tree.enumNodeChildren(id, visitar, false);
+    const contar = (id: number) => {
+        let total = 0;
+        tree.enumNodeChildren(id, () => { total++; }, true);
+        return total;
     };
 
-    visitar(tree.getRootId());
-    return encontrados;
+    const filhosDiretos = (id: number) => {
+        const ids: number[] = [];
+        tree.enumNodeChildren(id, (filho: number) => { if (filho !== id) ids.push(filho); }, false);
+        return ids;
+    };
+
+    const raiz = tree.getRootId();
+    const arquivos = filhosDiretos(raiz);
+
+    // Federado real: a raiz é o .nwd e os arquivos de origem ficam um nível abaixo.
+    const base = arquivos.length === 1 ? filhosDiretos(arquivos[0]) : arquivos;
+
+    return base.map(id => ({
+        id,
+        nome: tree.getNodeName(id) || `#${id}`,
+        quantidade: contar(id),
+        filhos: filhosDiretos(id).map(filhoId => ({
+            id: filhoId,
+            nome: tree.getNodeName(filhoId) || `#${filhoId}`,
+            quantidade: contar(filhoId),
+            filhos: [],
+        })),
+    }));
 }
+
+const lerOcultos = (): Set<number> => {
+    try {
+        const bruto = localStorage.getItem(CHAVE_OCULTOS);
+        return bruto ? new Set(JSON.parse(bruto) as number[]) : new Set();
+    } catch {
+        return new Set();
+    }
+};
+
+const gravarOcultos = (ids: Set<number>) => {
+    try { localStorage.setItem(CHAVE_OCULTOS, JSON.stringify([...ids])); } catch { /* modo privado */ }
+};
 
 async function authedFetch(path: string) {
     const { data: { session } } = await supabase.auth.getSession();
@@ -98,25 +127,30 @@ const ModelViewer: React.FC = () => {
     const [status, setStatus] = useState<'carregando' | 'pronto' | 'erro'>('carregando');
     const [mensagem, setMensagem] = useState('Preparando o modelo...');
 
-    const idsExistenteRef = useRef<number[]>([]);
-    // Na primeira visita o existente já entra escondido — foi o pedido. Depois,
-    // vale a última escolha do usuário.
-    const [existenteOculto, setExistenteOculto] = useState(
-        () => (typeof localStorage !== 'undefined' ? localStorage.getItem(CHAVE_PREFERENCIA) !== '0' : true)
-    );
-    const [qtdExistente, setQtdExistente] = useState(0);
+    const [camadas, setCamadas] = useState<Camada[]>([]);
+    const [ocultos, setOcultos] = useState<Set<number>>(() => lerOcultos());
+    const [painelAberto, setPainelAberto] = useState(false);
 
-    const alternarExistente = () => {
+    /** Aplica o conjunto inteiro de uma vez: mostrar tudo e reesconder é mais
+     *  barato e mais previsível do que reconciliar diferenças. */
+    const aplicar = (ids: Set<number>) => {
         const viewer = viewerRef.current;
-        const ids = idsExistenteRef.current;
-        if (!viewer || ids.length === 0) return;
+        if (!viewer) return;
 
-        const ocultarAgora = !existenteOculto;
-        if (ocultarAgora) viewer.hide(ids); else viewer.show(ids);
+        viewer.showAll();
+        if (ids.size > 0) viewer.hide([...ids]);
 
-        setExistenteOculto(ocultarAgora);
-        try { localStorage.setItem(CHAVE_PREFERENCIA, ocultarAgora ? '1' : '0'); } catch { /* modo privado */ }
+        setOcultos(new Set<number>(ids));
+        gravarOcultos(ids);
     };
+
+    const alternarCamada = (id: number) => {
+        const proximo = new Set<number>(ocultos);
+        if (proximo.has(id)) proximo.delete(id); else proximo.add(id);
+        aplicar(proximo);
+    };
+
+    const aplicarPreset = (ids: number[]) => aplicar(new Set<number>(ids));
 
     useEffect(() => {
         let cancelado = false;
@@ -194,15 +228,18 @@ const ModelViewer: React.FC = () => {
                             () => {
                                 if (cancelado) return;
 
-                                const ids = coletarNosExistentes(viewer);
-                                idsExistenteRef.current = ids;
-                                setQtdExistente(ids.length);
+                                const lista = construirCamadas(viewer);
+                                setCamadas(lista);
 
-                                // Lido aqui, e não capturado do estado: este efeito
-                                // roda uma vez só e congelaria um valor antigo.
-                                const ocultar = localStorage.getItem(CHAVE_PREFERENCIA) !== '0';
-                                setExistenteOculto(ocultar);
-                                if (ids.length && ocultar) viewer.hide(ids);
+                                // Nunca escolheu nada: abre já sem cadastro nem
+                                // anotação, que é o que tapa a obra nova. Depois
+                                // vale sempre a escolha salva, inclusive "tudo visível".
+                                const nunca = localStorage.getItem(CHAVE_OCULTOS) === null;
+                                const alvo = nunca ? new Set(idsSoProjetoNovo(lista)) : lerOcultos();
+
+                                if (alvo.size > 0) viewer.hide([...alvo]);
+                                setOcultos(alvo);
+                                if (nunca) gravarOcultos(alvo);
                             },
                             { once: true }
                         );
@@ -239,17 +276,26 @@ const ModelViewer: React.FC = () => {
         <div className="relative w-full h-full bg-brand-darkest">
             <div ref={containerRef} className="absolute inset-0" />
 
-            {status === 'pronto' && qtdExistente > 0 && (
+            {status === 'pronto' && camadas.length > 0 && !painelAberto && (
                 <button
-                    onClick={alternarExistente}
-                    title={`${qtdExistente} camada(s) de levantamento existente: terreno, curvas de nível, lago, pistas e drenagem já implantadas`}
-                    className="absolute top-3 right-3 z-10 px-3 py-2 rounded-md text-xs font-medium shadow-lg
-                               bg-brand-darkest/90 border border-gray-700 text-gray-200 hover:bg-gray-800
-                               backdrop-blur transition-colors"
+                    onClick={() => setPainelAberto(true)}
+                    className="absolute top-3 right-3 z-10 rounded-md border border-gray-700 bg-brand-darkest/90 px-3 py-2
+                               text-xs font-medium text-gray-200 shadow-lg backdrop-blur transition-colors hover:bg-gray-800"
                 >
-                    {existenteOculto ? 'Mostrar existente' : 'Ocultar existente'}
-                    <span className="ml-2 text-gray-500">{qtdExistente}</span>
+                    Camadas
+                    {ocultos.size > 0 && <span className="ml-2 text-cyan-400">{ocultos.size} oculta(s)</span>}
                 </button>
+            )}
+
+            {status === 'pronto' && (
+                <ViewerCamadas
+                    camadas={camadas}
+                    ocultos={ocultos}
+                    onAlternar={alternarCamada}
+                    onPreset={aplicarPreset}
+                    aberto={painelAberto}
+                    onFechar={() => setPainelAberto(false)}
+                />
             )}
 
             {status !== 'pronto' && (
