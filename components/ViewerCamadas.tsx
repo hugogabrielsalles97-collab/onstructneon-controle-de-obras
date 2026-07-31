@@ -36,6 +36,18 @@ export const PADRAO_CONTENCAO = /-M[BF]-L4-/i;
 
 const CHAVE_LAYOUTS = 'elos.viewer.layoutsSalvos';
 
+/**
+ * Versão das regras de preset. Subir este número descarta os layouts que o
+ * usuário salvou antes.
+ *
+ * Existe porque um layout salvo tem precedência sobre a regra automática: sem
+ * o descarte, corrigir a definição de um preset não teria efeito nenhum para
+ * quem já tivesse gravado a versão errada — e o bug pareceria não corrigido.
+ *
+ * v2: L4 saiu de "Pistas e OAEs" (é contenção, não obra de arte).
+ */
+const VERSAO_LAYOUTS = 2;
+
 export function idsSoProjetoNovo(camadas: Camada[]): number[] {
     const ids: number[] = [];
 
@@ -99,14 +111,22 @@ export type LayoutsSalvos = Record<string, number[]>;
 export const lerLayouts = (): LayoutsSalvos => {
     try {
         const bruto = localStorage.getItem(CHAVE_LAYOUTS);
-        return bruto ? JSON.parse(bruto) : {};
+        if (!bruto) return {};
+
+        const parsed = JSON.parse(bruto);
+        // Formato antigo (sem versão) ou versão vencida: descarta.
+        if (parsed?.versao !== VERSAO_LAYOUTS) return {};
+
+        return parsed.dados || {};
     } catch {
         return {};
     }
 };
 
 const gravarLayouts = (layouts: LayoutsSalvos) => {
-    try { localStorage.setItem(CHAVE_LAYOUTS, JSON.stringify(layouts)); } catch { /* modo privado */ }
+    try {
+        localStorage.setItem(CHAVE_LAYOUTS, JSON.stringify({ versao: VERSAO_LAYOUTS, dados: layouts }));
+    } catch { /* modo privado */ }
 };
 
 /**
