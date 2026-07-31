@@ -338,9 +338,17 @@ const ViewerCamadas: React.FC<Props> = ({
                         </p>
 
                         <p className="mt-1 text-[10px] text-gray-600">
-                            {resumoAvanco.tarefasUsadas} tarefa(s) e {resumoAvanco.estacasLocalizadas} estaca(s) cruzadas.
+                            {resumoAvanco.tarefasUsadas} tarefa(s) cruzadas.
                             {resumoAvanco.tabuleirosPintados > 0 &&
                                 ` Inclui ${formatar(resumoAvanco.tabuleirosPintados)} peça(s) de tabuleiro de OAE.`}
+                        </p>
+
+                        <p className="mt-1 text-[10px] text-gray-600">
+                            {formatar(resumoAvanco.porPropriedade)} peça(s) posicionada(s) pelo estaqueamento do
+                            projeto
+                            {resumoAvanco.porGeometria > 0 &&
+                                `, ${formatar(resumoAvanco.porGeometria)} por projeção no eixo`}
+                            .
                         </p>
 
                         <p className={`mt-1 text-[10px] ${resumoAvanco.cinzaAplicado ? 'text-gray-600' : 'text-amber-500'}`}>

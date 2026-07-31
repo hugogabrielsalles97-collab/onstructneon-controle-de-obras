@@ -5,8 +5,10 @@ import ViewerCamadas, { Camada, PRESETS, idsDoPreset, lerLayouts } from './Viewe
 import { limparPintura } from './viewerPavimentacao';
 import {
     aplicarBaseCinza, carregarTarefasPavimentacao, localizarEstacas, pintarAvanco,
-    criarLocalizadorDeEstaca, camadaDoElemento, ResumoAvanco, TarefaPavimentacao,
+    criarLocalizadorDeEstaca, camadaDoElemento, coletarPecasDePavimento,
+    ResumoAvanco, TarefaPavimentacao,
 } from './viewerAvanco';
+import { lerPropriedades } from './viewerPropriedades';
 import ViewerInfoElemento, { SelecaoElemento } from './ViewerInfoElemento';
 
 /**
@@ -173,14 +175,18 @@ const ModelViewer: React.FC = () => {
             const tarefas = await carregarTarefasPavimentacao();
             const pontos = localizarEstacas(viewer);
 
-            if (pontos.length === 0) {
-                throw new Error('Nenhum rótulo de estaca localizado no modelo — o mapa de avanço precisa deles.');
+            // O estaqueamento declarado pelo projeto em cada peça é a fonte
+            // principal; os rótulos no eixo ficam só como reserva.
+            const propriedades = await lerPropriedades(viewer, coletarPecasDePavimento(viewer));
+
+            if (pontos.length === 0 && propriedades.size === 0) {
+                throw new Error('Sem estaqueamento nas peças e sem rótulos no eixo — não há como localizar os trechos.');
             }
 
-            setResumoAvanco(pintarAvanco(viewer, tarefas, pontos));
+            setResumoAvanco(pintarAvanco(viewer, tarefas, pontos, propriedades));
 
             tarefasRef.current = tarefas;
-            localizadorRef.current = criarLocalizadorDeEstaca(viewer, pontos);
+            localizadorRef.current = criarLocalizadorDeEstaca(viewer, pontos, propriedades);
         } catch (err) {
             setResumoAvanco(null);
             setErroCor(err instanceof Error ? err.message : String(err));

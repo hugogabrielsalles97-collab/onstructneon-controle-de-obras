@@ -12,6 +12,7 @@
 import { supabase } from '../supabaseClient';
 import { ESTACAS_MODELO } from '../utils/estacasModelo';
 import { SERVICOS_PAVIMENTACAO, servicoDaCamada } from './viewerPavimentacao';
+import { PropriedadesPeca, faixaDeclarada } from './viewerPropriedades';
 
 export interface TarefaPavimentacao {
     id: string;
@@ -44,6 +45,10 @@ export interface ResumoAvanco {
     cinzaAplicado: number;
     /** Peças de revestimento de tabuleiro pintadas, dentro das OAEs. */
     tabuleirosPintados: number;
+    /** Peças posicionadas pelo estaqueamento declarado no próprio projeto. */
+    porPropriedade: number;
+    /** Peças que precisaram de projeção geométrica por falta desse dado. */
+    porGeometria: number;
 }
 
 /** Mesma regra do utils/constants: duas primeiras estacas de 5–6 dígitos. */
@@ -415,7 +420,8 @@ function faixaDeEstacasDoElemento(
 export function pintarAvanco(
     viewer: any,
     tarefas: TarefaPavimentacao[],
-    pontos: PontoEstaca[]
+    pontos: PontoEstaca[],
+    propriedades: Map<number, PropriedadesPeca>
 ): ResumoAvanco {
     const THREE = (window as any).THREE;
     const model = viewer?.model;
@@ -429,6 +435,8 @@ export function pintarAvanco(
         semEstaca: 0,
         cinzaAplicado: 0,
         tabuleirosPintados: 0,
+        porPropriedade: 0,
+        porGeometria: 0,
     };
 
     if (!THREE || !tree || !frags || pontos.length === 0) return resumo;
@@ -477,26 +485,41 @@ export function pintarAvanco(
             tree.enumNodeChildren(folha, () => { temFilho = true; }, false);
             if (temFilho) return;
 
-            const amostras = amostrarFragmentos(tree, frags, THREE, eixos, folha);
-            if (amostras.length === 0) { resumo.semEstaca++; return; }
+            // Faixa declarada pelo projeto na própria peça. Só quando ela não
+            // existe — acessos com numeração local, ou peça sem a propriedade
+            // preenchida — recorremos à projeção geométrica.
+            const declarada = faixaDeclarada(propriedades.get(folha));
+            let faixa = declarada;
 
-            // Estágio de cada fragmento, pela estaca em que ele está.
-            const porFragmento = amostras.map(a => ({ ...a, estagio: estagioDaEstaca(a.estaca) }));
-            const comEstagio = porFragmento.filter(f => f.estagio);
+            if (!faixa) {
+                const amostras = amostrarFragmentos(tree, frags, THREE, eixos, folha);
+                if (amostras.length === 0) { resumo.semEstaca++; return; }
+                const lista = amostras.map(a => a.estaca);
+                faixa = [Math.min(...lista), Math.max(...lista)];
+                resumo.porGeometria++;
+            } else {
+                resumo.porPropriedade++;
+            }
 
-            if (comEstagio.length === 0) { resumo.porServico[SERVICO_SUPERFICIE].semTarefa++; return; }
+            // Estágio em cada estaca do intervalo declarado.
+            const estagios: { servico: string; concluido: boolean }[] = [];
+            const passo = Math.max(1, Math.floor((faixa[1] - faixa[0]) / 24));
 
-            // Vence o estágio MAIS AVANÇADO entre os fragmentos da peça.
-            //
-            // É a regra combinada: quando um serviço posterior já está pronto
-            // no trecho, ele se sobrepõe ao anterior. Um trecho com CBUQ
-            // concluído deve aparecer verde, e não rosa do BGMC que veio antes.
-            //
-            // A pintura é por elemento porque `setThemingColor` da lista de
-            // fragmentos não produz efeito visível nesta versão do Viewer.
-            const dominante = comEstagio
-                .map(f => f.estagio!)
-                .reduce((melhor, atual) => (posicaoDoEstagio(atual) > posicaoDoEstagio(melhor) ? atual : melhor));
+            for (let e = faixa[0]; e <= faixa[1]; e += passo) {
+                const estagio = estagioDaEstaca(e);
+                if (estagio) estagios.push(estagio);
+            }
+
+            const noFim = estagioDaEstaca(faixa[1]);
+            if (noFim) estagios.push(noFim);
+
+            if (estagios.length === 0) { resumo.porServico[SERVICO_SUPERFICIE].semTarefa++; return; }
+
+            // Vence o estágio MAIS AVANÇADO do intervalo: quando um serviço
+            // posterior já está pronto no trecho, ele se sobrepõe ao anterior.
+            const dominante = estagios.reduce(
+                (melhor, atual) => (posicaoDoEstagio(atual) > posicaoDoEstagio(melhor) ? atual : melhor)
+            );
 
             viewer.setThemingColor(folha, corDe(dominante.servico, dominante.concluido), model, true);
 
@@ -529,22 +552,65 @@ export function pintarAvanco(
 }
 
 /**
+ * Junta os dbIds das peças que recebem cor: a superfície de pavimento e o
+ * revestimento dos tabuleiros. É a lista para a qual vale a pena ler as
+ * propriedades do projeto.
+ */
+export function coletarPecasDePavimento(viewer: any): number[] {
+    const tree = viewer?.model?.getInstanceTree?.();
+    if (!tree) return [];
+
+    const pecas: number[] = [];
+
+    const recolher = (raiz: number) => {
+        tree.enumNodeChildren(raiz, (folha: number) => {
+            let temFilho = false;
+            tree.enumNodeChildren(folha, () => { temFilho = true; }, false);
+            if (!temFilho) pecas.push(folha);
+        }, true);
+    };
+
+    const visitar = (id: number) => {
+        const nome = tree.getNodeName(id) || '';
+
+        if (PADRAO_TABULEIRO.test(nome)) { recolher(id); return; }
+
+        const servico = servicoDaCamada(nome);
+        if (servico) {
+            if (servico.servico === SERVICO_SUPERFICIE) recolher(id);
+            return;
+        }
+
+        tree.enumNodeChildren(id, visitar, false);
+    };
+
+    visitar(tree.getRootId());
+    return pecas;
+}
+
+/**
  * Devolve uma função que diz a estaca de qualquer elemento do modelo.
  *
  * Usa exatamente o mesmo cálculo da pintura — projeção sobre o eixo — para que
  * a informação mostrada no clique nunca divirja da cor que está na tela.
  */
-export function criarLocalizadorDeEstaca(viewer: any, pontos: PontoEstaca[]) {
+export function criarLocalizadorDeEstaca(
+    viewer: any,
+    pontos: PontoEstaca[],
+    propriedades: Map<number, PropriedadesPeca>
+) {
     const THREE = (window as any).THREE;
     const model = viewer?.model;
     const tree = model?.getInstanceTree?.();
     const frags = model?.getFragmentList?.();
     const eixos = montarEixos(pontos);
 
-    // Mesmo cálculo da pintura, para o cartão nunca discordar da cor.
-    // Devolve a faixa, e não um ponto: uma peça longa cobre vários trechos, e
-    // mostrar uma estaca só esconderia isso de quem está conferindo.
+    // Mesma origem de dado da pintura, para o cartão nunca discordar da cor:
+    // primeiro o estaqueamento declarado, e só na falta dele a geometria.
     return (dbId: number): [number, number] | null => {
+        const declarada = faixaDeclarada(propriedades.get(dbId));
+        if (declarada) return declarada;
+
         if (!THREE || !tree || !frags) return null;
         return faixaDeEstacasDoElemento(tree, frags, THREE, eixos, dbId);
     };
