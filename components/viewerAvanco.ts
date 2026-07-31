@@ -278,7 +278,11 @@ function montarEixos(pontos: PontoEstaca[]): Map<number, PontoEstaca[]> {
  *
  * Entre os eixos, vence o de menor distância perpendicular.
  */
-function estacaProjetada(eixos: Map<number, PontoEstaca[]>, x: number, y: number): number | null {
+function estacaProjetada(
+    eixos: Map<number, PontoEstaca[]>,
+    x: number,
+    y: number
+): { estaca: number; distancia: number } | null {
     let melhorEstaca: number | null = null;
     let menorDistancia = Infinity;
 
@@ -307,7 +311,48 @@ function estacaProjetada(eixos: Map<number, PontoEstaca[]>, x: number, y: number
         }
     }
 
-    return melhorEstaca;
+    return melhorEstaca === null ? null : { estaca: melhorEstaca, distancia: Math.sqrt(menorDistancia) };
+}
+
+/**
+ * Estaca de um elemento, amostrando os fragmentos que o compõem.
+ *
+ * O centro da caixa envolvente não serve: numa peça longa e curva, ele cai
+ * fora da própria geometria, no miolo do arco — e ali pode estar mais perto do
+ * eixo da pista vizinha, atribuindo a estaca do outro eixo. Era o que produzia
+ * saltos de numeração no meio de um trecho contínuo.
+ *
+ * Cada fragmento tem sua própria caixa, bem menor, então o centro dela fica
+ * junto da geometria. Vence a amostra mais próxima de um eixo, que é a que tem
+ * menos chance de estar do lado errado.
+ */
+function estacaDeElemento(
+    tree: any,
+    frags: any,
+    THREE: any,
+    eixos: Map<number, PontoEstaca[]>,
+    dbId: number
+): number | null {
+    const amostras: { estaca: number; distancia: number }[] = [];
+
+    try {
+        tree.enumNodeFragments(dbId, (fragId: number) => {
+            const caixa = new THREE.Box3();
+            frags.getWorldBounds(fragId, caixa);
+            if (caixa.isEmpty()) return;
+
+            const centro = caixa.getCenter(new THREE.Vector3());
+            const projetado = estacaProjetada(eixos, centro.x, centro.y);
+            if (projetado) amostras.push(projetado);
+        }, true);
+    } catch {
+        return null;
+    }
+
+    if (amostras.length === 0) return null;
+
+    amostras.sort((a, b) => a.distancia - b.distancia);
+    return amostras[0].estaca;
 }
 
 /**
@@ -381,17 +426,7 @@ export function pintarAvanco(
             tree.enumNodeChildren(folha, () => { temFilho = true; }, false);
             if (temFilho) return;
 
-            const caixa = new THREE.Box3();
-            tree.enumNodeFragments(folha, (fragId: number) => {
-                const b = new THREE.Box3();
-                frags.getWorldBounds(fragId, b);
-                caixa.union(b);
-            }, true);
-
-            if (caixa.isEmpty()) { resumo.semEstaca++; return; }
-
-            const centro = caixa.getCenter(new THREE.Vector3());
-            const estaca = estacaProjetada(eixos, centro.x, centro.y);
+            const estaca = estacaDeElemento(tree, frags, THREE, eixos, folha);
             if (estaca === null) { resumo.semEstaca++; return; }
 
             const estagio = estagioDaEstaca(estaca);
@@ -440,22 +475,10 @@ export function criarLocalizadorDeEstaca(viewer: any, pontos: PontoEstaca[]) {
     const frags = model?.getFragmentList?.();
     const eixos = montarEixos(pontos);
 
+    // Mesmo cálculo da pintura, para o cartão nunca discordar da cor.
     return (dbId: number): number | null => {
         if (!THREE || !tree || !frags) return null;
-
-        const caixa = new THREE.Box3();
-        try {
-            tree.enumNodeFragments(dbId, (fragId: number) => {
-                const b = new THREE.Box3();
-                frags.getWorldBounds(fragId, b);
-                caixa.union(b);
-            }, true);
-        } catch { return null; }
-
-        if (caixa.isEmpty()) return null;
-
-        const centro = caixa.getCenter(new THREE.Vector3());
-        return estacaProjetada(eixos, centro.x, centro.y);
+        return estacaDeElemento(tree, frags, THREE, eixos, dbId);
     };
 }
 
