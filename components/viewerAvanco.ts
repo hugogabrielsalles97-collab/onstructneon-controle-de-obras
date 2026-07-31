@@ -191,17 +191,64 @@ export function localizarEstacas(viewer: any): PontoEstaca[] {
     return pontos;
 }
 
-/** Estaca mais próxima de um ponto. */
-function estacaMaisProxima(pontos: PontoEstaca[], x: number, y: number): number | null {
-    let melhor: number | null = null;
-    let menor = Infinity;
+/**
+ * Agrupa os rótulos por eixo e ordena por estaca, formando a poligonal de cada
+ * um. O eixo é o primeiro dígito do rótulo de 5 posições.
+ */
+function montarEixos(pontos: PontoEstaca[]): Map<number, PontoEstaca[]> {
+    const eixos = new Map<number, PontoEstaca[]>();
 
     for (const p of pontos) {
-        const d = (p.x - x) ** 2 + (p.y - y) ** 2;
-        if (d < menor) { menor = d; melhor = p.estaca; }
+        const eixo = Math.floor(p.estaca / 10000);
+        if (!eixos.has(eixo)) eixos.set(eixo, []);
+        eixos.get(eixo)!.push(p);
     }
 
-    return melhor;
+    for (const lista of eixos.values()) lista.sort((a, b) => a.estaca - b.estaca);
+    return eixos;
+}
+
+/**
+ * Estaca de um ponto, por projeção sobre a poligonal do eixo.
+ *
+ * Encaixar no rótulo mais próximo não serve: os rótulos estão de 5 em 5
+ * estacas, e uma peça na borda da pista fica lateralmente afastada do eixo —
+ * numa curva, o rótulo mais próximo dela pode ser o do trecho vizinho. A
+ * projeção dá a estaca correta independentemente do afastamento lateral, e
+ * interpola entre rótulos em vez de arredondar.
+ *
+ * Entre os eixos, vence o de menor distância perpendicular.
+ */
+function estacaProjetada(eixos: Map<number, PontoEstaca[]>, x: number, y: number): number | null {
+    let melhorEstaca: number | null = null;
+    let menorDistancia = Infinity;
+
+    for (const pontos of eixos.values()) {
+        for (let i = 0; i < pontos.length - 1; i++) {
+            const a = pontos[i];
+            const b = pontos[i + 1];
+
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const comprimento = dx * dx + dy * dy;
+            if (comprimento === 0) continue;
+
+            // Fração da projeção sobre o segmento, presa ao trecho.
+            let t = ((x - a.x) * dx + (y - a.y) * dy) / comprimento;
+            t = Math.max(0, Math.min(1, t));
+
+            const px = a.x + t * dx;
+            const py = a.y + t * dy;
+            const distancia = (px - x) ** 2 + (py - y) ** 2;
+
+            if (distancia < menorDistancia) {
+                menorDistancia = distancia;
+                melhorEstaca = Math.round(a.estaca + t * (b.estaca - a.estaca));
+            }
+        }
+    }
+
+    return melhorEstaca;
 }
 
 /**
@@ -236,6 +283,8 @@ export function pintarAvanco(
     }
 
     resumo.cinzaAplicado = aplicarBaseCinza(viewer);
+
+    const eixos = montarEixos(pontos);
 
     const corDe = (servico: string, cheia: boolean) => {
         const def = SERVICOS_PAVIMENTACAO.find(s => s.servico === servico)!;
@@ -293,7 +342,7 @@ export function pintarAvanco(
             if (caixa.isEmpty()) { resumo.semEstaca++; return; }
 
             const centro = caixa.getCenter(new THREE.Vector3());
-            const estaca = estacaMaisProxima(pontos, centro.x, centro.y);
+            const estaca = estacaProjetada(eixos, centro.x, centro.y);
             if (estaca === null) { resumo.semEstaca++; return; }
 
             const estagio = estagioDaEstaca(estaca);
