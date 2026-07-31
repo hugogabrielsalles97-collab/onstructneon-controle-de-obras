@@ -245,8 +245,14 @@ const ViewerCamadas: React.FC<Props> = ({ camadas, ocultos, onAlternar, onPreset
                 )}
             </div>
 
-            <div className="border-t border-gray-800 px-4 py-2 text-[10px] text-gray-600">
-                {ocultos.size > 0 ? `${ocultos.size} camada(s) oculta(s)` : 'Tudo visível'} — a escolha fica salva neste navegador
+            <div className="space-y-1 border-t border-gray-800 px-4 py-2 text-[10px] text-gray-600">
+                <p>
+                    Clique num elemento e tecle <kbd className="rounded border border-gray-700 bg-gray-800 px-1 text-gray-400">Delete</kbd> para ocultá-lo.
+                </p>
+                <p>
+                    {ocultos.size > 0 ? `${ocultos.size} item(ns) oculto(s)` : 'Tudo visível'} — salvo neste navegador.
+                    {ocultos.size > 0 && ' Use "Mostrar tudo" para restaurar.'}
+                </p>
             </div>
         </div>
     );

@@ -152,6 +152,40 @@ const ModelViewer: React.FC = () => {
 
     const aplicarPreset = (ids: number[]) => aplicar(new Set<number>(ids));
 
+    // O listener de teclado é registrado uma vez só; sem o ref ele enxergaria
+    // para sempre o conjunto vazio do primeiro render.
+    const ocultosRef = useRef(ocultos);
+    useEffect(() => { ocultosRef.current = ocultos; }, [ocultos]);
+
+    /** Selecionar um elemento e teclar Delete some com ele. */
+    useEffect(() => {
+        const aoTeclar = (evento: KeyboardEvent) => {
+            if (evento.key !== 'Delete') return;
+
+            // Não sequestrar a tecla enquanto o usuário digita na busca.
+            const alvo = evento.target as HTMLElement | null;
+            if (alvo && (/^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName) || alvo.isContentEditable)) return;
+
+            const viewer = viewerRef.current;
+            const selecao: number[] = viewer?.getSelection?.() || [];
+            if (!viewer || selecao.length === 0) return;
+
+            evento.preventDefault();
+
+            const proximo = new Set<number>(ocultosRef.current);
+            for (const id of selecao) proximo.add(id);
+
+            viewer.hide(selecao);
+            viewer.clearSelection();
+
+            setOcultos(proximo);
+            gravarOcultos(proximo);
+        };
+
+        document.addEventListener('keydown', aoTeclar);
+        return () => document.removeEventListener('keydown', aoTeclar);
+    }, []);
+
     useEffect(() => {
         let cancelado = false;
 
