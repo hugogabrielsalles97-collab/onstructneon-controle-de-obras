@@ -166,6 +166,14 @@ const posicaoDoEstagio = (e: { servico: string; concluido: boolean }) =>
     ORDEM_SERVICOS.indexOf(e.servico as any) * 2 + (e.concluido ? 1 : 0);
 
 /**
+ * Fração mínima da peça que a tarefa precisa cobrir para colori-la.
+ *
+ * A peça é indivisível: ou a tarefa responde pela maior parte dela, ou pintá-la
+ * inteira declara avanço em metros que não foram executados.
+ */
+const COBERTURA_MINIMA = 0.5;
+
+/**
  * Revestimento sobre o tabuleiro das obras de arte.
  *
  * Sobre as pontes o pavimento não vem no arquivo de pavimentação: quem modelou
@@ -501,25 +509,32 @@ export function pintarAvanco(
                 resumo.porPropriedade++;
             }
 
-            // Estágio em cada estaca do intervalo declarado.
-            const estagios: { servico: string; concluido: boolean }[] = [];
-            const passo = Math.max(1, Math.floor((faixa[1] - faixa[0]) / 24));
+            // Amostra o intervalo declarado, estaca a estaca quando ele é curto.
+            const amostrados: ({ servico: string; concluido: boolean } | null)[] = [];
+            const passo = Math.max(1, Math.ceil((faixa[1] - faixa[0]) / 40));
 
-            for (let e = faixa[0]; e <= faixa[1]; e += passo) {
-                const estagio = estagioDaEstaca(e);
-                if (estagio) estagios.push(estagio);
-            }
+            for (let e = faixa[0]; e <= faixa[1]; e += passo) amostrados.push(estagioDaEstaca(e));
+            amostrados.push(estagioDaEstaca(faixa[1]));
 
-            const noFim = estagioDaEstaca(faixa[1]);
-            if (noFim) estagios.push(noFim);
+            // Vence o estágio mais avançado que cubra a maior parte da peça.
+            //
+            // Só exigir alguma cobertura pintava a peça inteira quando ela
+            // apenas encostava na tarefa: uma peça de 41145 a 41156 tocava o
+            // fim de uma tarefa numa única estaca e ganhava cor nos 220 m. Como
+            // a peça é indivisível, ou a tarefa responde pela maior parte dela,
+            // ou ela não deve ser pintada.
+            const dominante = (() => {
+                for (let i = ORDEM_SERVICOS.length * 2 - 1; i >= 0; i--) {
+                    const cobertos = amostrados.filter(e => e && posicaoDoEstagio(e) >= i).length;
+                    if (cobertos / amostrados.length >= COBERTURA_MINIMA) {
+                        return amostrados.find(e => e && posicaoDoEstagio(e) === i) ||
+                            amostrados.filter(e => e && posicaoDoEstagio(e) >= i)[0]!;
+                    }
+                }
+                return null;
+            })();
 
-            if (estagios.length === 0) { resumo.porServico[SERVICO_SUPERFICIE].semTarefa++; return; }
-
-            // Vence o estágio MAIS AVANÇADO do intervalo: quando um serviço
-            // posterior já está pronto no trecho, ele se sobrepõe ao anterior.
-            const dominante = estagios.reduce(
-                (melhor, atual) => (posicaoDoEstagio(atual) > posicaoDoEstagio(melhor) ? atual : melhor)
-            );
+            if (!dominante) { resumo.porServico[SERVICO_SUPERFICIE].semTarefa++; return; }
 
             viewer.setThemingColor(folha, corDe(dominante.servico, dominante.concluido), model, true);
 
