@@ -13,7 +13,8 @@ import { ORDEM_SERVICOS, TarefaPavimentacao, OrigemElemento } from './viewerAvan
 
 export interface SelecaoElemento {
     dbId: number;
-    estaca: number | null;
+    /** Faixa de estacas coberta pela peça. Longa demais vira vários trechos. */
+    faixa: [number, number] | null;
     origem: OrigemElemento;
     tarefas: TarefaPavimentacao[];
 }
@@ -54,8 +55,17 @@ const ViewerInfoElemento: React.FC<Props> = ({ selecao, onFechar }) => {
                 <div className="flex items-start justify-between border-b border-gray-800 px-4 py-3">
                     <div>
                         <p className="text-sm font-semibold text-gray-200">
-                            {selecao.estaca !== null ? `Estaca ${selecao.estaca}` : 'Estaca não identificada'}
+                            {!selecao.faixa
+                                ? 'Estaca não identificada'
+                                : selecao.faixa[0] === selecao.faixa[1]
+                                    ? `Estaca ${selecao.faixa[0]}`
+                                    : `Estacas ${selecao.faixa[0]} a ${selecao.faixa[1]}`}
                         </p>
+                        {selecao.faixa && selecao.faixa[1] - selecao.faixa[0] > 5 && (
+                            <p className="text-[10px] text-gray-500">
+                                Peça longa: recebe a cor do estágio menos avançado do intervalo.
+                            </p>
+                        )}
                         <p className="text-[10px] text-gray-500">
                             {selecao.origem.camada || 'camada desconhecida'}
                         </p>
@@ -76,9 +86,9 @@ const ViewerInfoElemento: React.FC<Props> = ({ selecao, onFechar }) => {
                 <div className="flex-1 overflow-y-auto px-4 py-3">
                     {ordenadas.length === 0 && (
                         <p className="text-xs text-gray-500">
-                            {selecao.estaca === null
+                            {!selecao.faixa
                                 ? 'Não foi possível localizar este elemento no eixo — ele pode estar fora do trecho estaqueado.'
-                                : 'Nenhuma tarefa de pavimentação cobre esta estaca.'}
+                                : 'Nenhuma tarefa de pavimentação cobre este trecho.'}
                         </p>
                     )}
 

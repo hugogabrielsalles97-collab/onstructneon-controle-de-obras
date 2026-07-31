@@ -315,44 +315,58 @@ function estacaProjetada(
 }
 
 /**
- * Estaca de um elemento, amostrando os fragmentos que o compõem.
+ * Faixa de estacas que uma caixa cobre, projetando seus cantos horizontais.
  *
- * O centro da caixa envolvente não serve: numa peça longa e curva, ele cai
- * fora da própria geometria, no miolo do arco — e ali pode estar mais perto do
- * eixo da pista vizinha, atribuindo a estaca do outro eixo. Era o que produzia
- * saltos de numeração no meio de um trecho contínuo.
- *
- * Cada fragmento tem sua própria caixa, bem menor, então o centro dela fica
- * junto da geometria. Vence a amostra mais próxima de um eixo, que é a que tem
- * menos chance de estar do lado errado.
+ * Uma peça longa atravessa vários trechos, e reduzi-la a um ponto só produz
+ * resultado arbitrário: duas faixas paralelas da mesma pista acabavam com
+ * estacas diferentes e, por consequência, cores diferentes lado a lado.
  */
-function estacaDeElemento(
+function faixaDeEstacasDaCaixa(
+    caixa: any,
+    THREE: any,
+    eixos: Map<number, PontoEstaca[]>
+): [number, number] | null {
+    if (caixa.isEmpty()) return null;
+
+    const centro = caixa.getCenter(new THREE.Vector3());
+    const cantos = [
+        [caixa.min.x, caixa.min.y],
+        [caixa.min.x, caixa.max.y],
+        [caixa.max.x, caixa.min.y],
+        [caixa.max.x, caixa.max.y],
+        [centro.x, centro.y],
+    ];
+
+    const estacas: number[] = [];
+    for (const [x, y] of cantos) {
+        const projetado = estacaProjetada(eixos, x, y);
+        if (projetado) estacas.push(projetado.estaca);
+    }
+
+    if (estacas.length === 0) return null;
+    return [Math.min(...estacas), Math.max(...estacas)];
+}
+
+function faixaDeEstacasDoElemento(
     tree: any,
     frags: any,
     THREE: any,
     eixos: Map<number, PontoEstaca[]>,
     dbId: number
-): number | null {
-    const amostras: { estaca: number; distancia: number }[] = [];
+): [number, number] | null {
+    const caixa = new THREE.Box3();
 
     try {
         tree.enumNodeFragments(dbId, (fragId: number) => {
-            const caixa = new THREE.Box3();
-            frags.getWorldBounds(fragId, caixa);
-            if (caixa.isEmpty()) return;
-
-            const centro = caixa.getCenter(new THREE.Vector3());
-            const projetado = estacaProjetada(eixos, centro.x, centro.y);
-            if (projetado) amostras.push(projetado);
+            const b = new THREE.Box3();
+            frags.getWorldBounds(fragId, b);
+            caixa.union(b);
         }, true);
     } catch {
         return null;
     }
 
-    if (amostras.length === 0) return null;
-
-    amostras.sort((a, b) => a.distancia - b.distancia);
-    return amostras[0].estaca;
+    return faixaDeEstacasDaCaixa(caixa, THREE, eixos);
 }
 
 /**
@@ -419,6 +433,39 @@ export function pintarAvanco(
         return null;
     };
 
+    const posicao = (e: { servico: string; concluido: boolean } | null) =>
+        e ? ORDEM_SERVICOS.indexOf(e.servico as any) * 2 + (e.concluido ? 1 : 0) : -1;
+
+    /**
+     * Estágio de uma peça que cobre uma faixa de estacas: o menos avançado do
+     * intervalo.
+     *
+     * Uma peça é indivisível — não dá para pintar metade dela. Entre errar para
+     * mais e para menos, o mapa de avanço deve errar para menos: declarar
+     * serviço concluído onde ele não está é pior que o contrário. E, como duas
+     * faixas paralelas cobrem o mesmo intervalo, as duas passam a receber a
+     * mesma cor, acabando com as listras de cores diferentes na mesma seção.
+     */
+    const estagioDaFaixa = (de: number, ate: number) => {
+        if (de === ate) return estagioDaEstaca(de);
+
+        // Amostras ao longo do intervalo, sempre incluindo as pontas.
+        const passos = Math.min(12, Math.max(2, ate - de + 1));
+        let pior: { servico: string; concluido: boolean } | null = null;
+        let piorPos = Infinity;
+
+        for (let i = 0; i < passos; i++) {
+            const estaca = Math.round(de + ((ate - de) * i) / (passos - 1));
+            const estagio = estagioDaEstaca(estaca);
+            const p = posicao(estagio);
+
+            if (p < piorPos) { piorPos = p; pior = estagio; }
+            if (piorPos === -1) return null; // um pedaço sem tarefa nenhuma
+        }
+
+        return pior;
+    };
+
     /** Pinta cada folha da subárvore conforme o estágio no seu trecho. */
     const pintarSuperficie = (raiz: number, contarComoTabuleiro: boolean) => {
         tree.enumNodeChildren(raiz, (folha: number) => {
@@ -426,10 +473,10 @@ export function pintarAvanco(
             tree.enumNodeChildren(folha, () => { temFilho = true; }, false);
             if (temFilho) return;
 
-            const estaca = estacaDeElemento(tree, frags, THREE, eixos, folha);
-            if (estaca === null) { resumo.semEstaca++; return; }
+            const faixa = faixaDeEstacasDoElemento(tree, frags, THREE, eixos, folha);
+            if (!faixa) { resumo.semEstaca++; return; }
 
-            const estagio = estagioDaEstaca(estaca);
+            const estagio = estagioDaFaixa(faixa[0], faixa[1]);
             if (!estagio) { resumo.porServico[SERVICO_SUPERFICIE].semTarefa++; return; }
 
             viewer.setThemingColor(folha, corDe(estagio.servico, estagio.concluido), model, true);
@@ -476,9 +523,11 @@ export function criarLocalizadorDeEstaca(viewer: any, pontos: PontoEstaca[]) {
     const eixos = montarEixos(pontos);
 
     // Mesmo cálculo da pintura, para o cartão nunca discordar da cor.
-    return (dbId: number): number | null => {
+    // Devolve a faixa, e não um ponto: uma peça longa cobre vários trechos, e
+    // mostrar uma estaca só esconderia isso de quem está conferindo.
+    return (dbId: number): [number, number] | null => {
         if (!THREE || !tree || !frags) return null;
-        return estacaDeElemento(tree, frags, THREE, eixos, dbId);
+        return faixaDeEstacasDoElemento(tree, frags, THREE, eixos, dbId);
     };
 }
 

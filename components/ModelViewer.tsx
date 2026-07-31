@@ -146,7 +146,7 @@ const ModelViewer: React.FC = () => {
     // Guardados em ref para o ouvinte de seleção, registrado uma única vez,
     // enxergar sempre os dados da última pintura.
     const tarefasRef = useRef<TarefaPavimentacao[]>([]);
-    const localizadorRef = useRef<((dbId: number) => number | null) | null>(null);
+    const localizadorRef = useRef<((dbId: number) => [number, number] | null) | null>(null);
 
     /**
      * Pinta o avanço real. O modelo fica todo cinza e só o executado ganha cor,
@@ -376,15 +376,17 @@ const ModelViewer: React.FC = () => {
                                 if (dbId === undefined) { setSelecao(null); return; }
 
                                 const localizador = localizadorRef.current;
-                                const estaca = localizador ? localizador(dbId) : null;
+                                const faixa = localizador ? localizador(dbId) : null;
 
-                                const tarefas = estaca === null
+                                // Qualquer sobreposição conta: a peça cobre o
+                                // intervalo inteiro, não um ponto.
+                                const tarefas = !faixa
                                     ? []
-                                    : tarefasRef.current.filter(t => estaca >= t.de && estaca <= t.ate);
+                                    : tarefasRef.current.filter(t => t.ate >= faixa[0] && t.de <= faixa[1]);
 
                                 setSelecao({
                                     dbId,
-                                    estaca,
+                                    faixa,
                                     origem: camadaDoElemento(viewer, dbId),
                                     tarefas,
                                 });
