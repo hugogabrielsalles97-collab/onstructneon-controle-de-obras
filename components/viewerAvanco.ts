@@ -281,12 +281,15 @@ function montarEixos(pontos: PontoEstaca[]): Map<number, PontoEstaca[]> {
 function estacaProjetada(
     eixos: Map<number, PontoEstaca[]>,
     x: number,
-    y: number
-): { estaca: number; distancia: number } | null {
+    y: number,
+    somenteEixo?: number
+): { estaca: number; distancia: number; eixo: number } | null {
     let melhorEstaca: number | null = null;
+    let melhorEixo = 0;
     let menorDistancia = Infinity;
 
-    for (const pontos of eixos.values()) {
+    for (const [eixo, pontos] of eixos.entries()) {
+        if (somenteEixo !== undefined && eixo !== somenteEixo) continue;
         for (let i = 0; i < pontos.length - 1; i++) {
             const a = pontos[i];
             const b = pontos[i + 1];
@@ -307,44 +310,80 @@ function estacaProjetada(
             if (distancia < menorDistancia) {
                 menorDistancia = distancia;
                 melhorEstaca = Math.round(a.estaca + t * (b.estaca - a.estaca));
+                melhorEixo = eixo;
             }
         }
     }
 
-    return melhorEstaca === null ? null : { estaca: melhorEstaca, distancia: Math.sqrt(menorDistancia) };
+    return melhorEstaca === null
+        ? null
+        : { estaca: melhorEstaca, distancia: Math.sqrt(menorDistancia), eixo: melhorEixo };
+}
+
+export interface AmostraFragmento {
+    fragId: number;
+    estaca: number;
 }
 
 /**
- * Faixa de estacas que uma caixa cobre, projetando seus cantos horizontais.
+ * Estaca de cada fragmento de um elemento.
  *
- * Uma peça longa atravessa vários trechos, e reduzi-la a um ponto só produz
- * resultado arbitrário: duas faixas paralelas da mesma pista acabavam com
- * estacas diferentes e, por consequência, cores diferentes lado a lado.
+ * Só pontos sobre a geometria servem. O centro da caixa envolvente de uma peça
+ * curva cai fora dela, no miolo do arco, e os cantos da caixa ficam ainda mais
+ * longe — projetá-los produzia intervalos enormes e sem sentido. O fragmento
+ * tem caixa pequena e acompanha o traçado, então o centro dele está sobre a
+ * pista, e a projeção acerta tanto a estaca quanto o eixo.
  */
-function faixaDeEstacasDaCaixa(
-    caixa: any,
+function amostrarFragmentos(
+    tree: any,
+    frags: any,
     THREE: any,
-    eixos: Map<number, PontoEstaca[]>
-): [number, number] | null {
-    if (caixa.isEmpty()) return null;
+    eixos: Map<number, PontoEstaca[]>,
+    dbId: number
+): AmostraFragmento[] {
+    const centros: { fragId: number; x: number; y: number }[] = [];
 
-    const centro = caixa.getCenter(new THREE.Vector3());
-    const cantos = [
-        [caixa.min.x, caixa.min.y],
-        [caixa.min.x, caixa.max.y],
-        [caixa.max.x, caixa.min.y],
-        [caixa.max.x, caixa.max.y],
-        [centro.x, centro.y],
-    ];
+    try {
+        tree.enumNodeFragments(dbId, (fragId: number) => {
+            const caixa = new THREE.Box3();
+            frags.getWorldBounds(fragId, caixa);
+            if (caixa.isEmpty()) return;
 
-    const estacas: number[] = [];
-    for (const [x, y] of cantos) {
-        const projetado = estacaProjetada(eixos, x, y);
-        if (projetado) estacas.push(projetado.estaca);
+            const centro = caixa.getCenter(new THREE.Vector3());
+            centros.push({ fragId, x: centro.x, y: centro.y });
+        }, true);
+    } catch {
+        return [];
     }
 
-    if (estacas.length === 0) return null;
-    return [Math.min(...estacas), Math.max(...estacas)];
+    if (centros.length === 0) return [];
+
+    // Cada pista pertence inteira a um eixo — a da direita ao 3, a da esquerda
+    // ao 4. Sem fixar isso, fragmentos de uma mesma peça poderiam projetar em
+    // eixos diferentes onde as pistas se aproximam, e a numeração saltaria de
+    // 31xxx para 41xxx dentro da mesma faixa.
+    const distanciaPorEixo = new Map<number, number>();
+
+    for (const c of centros) {
+        const projetado = estacaProjetada(eixos, c.x, c.y);
+        if (!projetado) continue;
+        const atual = distanciaPorEixo.get(projetado.eixo);
+        if (atual === undefined || projetado.distancia < atual) {
+            distanciaPorEixo.set(projetado.eixo, projetado.distancia);
+        }
+    }
+
+    if (distanciaPorEixo.size === 0) return [];
+
+    const eixoDaPeca = [...distanciaPorEixo.entries()].sort((a, b) => a[1] - b[1])[0][0];
+
+    const amostras: AmostraFragmento[] = [];
+    for (const c of centros) {
+        const projetado = estacaProjetada(eixos, c.x, c.y, eixoDaPeca);
+        if (projetado) amostras.push({ fragId: c.fragId, estaca: projetado.estaca });
+    }
+
+    return amostras;
 }
 
 function faixaDeEstacasDoElemento(
@@ -354,19 +393,11 @@ function faixaDeEstacasDoElemento(
     eixos: Map<number, PontoEstaca[]>,
     dbId: number
 ): [number, number] | null {
-    const caixa = new THREE.Box3();
+    const amostras = amostrarFragmentos(tree, frags, THREE, eixos, dbId);
+    if (amostras.length === 0) return null;
 
-    try {
-        tree.enumNodeFragments(dbId, (fragId: number) => {
-            const b = new THREE.Box3();
-            frags.getWorldBounds(fragId, b);
-            caixa.union(b);
-        }, true);
-    } catch {
-        return null;
-    }
-
-    return faixaDeEstacasDaCaixa(caixa, THREE, eixos);
+    const estacas = amostras.map(a => a.estaca);
+    return [Math.min(...estacas), Math.max(...estacas)];
 }
 
 /**
@@ -433,38 +464,10 @@ export function pintarAvanco(
         return null;
     };
 
-    const posicao = (e: { servico: string; concluido: boolean } | null) =>
-        e ? ORDEM_SERVICOS.indexOf(e.servico as any) * 2 + (e.concluido ? 1 : 0) : -1;
-
-    /**
-     * Estágio de uma peça que cobre uma faixa de estacas: o menos avançado do
-     * intervalo.
-     *
-     * Uma peça é indivisível — não dá para pintar metade dela. Entre errar para
-     * mais e para menos, o mapa de avanço deve errar para menos: declarar
-     * serviço concluído onde ele não está é pior que o contrário. E, como duas
-     * faixas paralelas cobrem o mesmo intervalo, as duas passam a receber a
-     * mesma cor, acabando com as listras de cores diferentes na mesma seção.
-     */
-    const estagioDaFaixa = (de: number, ate: number) => {
-        if (de === ate) return estagioDaEstaca(de);
-
-        // Amostras ao longo do intervalo, sempre incluindo as pontas.
-        const passos = Math.min(12, Math.max(2, ate - de + 1));
-        let pior: { servico: string; concluido: boolean } | null = null;
-        let piorPos = Infinity;
-
-        for (let i = 0; i < passos; i++) {
-            const estaca = Math.round(de + ((ate - de) * i) / (passos - 1));
-            const estagio = estagioDaEstaca(estaca);
-            const p = posicao(estagio);
-
-            if (p < piorPos) { piorPos = p; pior = estagio; }
-            if (piorPos === -1) return null; // um pedaço sem tarefa nenhuma
-        }
-
-        return pior;
-    };
+    // Pintura por fragmento quando o Viewer permite: uma faixa longitudinal é
+    // uma peça só, mas seus fragmentos acompanham o traçado, o que dá
+    // resolução por trecho em vez de uma cor para centenas de metros.
+    const podeFragmento = typeof frags.setThemingColor === 'function';
 
     /** Pinta cada folha da subárvore conforme o estágio no seu trecho. */
     const pintarSuperficie = (raiz: number, contarComoTabuleiro: boolean) => {
@@ -473,16 +476,37 @@ export function pintarAvanco(
             tree.enumNodeChildren(folha, () => { temFilho = true; }, false);
             if (temFilho) return;
 
-            const faixa = faixaDeEstacasDoElemento(tree, frags, THREE, eixos, folha);
-            if (!faixa) { resumo.semEstaca++; return; }
+            const amostras = amostrarFragmentos(tree, frags, THREE, eixos, folha);
+            if (amostras.length === 0) { resumo.semEstaca++; return; }
 
-            const estagio = estagioDaFaixa(faixa[0], faixa[1]);
-            if (!estagio) { resumo.porServico[SERVICO_SUPERFICIE].semTarefa++; return; }
+            // Estágio de cada fragmento, pela estaca em que ele está.
+            const porFragmento = amostras.map(a => ({ ...a, estagio: estagioDaEstaca(a.estaca) }));
+            const comEstagio = porFragmento.filter(f => f.estagio);
 
-            viewer.setThemingColor(folha, corDe(estagio.servico, estagio.concluido), model, true);
+            if (comEstagio.length === 0) { resumo.porServico[SERVICO_SUPERFICIE].semTarefa++; return; }
 
-            const contagem = resumo.porServico[estagio.servico];
-            if (estagio.concluido) contagem.concluido++; else contagem.andamento++;
+            if (podeFragmento) {
+                for (const f of comEstagio) {
+                    frags.setThemingColor(f.fragId, corDe(f.estagio!.servico, f.estagio!.concluido));
+                }
+            } else {
+                // Sem pintura por fragmento, vale o estágio mais frequente na
+                // peça — melhor que um ponto escolhido ao acaso.
+                const votos = new Map<string, number>();
+                for (const f of comEstagio) {
+                    const chave = `${f.estagio!.servico}|${f.estagio!.concluido}`;
+                    votos.set(chave, (votos.get(chave) || 0) + 1);
+                }
+
+                const vencedor = [...votos.entries()].sort((a, b) => b[1] - a[1])[0][0];
+                const [servicoVencedor, concluidoTexto] = vencedor.split('|');
+                viewer.setThemingColor(folha, corDe(servicoVencedor, concluidoTexto === 'true'), model, true);
+            }
+
+            // A contagem é por peça, pelo estágio predominante nela.
+            const dominante = comEstagio[Math.floor(comEstagio.length / 2)].estagio!;
+            const contagem = resumo.porServico[dominante.servico];
+            if (dominante.concluido) contagem.concluido++; else contagem.andamento++;
             if (contarComoTabuleiro) resumo.tabuleirosPintados++;
         }, true);
     };
