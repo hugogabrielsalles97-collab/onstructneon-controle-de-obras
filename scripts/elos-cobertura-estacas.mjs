@@ -56,10 +56,26 @@ while (true) {
     for (const t of data) {
         if (!/paviment/i.test(t.discipline || '')) continue;
         const servico = servicoDoTitulo(t.title);
-        const faixa = extrairFaixa(t.location) || extrairFaixa(t.corte);
-        if (servico && faixa) {
-            tarefas.push({ servico, de: faixa[0], ate: faixa[1], status: t.status, progresso: Number(t.progress) || 0 });
-        }
+        if (!servico) continue;
+
+        const fontes = [extrairFaixa(t.title), extrairFaixa(t.location), extrairFaixa(t.corte)].filter(Boolean);
+        if (fontes.length === 0) continue;
+
+        // Regra antiga: só location, senão corte.
+        const antiga = extrairFaixa(t.location) || extrairFaixa(t.corte);
+        // Regra nova: união dos três campos.
+        const nova = [Math.min(...fontes.map(f => f[0])), Math.max(...fontes.map(f => f[1]))];
+
+        tarefas.push({
+            servico,
+            de: nova[0],
+            ate: nova[1],
+            antigaDe: antiga ? antiga[0] : nova[0],
+            antigaAte: antiga ? antiga[1] : nova[1],
+            divergente: fontes.some(f => f[0] !== nova[0] || f[1] !== nova[1]),
+            status: t.status,
+            progresso: Number(t.progress) || 0,
+        });
     }
     offset += 500;
 }
@@ -74,7 +90,14 @@ for (const r of rotulos) {
     eixos.get(eixo).push(r);
 }
 
-console.log(`${tarefas.length} tarefa(s) de pavimentação com faixa legível.\n`);
+const divergentes = tarefas.filter(t => t.divergente);
+console.log(`${tarefas.length} tarefa(s) de pavimentação com faixa legível.`);
+console.log(`${divergentes.length} com campos discordantes entre título, local e corte.\n`);
+
+for (const t of divergentes.slice(0, 12)) {
+    console.log(`  ${t.servico}: antes ${t.antigaDe}-${t.antigaAte}, agora ${t.de}-${t.ate}`);
+}
+console.log('');
 
 for (const [eixo, lista] of [...eixos.entries()].sort()) {
     const min = Math.min(...lista);

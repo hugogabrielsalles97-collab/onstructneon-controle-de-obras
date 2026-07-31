@@ -133,6 +133,15 @@ const ViewerInfoElemento: React.FC<Props> = ({ selecao, onFechar }) => {
                                 )}
                             </dl>
 
+                            {t.divergente && (
+                                <p className="mt-1.5 rounded bg-amber-950/40 px-2 py-1 text-[10px] text-amber-500">
+                                    Campos com estacas diferentes — usei a maior faixa.
+                                    {t.fontes.titulo && ` Título: ${t.fontes.titulo[0]}-${t.fontes.titulo[1]}.`}
+                                    {t.fontes.local && ` Local: ${t.fontes.local[0]}-${t.fontes.local[1]}.`}
+                                    {t.fontes.corte && ` Corte: ${t.fontes.corte[0]}-${t.fontes.corte[1]}.`}
+                                </p>
+                            )}
+
                             {t.observacoes && (
                                 <p className="mt-1.5 rounded bg-gray-900/60 px-2 py-1 text-[10px] italic text-gray-500">
                                     {t.observacoes}

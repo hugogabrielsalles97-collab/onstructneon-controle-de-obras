@@ -30,6 +30,9 @@ export interface TarefaPavimentacao {
     unidade: string | null;
     observacoes: string | null;
     fotos: string[];
+    /** Faixa lida de cada campo, para expor divergências entre eles. */
+    fontes: { titulo: [number, number] | null; local: [number, number] | null; corte: [number, number] | null };
+    divergente: boolean;
 }
 
 export interface ResumoAvanco {
@@ -84,9 +87,28 @@ export async function carregarTarefasPavimentacao(): Promise<TarefaPavimentacao[
             const servico = servicoDoTitulo(t.title || '');
             if (!servico) continue;
 
-            // A estaca mora em location (formato novo) ou em corte (legado).
-            const faixa = extrairFaixa(t.location) || extrairFaixa(t.corte);
-            if (!faixa) continue;
+            // A estaca aparece no título, no location (formato novo) ou no
+            // corte (legado), e os três nem sempre concordam. Usar só um deles
+            // encurtava trechos: uma tarefa de 31066-31085 no título tinha
+            // 31066-31078 no corte, e o pedaço da frente ficava sem pintura.
+            //
+            // A faixa usada é a união, e a divergência fica registrada para
+            // aparecer no cartão — é dado a corrigir no ELOS, não a esconder.
+            const fontes = {
+                titulo: extrairFaixa(t.title),
+                local: extrairFaixa(t.location),
+                corte: extrairFaixa(t.corte),
+            };
+
+            const encontradas = [fontes.titulo, fontes.local, fontes.corte].filter(Boolean) as [number, number][];
+            if (encontradas.length === 0) continue;
+
+            const faixa: [number, number] = [
+                Math.min(...encontradas.map(f => f[0])),
+                Math.max(...encontradas.map(f => f[1])),
+            ];
+
+            const divergente = encontradas.some(f => f[0] !== faixa[0] || f[1] !== faixa[1]);
 
             tarefas.push({
                 id: String(t.id),
@@ -105,6 +127,8 @@ export async function carregarTarefasPavimentacao(): Promise<TarefaPavimentacao[
                 unidade: t.unit || null,
                 observacoes: t.observations || null,
                 fotos: Array.isArray(t.photos) ? t.photos.filter((p: unknown) => typeof p === 'string') : [],
+                fontes,
+                divergente,
             });
         }
 
