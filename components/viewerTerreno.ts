@@ -34,6 +34,7 @@ interface CentroGeografico {
     automatica: boolean;
     origem: string;
     ancoraViewer?: { x: number; y: number; z: number };
+    utm?: { easting: number; northing: number; zona: number; sul: boolean };
 }
 
 const CHAVE_CONFIGURACAO = 'elos.viewer.terrenoReal';
@@ -44,17 +45,21 @@ const RAIO_DE_TILES = 1;
 const CONCORRENCIA_TILES = 2;
 const SEGMENTOS = 32;
 const RAIO_TERRA = 6378137;
-const RESOLUCAO_TEXTURA = 2048;
+const RESOLUCAO_TEXTURA_BASE = 2048;
+const RESOLUCAO_TEXTURA_CENTRAL = 4096;
 const OPACIDADE_INICIAL = 0.65;
 const OPACIDADE_MAXIMA = 0.8;
 let lercPronto: Promise<typeof import('lerc')> | null = null;
 
+const IMAGEM_TILE_URL = (z: number, x: number, y: number) =>
+    `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+
 /**
  * Pede ao serviço a mesma área geográfica do tile de relevo, mas renderizada
- * em 2048 px. O tile comum possui só 256 px e ficava borrado ao ser esticado
- * por aproximadamente quatro quilômetros no zoom 13.
+ * em até 4096 px. A área central recebe a resolução máxima; as oito áreas
+ * periféricas permanecem em 2048 px para não saturar a memória de vídeo.
  */
-const IMAGEM_URL = (z: number, x: number, y: number) => {
+const IMAGEM_ALTA_URL = (z: number, x: number, y: number, resolucao: number) => {
     const limite = Math.PI * RAIO_TERRA;
     const tamanho = 2 * limite / 2 ** z;
     const esquerda = -limite + x * tamanho;
@@ -65,7 +70,7 @@ const IMAGEM_URL = (z: number, x: number, y: number) => {
 
     return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export`
         + `?bbox=${bbox}&bboxSR=3857&imageSR=3857`
-        + `&size=${RESOLUCAO_TEXTURA},${RESOLUCAO_TEXTURA}&format=jpg&f=image`;
+        + `&size=${resolucao},${resolucao}&format=jpg&f=image`;
 };
 
 const ELEVACAO_URL = (z: number, x: number, y: number) =>
@@ -230,6 +235,44 @@ function utmParaWgs84(easting: number, northing: number, zona: number, sul: bool
     };
 }
 
+/** Conversão WGS84 para UTM usada para colocar cada vértice no mesmo grid do NWD. */
+function wgs84ParaUtm(latitude: number, longitude: number, zona: number) {
+    const a = 6378137;
+    const ecc = 0.00669438;
+    const k0 = 0.9996;
+    const eccLinha = ecc / (1 - ecc);
+    const latitudeRad = latitude * Math.PI / 180;
+    const longitudeRad = longitude * Math.PI / 180;
+    const longitudeOrigemRad = ((zona - 1) * 6 - 180 + 3) * Math.PI / 180;
+    const sin = Math.sin(latitudeRad);
+    const cos = Math.cos(latitudeRad);
+    const tan = Math.tan(latitudeRad);
+    const n = a / Math.sqrt(1 - ecc * sin ** 2);
+    const t = tan ** 2;
+    const c = eccLinha * cos ** 2;
+    const aa = cos * (longitudeRad - longitudeOrigemRad);
+    const m = a * (
+        (1 - ecc / 4 - 3 * ecc ** 2 / 64 - 5 * ecc ** 3 / 256) * latitudeRad
+        - (3 * ecc / 8 + 3 * ecc ** 2 / 32 + 45 * ecc ** 3 / 1024) * Math.sin(2 * latitudeRad)
+        + (15 * ecc ** 2 / 256 + 45 * ecc ** 3 / 1024) * Math.sin(4 * latitudeRad)
+        - (35 * ecc ** 3 / 3072) * Math.sin(6 * latitudeRad)
+    );
+    const easting = 500000 + k0 * n * (
+        aa
+        + (1 - t + c) * aa ** 3 / 6
+        + (5 - 18 * t + t ** 2 + 72 * c - 58 * eccLinha) * aa ** 5 / 120
+    );
+    let northing = k0 * (
+        m + n * tan * (
+            aa ** 2 / 2
+            + (5 - t + 9 * c + 4 * c ** 2) * aa ** 4 / 24
+            + (61 - 58 * t + t ** 2 + 600 * c - 330 * eccLinha) * aa ** 6 / 720
+        )
+    );
+    if (latitude < 0) northing += 10000000;
+    return { easting, northing };
+}
+
 function centrosOriginaisDoModelo(viewer: any) {
     const caixa = caixaDoModelo(viewer);
     const centro = caixa.getCenter();
@@ -285,6 +328,8 @@ function centroPorUtm(viewer: any): CentroGeografico | null {
         longitude: number;
         score: number;
         ancoraViewer: { x: number; y: number; z: number };
+        easting: number;
+        northing: number;
     } | null = null;
 
     for (const ponto of centrosOriginaisDoModelo(viewer)) {
@@ -299,7 +344,15 @@ function centroPorUtm(viewer: any): CentroGeografico | null {
             if (!coordenadaValida(convertido.latitude, convertido.longitude)) continue;
             const score = Math.abs(convertido.latitude - referencia.latitude) * 1.5
                 + Math.abs(convertido.longitude - referencia.longitude);
-            if (!melhor || score < melhor.score) melhor = { ...convertido, score, ancoraViewer: ponto.ancoraViewer };
+            if (!melhor || score < melhor.score) {
+                melhor = {
+                    ...convertido,
+                    score,
+                    ancoraViewer: ponto.ancoraViewer,
+                    easting: ponto.x,
+                    northing,
+                };
+            }
         }
     }
 
@@ -312,6 +365,7 @@ function centroPorUtm(viewer: any): CentroGeografico | null {
         automatica: true,
         origem: `coordenadas UTM do modelo (${zona}${sul ? 'S' : 'N'})`,
         ancoraViewer: melhor.ancoraViewer,
+        utm: { easting: melhor.easting, northing: melhor.northing, zona, sul },
     };
 }
 
@@ -399,6 +453,15 @@ function latitudeParaTile(latitude: number, zoom: number) {
     return (1 - Math.asinh(Math.tan(rad)) / Math.PI) / 2 * 2 ** zoom;
 }
 
+function tileParaLongitude(x: number, zoom: number) {
+    return x / 2 ** zoom * 360 - 180;
+}
+
+function tileParaLatitude(y: number, zoom: number) {
+    const mercator = Math.PI - 2 * Math.PI * y / 2 ** zoom;
+    return Math.atan(Math.sinh(mercator)) * 180 / Math.PI;
+}
+
 async function carregarElevacao(z: number, x: number, y: number, signal: AbortSignal): Promise<LercData> {
     const resposta = await fetch(ELEVACAO_URL(z, x, y), { signal });
     if (!resposta.ok) throw new Error(`elevação ${z}/${x}/${y} indisponível (${resposta.status})`);
@@ -408,8 +471,18 @@ async function carregarElevacao(z: number, x: number, y: number, signal: AbortSi
     return Lerc.decode(await resposta.arrayBuffer());
 }
 
-async function carregarTextura(THREE: any, z: number, x: number, y: number, signal: AbortSignal) {
-    const resposta = await fetch(IMAGEM_URL(z, x, y), { signal });
+async function carregarTextura(
+    THREE: any,
+    z: number,
+    x: number,
+    y: number,
+    resolucao: number | null,
+    signal: AbortSignal,
+) {
+    const urlImagem = resolucao
+        ? IMAGEM_ALTA_URL(z, x, y, resolucao)
+        : IMAGEM_TILE_URL(z, x, y);
+    const resposta = await fetch(urlImagem, { signal });
     if (!resposta.ok) throw new Error(`imagem ${z}/${x}/${y} indisponível (${resposta.status})`);
 
     const url = URL.createObjectURL(await resposta.blob());
@@ -425,8 +498,10 @@ async function carregarTextura(THREE: any, z: number, x: number, y: number, sign
         abortado(signal);
         const textura = new THREE.Texture(imagem);
         textura.needsUpdate = true;
-        textura.minFilter = THREE.LinearFilter;
+        textura.generateMipmaps = true;
+        textura.minFilter = THREE.LinearMipmapLinearFilter || THREE.LinearMipMapLinearFilter || THREE.LinearFilter;
         textura.magFilter = THREE.LinearFilter;
+        textura.anisotropy = 4;
         return textura;
     } finally {
         URL.revokeObjectURL(url);
@@ -455,10 +530,12 @@ function montarMalha(
     tileXFlutuante: number,
     tileYFlutuante: number,
     tamanhoTile: number,
+    zoom: number,
     metrosPorUnidade: number,
     elevacaoReferencia: number,
     origem: { x: number; y: number; z: number },
     config: ConfiguracaoTerreno,
+    referenciaUtm?: { easting: number; northing: number; zona: number; sul: boolean },
 ) {
     const posicoes: number[] = [];
     const uvs: number[] = [];
@@ -476,8 +553,20 @@ function montarMalha(
             const elevacao = Number.isFinite(elevacaoLida) ? elevacaoLida : ultimaElevacao;
             ultimaElevacao = elevacao;
 
-            const leste = (tileX - tileXFlutuante + u) * tamanhoTile / metrosPorUnidade;
-            const norte = -(tileY - tileYFlutuante + v) * tamanhoTile / metrosPorUnidade;
+            let leste: number;
+            let norte: number;
+            if (referenciaUtm) {
+                const longitude = tileParaLongitude(tileX + u, zoom);
+                const latitude = tileParaLatitude(tileY + v, zoom);
+                const utm = wgs84ParaUtm(latitude, longitude, referenciaUtm.zona);
+                leste = (utm.easting - referenciaUtm.easting) / metrosPorUnidade;
+                norte = (utm.northing - referenciaUtm.northing) / metrosPorUnidade;
+            } else {
+                // Reserva para modelos encontrados por latitude/longitude, sem
+                // coordenadas UTM originais disponíveis.
+                leste = (tileX - tileXFlutuante + u) * tamanhoTile / metrosPorUnidade;
+                norte = -(tileY - tileYFlutuante + v) * tamanhoTile / metrosPorUnidade;
+            }
             const x = leste * cos - norte * sin;
             const y = leste * sin + norte * cos;
 
@@ -573,6 +662,8 @@ export async function instalarTerrenoReal(
     if (viewer.overlays?.addScene) viewer.overlays.addScene(cena);
     else viewer.impl.createOverlayScene(cena);
     const malhas: any[] = [];
+    const detalhesMalhas: Array<{ malha: any; dx: number; dy: number; x: number; y: number }> = [];
+    const controleAltaResolucao = new AbortController();
     let removido = false;
     const definirOpacidade = (valor: number) => {
         // Mantém ao menos 20% de transparência para que o terreno nunca tape
@@ -590,6 +681,7 @@ export async function instalarTerrenoReal(
     const remover = () => {
         if (removido) return;
         removido = true;
+        controleAltaResolucao.abort();
         for (const malha of malhas) {
             try {
                 if (viewer.overlays?.removeMesh) viewer.overlays.removeMesh(malha, cena);
@@ -622,7 +714,9 @@ export async function instalarTerrenoReal(
                 const { dx, dy, x, y } = tiles[cursor++];
                 const [dados, textura] = await Promise.all([
                     dx === 0 && dy === 0 ? central : carregarElevacao(zoom, x, y, signal),
-                    carregarTextura(THREE, zoom, x, y, signal),
+                    // O tile de 256 px aparece rapidamente. A substituição por
+                    // alta resolução acontece em segundo plano após a montagem.
+                    carregarTextura(THREE, zoom, x, y, null, signal),
                 ]);
                 abortado(signal);
                 if (removido) { textura.dispose?.(); return; }
@@ -630,10 +724,11 @@ export async function instalarTerrenoReal(
                     THREE, dados, textura,
                     tileCentralX + dx, tileCentralY + dy,
                     tileXFlutuante, tileYFlutuante,
-                    tamanhoTile, metrosPorUnidade, elevacaoReferencia,
-                    origem, config,
+                    tamanhoTile, zoom, metrosPorUnidade, elevacaoReferencia,
+                    origem, config, centro.utm,
                 );
                 malhas.push(malha);
+                detalhesMalhas.push({ malha, dx, dy, x, y });
                 if (viewer.overlays?.addMesh) viewer.overlays.addMesh(malha, cena);
                 else viewer.impl.addOverlay(cena, malha);
                 viewer.impl.invalidate?.(false, false, true);
@@ -647,6 +742,38 @@ export async function instalarTerrenoReal(
         await Promise.all(Array.from({ length: CONCORRENCIA_TILES }, () => trabalhador()));
         abortado(signal);
         viewer.impl.invalidate?.(true, true, true);
+
+        // Prioriza o centro e melhora uma textura por vez. O usuário já pode
+        // navegar enquanto a imagem ganha definição, sem uma tela bloqueada.
+        const aprimorarTexturas = async () => {
+            const ordenadas = [...detalhesMalhas].sort((a, b) =>
+                Math.hypot(a.dx, a.dy) - Math.hypot(b.dx, b.dy));
+            for (const detalhe of ordenadas) {
+                if (removido || controleAltaResolucao.signal.aborted) return;
+                const resolucao = detalhe.dx === 0 && detalhe.dy === 0
+                    ? RESOLUCAO_TEXTURA_CENTRAL
+                    : RESOLUCAO_TEXTURA_BASE;
+                try {
+                    const textura = await carregarTextura(
+                        THREE, zoom, detalhe.x, detalhe.y, resolucao,
+                        controleAltaResolucao.signal,
+                    );
+                    if (removido) { textura.dispose?.(); return; }
+                    const anterior = detalhe.malha.material.map;
+                    detalhe.malha.material.map = textura;
+                    detalhe.malha.material.needsUpdate = true;
+                    detalhe.malha.userData.elosResolucaoTextura = resolucao;
+                    anterior?.dispose?.();
+                    viewer.impl.invalidate?.(false, false, true);
+                } catch {
+                    if (controleAltaResolucao.signal.aborted) return;
+                    // Mantém o tile rápido já visível caso a versão detalhada
+                    // esteja temporariamente indisponível.
+                }
+                await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+            }
+        };
+        void aprimorarTexturas();
 
         return {
             latitude: centro.latitude,
