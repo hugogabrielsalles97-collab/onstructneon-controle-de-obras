@@ -41,15 +41,17 @@ const CENA = 'elos-terreno-real';
 // 3 × 3 cobre aproximadamente 12 km neste projeto e mantém tablets/celulares
 // responsivos. O carregamento anterior de 5 × 5 decodificava 25 relevos.
 const RAIO_DE_TILES = 1;
-const CONCORRENCIA_TILES = 3;
+const CONCORRENCIA_TILES = 2;
 const SEGMENTOS = 32;
 const RAIO_TERRA = 6378137;
-const RESOLUCAO_TEXTURA = 1024;
+const RESOLUCAO_TEXTURA = 2048;
+const OPACIDADE_INICIAL = 0.65;
+const OPACIDADE_MAXIMA = 0.8;
 let lercPronto: Promise<typeof import('lerc')> | null = null;
 
 /**
  * Pede ao serviço a mesma área geográfica do tile de relevo, mas renderizada
- * em 1024 px. O tile comum possui só 256 px e ficava borrado ao ser esticado
+ * em 2048 px. O tile comum possui só 256 px e ficava borrado ao ser esticado
  * por aproximadamente quatro quilômetros no zoom 13.
  */
 const IMAGEM_URL = (z: number, x: number, y: number) => {
@@ -510,8 +512,15 @@ function montarMalha(
     const material = new THREE.MeshBasicMaterial({
         map: textura,
         side: THREE.DoubleSide,
-        opacity: 1,
-        transparent: false,
+        // Apenas esta malha recebe transparência. O material do NWD nunca é
+        // alterado, portanto a modelagem permanece opaca e legível.
+        opacity: OPACIDADE_INICIAL,
+        transparent: true,
+        depthTest: true,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: 1,
+        polygonOffsetUnits: 1,
     });
     const malha = new THREE.Mesh(geometria, material);
     malha.frustumCulled = false;
@@ -566,12 +575,14 @@ export async function instalarTerrenoReal(
     const malhas: any[] = [];
     let removido = false;
     const definirOpacidade = (valor: number) => {
-        const opacidade = Math.min(1, Math.max(0, Number.isFinite(valor) ? valor : 1));
+        // Mantém ao menos 20% de transparência para que o terreno nunca tape
+        // por completo a modelagem em regiões de corte ou sobreposição.
+        const opacidade = Math.min(OPACIDADE_MAXIMA, Math.max(0, Number.isFinite(valor) ? valor : OPACIDADE_INICIAL));
         for (const malha of malhas) {
             const material = malha.material;
             material.opacity = opacidade;
-            material.transparent = opacidade < 0.999;
-            material.depthWrite = opacidade >= 0.999;
+            material.transparent = true;
+            material.depthWrite = false;
             material.needsUpdate = true;
         }
         viewer.impl.invalidate?.(true, true, true);

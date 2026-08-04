@@ -152,8 +152,8 @@ const ModelViewer: React.FC = () => {
     const [selecao, setSelecao] = useState<SelecaoElemento | null>(null);
 
     const [terrenoLigado, setTerrenoLigado] = useState(false);
-    const [opacidadeTerreno, setOpacidadeTerreno] = useState(100);
-    const opacidadeTerrenoRef = useRef(100);
+    const [opacidadeTerreno, setOpacidadeTerreno] = useState(65);
+    const opacidadeTerrenoRef = useRef(65);
     const [terrenoCarregando, setTerrenoCarregando] = useState(false);
     const [erroTerreno, setErroTerreno] = useState<string | null>(null);
     const [centroTerreno, setCentroTerreno] = useState<{ latitude: number; longitude: number; automatico: boolean; origem: string } | null>(null);
@@ -309,7 +309,9 @@ const ModelViewer: React.FC = () => {
     };
 
     const ajustarOpacidadeTerreno = (valor: number) => {
-        const opacidade = Math.min(100, Math.max(0, Math.round(valor)));
+        // O terreno conserva no mínimo 20% de transparência para não ocultar
+        // completamente nenhuma parte da modelagem.
+        const opacidade = Math.min(80, Math.max(0, Math.round(valor)));
         opacidadeTerrenoRef.current = opacidade;
         setOpacidadeTerreno(opacidade);
         terrenoRef.current?.definirOpacidade(opacidade / 100);
