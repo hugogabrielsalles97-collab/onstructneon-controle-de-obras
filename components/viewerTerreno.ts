@@ -23,7 +23,15 @@ export interface TerrenoInstalado {
     latitude: number;
     longitude: number;
     localizacaoAutomatica: boolean;
+    origemLocalizacao: string;
     remover: () => void;
+}
+
+interface CentroGeografico {
+    latitude: number;
+    longitude: number;
+    automatica: boolean;
+    origem: string;
 }
 
 const CHAVE_CONFIGURACAO = 'elos.viewer.terrenoReal';
@@ -92,6 +100,205 @@ const abortado = (signal: AbortSignal) => {
     if (signal.aborted) throw new DOMException('Operação cancelada.', 'AbortError');
 };
 
+const numero = (valor: unknown) => {
+    if (typeof valor === 'number') return Number.isFinite(valor) ? valor : null;
+    if (typeof valor !== 'string') return null;
+    const convertido = Number(valor.trim().replace(',', '.'));
+    return Number.isFinite(convertido) ? convertido : null;
+};
+
+const coordenadaValida = (latitude: number, longitude: number) =>
+    Number.isFinite(latitude) && Number.isFinite(longitude)
+    && Math.abs(latitude) <= 85 && Math.abs(longitude) <= 180;
+
+/** Procura pares latitude/longitude nos metadados, sem depender do nome exato das chaves. */
+function procurarLonLat(valor: unknown, profundidade = 0): { latitude: number; longitude: number } | null {
+    if (!valor || typeof valor !== 'object' || profundidade > 7) return null;
+
+    const objeto = valor as Record<string, unknown>;
+    const entradas = Object.entries(objeto);
+    const latitude = entradas.find(([chave]) => /^(lat|latitude)$/i.test(chave.trim()));
+    const longitude = entradas.find(([chave]) => /^(lon|lng|long|longitude)$/i.test(chave.trim()));
+    const lat = numero(latitude?.[1]);
+    const lon = numero(longitude?.[1]);
+    if (lat !== null && lon !== null && coordenadaValida(lat, lon)) return { latitude: lat, longitude: lon };
+
+    for (const [, filho] of entradas) {
+        const encontrado = procurarLonLat(filho, profundidade + 1);
+        if (encontrado) return encontrado;
+    }
+    return null;
+}
+
+const UFS: Record<string, { latitude: number; longitude: number }> = {
+    AC: { latitude: -9.0, longitude: -70.0 }, AL: { latitude: -9.6, longitude: -36.6 },
+    AP: { latitude: 1.0, longitude: -52.0 }, AM: { latitude: -4.0, longitude: -64.5 },
+    BA: { latitude: -12.5, longitude: -41.5 }, CE: { latitude: -5.2, longitude: -39.5 },
+    DF: { latitude: -15.8, longitude: -47.9 }, ES: { latitude: -19.6, longitude: -40.5 },
+    GO: { latitude: -15.9, longitude: -49.3 }, MA: { latitude: -5.0, longitude: -45.0 },
+    MT: { latitude: -12.7, longitude: -55.7 }, MS: { latitude: -20.4, longitude: -54.6 },
+    MG: { latitude: -18.5, longitude: -44.0 }, PA: { latitude: -4.0, longitude: -52.0 },
+    PB: { latitude: -7.1, longitude: -36.8 }, PR: { latitude: -24.5, longitude: -51.5 },
+    PE: { latitude: -8.4, longitude: -37.9 }, PI: { latitude: -7.7, longitude: -42.7 },
+    RJ: { latitude: -22.3, longitude: -42.9 }, RN: { latitude: -5.8, longitude: -36.6 },
+    RS: { latitude: -30.0, longitude: -53.0 }, RO: { latitude: -10.8, longitude: -63.0 },
+    RR: { latitude: 2.0, longitude: -61.0 }, SC: { latitude: -27.0, longitude: -50.5 },
+    SP: { latitude: -22.2, longitude: -47.2 }, SE: { latitude: -10.6, longitude: -37.4 },
+    TO: { latitude: -10.2, longitude: -48.3 },
+};
+
+function nomeDoModelo(viewer: any) {
+    const no = viewer?.model?.getDocumentNode?.();
+    const nomes = [
+        typeof no?.name === 'function' ? no.name() : no?.name,
+        no?.data?.name,
+        viewer?.model?.getData?.()?.name,
+        viewer?.model?.getData?.()?.loadOptions?.modelNameOverride,
+    ];
+    return nomes.find(valor => typeof valor === 'string' && valor.trim())?.trim() || '';
+}
+
+function ufDoNome(nome: string) {
+    const normalizado = nome.toUpperCase();
+    for (const uf of Object.keys(UFS)) {
+        // Aceita tanto "116RJ-218" quanto "BR-116-RJ-218", evitando letras
+        // soltas dentro de outras palavras do nome do arquivo.
+        if (new RegExp(`(?:\\d{2,3}|[-_ ])${uf}(?:[-_ 0-9]|$)`).test(normalizado)) return uf;
+    }
+    return null;
+}
+
+/** Conversão inversa WGS84 UTM, suficiente para posicionar o centro dos tiles. */
+function utmParaWgs84(easting: number, northing: number, zona: number, sul: boolean) {
+    const a = 6378137;
+    const ecc = 0.00669438;
+    const k0 = 0.9996;
+    const eccLinha = ecc / (1 - ecc);
+    const e1 = (1 - Math.sqrt(1 - ecc)) / (1 + Math.sqrt(1 - ecc));
+    const x = easting - 500000;
+    const y = sul ? northing - 10000000 : northing;
+    const m = y / k0;
+    const mu = m / (a * (1 - ecc / 4 - 3 * ecc ** 2 / 64 - 5 * ecc ** 3 / 256));
+    const phi1 = mu
+        + (3 * e1 / 2 - 27 * e1 ** 3 / 32) * Math.sin(2 * mu)
+        + (21 * e1 ** 2 / 16 - 55 * e1 ** 4 / 32) * Math.sin(4 * mu)
+        + (151 * e1 ** 3 / 96) * Math.sin(6 * mu)
+        + (1097 * e1 ** 4 / 512) * Math.sin(8 * mu);
+    const n1 = a / Math.sqrt(1 - ecc * Math.sin(phi1) ** 2);
+    const t1 = Math.tan(phi1) ** 2;
+    const c1 = eccLinha * Math.cos(phi1) ** 2;
+    const r1 = a * (1 - ecc) / (1 - ecc * Math.sin(phi1) ** 2) ** 1.5;
+    const d = x / (n1 * k0);
+    const latitudeRad = phi1 - (n1 * Math.tan(phi1) / r1) * (
+        d ** 2 / 2
+        - (5 + 3 * t1 + 10 * c1 - 4 * c1 ** 2 - 9 * eccLinha) * d ** 4 / 24
+        + (61 + 90 * t1 + 298 * c1 + 45 * t1 ** 2 - 252 * eccLinha - 3 * c1 ** 2) * d ** 6 / 720
+    );
+    const longitudeOrigem = (zona - 1) * 6 - 180 + 3;
+    const longitudeRad = (
+        d - (1 + 2 * t1 + c1) * d ** 3 / 6
+        + (5 - 2 * c1 + 28 * t1 - 3 * c1 ** 2 + 8 * eccLinha + 24 * t1 ** 2) * d ** 5 / 120
+    ) / Math.cos(phi1);
+
+    return {
+        latitude: latitudeRad * 180 / Math.PI,
+        longitude: longitudeOrigem + longitudeRad * 180 / Math.PI,
+    };
+}
+
+function centrosOriginaisDoModelo(viewer: any) {
+    const caixa = caixaDoModelo(viewer);
+    const centro = caixa.getCenter();
+    const candidatos: Array<{ x: number; y: number }> = [];
+    const incluir = (ponto: any) => {
+        const x = numero(ponto?.x);
+        const y = numero(ponto?.y);
+        if (x !== null && y !== null && !candidatos.some(p => Math.abs(p.x - x) < 0.01 && Math.abs(p.y - y) < 0.01)) {
+            candidatos.push({ x, y });
+        }
+    };
+
+    incluir(centro);
+    try {
+        const inversa = viewer.model?.getInverseModelToViewerTransform?.();
+        if (inversa && (window as any).THREE) {
+            incluir(new (window as any).THREE.Vector3(centro.x, centro.y, centro.z).applyMatrix4(inversa));
+        }
+    } catch { /* transformação ausente */ }
+
+    const offset = viewer.model?.getData?.()?.globalOffset;
+    incluir(offset);
+    if (offset) incluir({ x: centro.x + Number(offset.x || 0), y: centro.y + Number(offset.y || 0) });
+    return candidatos;
+}
+
+function centroPorUtm(viewer: any): CentroGeografico | null {
+    const nome = nomeDoModelo(viewer);
+    const uf = ufDoNome(nome);
+    if (!uf) return null;
+
+    const referencia = UFS[uf];
+    const zona = Math.floor((referencia.longitude + 180) / 6) + 1;
+    const sul = referencia.latitude < 0;
+    let melhor: { latitude: number; longitude: number; score: number } | null = null;
+
+    for (const ponto of centrosOriginaisDoModelo(viewer)) {
+        if (ponto.x < 100000 || ponto.x > 900000) continue;
+        const northings = ponto.y >= 1000000
+            ? [ponto.y]
+            : [6, 7, 8, 9].map(milhao => ponto.y + milhao * 1000000);
+
+        for (const northing of northings) {
+            if (northing < 0 || northing > 10000000) continue;
+            const convertido = utmParaWgs84(ponto.x, northing, zona, sul);
+            if (!coordenadaValida(convertido.latitude, convertido.longitude)) continue;
+            const score = Math.abs(convertido.latitude - referencia.latitude) * 1.5
+                + Math.abs(convertido.longitude - referencia.longitude);
+            if (!melhor || score < melhor.score) melhor = { ...convertido, score };
+        }
+    }
+
+    // Impede que uma coordenada cartesiana qualquer seja aceita só porque
+    // numericamente cabe na faixa UTM do estado.
+    if (!melhor || melhor.score > 7) return null;
+    return {
+        latitude: melhor.latitude,
+        longitude: melhor.longitude,
+        automatica: true,
+        origem: `coordenadas UTM do modelo (${zona}${sul ? 'S' : 'N'})`,
+    };
+}
+
+async function centroPorAec(viewer: any): Promise<CentroGeografico | null> {
+    try {
+        const no = viewer.model?.getDocumentNode?.();
+        let aec = no?.getAecModelData?.();
+        if (!aec && no && window.Autodesk?.Viewing?.Document?.getAecModelData) {
+            aec = await window.Autodesk.Viewing.Document.getAecModelData(no);
+        }
+        const encontrado = procurarLonLat(aec);
+        return encontrado ? { ...encontrado, automatica: true, origem: 'metadados AEC do modelo' } : null;
+    } catch {
+        return null;
+    }
+}
+
+function centroPeloDispositivo(): Promise<CentroGeografico | null> {
+    if (!navigator.geolocation) return Promise.resolve(null);
+    return new Promise(resolve => {
+        navigator.geolocation.getCurrentPosition(
+            posicao => resolve({
+                latitude: posicao.coords.latitude,
+                longitude: posicao.coords.longitude,
+                automatica: true,
+                origem: 'localização do dispositivo',
+            }),
+            () => resolve(null),
+            { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 },
+        );
+    });
+}
+
 function caixaDoModelo(viewer: any) {
     const caixa = viewer?.model?.getBoundingBox?.();
     if (!caixa || !Number.isFinite(caixa.min?.x) || !Number.isFinite(caixa.max?.x)) {
@@ -105,25 +312,38 @@ async function resolverCentro(viewer: any, config: ConfiguracaoTerreno) {
         throw new Error('Informe latitude e longitude juntas ou deixe ambas vazias para a detecção automática.');
     }
     if (config.latitude !== null && config.longitude !== null) {
-        return { latitude: config.latitude, longitude: config.longitude, automatica: false };
+        return { latitude: config.latitude, longitude: config.longitude, automatica: false, origem: 'coordenadas informadas' };
     }
 
     try {
         const extensao = await viewer.loadExtension?.('Autodesk.Geolocation');
         const centro = caixaDoModelo(viewer).getCenter();
-        const geograficas = extensao?.lmvToLonLat?.(centro);
+        const possuiDados = extensao?.hasGeolocationData?.();
+        const geograficas = possuiDados === false ? null : extensao?.lmvToLonLat?.(centro);
         const longitude = Number(geograficas?.x ?? geograficas?.[0]);
         const latitude = Number(geograficas?.y ?? geograficas?.[1]);
 
-        if (Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 85 && Math.abs(longitude) <= 180) {
-            return { latitude, longitude, automatica: true };
+        if (coordenadaValida(latitude, longitude)) {
+            return { latitude, longitude, automatica: true, origem: 'georreferenciamento APS' };
         }
     } catch {
         // Alguns NWDs não carregam metadados geográficos. A entrada manual
         // abaixo continua disponível e é mais segura que adivinhar o local.
     }
 
-    throw new Error('O modelo não possui georreferenciamento detectável. Informe latitude e longitude do centro da obra.');
+    const metadadosDiretos = procurarLonLat(viewer.model?.getData?.());
+    if (metadadosDiretos) return { ...metadadosDiretos, automatica: true, origem: 'metadados do modelo' };
+
+    const aec = await centroPorAec(viewer);
+    if (aec) return aec;
+
+    const utm = centroPorUtm(viewer);
+    if (utm) return utm;
+
+    const dispositivo = await centroPeloDispositivo();
+    if (dispositivo) return dispositivo;
+
+    throw new Error('Não foi possível obter a localização automaticamente. Autorize a localização do navegador e tente novamente.');
 }
 
 function longitudeParaTile(longitude: number, zoom: number) {
@@ -349,6 +569,7 @@ export async function instalarTerrenoReal(
             latitude: centro.latitude,
             longitude: centro.longitude,
             localizacaoAutomatica: centro.automatica,
+            origemLocalizacao: centro.origem,
             remover,
         };
     } catch (erro) {

@@ -152,7 +152,7 @@ const ModelViewer: React.FC = () => {
     const [terrenoLigado, setTerrenoLigado] = useState(false);
     const [terrenoCarregando, setTerrenoCarregando] = useState(false);
     const [erroTerreno, setErroTerreno] = useState<string | null>(null);
-    const [centroTerreno, setCentroTerreno] = useState<{ latitude: number; longitude: number; automatico: boolean } | null>(null);
+    const [centroTerreno, setCentroTerreno] = useState<{ latitude: number; longitude: number; automatico: boolean; origem: string } | null>(null);
     const [configuracaoTerreno, setConfiguracaoTerreno] = useState<ConfiguracaoTerreno>(() => lerConfiguracaoTerreno());
     const terrenoRef = useRef<TerrenoInstalado | null>(null);
     const terrenoAbortRef = useRef<AbortController | null>(null);
@@ -269,6 +269,7 @@ const ModelViewer: React.FC = () => {
                 latitude: instalado.latitude,
                 longitude: instalado.longitude,
                 automatico: instalado.localizacaoAutomatica,
+                origem: instalado.origemLocalizacao,
             });
         } catch (err) {
             if (pedido !== terrenoPedidoRef.current || controller.signal.aborted) return;

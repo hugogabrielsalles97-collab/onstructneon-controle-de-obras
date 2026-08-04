@@ -169,7 +169,7 @@ interface Props {
     terrenoLigado: boolean;
     terrenoCarregando: boolean;
     erroTerreno: string | null;
-    centroTerreno: { latitude: number; longitude: number; automatico: boolean } | null;
+    centroTerreno: { latitude: number; longitude: number; automatico: boolean; origem: string } | null;
     configuracaoTerreno: ConfiguracaoTerreno;
     onAlternarTerreno: (ligado: boolean) => void;
     onAlterarConfiguracaoTerreno: (config: ConfiguracaoTerreno) => void;
@@ -346,7 +346,7 @@ const ViewerCamadas: React.FC<Props> = ({
                 {terrenoLigado && (
                     <div className="mt-2 rounded border border-gray-800 bg-gray-950/50 p-2">
                         <p className="text-[9px] leading-4 text-gray-500">
-                            Deixe as coordenadas vazias para usar o georreferenciamento do arquivo.
+                            A localização é detectada automaticamente pelo modelo. Os campos abaixo são apenas para ajuste manual.
                         </p>
 
                         <div className="mt-1.5 grid grid-cols-2 gap-1.5">
@@ -410,7 +410,7 @@ const ViewerCamadas: React.FC<Props> = ({
                         {centroTerreno && !erroTerreno && (
                             <p className="mt-1.5 text-[9px] text-emerald-500/80">
                                 Centro {centroTerreno.latitude.toFixed(6)}, {centroTerreno.longitude.toFixed(6)}
-                                {centroTerreno.automatico ? ' · detectado no modelo' : ''}
+                                {centroTerreno.automatico ? ` · ${centroTerreno.origem}` : ''}
                             </p>
                         )}
                         {erroTerreno && <p className="mt-1.5 text-[9px] leading-4 text-red-400">{erroTerreno}</p>}
