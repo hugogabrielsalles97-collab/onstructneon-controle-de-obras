@@ -12,7 +12,7 @@ import { lerPropriedades } from './viewerPropriedades';
 import ViewerInfoElemento, { SelecaoElemento } from './ViewerInfoElemento';
 import {
     CONFIGURACAO_TERRENO_PADRAO, ConfiguracaoTerreno, TerrenoInstalado,
-    instalarTerrenoReal,
+    instalarTerrenoReal, lerConfiguracaoTerreno, gravarConfiguracaoTerreno,
 } from './viewerTerreno';
 
 /**
@@ -157,6 +157,8 @@ const ModelViewer: React.FC = () => {
     const [terrenoCarregando, setTerrenoCarregando] = useState(false);
     const [erroTerreno, setErroTerreno] = useState<string | null>(null);
     const [centroTerreno, setCentroTerreno] = useState<{ latitude: number; longitude: number; automatico: boolean; origem: string } | null>(null);
+    const [configTerreno, setConfigTerreno] = useState<ConfiguracaoTerreno>(() => lerConfiguracaoTerreno());
+    const configTerrenoRef = useRef(configTerreno);
     const terrenoRef = useRef<TerrenoInstalado | null>(null);
     const terrenoAbortRef = useRef<AbortController | null>(null);
     const terrenoPedidoRef = useRef(0);
@@ -304,9 +306,35 @@ const ModelViewer: React.FC = () => {
     const alternarTerreno = (ligado: boolean) => {
         setTerrenoLigado(ligado);
         setErroTerreno(null);
-        if (ligado) void aplicarTerreno({ ...CONFIGURACAO_TERRENO_PADRAO });
+        if (ligado) void aplicarTerreno(configTerrenoRef.current);
         else removerTerreno();
     };
+
+    /**
+     * Calibração fina do encaixe entre modelagem e ortofoto.
+     *
+     * Deslocamento e rotação só movem os vértices já carregados, então valem na
+     * hora. Trocar o datum muda a projeção das coordenadas do projeto e exige
+     * refazer o terreno.
+     */
+    const ajustarTerreno = (mudanca: Partial<ConfiguracaoTerreno>) => {
+        const proximo = { ...configTerrenoRef.current, ...mudanca };
+        configTerrenoRef.current = proximo;
+        setConfigTerreno(proximo);
+        gravarConfiguracaoTerreno(proximo);
+
+        if (!terrenoLigado) return;
+        if (mudanca.datum !== undefined || mudanca.zoom !== undefined) void aplicarTerreno(proximo);
+        else terrenoRef.current?.ajustar(proximo);
+    };
+
+    const zerarAjusteTerreno = () => ajustarTerreno({
+        deslocamentoX: 0,
+        deslocamentoY: 0,
+        deslocamentoZ: 0,
+        rotacao: 0,
+        datum: CONFIGURACAO_TERRENO_PADRAO.datum,
+    });
 
     const ajustarOpacidadeTerreno = (valor: number) => {
         // O terreno conserva no mínimo 20% de transparência para não ocultar
@@ -558,6 +586,9 @@ const ModelViewer: React.FC = () => {
                     onAlternarTerreno={alternarTerreno}
                     opacidadeTerreno={opacidadeTerreno}
                     onMudarOpacidadeTerreno={ajustarOpacidadeTerreno}
+                    configTerreno={configTerreno}
+                    onAjustarTerreno={ajustarTerreno}
+                    onZerarAjusteTerreno={zerarAjusteTerreno}
                 />
             )}
 

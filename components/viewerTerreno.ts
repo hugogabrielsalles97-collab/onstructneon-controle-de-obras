@@ -9,14 +9,21 @@ import lercWasmUrl from 'lerc/lerc-wasm.wasm?url';
  * modelo, da seleção, dos presets ou da pintura de avanço.
  */
 
+/** Datum horizontal do levantamento que originou as coordenadas do modelo. */
+export type DatumTerreno = 'auto' | 'sirgas2000' | 'sad69';
+
 export interface ConfiguracaoTerreno {
     latitude: number | null;
     longitude: number | null;
     zoom: number;
+    /** Deslocamento fino para leste, em metros. */
     deslocamentoX: number;
+    /** Deslocamento fino para norte, em metros. */
     deslocamentoY: number;
+    /** Deslocamento fino de cota, em metros. */
     deslocamentoZ: number;
     rotacao: number;
+    datum: DatumTerreno;
 }
 
 export interface TerrenoInstalado {
@@ -24,7 +31,16 @@ export interface TerrenoInstalado {
     longitude: number;
     localizacaoAutomatica: boolean;
     origemLocalizacao: string;
+    /** Datum efetivamente usado, já resolvido quando a configuração é 'auto'. */
+    datumUsado: Exclude<DatumTerreno, 'auto'>;
     definirOpacidade: (opacidade: number) => void;
+    /**
+     * Reposiciona o terreno já carregado com uma nova calibração.
+     *
+     * Reaproveita relevo e texturas em memória: o ajuste fino é imediato e não
+     * refaz nenhuma requisição, o que torna viável acertar o encaixe na mão.
+     */
+    ajustar: (config: ConfiguracaoTerreno) => void;
     remover: () => void;
 }
 
@@ -41,7 +57,11 @@ interface CentroGeografico {
         sul: boolean;
         datum: 'sirgas2000' | 'sad69';
     };
-    /** Offset Z aplicado pelo Viewer às coordenadas absolutas do NWD. */
+    /**
+     * Quanto a cota do modelo excede a cota do Viewer no ponto de âncora
+     * (zModelo − zViewer). É o que permite plantar o terreno na elevação real
+     * do solo em vez de numa altura arbitrária.
+     */
     offsetVerticalModelo?: number;
 }
 
@@ -102,10 +122,19 @@ export const CONFIGURACAO_TERRENO_PADRAO: ConfiguracaoTerreno = {
     deslocamentoY: 0,
     deslocamentoZ: 0,
     rotacao: 0,
+    datum: 'auto',
 };
+
+/** Limite do ajuste fino: além disso o erro é de georreferenciamento, não de calibração. */
+export const LIMITE_DESLOCAMENTO = 500;
 
 const numeroFinito = (valor: unknown, padrao: number) =>
     typeof valor === 'number' && Number.isFinite(valor) ? valor : padrao;
+
+const limitar = (valor: number, limite: number) => Math.min(limite, Math.max(-limite, valor));
+
+const datumValido = (valor: unknown): DatumTerreno =>
+    valor === 'sirgas2000' || valor === 'sad69' ? valor : 'auto';
 
 const coordenadaOuNula = (valor: unknown, minimo: number, maximo: number) =>
     typeof valor === 'number' && Number.isFinite(valor) && valor >= minimo && valor <= maximo
@@ -119,10 +148,11 @@ export function lerConfiguracaoTerreno(): ConfiguracaoTerreno {
             latitude: coordenadaOuNula(salvo.latitude, -85, 85),
             longitude: coordenadaOuNula(salvo.longitude, -180, 180),
             zoom: Math.round(Math.min(16, Math.max(11, numeroFinito(salvo.zoom, 13)))),
-            deslocamentoX: numeroFinito(salvo.deslocamentoX, 0),
-            deslocamentoY: numeroFinito(salvo.deslocamentoY, 0),
-            deslocamentoZ: numeroFinito(salvo.deslocamentoZ, 0),
-            rotacao: numeroFinito(salvo.rotacao, 0),
+            deslocamentoX: limitar(numeroFinito(salvo.deslocamentoX, 0), LIMITE_DESLOCAMENTO),
+            deslocamentoY: limitar(numeroFinito(salvo.deslocamentoY, 0), LIMITE_DESLOCAMENTO),
+            deslocamentoZ: limitar(numeroFinito(salvo.deslocamentoZ, 0), LIMITE_DESLOCAMENTO),
+            rotacao: limitar(numeroFinito(salvo.rotacao, 0), 180),
+            datum: datumValido(salvo.datum),
         };
     } catch {
         return { ...CONFIGURACAO_TERRENO_PADRAO };
@@ -401,33 +431,64 @@ function wgs84ParaUtmModelo(
     );
 }
 
+/**
+ * Pares "coordenada original do projeto ↔ ponto correspondente no Viewer".
+ *
+ * O par precisa ser coerente nos três eixos: é ele que diz onde plantar o
+ * terreno. Cada candidato carrega o próprio `offsetVerticalModelo`
+ * (zModelo − zViewer) — sem isso o terreno acaba na altura do meio da caixa do
+ * federado, centenas de metros acima do solo, e numa vista inclinada esse erro
+ * de cota aparece como se a ortofoto estivesse deslocada no plano.
+ *
+ * A ordem importa: `incluir` descarta repetições, então o candidato mais
+ * confiável precisa entrar primeiro.
+ */
 function centrosOriginaisDoModelo(viewer: any) {
     const caixa = caixaDoModelo(viewer);
     const centro = caixa.getCenter();
+    const offset = viewer.model?.getData?.()?.globalOffset;
     const candidatos: Array<{
         x: number;
         y: number;
         ancoraViewer: { x: number; y: number; z: number };
-        offsetVerticalModelo?: number;
+        offsetVerticalModelo: number;
     }> = [];
-    const incluir = (ponto: any, ancoraViewer: any, offsetVerticalModelo?: number) => {
-        const x = numero(ponto?.x);
-        const y = numero(ponto?.y);
-        if (x !== null && y !== null && !candidatos.some(p => Math.abs(p.x - x) < 0.01 && Math.abs(p.y - y) < 0.01)) {
-            candidatos.push({
-                x,
-                y,
-                ancoraViewer: {
-                    x: Number(ancoraViewer?.x || 0),
-                    y: Number(ancoraViewer?.y || 0),
-                    z: Number(ancoraViewer?.z || 0),
-                },
-                offsetVerticalModelo,
-            });
-        }
+
+    const incluir = (pontoModelo: any, ancoraViewer: any) => {
+        const x = numero(pontoModelo?.x);
+        const y = numero(pontoModelo?.y);
+        if (x === null || y === null) return;
+        if (candidatos.some(p => Math.abs(p.x - x) < 0.01 && Math.abs(p.y - y) < 0.01)) return;
+
+        const zViewer = Number(ancoraViewer?.z || 0);
+        candidatos.push({
+            x,
+            y,
+            ancoraViewer: {
+                x: Number(ancoraViewer?.x || 0),
+                y: Number(ancoraViewer?.y || 0),
+                z: zViewer,
+            },
+            offsetVerticalModelo: (numero(pontoModelo?.z) ?? zViewer) - zViewer,
+        });
     };
 
-    incluir(centro, centro);
+    // 1) globalOffset é a própria origem do projeto dentro do Viewer, declarada
+    //    pelo carregador. Não depende da caixa do federado, que traz referências
+    //    espalhadas por centenas de quilômetros.
+    if (offset) {
+        incluir(offset, { x: 0, y: 0, z: 0 });
+        incluir(
+            {
+                x: centro.x + Number(offset.x || 0),
+                y: centro.y + Number(offset.y || 0),
+                z: centro.z + Number(offset.z || 0),
+            },
+            centro,
+        );
+    }
+
+    // 2) A transformação inversa chega ao mesmo lugar quando existe.
     try {
         const inversa = viewer.model?.getInverseModelToViewerTransform?.();
         if (inversa && (window as any).THREE) {
@@ -435,29 +496,27 @@ function centrosOriginaisDoModelo(viewer: any) {
         }
     } catch { /* transformação ausente */ }
 
-    const offset = viewer.model?.getData?.()?.globalOffset;
-    const alvo = viewer.navigation?.getTarget?.();
-    const alvoPertoDaOrigem = alvo && Math.hypot(Number(alvo.x || 0), Number(alvo.y || 0)) < 30000;
-    const ancoraOffset = { x: 0, y: 0, z: alvoPertoDaOrigem ? Number(alvo.z || 0) : 0 };
-    incluir(offset, ancoraOffset, numero(offset?.z) ?? undefined);
-    if (offset) {
-        incluir(
-            { x: centro.x + Number(offset.x || 0), y: centro.y + Number(offset.y || 0) },
-            centro,
-        );
-    }
+    // 3) Último recurso: modelo carregado sem deslocamento nenhum.
+    incluir(centro, centro);
+
     return candidatos;
 }
 
-function centroPorUtm(viewer: any): CentroGeografico | null {
+function centroPorUtm(viewer: any, config: ConfiguracaoTerreno): CentroGeografico | null {
     const nome = nomeDoModelo(viewer);
     const uf = ufDoNome(nome);
     if (!uf) return null;
 
     const referencia = UFS[uf];
-    const zona = Math.floor((referencia.longitude + 180) / 6) + 1;
+    const zonaDaUf = Math.floor((referencia.longitude + 180) / 6) + 1;
     const sul = referencia.latitude < 0;
-    const datum = datumDoModelo(nome);
+    const datum = config.datum === 'auto' ? datumDoModelo(nome) : config.datum;
+
+    // Estados grandes cruzam mais de um fuso: RJ vai do 23 ao 24, MG do 22 ao 24.
+    // Testar os vizinhos evita aceitar um erro de 6° de longitude — cerca de
+    // 600 km — só porque o centroide do estado ainda ficava dentro do limite.
+    const zonas = [zonaDaUf, zonaDaUf - 1, zonaDaUf + 1].filter(z => z >= 18 && z <= 25);
+
     let melhor: {
         latitude: number;
         longitude: number;
@@ -465,30 +524,35 @@ function centroPorUtm(viewer: any): CentroGeografico | null {
         ancoraViewer: { x: number; y: number; z: number };
         easting: number;
         northing: number;
-        offsetVerticalModelo?: number;
+        zona: number;
+        offsetVerticalModelo: number;
     } | null = null;
 
     for (const ponto of centrosOriginaisDoModelo(viewer)) {
         if (ponto.x < 100000 || ponto.x > 900000) continue;
+        // Projetos rodoviários costumam truncar o milhão do northing.
         const northings = ponto.y >= 1000000
             ? [ponto.y]
             : [6, 7, 8, 9].map(milhao => ponto.y + milhao * 1000000);
 
         for (const northing of northings) {
             if (northing < 0 || northing > 10000000) continue;
-            const convertido = utmModeloParaWgs84(ponto.x, northing, zona, sul, datum);
-            if (!coordenadaValida(convertido.latitude, convertido.longitude)) continue;
-            const score = Math.abs(convertido.latitude - referencia.latitude) * 1.5
-                + Math.abs(convertido.longitude - referencia.longitude);
-            if (!melhor || score < melhor.score) {
-                melhor = {
-                    ...convertido,
-                    score,
-                    ancoraViewer: ponto.ancoraViewer,
-                    easting: ponto.x,
-                    northing,
-                    offsetVerticalModelo: ponto.offsetVerticalModelo,
-                };
+            for (const zona of zonas) {
+                const convertido = utmModeloParaWgs84(ponto.x, northing, zona, sul, datum);
+                if (!coordenadaValida(convertido.latitude, convertido.longitude)) continue;
+                const score = Math.abs(convertido.latitude - referencia.latitude) * 1.5
+                    + Math.abs(convertido.longitude - referencia.longitude);
+                if (!melhor || score < melhor.score) {
+                    melhor = {
+                        ...convertido,
+                        score,
+                        ancoraViewer: ponto.ancoraViewer,
+                        easting: ponto.x,
+                        northing,
+                        zona,
+                        offsetVerticalModelo: ponto.offsetVerticalModelo,
+                    };
+                }
             }
         }
     }
@@ -500,9 +564,9 @@ function centroPorUtm(viewer: any): CentroGeografico | null {
         latitude: melhor.latitude,
         longitude: melhor.longitude,
         automatica: true,
-        origem: `coordenadas UTM ${datum === 'sad69' ? 'SAD69' : 'SIRGAS 2000'} do modelo (${zona}${sul ? 'S' : 'N'})`,
+        origem: `UTM ${melhor.zona}${sul ? 'S' : 'N'} · ${datum === 'sad69' ? 'SAD69' : 'SIRGAS 2000'}`,
         ancoraViewer: melhor.ancoraViewer,
-        utm: { easting: melhor.easting, northing: melhor.northing, zona, sul, datum },
+        utm: { easting: melhor.easting, northing: melhor.northing, zona: melhor.zona, sul, datum },
         offsetVerticalModelo: melhor.offsetVerticalModelo,
     };
 }
@@ -544,7 +608,7 @@ function caixaDoModelo(viewer: any) {
     return caixa;
 }
 
-async function resolverCentro(viewer: any, config: ConfiguracaoTerreno) {
+async function resolverCentro(viewer: any, config: ConfiguracaoTerreno): Promise<CentroGeografico> {
     if ((config.latitude === null) !== (config.longitude === null)) {
         throw new Error('Informe latitude e longitude juntas ou deixe ambas vazias para a detecção automática.');
     }
@@ -555,7 +619,7 @@ async function resolverCentro(viewer: any, config: ConfiguracaoTerreno) {
     // O federado da obra usa coordenadas UTM no próprio NWD. Esta leitura é
     // imediata e precisa vir antes de extensões e metadados potencialmente
     // grandes, evitando bloquear a interface do Viewer.
-    const utm = centroPorUtm(viewer);
+    const utm = centroPorUtm(viewer, config);
     if (utm) return utm;
 
     try {
@@ -659,35 +723,48 @@ function atributo(geometria: any, nome: string, valor: any) {
     else geometria.addAttribute(nome, valor);
 }
 
-function montarMalha(
-    THREE: any,
-    dados: LercData,
-    textura: any,
-    tileX: number,
-    tileY: number,
-    tileXFlutuante: number,
-    tileYFlutuante: number,
-    tamanhoTile: number,
-    zoom: number,
-    metrosPorUnidade: number,
-    elevacaoReferencia: number,
-    origem: { x: number; y: number; z: number },
-    config: ConfiguracaoTerreno,
+interface ContextoMalha {
+    tileXFlutuante: number;
+    tileYFlutuante: number;
+    tamanhoTile: number;
+    zoom: number;
+    metrosPorUnidade: number;
+    elevacaoReferencia: number;
+    /** Origem no espaço do Viewer, já corrigida verticalmente para a cota do solo. */
+    origem: { x: number; y: number; z: number };
     referenciaUtm?: {
         easting: number;
         northing: number;
         zona: number;
         sul: boolean;
         datum: 'sirgas2000' | 'sad69';
-    },
+    };
+}
+
+/**
+ * Posições dos vértices de um tile no espaço do Viewer.
+ *
+ * Separado da montagem da malha porque o ajuste fino só muda estes números: o
+ * relevo e a textura já baixados continuam valendo.
+ */
+function calcularPosicoes(
+    dados: LercData,
+    tileX: number,
+    tileY: number,
+    contexto: ContextoMalha,
+    config: ConfiguracaoTerreno,
 ) {
-    const posicoes: number[] = [];
-    const uvs: number[] = [];
-    const indices: number[] = [];
+    const {
+        tileXFlutuante, tileYFlutuante, tamanhoTile, zoom,
+        metrosPorUnidade, elevacaoReferencia, origem, referenciaUtm,
+    } = contexto;
+
+    const posicoes = new Float32Array((SEGMENTOS + 1) ** 2 * 3);
     const angulo = config.rotacao * Math.PI / 180;
     const cos = Math.cos(angulo);
     const sin = Math.sin(angulo);
     let ultimaElevacao = elevacaoReferencia;
+    let i = 0;
 
     for (let linha = 0; linha <= SEGMENTOS; linha++) {
         const v = linha / SEGMENTOS;
@@ -719,13 +796,31 @@ function montarMalha(
             const x = leste * cos - norte * sin;
             const y = leste * sin + norte * cos;
 
-            posicoes.push(
-                origem.x + config.deslocamentoX / metrosPorUnidade + x,
-                origem.y + config.deslocamentoY / metrosPorUnidade + y,
-                origem.z + config.deslocamentoZ / metrosPorUnidade + (elevacao - elevacaoReferencia) / metrosPorUnidade,
-            );
-            uvs.push(u, 1 - v);
+            posicoes[i++] = origem.x + config.deslocamentoX / metrosPorUnidade + x;
+            posicoes[i++] = origem.y + config.deslocamentoY / metrosPorUnidade + y;
+            posicoes[i++] = origem.z + config.deslocamentoZ / metrosPorUnidade
+                + (elevacao - elevacaoReferencia) / metrosPorUnidade;
         }
+    }
+
+    return posicoes;
+}
+
+function montarMalha(
+    THREE: any,
+    dados: LercData,
+    textura: any,
+    tileX: number,
+    tileY: number,
+    contexto: ContextoMalha,
+    config: ConfiguracaoTerreno,
+) {
+    const uvs: number[] = [];
+    const indices: number[] = [];
+
+    for (let linha = 0; linha <= SEGMENTOS; linha++) {
+        const v = linha / SEGMENTOS;
+        for (let coluna = 0; coluna <= SEGMENTOS; coluna++) uvs.push(coluna / SEGMENTOS, 1 - v);
     }
 
     const lado = SEGMENTOS + 1;
@@ -740,7 +835,7 @@ function montarMalha(
     }
 
     const geometria = new THREE.BufferGeometry();
-    atributo(geometria, 'position', new THREE.BufferAttribute(new Float32Array(posicoes), 3));
+    atributo(geometria, 'position', new THREE.BufferAttribute(calcularPosicoes(dados, tileX, tileY, contexto, config), 3));
     atributo(geometria, 'uv', new THREE.BufferAttribute(new Float32Array(uvs), 2));
     const indice = new THREE.BufferAttribute(new Uint16Array(indices), 1);
     if (geometria.setIndex) geometria.setIndex(indice); else atributo(geometria, 'index', indice);
@@ -807,20 +902,35 @@ export async function instalarTerrenoReal(
         tileXFlutuante - tileCentralX,
         tileYFlutuante - tileCentralY,
     );
-    if (centro.offsetVerticalModelo !== undefined && Number.isFinite(elevacaoReferencia)) {
-        // O globalOffset é a origem absoluta usada para estabilizar o NWD longe
-        // de (0, 0, 0). O terreno precisa passar pela mesma transformação. O
-        // alvo da câmera não é uma cota de solo e criava deslocamento vertical;
-        // numa vista inclinada, isso também parecia um erro horizontal.
+    if (!Number.isFinite(elevacaoReferencia)) throw new Error('A elevação do centro informado não está disponível.');
+
+    if (centro.offsetVerticalModelo !== undefined) {
+        // Planta o terreno na cota real do solo, convertida para o espaço do
+        // Viewer pela mesma relação que o carregador aplicou ao modelo
+        // (zViewer = zModelo − offsetVertical).
+        //
+        // Sem isto o terreno fica na altura do centro da caixa do federado, que
+        // é o meio da faixa de elevação da serra — centenas de metros acima do
+        // chão. Numa vista inclinada esse erro de cota se manifesta como se a
+        // ortofoto estivesse deslocada no plano, que é o sintoma percebido.
         origem.z = elevacaoReferencia / metrosPorUnidade - centro.offsetVerticalModelo;
     }
-    if (!Number.isFinite(elevacaoReferencia)) throw new Error('A elevação do centro informado não está disponível.');
+
+    const contexto: ContextoMalha = {
+        tileXFlutuante, tileYFlutuante, tamanhoTile, zoom,
+        metrosPorUnidade, elevacaoReferencia, origem,
+        referenciaUtm: centro.utm,
+    };
+    let configAtual = config;
 
     const cena = `${CENA}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     if (viewer.overlays?.addScene) viewer.overlays.addScene(cena);
     else viewer.impl.createOverlayScene(cena);
     const malhas: any[] = [];
-    const detalhesMalhas: Array<{ malha: any; dx: number; dy: number; x: number; y: number }> = [];
+    const detalhesMalhas: Array<{
+        malha: any; dx: number; dy: number; x: number; y: number;
+        dados: LercData; tileX: number; tileY: number;
+    }> = [];
     const controleAltaResolucao = new AbortController();
     let removido = false;
     const definirOpacidade = (valor: number) => {
@@ -833,6 +943,25 @@ export async function instalarTerrenoReal(
             material.transparent = true;
             material.depthWrite = false;
             material.needsUpdate = true;
+        }
+        viewer.impl.invalidate?.(true, true, true);
+    };
+    /**
+     * Recalcula as posições dos vértices com a nova calibração. Relevo e
+     * textura ficam onde estão, então o ajuste é instantâneo e sem rede.
+     */
+    const ajustar = (novo: ConfiguracaoTerreno) => {
+        if (removido) return;
+        configAtual = novo;
+        for (const detalhe of detalhesMalhas) {
+            const posicoes = calcularPosicoes(detalhe.dados, detalhe.tileX, detalhe.tileY, contexto, novo);
+            const atributoPosicao = detalhe.malha.geometry.getAttribute?.('position')
+                ?? detalhe.malha.geometry.attributes?.position;
+            if (!atributoPosicao) continue;
+            atributoPosicao.array.set(posicoes);
+            atributoPosicao.needsUpdate = true;
+            detalhe.malha.geometry.computeVertexNormals?.();
+            detalhe.malha.geometry.computeBoundingSphere?.();
         }
         viewer.impl.invalidate?.(true, true, true);
     };
@@ -878,15 +1007,11 @@ export async function instalarTerrenoReal(
                 ]);
                 abortado(signal);
                 if (removido) { textura.dispose?.(); return; }
-                const malha = montarMalha(
-                    THREE, dados, textura,
-                    tileCentralX + dx, tileCentralY + dy,
-                    tileXFlutuante, tileYFlutuante,
-                    tamanhoTile, zoom, metrosPorUnidade, elevacaoReferencia,
-                    origem, config, centro.utm,
-                );
+                const tileX = tileCentralX + dx;
+                const tileY = tileCentralY + dy;
+                const malha = montarMalha(THREE, dados, textura, tileX, tileY, contexto, configAtual);
                 malhas.push(malha);
-                detalhesMalhas.push({ malha, dx, dy, x, y });
+                detalhesMalhas.push({ malha, dx, dy, x, y, dados, tileX, tileY });
                 if (viewer.overlays?.addMesh) viewer.overlays.addMesh(malha, cena);
                 else viewer.impl.addOverlay(cena, malha);
                 viewer.impl.invalidate?.(false, false, true);
@@ -938,7 +1063,10 @@ export async function instalarTerrenoReal(
             longitude: centro.longitude,
             localizacaoAutomatica: centro.automatica,
             origemLocalizacao: centro.origem,
+            datumUsado: centro.utm?.datum
+                ?? (config.datum === 'auto' ? 'sirgas2000' : config.datum),
             definirOpacidade,
+            ajustar,
             remover,
         };
     } catch (erro) {

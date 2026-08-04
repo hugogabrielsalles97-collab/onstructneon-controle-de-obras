@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { SERVICOS_PAVIMENTACAO } from './viewerPavimentacao';
 import type { ResumoAvanco } from './viewerAvanco';
+import { LIMITE_DESLOCAMENTO } from './viewerTerreno';
+import type { ConfiguracaoTerreno, DatumTerreno } from './viewerTerreno';
 
 /**
  * Painel de camadas do federado.
@@ -174,7 +176,66 @@ interface Props {
     onAlternarTerreno: (ligado: boolean) => void;
     opacidadeTerreno: number;
     onMudarOpacidadeTerreno: (opacidade: number) => void;
+    configTerreno: ConfiguracaoTerreno;
+    onAjustarTerreno: (mudanca: Partial<ConfiguracaoTerreno>) => void;
+    onZerarAjusteTerreno: () => void;
 }
+
+const DATUNS: Array<{ valor: DatumTerreno; rotulo: string }> = [
+    { valor: 'auto', rotulo: 'Automático' },
+    { valor: 'sirgas2000', rotulo: 'SIRGAS 2000' },
+    { valor: 'sad69', rotulo: 'SAD69' },
+];
+
+/**
+ * Um eixo do ajuste fino. Os botões passo a passo existem porque acertar o
+ * encaixe é trabalho visual: o usuário empurra o terreno olhando a obra, não
+ * digitando um número que ele não tem.
+ */
+const EixoAjuste: React.FC<{
+    rotulo: string;
+    valor: number;
+    unidade: string;
+    passo: number;
+    limite: number;
+    onMudar: (valor: number) => void;
+}> = ({ rotulo, valor, unidade, passo, limite, onMudar }) => {
+    const mover = (delta: number) =>
+        onMudar(Math.min(limite, Math.max(-limite, Number((valor + delta).toFixed(2)))));
+
+    const Passo: React.FC<{ delta: number; children: React.ReactNode }> = ({ delta, children }) => (
+        <button
+            onClick={() => mover(delta)}
+            className="h-5 w-5 shrink-0 rounded border border-gray-700 bg-gray-800 text-[10px] leading-none
+                       text-gray-400 hover:border-cyan-600 hover:text-cyan-300"
+        >
+            {children}
+        </button>
+    );
+
+    return (
+        <div className="flex items-center gap-1.5">
+            <span className="w-14 shrink-0 text-[10px] text-gray-500">{rotulo}</span>
+            <Passo delta={-passo * 10}>‹‹</Passo>
+            <Passo delta={-passo}>‹</Passo>
+            <input
+                type="number"
+                value={valor}
+                step={passo}
+                onChange={e => {
+                    const n = Number(e.target.value);
+                    if (Number.isFinite(n)) onMudar(Math.min(limite, Math.max(-limite, n)));
+                }}
+                aria-label={rotulo}
+                className="min-w-0 flex-1 rounded bg-gray-900 px-1.5 py-0.5 text-right text-[10px] text-gray-200
+                           outline-none focus:ring-1 focus:ring-cyan-600"
+            />
+            <Passo delta={passo}>›</Passo>
+            <Passo delta={passo * 10}>››</Passo>
+            <span className="w-4 shrink-0 text-[9px] text-gray-600">{unidade}</span>
+        </div>
+    );
+};
 
 const formatar = (n: number) => n.toLocaleString('pt-BR');
 
@@ -185,8 +246,10 @@ const ViewerCamadas: React.FC<Props> = ({
     aberto, onFechar,
     terrenoLigado, terrenoCarregando, erroTerreno, centroTerreno,
     onAlternarTerreno, opacidadeTerreno, onMudarOpacidadeTerreno,
+    configTerreno, onAjustarTerreno, onZerarAjusteTerreno,
 }) => {
     const [busca, setBusca] = useState('');
+    const [ajusteAberto, setAjusteAberto] = useState(false);
     const [expandido, setExpandido] = useState<Set<number>>(new Set());
     const [layouts, setLayouts] = useState<LayoutsSalvos>(() => lerLayouts());
     const [salvoAgora, setSalvoAgora] = useState<string | null>(null);
@@ -205,6 +268,10 @@ const ViewerCamadas: React.FC<Props> = ({
     }, [camadas, busca]);
 
     const ativo = useMemo(() => presetAtivo(camadas, ocultos, layouts), [camadas, ocultos, layouts]);
+
+    const ajusteDesviado = configTerreno.deslocamentoX !== 0 || configTerreno.deslocamentoY !== 0
+        || configTerreno.deslocamentoZ !== 0 || configTerreno.rotacao !== 0
+        || configTerreno.datum !== 'auto';
 
     if (!aberto) return null;
 
@@ -347,6 +414,84 @@ const ViewerCamadas: React.FC<Props> = ({
                         <p className="mt-1 pl-6 text-[9px] text-gray-600">
                             Somente o terreno varia; a modelagem permanece sempre opaca.
                         </p>
+
+                        <button
+                            onClick={() => setAjusteAberto(a => !a)}
+                            className="mt-2 flex w-full items-center gap-1.5 pl-6 text-[10px] text-gray-500 hover:text-cyan-300"
+                        >
+                            <span className="text-[9px]">{ajusteAberto ? '▾' : '▸'}</span>
+                            Ajuste fino do encaixe
+                            {ajusteDesviado && <span className="ml-1 text-[9px] text-amber-500">●</span>}
+                        </button>
+
+                        {ajusteAberto && (
+                            <div className="mt-2 space-y-1.5 rounded border border-gray-800 bg-gray-900/50 p-2">
+                                <p className="text-[9px] leading-4 text-gray-600">
+                                    Empurre a ortofoto até casar com a modelagem. Vale para
+                                    esta obra e fica salvo neste navegador.
+                                </p>
+
+                                <EixoAjuste
+                                    rotulo="Leste"
+                                    valor={configTerreno.deslocamentoX}
+                                    unidade="m"
+                                    passo={1}
+                                    limite={LIMITE_DESLOCAMENTO}
+                                    onMudar={v => onAjustarTerreno({ deslocamentoX: v })}
+                                />
+                                <EixoAjuste
+                                    rotulo="Norte"
+                                    valor={configTerreno.deslocamentoY}
+                                    unidade="m"
+                                    passo={1}
+                                    limite={LIMITE_DESLOCAMENTO}
+                                    onMudar={v => onAjustarTerreno({ deslocamentoY: v })}
+                                />
+                                <EixoAjuste
+                                    rotulo="Cota"
+                                    valor={configTerreno.deslocamentoZ}
+                                    unidade="m"
+                                    passo={1}
+                                    limite={LIMITE_DESLOCAMENTO}
+                                    onMudar={v => onAjustarTerreno({ deslocamentoZ: v })}
+                                />
+                                <EixoAjuste
+                                    rotulo="Rotação"
+                                    valor={configTerreno.rotacao}
+                                    unidade="°"
+                                    passo={0.1}
+                                    limite={180}
+                                    onMudar={v => onAjustarTerreno({ rotacao: v })}
+                                />
+
+                                <label className="flex items-center gap-1.5 pt-0.5">
+                                    <span className="w-14 shrink-0 text-[10px] text-gray-500">Datum</span>
+                                    <select
+                                        value={configTerreno.datum}
+                                        onChange={e => onAjustarTerreno({ datum: e.target.value as DatumTerreno })}
+                                        className="min-w-0 flex-1 rounded bg-gray-900 px-1.5 py-0.5 text-[10px] text-gray-200
+                                                   outline-none focus:ring-1 focus:ring-cyan-600"
+                                    >
+                                        {DATUNS.map(d => (
+                                            <option key={d.valor} value={d.valor}>{d.rotulo}</option>
+                                        ))}
+                                    </select>
+                                </label>
+                                <p className="text-[9px] leading-4 text-gray-600">
+                                    Levantamentos antigos em SAD69 caem cerca de 65 m fora quando
+                                    lidos como SIRGAS 2000. Trocar o datum recarrega o terreno.
+                                </p>
+
+                                {ajusteDesviado && (
+                                    <button
+                                        onClick={onZerarAjusteTerreno}
+                                        className="text-[10px] text-gray-600 underline hover:text-gray-400"
+                                    >
+                                        Voltar ao encaixe automático
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </>
                 )}
             </div>
