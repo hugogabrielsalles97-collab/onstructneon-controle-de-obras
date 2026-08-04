@@ -401,7 +401,7 @@ const ViewerCamadas: React.FC<Props> = ({
                             <span>Transparência</span>
                             <input
                                 type="range"
-                                min="20"
+                                min="0"
                                 max="100"
                                 step="5"
                                 value={100 - opacidadeTerreno}
@@ -413,6 +413,7 @@ const ViewerCamadas: React.FC<Props> = ({
                         </label>
                         <p className="mt-1 pl-6 text-[9px] text-gray-600">
                             Somente o terreno varia; a modelagem permanece sempre opaca.
+                            Em 0% o terreno fica sólido e tapa o que estiver abaixo dele.
                         </p>
 
                         <button

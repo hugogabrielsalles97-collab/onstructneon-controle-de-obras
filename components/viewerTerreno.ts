@@ -71,12 +71,26 @@ const CENA = 'elos-terreno-real';
 // responsivos. O carregamento anterior de 5 × 5 decodificava 25 relevos.
 const RAIO_DE_TILES = 1;
 const CONCORRENCIA_TILES = 2;
-const SEGMENTOS = 32;
+
+/**
+ * Densidade da malha de relevo, em segmentos por tile.
+ *
+ * Um tile de zoom 13 cobre ~4,5 km, e o relevo da Esri vem com 257 amostras —
+ * cerca de 18 m entre pontos. Com 32 segmentos o vértice caía a cada 141 m e a
+ * malha errava a cota real em 10 m RMS, chegando a 44 m nas encostas da serra.
+ * Numa vista minimamente inclinada esse erro de cota arrasta a ortofoto no
+ * plano, porque a imagem é drapejada sobre a superfície: 44 m de cota a 30° do
+ * nadir deslocam a textura uns 25 m no terreno.
+ *
+ * O teto acompanha a resolução nativa do relevo — passar disso só multiplica
+ * triângulos sem ganhar informação.
+ */
+const SEGMENTOS_MAX = 256;
+const SEGMENTOS_MIN = 32;
 const RAIO_TERRA = 6378137;
 const RESOLUCAO_TEXTURA_BASE = 2048;
 const RESOLUCAO_TEXTURA_CENTRAL = 4096;
 const OPACIDADE_INICIAL = 0.65;
-const OPACIDADE_MAXIMA = 0.8;
 let lercPronto: Promise<typeof import('lerc')> | null = null;
 
 const IMAGEM_TILE_URL = (z: number, x: number, y: number) =>
@@ -741,41 +755,43 @@ interface ContextoMalha {
     };
 }
 
+/** Quantos segmentos usar para um tile, acompanhando a resolução do relevo recebido. */
+function segmentosDoTile(dados: LercData) {
+    const amostras = Number(dados?.width) || 0;
+    return Math.min(SEGMENTOS_MAX, Math.max(SEGMENTOS_MIN, amostras - 1));
+}
+
 /**
- * Posições dos vértices de um tile no espaço do Viewer.
+ * Coordenadas de cada vértice relativas à âncora, antes da calibração:
+ * [leste, norte, desnível] por vértice, em unidades do modelo.
  *
- * Separado da montagem da malha porque o ajuste fino só muda estes números: o
- * relevo e a textura já baixados continuam valendo.
+ * É a parte cara — uma reprojeção UTM por vértice — e não depende do ajuste
+ * fino. Fica em cache para que mover o terreno na mão seja só uma soma.
  */
-function calcularPosicoes(
+function calcularBase(
     dados: LercData,
     tileX: number,
     tileY: number,
     contexto: ContextoMalha,
-    config: ConfiguracaoTerreno,
 ) {
     const {
         tileXFlutuante, tileYFlutuante, tamanhoTile, zoom,
-        metrosPorUnidade, elevacaoReferencia, origem, referenciaUtm,
+        metrosPorUnidade, elevacaoReferencia, referenciaUtm,
     } = contexto;
 
-    const posicoes = new Float32Array((SEGMENTOS + 1) ** 2 * 3);
-    const angulo = config.rotacao * Math.PI / 180;
-    const cos = Math.cos(angulo);
-    const sin = Math.sin(angulo);
+    const segmentos = segmentosDoTile(dados);
+    const base = new Float32Array((segmentos + 1) ** 2 * 3);
     let ultimaElevacao = elevacaoReferencia;
     let i = 0;
 
-    for (let linha = 0; linha <= SEGMENTOS; linha++) {
-        const v = linha / SEGMENTOS;
-        for (let coluna = 0; coluna <= SEGMENTOS; coluna++) {
-            const u = coluna / SEGMENTOS;
+    for (let linha = 0; linha <= segmentos; linha++) {
+        const v = linha / segmentos;
+        for (let coluna = 0; coluna <= segmentos; coluna++) {
+            const u = coluna / segmentos;
             const elevacaoLida = amostrar(dados, u, v);
             const elevacao = Number.isFinite(elevacaoLida) ? elevacaoLida : ultimaElevacao;
             ultimaElevacao = elevacao;
 
-            let leste: number;
-            let norte: number;
             if (referenciaUtm) {
                 const longitude = tileParaLongitude(tileX + u, zoom);
                 const latitude = tileParaLatitude(tileY + v, zoom);
@@ -785,22 +801,43 @@ function calcularPosicoes(
                     referenciaUtm.zona,
                     referenciaUtm.datum,
                 );
-                leste = (utm.easting - referenciaUtm.easting) / metrosPorUnidade;
-                norte = (utm.northing - referenciaUtm.northing) / metrosPorUnidade;
+                base[i++] = (utm.easting - referenciaUtm.easting) / metrosPorUnidade;
+                base[i++] = (utm.northing - referenciaUtm.northing) / metrosPorUnidade;
             } else {
                 // Reserva para modelos encontrados por latitude/longitude, sem
                 // coordenadas UTM originais disponíveis.
-                leste = (tileX - tileXFlutuante + u) * tamanhoTile / metrosPorUnidade;
-                norte = -(tileY - tileYFlutuante + v) * tamanhoTile / metrosPorUnidade;
+                base[i++] = (tileX - tileXFlutuante + u) * tamanhoTile / metrosPorUnidade;
+                base[i++] = -(tileY - tileYFlutuante + v) * tamanhoTile / metrosPorUnidade;
             }
-            const x = leste * cos - norte * sin;
-            const y = leste * sin + norte * cos;
-
-            posicoes[i++] = origem.x + config.deslocamentoX / metrosPorUnidade + x;
-            posicoes[i++] = origem.y + config.deslocamentoY / metrosPorUnidade + y;
-            posicoes[i++] = origem.z + config.deslocamentoZ / metrosPorUnidade
-                + (elevacao - elevacaoReferencia) / metrosPorUnidade;
+            base[i++] = (elevacao - elevacaoReferencia) / metrosPorUnidade;
         }
+    }
+
+    return base;
+}
+
+/** Aplica rotação, deslocamento e âncora sobre as coordenadas em cache. */
+function calcularPosicoes(
+    base: Float32Array,
+    contexto: ContextoMalha,
+    config: ConfiguracaoTerreno,
+    destino?: Float32Array,
+) {
+    const { metrosPorUnidade, origem } = contexto;
+    const posicoes = destino ?? new Float32Array(base.length);
+    const angulo = config.rotacao * Math.PI / 180;
+    const cos = Math.cos(angulo);
+    const sin = Math.sin(angulo);
+    const dx = origem.x + config.deslocamentoX / metrosPorUnidade;
+    const dy = origem.y + config.deslocamentoY / metrosPorUnidade;
+    const dz = origem.z + config.deslocamentoZ / metrosPorUnidade;
+
+    for (let i = 0; i < base.length; i += 3) {
+        const leste = base[i];
+        const norte = base[i + 1];
+        posicoes[i] = dx + leste * cos - norte * sin;
+        posicoes[i + 1] = dy + leste * sin + norte * cos;
+        posicoes[i + 2] = dz + base[i + 2];
     }
 
     return posicoes;
@@ -810,34 +847,46 @@ function montarMalha(
     THREE: any,
     dados: LercData,
     textura: any,
-    tileX: number,
-    tileY: number,
+    base: Float32Array,
     contexto: ContextoMalha,
     config: ConfiguracaoTerreno,
 ) {
-    const uvs: number[] = [];
-    const indices: number[] = [];
+    const segmentos = segmentosDoTile(dados);
+    const lado = segmentos + 1;
+    const uvs = new Float32Array(lado * lado * 2);
 
-    for (let linha = 0; linha <= SEGMENTOS; linha++) {
-        const v = linha / SEGMENTOS;
-        for (let coluna = 0; coluna <= SEGMENTOS; coluna++) uvs.push(coluna / SEGMENTOS, 1 - v);
+    let k = 0;
+    for (let linha = 0; linha < lado; linha++) {
+        const v = 1 - linha / segmentos;
+        for (let coluna = 0; coluna < lado; coluna++) {
+            uvs[k++] = coluna / segmentos;
+            uvs[k++] = v;
+        }
     }
 
-    const lado = SEGMENTOS + 1;
-    for (let linha = 0; linha < SEGMENTOS; linha++) {
-        for (let coluna = 0; coluna < SEGMENTOS; coluna++) {
+    // Acima de 65.535 vértices o índice de 16 bits estoura silenciosamente e a
+    // malha sai embaralhada. Com 256 segmentos são 66.049 por tile.
+    const totalVertices = lado * lado;
+    const indices = totalVertices > 65535
+        ? new Uint32Array(segmentos * segmentos * 6)
+        : new Uint16Array(segmentos * segmentos * 6);
+
+    let j = 0;
+    for (let linha = 0; linha < segmentos; linha++) {
+        for (let coluna = 0; coluna < segmentos; coluna++) {
             const a = linha * lado + coluna;
             const b = a + 1;
             const c = a + lado;
             const d = c + 1;
-            indices.push(a, c, b, b, c, d);
+            indices[j++] = a; indices[j++] = c; indices[j++] = b;
+            indices[j++] = b; indices[j++] = c; indices[j++] = d;
         }
     }
 
     const geometria = new THREE.BufferGeometry();
-    atributo(geometria, 'position', new THREE.BufferAttribute(calcularPosicoes(dados, tileX, tileY, contexto, config), 3));
-    atributo(geometria, 'uv', new THREE.BufferAttribute(new Float32Array(uvs), 2));
-    const indice = new THREE.BufferAttribute(new Uint16Array(indices), 1);
+    atributo(geometria, 'position', new THREE.BufferAttribute(calcularPosicoes(base, contexto, config), 3));
+    atributo(geometria, 'uv', new THREE.BufferAttribute(uvs, 2));
+    const indice = new THREE.BufferAttribute(indices, 1);
     if (geometria.setIndex) geometria.setIndex(indice); else atributo(geometria, 'index', indice);
     geometria.computeVertexNormals?.();
     geometria.computeBoundingSphere?.();
@@ -929,19 +978,21 @@ export async function instalarTerrenoReal(
     const malhas: any[] = [];
     const detalhesMalhas: Array<{
         malha: any; dx: number; dy: number; x: number; y: number;
-        dados: LercData; tileX: number; tileY: number;
+        base: Float32Array;
     }> = [];
     const controleAltaResolucao = new AbortController();
     let removido = false;
     const definirOpacidade = (valor: number) => {
-        // Mantém ao menos 20% de transparência para que o terreno nunca tape
-        // por completo a modelagem em regiões de corte ou sobreposição.
-        const opacidade = Math.min(OPACIDADE_MAXIMA, Math.max(0, Number.isFinite(valor) ? valor : OPACIDADE_INICIAL));
+        const opacidade = Math.min(1, Math.max(0, Number.isFinite(valor) ? valor : OPACIDADE_INICIAL));
+        // Totalmente opaco deixa de ser um caso de mistura: passa a escrever
+        // profundidade, senão o terreno some atrás de si mesmo nas dobras do
+        // relevo, já que a ordem de desenho dos tiles não segue a câmera.
+        const opaco = opacidade >= 1;
         for (const malha of malhas) {
             const material = malha.material;
             material.opacity = opacidade;
-            material.transparent = true;
-            material.depthWrite = false;
+            material.transparent = !opaco;
+            material.depthWrite = opaco;
             material.needsUpdate = true;
         }
         viewer.impl.invalidate?.(true, true, true);
@@ -954,13 +1005,13 @@ export async function instalarTerrenoReal(
         if (removido) return;
         configAtual = novo;
         for (const detalhe of detalhesMalhas) {
-            const posicoes = calcularPosicoes(detalhe.dados, detalhe.tileX, detalhe.tileY, contexto, novo);
             const atributoPosicao = detalhe.malha.geometry.getAttribute?.('position')
                 ?? detalhe.malha.geometry.attributes?.position;
             if (!atributoPosicao) continue;
-            atributoPosicao.array.set(posicoes);
+            // Escreve direto no buffer existente: nada de realocar 200 mil
+            // vértices por clique no ajuste fino.
+            calcularPosicoes(detalhe.base, contexto, novo, atributoPosicao.array as Float32Array);
             atributoPosicao.needsUpdate = true;
-            detalhe.malha.geometry.computeVertexNormals?.();
             detalhe.malha.geometry.computeBoundingSphere?.();
         }
         viewer.impl.invalidate?.(true, true, true);
@@ -1007,11 +1058,10 @@ export async function instalarTerrenoReal(
                 ]);
                 abortado(signal);
                 if (removido) { textura.dispose?.(); return; }
-                const tileX = tileCentralX + dx;
-                const tileY = tileCentralY + dy;
-                const malha = montarMalha(THREE, dados, textura, tileX, tileY, contexto, configAtual);
+                const base = calcularBase(dados, tileCentralX + dx, tileCentralY + dy, contexto);
+                const malha = montarMalha(THREE, dados, textura, base, contexto, configAtual);
                 malhas.push(malha);
-                detalhesMalhas.push({ malha, dx, dy, x, y, dados, tileX, tileY });
+                detalhesMalhas.push({ malha, dx, dy, x, y, base });
                 if (viewer.overlays?.addMesh) viewer.overlays.addMesh(malha, cena);
                 else viewer.impl.addOverlay(cena, malha);
                 viewer.impl.invalidate?.(false, false, true);

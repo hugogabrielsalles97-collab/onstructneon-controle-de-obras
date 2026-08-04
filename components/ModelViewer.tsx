@@ -337,9 +337,7 @@ const ModelViewer: React.FC = () => {
     });
 
     const ajustarOpacidadeTerreno = (valor: number) => {
-        // O terreno conserva no mínimo 20% de transparência para não ocultar
-        // completamente nenhuma parte da modelagem.
-        const opacidade = Math.min(80, Math.max(0, Math.round(valor)));
+        const opacidade = Math.min(100, Math.max(0, Math.round(valor)));
         opacidadeTerrenoRef.current = opacidade;
         setOpacidadeTerreno(opacidade);
         terrenoRef.current?.definirOpacidade(opacidade / 100);
