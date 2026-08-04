@@ -32,6 +32,7 @@ interface CentroGeografico {
     longitude: number;
     automatica: boolean;
     origem: string;
+    ancoraViewer?: { x: number; y: number; z: number };
 }
 
 const CHAVE_CONFIGURACAO = 'elos.viewer.terrenoReal';
@@ -212,26 +213,42 @@ function utmParaWgs84(easting: number, northing: number, zona: number, sul: bool
 function centrosOriginaisDoModelo(viewer: any) {
     const caixa = caixaDoModelo(viewer);
     const centro = caixa.getCenter();
-    const candidatos: Array<{ x: number; y: number }> = [];
-    const incluir = (ponto: any) => {
+    const candidatos: Array<{ x: number; y: number; ancoraViewer: { x: number; y: number; z: number } }> = [];
+    const incluir = (ponto: any, ancoraViewer: any) => {
         const x = numero(ponto?.x);
         const y = numero(ponto?.y);
         if (x !== null && y !== null && !candidatos.some(p => Math.abs(p.x - x) < 0.01 && Math.abs(p.y - y) < 0.01)) {
-            candidatos.push({ x, y });
+            candidatos.push({
+                x,
+                y,
+                ancoraViewer: {
+                    x: Number(ancoraViewer?.x || 0),
+                    y: Number(ancoraViewer?.y || 0),
+                    z: Number(ancoraViewer?.z || 0),
+                },
+            });
         }
     };
 
-    incluir(centro);
+    incluir(centro, centro);
     try {
         const inversa = viewer.model?.getInverseModelToViewerTransform?.();
         if (inversa && (window as any).THREE) {
-            incluir(new (window as any).THREE.Vector3(centro.x, centro.y, centro.z).applyMatrix4(inversa));
+            incluir(new (window as any).THREE.Vector3(centro.x, centro.y, centro.z).applyMatrix4(inversa), centro);
         }
     } catch { /* transformação ausente */ }
 
     const offset = viewer.model?.getData?.()?.globalOffset;
-    incluir(offset);
-    if (offset) incluir({ x: centro.x + Number(offset.x || 0), y: centro.y + Number(offset.y || 0) });
+    const alvo = viewer.navigation?.getTarget?.();
+    const alvoPertoDaOrigem = alvo && Math.hypot(Number(alvo.x || 0), Number(alvo.y || 0)) < 30000;
+    const ancoraOffset = { x: 0, y: 0, z: alvoPertoDaOrigem ? Number(alvo.z || 0) : 0 };
+    incluir(offset, ancoraOffset);
+    if (offset) {
+        incluir(
+            { x: centro.x + Number(offset.x || 0), y: centro.y + Number(offset.y || 0) },
+            centro,
+        );
+    }
     return candidatos;
 }
 
@@ -243,7 +260,12 @@ function centroPorUtm(viewer: any): CentroGeografico | null {
     const referencia = UFS[uf];
     const zona = Math.floor((referencia.longitude + 180) / 6) + 1;
     const sul = referencia.latitude < 0;
-    let melhor: { latitude: number; longitude: number; score: number } | null = null;
+    let melhor: {
+        latitude: number;
+        longitude: number;
+        score: number;
+        ancoraViewer: { x: number; y: number; z: number };
+    } | null = null;
 
     for (const ponto of centrosOriginaisDoModelo(viewer)) {
         if (ponto.x < 100000 || ponto.x > 900000) continue;
@@ -257,7 +279,7 @@ function centroPorUtm(viewer: any): CentroGeografico | null {
             if (!coordenadaValida(convertido.latitude, convertido.longitude)) continue;
             const score = Math.abs(convertido.latitude - referencia.latitude) * 1.5
                 + Math.abs(convertido.longitude - referencia.longitude);
-            if (!melhor || score < melhor.score) melhor = { ...convertido, score };
+            if (!melhor || score < melhor.score) melhor = { ...convertido, score, ancoraViewer: ponto.ancoraViewer };
         }
     }
 
@@ -269,6 +291,7 @@ function centroPorUtm(viewer: any): CentroGeografico | null {
         longitude: melhor.longitude,
         automatica: true,
         origem: `coordenadas UTM do modelo (${zona}${sul ? 'S' : 'N'})`,
+        ancoraViewer: melhor.ancoraViewer,
     };
 }
 
@@ -488,8 +511,11 @@ export async function instalarTerrenoReal(
     abortado(signal);
 
     const caixa = caixaDoModelo(viewer);
-    const centroModelo = caixa.getCenter();
-    const origem = { x: centroModelo.x, y: centroModelo.y, z: caixa.min.z };
+    const alvoCamera = viewer.navigation?.getTarget?.();
+    const fallback = alvoCamera || caixa.getCenter();
+    // A caixa do federado contém referências deslocadas centenas de km. A
+    // âncora derivada do globalOffset é a origem real do trecho UTM no Viewer.
+    const origem = centro.ancoraViewer || { x: fallback.x, y: fallback.y, z: fallback.z };
     const zoom = config.zoom;
     const tileXFlutuante = longitudeParaTile(centro.longitude, zoom);
     const tileYFlutuante = latitudeParaTile(centro.latitude, zoom);
