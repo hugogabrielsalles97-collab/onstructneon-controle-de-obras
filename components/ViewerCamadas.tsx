@@ -160,8 +160,10 @@ interface Props {
     onAlternar: (id: number) => void;
     onPreset: (ids: number[]) => void;
     resumoAvanco: ResumoAvanco | null;
+    avancoLigado: boolean;
     carregandoCor: boolean;
     erroCor: string | null;
+    onAlternarAvanco: (ligado: boolean) => void;
     onRecarregarAvanco: () => void;
     aberto: boolean;
     onFechar: () => void;
@@ -170,16 +172,19 @@ interface Props {
     erroTerreno: string | null;
     centroTerreno: { latitude: number; longitude: number; automatico: boolean; origem: string } | null;
     onAlternarTerreno: (ligado: boolean) => void;
+    opacidadeTerreno: number;
+    onMudarOpacidadeTerreno: (opacidade: number) => void;
 }
 
 const formatar = (n: number) => n.toLocaleString('pt-BR');
 
 const ViewerCamadas: React.FC<Props> = ({
     camadas, ocultos, onAlternar, onPreset,
-    resumoAvanco, carregandoCor, erroCor, onRecarregarAvanco,
+    resumoAvanco, avancoLigado, carregandoCor, erroCor,
+    onAlternarAvanco, onRecarregarAvanco,
     aberto, onFechar,
     terrenoLigado, terrenoCarregando, erroTerreno, centroTerreno,
-    onAlternarTerreno,
+    onAlternarTerreno, opacidadeTerreno, onMudarOpacidadeTerreno,
 }) => {
     const [busca, setBusca] = useState('');
     const [expandido, setExpandido] = useState<Set<number>>(new Set());
@@ -314,21 +319,52 @@ const ViewerCamadas: React.FC<Props> = ({
                 </label>
 
                 {terrenoLigado && (
-                    <p className={`mt-1.5 pl-6 text-[9px] leading-4 ${erroTerreno ? 'text-red-400' : centroTerreno ? 'text-emerald-500/80' : 'text-gray-500'}`}>
-                        {terrenoCarregando
-                            ? 'Localizando e carregando o terreno...'
-                            : erroTerreno
-                                ? erroTerreno
-                                : centroTerreno
-                                    ? `Terreno ativo · ${centroTerreno.origem} · dados Esri`
-                                    : 'Ativando terreno...'}
-                    </p>
+                    <>
+                        <p className={`mt-1.5 pl-6 text-[9px] leading-4 ${erroTerreno ? 'text-red-400' : centroTerreno ? 'text-emerald-500/80' : 'text-gray-500'}`}>
+                            {terrenoCarregando
+                                ? 'Localizando e carregando o terreno em alta resolução...'
+                                : erroTerreno
+                                    ? erroTerreno
+                                    : centroTerreno
+                                        ? `Terreno ativo · ${centroTerreno.origem} · dados Esri`
+                                        : 'Ativando terreno...'}
+                        </p>
+
+                        <label className="mt-2 flex items-center gap-2 pl-6 text-[10px] text-gray-500">
+                            <span>Transparência</span>
+                            <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                step="5"
+                                value={100 - opacidadeTerreno}
+                                onChange={e => onMudarOpacidadeTerreno(100 - Number(e.target.value))}
+                                aria-label="Transparência do terreno"
+                                className="h-1 min-w-0 flex-1 cursor-pointer accent-cyan-500"
+                            />
+                            <span className="w-8 text-right text-gray-400">{100 - opacidadeTerreno}%</span>
+                        </label>
+                    </>
                 )}
             </div>
 
-            <div className="border-b border-gray-800 px-4 py-2">
-                <div className="flex items-center justify-between">
-                    <p className="text-[11px] text-gray-400">Avanço da pavimentação</p>
+            <div className="border-b border-gray-800 px-4 py-3">
+                <div className="flex items-start justify-between gap-2">
+                    <label className="flex cursor-pointer items-start gap-2">
+                        <input
+                            type="checkbox"
+                            checked={avancoLigado}
+                            onChange={e => onAlternarAvanco(e.target.checked)}
+                            className="mt-0.5 h-4 w-4 accent-cyan-500"
+                        />
+                        <span>
+                            <span className="block text-[11px] font-medium text-gray-300">Aplicar avanço da pavimentação</span>
+                            <span className="block text-[9px] leading-4 text-gray-600">
+                                Colore os trechos conforme as tarefas executadas.
+                            </span>
+                        </span>
+                    </label>
+                    {avancoLigado && (
                     <button
                         onClick={onRecarregarAvanco}
                         disabled={carregandoCor}
@@ -337,21 +373,22 @@ const ViewerCamadas: React.FC<Props> = ({
                     >
                         {carregandoCor ? '...' : '↻'}
                     </button>
+                    )}
                 </div>
 
-                {/* Estado sempre visível: uma seção em branco não diz se o
-                    cruzamento falhou, está rodando ou nunca começou. */}
-                <p className="mt-1 text-[10px] text-gray-500">
-                    {carregandoCor
-                        ? 'Cruzando tarefas com estacas...'
-                        : resumoAvanco
-                            ? 'Aplicado.'
-                            : 'Ainda não executado — use ↻ para aplicar.'}
-                </p>
+                {avancoLigado && (
+                    <p className="mt-1 pl-6 text-[10px] text-gray-500">
+                        {carregandoCor
+                            ? 'Cruzando tarefas com estacas...'
+                            : resumoAvanco
+                                ? 'Aplicado.'
+                                : 'Aguardando resultado do cruzamento.'}
+                    </p>
+                )}
 
-                {erroCor && <p className="mt-1 text-[10px] text-red-400">{erroCor}</p>}
+                {avancoLigado && erroCor && <p className="mt-1 pl-6 text-[10px] text-red-400">{erroCor}</p>}
 
-                {resumoAvanco && !carregandoCor && (
+                {avancoLigado && resumoAvanco && !carregandoCor && (
                     <>
                         <ul className="mt-2 space-y-1">
                             {SERVICOS_PAVIMENTACAO.map(s => {

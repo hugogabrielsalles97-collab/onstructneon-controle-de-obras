@@ -147,9 +147,13 @@ const ModelViewer: React.FC = () => {
     const [resumoAvanco, setResumoAvanco] = useState<ResumoAvanco | null>(null);
     const [carregandoCor, setCarregandoCor] = useState(false);
     const [erroCor, setErroCor] = useState<string | null>(null);
+    const [avancoLigado, setAvancoLigado] = useState(false);
+    const avancoPedidoRef = useRef(0);
     const [selecao, setSelecao] = useState<SelecaoElemento | null>(null);
 
     const [terrenoLigado, setTerrenoLigado] = useState(false);
+    const [opacidadeTerreno, setOpacidadeTerreno] = useState(100);
+    const opacidadeTerrenoRef = useRef(100);
     const [terrenoCarregando, setTerrenoCarregando] = useState(false);
     const [erroTerreno, setErroTerreno] = useState<string | null>(null);
     const [centroTerreno, setCentroTerreno] = useState<{ latitude: number; longitude: number; automatico: boolean; origem: string } | null>(null);
@@ -162,13 +166,11 @@ const ModelViewer: React.FC = () => {
     const tarefasRef = useRef<TarefaPavimentacao[]>([]);
     const localizadorRef = useRef<((dbId: number) => [number, number] | null) | null>(null);
 
-    /**
-     * Pinta o avanço real. O modelo fica todo cinza e só o executado ganha cor,
-     * então esta é a leitura padrão da tela — não um modo a ser ligado.
-     */
+    /** Pinta o avanço real somente quando a opção correspondente está ligada. */
     const aplicarAvanco = async () => {
         const viewer = viewerRef.current;
         if (!viewer || carregandoCor) return;
+        const pedido = ++avancoPedidoRef.current;
 
         setErroCor(null);
         setCarregandoCor(true);
@@ -191,6 +193,8 @@ const ModelViewer: React.FC = () => {
             // principal; os rótulos no eixo ficam só como reserva.
             const propriedades = await lerPropriedades(viewer, coletarPecasDePavimento(viewer));
 
+            if (pedido !== avancoPedidoRef.current) return;
+
             if (pontos.length === 0 && propriedades.size === 0) {
                 throw new Error('Sem estaqueamento nas peças e sem rótulos no eixo — não há como localizar os trechos.');
             }
@@ -200,11 +204,28 @@ const ModelViewer: React.FC = () => {
             tarefasRef.current = tarefas;
             localizadorRef.current = criarLocalizadorDeEstaca(viewer, pontos, propriedades);
         } catch (err) {
+            if (pedido !== avancoPedidoRef.current) return;
             setResumoAvanco(null);
             setErroCor(err instanceof Error ? err.message : String(err));
         } finally {
-            setCarregandoCor(false);
+            if (pedido === avancoPedidoRef.current) setCarregandoCor(false);
         }
+    };
+
+    const removerAvanco = () => {
+        avancoPedidoRef.current++;
+        limparPintura(viewerRef.current);
+        tarefasRef.current = [];
+        localizadorRef.current = null;
+        setResumoAvanco(null);
+        setErroCor(null);
+        setCarregandoCor(false);
+    };
+
+    const alternarAvanco = (ligado: boolean) => {
+        setAvancoLigado(ligado);
+        if (ligado) void aplicarAvanco();
+        else removerAvanco();
     };
 
     /** Aplica o conjunto inteiro de uma vez: mostrar tudo e reesconder é mais
@@ -262,6 +283,7 @@ const ModelViewer: React.FC = () => {
             }
 
             terrenoRef.current = instalado;
+            instalado.definirOpacidade(opacidadeTerrenoRef.current / 100);
             setCentroTerreno({
                 latitude: instalado.latitude,
                 longitude: instalado.longitude,
@@ -284,6 +306,13 @@ const ModelViewer: React.FC = () => {
         setErroTerreno(null);
         if (ligado) void aplicarTerreno({ ...CONFIGURACAO_TERRENO_PADRAO });
         else removerTerreno();
+    };
+
+    const ajustarOpacidadeTerreno = (valor: number) => {
+        const opacidade = Math.min(100, Math.max(0, Math.round(valor)));
+        opacidadeTerrenoRef.current = opacidade;
+        setOpacidadeTerreno(opacidade);
+        terrenoRef.current?.definirOpacidade(opacidade / 100);
     };
 
     // O listener de teclado é registrado uma vez só; sem o ref ele enxergaria
@@ -421,27 +450,6 @@ const ModelViewer: React.FC = () => {
                             { once: true }
                         );
 
-                        // A geometria precisa estar carregada: o loadDocumentNode
-                        // resolve quando o modelo entra na cena, antes dos
-                        // fragmentos existirem, e sem eles as caixas envolventes
-                        // vêm vazias.
-                        //
-                        // O evento pode disparar antes deste registro quando o
-                        // modelo já está em cache. Por isso também checamos o
-                        // estado depois, e um sinalizador garante uma execução só.
-                        let avancoDisparado = false;
-                        const dispararAvanco = () => {
-                            if (cancelado || avancoDisparado) return;
-                            avancoDisparado = true;
-                            aplicarAvanco();
-                        };
-
-                        viewer.addEventListener(
-                            Autodesk.Viewing.GEOMETRY_LOADED_EVENT,
-                            dispararAvanco,
-                            { once: true }
-                        );
-
                         // Clique num elemento: mostra a tarefa que originou a cor.
                         viewer.addEventListener(
                             Autodesk.Viewing.SELECTION_CHANGED_EVENT,
@@ -472,7 +480,6 @@ const ModelViewer: React.FC = () => {
                         viewer.loadDocumentNode(doc, view).then(() => {
                             if (cancelado) return;
                             setStatus('pronto');
-                            if (viewer.model?.isLoadDone?.()) dispararAvanco();
                         });
                     },
                     (code: any, msg: any) => {
@@ -535,8 +542,10 @@ const ModelViewer: React.FC = () => {
                     onAlternar={alternarCamada}
                     onPreset={aplicarPreset}
                     resumoAvanco={resumoAvanco}
+                    avancoLigado={avancoLigado}
                     carregandoCor={carregandoCor}
                     erroCor={erroCor}
+                    onAlternarAvanco={alternarAvanco}
                     onRecarregarAvanco={aplicarAvanco}
                     aberto={painelAberto}
                     onFechar={() => setPainelAberto(false)}
@@ -545,6 +554,8 @@ const ModelViewer: React.FC = () => {
                     erroTerreno={erroTerreno}
                     centroTerreno={centroTerreno}
                     onAlternarTerreno={alternarTerreno}
+                    opacidadeTerreno={opacidadeTerreno}
+                    onMudarOpacidadeTerreno={ajustarOpacidadeTerreno}
                 />
             )}
 

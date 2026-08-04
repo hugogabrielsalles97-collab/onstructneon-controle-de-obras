@@ -24,6 +24,7 @@ export interface TerrenoInstalado {
     longitude: number;
     localizacaoAutomatica: boolean;
     origemLocalizacao: string;
+    definirOpacidade: (opacidade: number) => void;
     remover: () => void;
 }
 
@@ -43,10 +44,27 @@ const RAIO_DE_TILES = 1;
 const CONCORRENCIA_TILES = 3;
 const SEGMENTOS = 32;
 const RAIO_TERRA = 6378137;
+const RESOLUCAO_TEXTURA = 1024;
 let lercPronto: Promise<typeof import('lerc')> | null = null;
 
-const IMAGEM_URL = (z: number, x: number, y: number) =>
-    `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+/**
+ * Pede ao serviço a mesma área geográfica do tile de relevo, mas renderizada
+ * em 1024 px. O tile comum possui só 256 px e ficava borrado ao ser esticado
+ * por aproximadamente quatro quilômetros no zoom 13.
+ */
+const IMAGEM_URL = (z: number, x: number, y: number) => {
+    const limite = Math.PI * RAIO_TERRA;
+    const tamanho = 2 * limite / 2 ** z;
+    const esquerda = -limite + x * tamanho;
+    const direita = esquerda + tamanho;
+    const topo = limite - y * tamanho;
+    const base = topo - tamanho;
+    const bbox = [esquerda, base, direita, topo].join(',');
+
+    return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export`
+        + `?bbox=${bbox}&bboxSR=3857&imageSR=3857`
+        + `&size=${RESOLUCAO_TEXTURA},${RESOLUCAO_TEXTURA}&format=jpg&f=image`;
+};
 
 const ELEVACAO_URL = (z: number, x: number, y: number) =>
     `https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer/tile/${z}/${y}/${x}`;
@@ -489,7 +507,12 @@ function montarMalha(
     geometria.computeVertexNormals?.();
     geometria.computeBoundingSphere?.();
 
-    const material = new THREE.MeshBasicMaterial({ map: textura, side: THREE.DoubleSide });
+    const material = new THREE.MeshBasicMaterial({
+        map: textura,
+        side: THREE.DoubleSide,
+        opacity: 1,
+        transparent: false,
+    });
     const malha = new THREE.Mesh(geometria, material);
     malha.frustumCulled = false;
     return malha;
@@ -542,6 +565,17 @@ export async function instalarTerrenoReal(
     else viewer.impl.createOverlayScene(cena);
     const malhas: any[] = [];
     let removido = false;
+    const definirOpacidade = (valor: number) => {
+        const opacidade = Math.min(1, Math.max(0, Number.isFinite(valor) ? valor : 1));
+        for (const malha of malhas) {
+            const material = malha.material;
+            material.opacity = opacidade;
+            material.transparent = opacidade < 0.999;
+            material.depthWrite = opacidade >= 0.999;
+            material.needsUpdate = true;
+        }
+        viewer.impl.invalidate?.(true, true, true);
+    };
     const remover = () => {
         if (removido) return;
         removido = true;
@@ -608,6 +642,7 @@ export async function instalarTerrenoReal(
             longitude: centro.longitude,
             localizacaoAutomatica: centro.automatica,
             origemLocalizacao: centro.origem,
+            definirOpacidade,
             remover,
         };
     } catch (erro) {
