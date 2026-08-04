@@ -44,6 +44,15 @@ export interface TerrenoInstalado {
     remover: () => void;
 }
 
+interface TransformacaoGrade {
+    centroEasting: number;
+    centroNorthing: number;
+    deslocamentoLeste: number;
+    deslocamentoNorte: number;
+    anguloRad: number;
+    escala: number;
+}
+
 interface CentroGeografico {
     latitude: number;
     longitude: number;
@@ -56,6 +65,7 @@ interface CentroGeografico {
         zona: number;
         sul: boolean;
         datum: 'sirgas2000' | 'sad69';
+        transformacao?: TransformacaoGrade;
     };
     /**
      * Quanto a cota do modelo excede a cota do Viewer no ponto de âncora
@@ -68,7 +78,7 @@ interface CentroGeografico {
 }
 
 const CHAVE_CONFIGURACAO = 'elos.viewer.terrenoReal';
-const VERSAO_GEOREFERENCIAMENTO = 2;
+const VERSAO_GEOREFERENCIAMENTO = 3;
 const CENA = 'elos-terreno-real';
 // 3 × 3 cobre aproximadamente 12 km neste projeto e mantém tablets/celulares
 // responsivos. O carregamento anterior de 5 × 5 decodificava 25 relevos.
@@ -264,18 +274,22 @@ function ufDoNome(nome: string) {
 interface CalibracaoGeorreferenciamento {
     datumPadrao: 'sirgas2000' | 'sad69';
     porDatum: Record<'sirgas2000' | 'sad69', { leste: number; norte: number }>;
+    centroEasting: number;
+    centroNorthing: number;
+    anguloGraus: number;
+    escalaPpm: number;
     cota: number;
     pontosControle: number;
 }
 
 /**
- * Calibrações comprovadas contra a topografia cotada do próprio federado.
+ * Calibração comprovada contra os pontos COGO cotados do próprio federado.
  *
  * O NWD da Serra das Araras não transporta o código EPSG: a extensão
  * Autodesk.Geolocation retorna `hasGeolocationData=false`, e os campos
  * Latitude/Longitude dos arquivos filhos são valores padrão inválidos. Foram
- * usados os 1.088 pontos Civil 3D com Easting/Northing/Elevation presentes no
- * BIM contra o mesmo DEM da malha (correlação 0,99923 e RMSE 3,28 m).
+ * usados os 1.088 controles COGO/KNX com Easting/Northing/Elevation presentes
+ * no BIM contra o mesmo DEM da malha (correlação 0,99923 e RMSE 3,26 m).
  *
  * Os dois pares abaixo descrevem o mesmo lugar físico nos dois datums. Assim a
  * seleção manual já existente continua válida sem reintroduzir deslocamento.
@@ -286,10 +300,56 @@ function calibracaoDoModelo(nome: string): CalibracaoGeorreferenciamento | null 
         datumPadrao: 'sad69',
         porDatum: {
             sirgas2000: { leste: -86, norte: -41 },
-            sad69: { leste: -41, norte: 5 },
+            sad69: { leste: -40.9951171875, norte: 4.6875 },
         },
-        cota: -0.58,
+        centroEasting: 620575.3614503667,
+        centroNorthing: 7493731.744554228,
+        anguloGraus: 0.010603076384501078,
+        escalaPpm: 7.763671875,
+        cota: -0.5517842936932027,
         pontosControle: 1088,
+    };
+}
+
+function transformacaoDaGrade(
+    calibracao: CalibracaoGeorreferenciamento | null,
+    datum: 'sirgas2000' | 'sad69',
+): TransformacaoGrade | undefined {
+    if (!calibracao) return undefined;
+    const deslocamento = calibracao.porDatum[datum];
+    return {
+        centroEasting: calibracao.centroEasting,
+        centroNorthing: calibracao.centroNorthing,
+        deslocamentoLeste: deslocamento.leste,
+        deslocamentoNorte: deslocamento.norte,
+        anguloRad: calibracao.anguloGraus * Math.PI / 180,
+        escala: 1 + calibracao.escalaPpm / 1_000_000,
+    };
+}
+
+/** Grade cartesiana BIM → grade UTM do datum, incluindo rotação e escala. */
+function modeloParaGradeGeografica(easting: number, northing: number, t?: TransformacaoGrade) {
+    if (!t) return { easting, northing };
+    const x = easting - t.centroEasting;
+    const y = northing - t.centroNorthing;
+    const cos = Math.cos(t.anguloRad);
+    const sin = Math.sin(t.anguloRad);
+    return {
+        easting: t.centroEasting + t.deslocamentoLeste + t.escala * (cos * x - sin * y),
+        northing: t.centroNorthing + t.deslocamentoNorte + t.escala * (sin * x + cos * y),
+    };
+}
+
+/** Inversa exata da transformação acima, usada em cada vértice da ortofoto. */
+function gradeGeograficaParaModelo(easting: number, northing: number, t?: TransformacaoGrade) {
+    if (!t) return { easting, northing };
+    const x = (easting - t.centroEasting - t.deslocamentoLeste) / t.escala;
+    const y = (northing - t.centroNorthing - t.deslocamentoNorte) / t.escala;
+    const cos = Math.cos(t.anguloRad);
+    const sin = Math.sin(t.anguloRad);
+    return {
+        easting: t.centroEasting + cos * x + sin * y,
+        northing: t.centroNorthing - sin * x + cos * y,
     };
 }
 
@@ -567,7 +627,7 @@ function centroPorUtm(viewer: any, config: ConfiguracaoTerreno): CentroGeografic
     const sul = referencia.latitude < 0;
     const datum = config.datum === 'auto' ? datumDoModelo(nome) : config.datum;
     const calibracao = calibracaoDoModelo(nome);
-    const ajusteGrade = calibracao?.porDatum[datum] ?? { leste: 0, norte: 0 };
+    const transformacao = transformacaoDaGrade(calibracao, datum);
 
     // Estados grandes cruzam mais de um fuso: RJ vai do 23 ao 24, MG do 22 ao 24.
     // Testar os vizinhos evita aceitar um erro de 6° de longitude — cerca de
@@ -597,11 +657,10 @@ function centroPorUtm(viewer: any, config: ConfiguracaoTerreno): CentroGeografic
             for (const zona of zonas) {
                 // A âncora continua no ponto original do Viewer. A correção
                 // atua somente na grade usada para buscar/reprojetar o terreno.
-                const eastingGeografico = ponto.x + ajusteGrade.leste;
-                const northingGeografico = northing + ajusteGrade.norte;
+                const gradeGeografica = modeloParaGradeGeografica(ponto.x, northing, transformacao);
                 const convertido = utmModeloParaWgs84(
-                    eastingGeografico,
-                    northingGeografico,
+                    gradeGeografica.easting,
+                    gradeGeografica.northing,
                     zona,
                     sul,
                     datum,
@@ -614,8 +673,8 @@ function centroPorUtm(viewer: any, config: ConfiguracaoTerreno): CentroGeografic
                         ...convertido,
                         score,
                         ancoraViewer: ponto.ancoraViewer,
-                        easting: eastingGeografico,
-                        northing: northingGeografico,
+                        easting: ponto.x,
+                        northing,
                         zona,
                         offsetVerticalModelo: ponto.offsetVerticalModelo,
                     };
@@ -634,7 +693,14 @@ function centroPorUtm(viewer: any, config: ConfiguracaoTerreno): CentroGeografic
         origem: `UTM ${melhor.zona}${sul ? 'S' : 'N'} · ${datum === 'sad69' ? 'SAD69' : 'SIRGAS 2000'}`
             + (calibracao ? ` · calibrado por ${calibracao.pontosControle.toLocaleString('pt-BR')} pontos BIM` : ''),
         ancoraViewer: melhor.ancoraViewer,
-        utm: { easting: melhor.easting, northing: melhor.northing, zona: melhor.zona, sul, datum },
+        utm: {
+            easting: melhor.easting,
+            northing: melhor.northing,
+            zona: melhor.zona,
+            sul,
+            datum,
+            transformacao,
+        },
         offsetVerticalModelo: melhor.offsetVerticalModelo,
         correcaoVerticalBim: calibracao?.cota,
     };
@@ -787,6 +853,189 @@ function amostrar(dados: LercData, u: number, v: number) {
     return Number(dados.pixels[0][indice]);
 }
 
+/** Amostragem contínua para comparar uma coordenada BIM com o DEM. */
+function amostrarBilinear(dados: LercData, u: number, v: number) {
+    const x = Math.min(dados.width - 1, Math.max(0, u * (dados.width - 1)));
+    const y = Math.min(dados.height - 1, Math.max(0, v * (dados.height - 1)));
+    const x0 = Math.floor(x);
+    const y0 = Math.floor(y);
+    const x1 = Math.min(dados.width - 1, x0 + 1);
+    const y1 = Math.min(dados.height - 1, y0 + 1);
+    const ax = x - x0;
+    const ay = y - y0;
+    const pixels = dados.pixels[0];
+    const a = Number(pixels[y0 * dados.width + x0]);
+    const b = Number(pixels[y0 * dados.width + x1]);
+    const c = Number(pixels[y1 * dados.width + x0]);
+    const d = Number(pixels[y1 * dados.width + x1]);
+    return a * (1 - ax) * (1 - ay) + b * ax * (1 - ay) + c * (1 - ax) * ay + d * ax * ay;
+}
+
+interface PontoControleCota {
+    easting: number;
+    northing: number;
+    cota: number;
+}
+
+const pontosControleCache = new WeakMap<object, Promise<PontoControleCota[]>>();
+
+/**
+ * Lê apenas os 1.088 controles COGO/KNX, dentro do worker do banco de
+ * propriedades do Viewer. Isso não percorre os 683 mil elementos na thread da
+ * interface e não congela a navegação.
+ */
+function carregarPontosControleCota(viewer: any): Promise<PontoControleCota[]> {
+    const model = viewer?.model;
+    if (!model || typeof model !== 'object') return Promise.resolve([]);
+    const existente = pontosControleCache.get(model);
+    if (existente) return existente;
+
+    const pedido = (async () => {
+        try {
+            const pontos = await model.getPropertyDb?.().executeUserFunction(function (pdb: any) {
+                const encontrados: Array<{ easting: number; northing: number; cota: number }> = [];
+                for (let dbId = 97788; dbId <= 98875; dbId++) {
+                    const objeto = pdb.getObjectProperties(dbId);
+                    let easting: number | null = null;
+                    let northing: number | null = null;
+                    let cota: number | null = null;
+                    for (const propriedade of objeto?.properties || []) {
+                        const nome = String(propriedade.displayName || '');
+                        const valor = Number(propriedade.displayValue);
+                        if (!Number.isFinite(valor)) continue;
+                        if (/Coordinate:Easting/i.test(nome)) easting = valor;
+                        else if (/Coordinate:Northing/i.test(nome)) northing = valor;
+                        else if (/Coordinate:Point Elevation/i.test(nome)) cota = valor;
+                    }
+                    if (easting !== null && northing !== null && cota !== null) {
+                        encontrados.push({ easting, northing, cota });
+                    }
+                }
+                return encontrados;
+            });
+            return Array.isArray(pontos) ? pontos.filter(p =>
+                Number.isFinite(p.easting) && Number.isFinite(p.northing) && Number.isFinite(p.cota)) : [];
+        } catch {
+            return [];
+        }
+    })();
+    pontosControleCache.set(model, pedido);
+    return pedido;
+}
+
+function mediana(valores: number[]) {
+    if (!valores.length) return 0;
+    const ordenados = [...valores].sort((a, b) => a - b);
+    const meio = Math.floor(ordenados.length / 2);
+    return ordenados.length % 2 ? ordenados[meio] : (ordenados[meio - 1] + ordenados[meio]) / 2;
+}
+
+/** Campo contínuo de correção que faz o DEM acompanhar as cotas BIM. */
+function criarInterpoladorCota(pontos: Array<PontoControleCota & { correcao: number }>) {
+    const tamanhoCelula = 200;
+    const grade = new Map<string, Array<PontoControleCota & { correcao: number }>>();
+    const chave = (x: number, y: number) => `${x}/${y}`;
+    for (const ponto of pontos) {
+        const gx = Math.floor(ponto.easting / tamanhoCelula);
+        const gy = Math.floor(ponto.northing / tamanhoCelula);
+        const id = chave(gx, gy);
+        const celula = grade.get(id) ?? [];
+        celula.push(ponto);
+        grade.set(id, celula);
+    }
+    const fallback = mediana(pontos.map(p => p.correcao));
+
+    return (easting: number, northing: number) => {
+        const gx = Math.floor(easting / tamanhoCelula);
+        const gy = Math.floor(northing / tamanhoCelula);
+        let candidatos: Array<PontoControleCota & { correcao: number }> = [];
+        for (let raio = 0; raio <= 4; raio++) {
+            candidatos = [];
+            for (let y = gy - raio; y <= gy + raio; y++) {
+                for (let x = gx - raio; x <= gx + raio; x++) {
+                    const celula = grade.get(chave(x, y));
+                    if (celula) candidatos.push(...celula);
+                }
+            }
+            if (candidatos.length >= 8) break;
+        }
+        if (!candidatos.length) return fallback;
+
+        const proximos: Array<{ distancia2: number; correcao: number }> = [];
+        for (const ponto of candidatos) {
+            const distancia2 = (ponto.easting - easting) ** 2 + (ponto.northing - northing) ** 2;
+            if (distancia2 < 0.01) return ponto.correcao;
+            let posicao = proximos.length;
+            while (posicao > 0 && proximos[posicao - 1].distancia2 > distancia2) posicao--;
+            proximos.splice(posicao, 0, { distancia2, correcao: ponto.correcao });
+            if (proximos.length > 8) proximos.pop();
+        }
+        if (!proximos.length || proximos[0].distancia2 > 800 ** 2) return fallback;
+        let soma = 0;
+        let pesos = 0;
+        for (const ponto of proximos) {
+            const peso = 1 / (ponto.distancia2 + 1);
+            soma += ponto.correcao * peso;
+            pesos += peso;
+        }
+        return pesos ? soma / pesos : fallback;
+    };
+}
+
+async function prepararCorrecaoCotaBim(
+    viewer: any,
+    centro: CentroGeografico,
+    zoom: number,
+    obterElevacao: (x: number, y: number) => Promise<LercData>,
+    signal: AbortSignal,
+) {
+    const referencia = centro.utm;
+    if (!referencia?.transformacao) return null;
+    const pontos = await carregarPontosControleCota(viewer);
+    abortado(signal);
+    if (!pontos.length) return null;
+
+    const baseMilhao = referencia.northing >= 1_000_000
+        ? Math.floor(referencia.northing / 1_000_000) * 1_000_000
+        : 0;
+    const corrigidos = await Promise.all(pontos.map(async ponto => {
+        const northing = ponto.northing < 1_000_000 ? ponto.northing + baseMilhao : ponto.northing;
+        const grade = modeloParaGradeGeografica(
+            ponto.easting,
+            northing,
+            referencia.transformacao,
+        );
+        const geo = utmModeloParaWgs84(
+            grade.easting,
+            grade.northing,
+            referencia.zona,
+            referencia.sul,
+            referencia.datum,
+        );
+        const tileX = longitudeParaTile(geo.longitude, zoom);
+        const tileY = latitudeParaTile(geo.latitude, zoom);
+        const x = Math.floor(tileX);
+        const y = Math.floor(tileY);
+        const dados = await obterElevacao(x, y);
+        const elevacaoDem = amostrarBilinear(dados, tileX - x, tileY - y);
+        return {
+            easting: ponto.easting,
+            northing,
+            cota: ponto.cota,
+            correcao: ponto.cota - elevacaoDem,
+        };
+    }));
+    abortado(signal);
+
+    const validos = corrigidos.filter(p => Number.isFinite(p.correcao));
+    if (validos.length < 20) return null;
+    const centroResiduos = mediana(validos.map(p => p.correcao));
+    // Descarta apenas valores incompatíveis com uma cota de superfície. Os
+    // resíduos reais deste levantamento ficam entre aproximadamente ±20 m.
+    const coerentes = validos.filter(p => Math.abs(p.correcao - centroResiduos) <= 35);
+    return criarInterpoladorCota(coerentes);
+}
+
 function atributo(geometria: any, nome: string, valor: any) {
     if (geometria.setAttribute) geometria.setAttribute(nome, valor);
     else geometria.addAttribute(nome, valor);
@@ -801,12 +1050,15 @@ interface ContextoMalha {
     elevacaoReferencia: number;
     /** Origem no espaço do Viewer, já corrigida verticalmente para a cota do solo. */
     origem: { x: number; y: number; z: number };
+    correcaoCota?: (easting: number, northing: number) => number;
+    correcaoCotaReferencia: number;
     referenciaUtm?: {
         easting: number;
         northing: number;
         zona: number;
         sul: boolean;
         datum: 'sirgas2000' | 'sad69';
+        transformacao?: TransformacaoGrade;
     };
 }
 
@@ -832,6 +1084,7 @@ function calcularBase(
     const {
         tileXFlutuante, tileYFlutuante, tamanhoTile, zoom,
         metrosPorUnidade, elevacaoReferencia, referenciaUtm,
+        correcaoCota, correcaoCotaReferencia,
     } = contexto;
 
     const segmentos = segmentosDoTile(dados);
@@ -847,6 +1100,8 @@ function calcularBase(
             const elevacao = Number.isFinite(elevacaoLida) ? elevacaoLida : ultimaElevacao;
             ultimaElevacao = elevacao;
 
+            let eastingModelo: number | null = null;
+            let northingModelo: number | null = null;
             if (referenciaUtm) {
                 const longitude = tileParaLongitude(tileX + u, zoom);
                 const latitude = tileParaLatitude(tileY + v, zoom);
@@ -856,15 +1111,27 @@ function calcularBase(
                     referenciaUtm.zona,
                     referenciaUtm.datum,
                 );
-                base[i++] = (utm.easting - referenciaUtm.easting) / metrosPorUnidade;
-                base[i++] = (utm.northing - referenciaUtm.northing) / metrosPorUnidade;
+                const modelo = gradeGeograficaParaModelo(
+                    utm.easting,
+                    utm.northing,
+                    referenciaUtm.transformacao,
+                );
+                eastingModelo = modelo.easting;
+                northingModelo = modelo.northing;
+                base[i++] = (modelo.easting - referenciaUtm.easting) / metrosPorUnidade;
+                base[i++] = (modelo.northing - referenciaUtm.northing) / metrosPorUnidade;
             } else {
                 // Reserva para modelos encontrados por latitude/longitude, sem
                 // coordenadas UTM originais disponíveis.
                 base[i++] = (tileX - tileXFlutuante + u) * tamanhoTile / metrosPorUnidade;
                 base[i++] = -(tileY - tileYFlutuante + v) * tamanhoTile / metrosPorUnidade;
             }
-            base[i++] = (elevacao - elevacaoReferencia) / metrosPorUnidade;
+            const ajusteCota = eastingModelo !== null && northingModelo !== null
+                ? correcaoCota?.(eastingModelo, northingModelo) ?? correcaoCotaReferencia
+                : correcaoCotaReferencia;
+            base[i++] = (
+                elevacao - elevacaoReferencia + ajusteCota - correcaoCotaReferencia
+            ) / metrosPorUnidade;
         }
     }
 
@@ -1001,12 +1268,32 @@ export async function instalarTerrenoReal(
 
     await prepararLerc();
     const central = await carregarElevacao(zoom, tileCentralX, tileCentralY, signal);
+    const elevacoes = new Map<string, Promise<LercData>>();
+    elevacoes.set(`${tileCentralX}/${tileCentralY}`, Promise.resolve(central));
+    const obterElevacao = (x: number, y: number) => {
+        const chave = `${x}/${y}`;
+        const existente = elevacoes.get(chave);
+        if (existente) return existente;
+        const pedido = carregarElevacao(zoom, x, y, signal);
+        elevacoes.set(chave, pedido);
+        return pedido;
+    };
     const elevacaoReferencia = amostrar(
         central,
         tileXFlutuante - tileCentralX,
         tileYFlutuante - tileCentralY,
     );
     if (!Number.isFinite(elevacaoReferencia)) throw new Error('A elevação do centro informado não está disponível.');
+    const correcaoCota = await prepararCorrecaoCotaBim(
+        viewer,
+        centro,
+        zoom,
+        obterElevacao,
+        signal,
+    );
+    const correcaoCotaReferencia = centro.utm && correcaoCota
+        ? correcaoCota(centro.utm.easting, centro.utm.northing)
+        : centro.correcaoVerticalBim ?? 0;
 
     if (centro.offsetVerticalModelo !== undefined) {
         // Planta o terreno na cota real do solo, convertida para o espaço do
@@ -1019,13 +1306,14 @@ export async function instalarTerrenoReal(
         // ortofoto estivesse deslocada no plano, que é o sintoma percebido.
         origem.z = elevacaoReferencia / metrosPorUnidade - centro.offsetVerticalModelo;
     }
-    if (centro.correcaoVerticalBim) {
-        origem.z += centro.correcaoVerticalBim / metrosPorUnidade;
+    if (correcaoCotaReferencia) {
+        origem.z += correcaoCotaReferencia / metrosPorUnidade;
     }
 
     const contexto: ContextoMalha = {
         tileXFlutuante, tileYFlutuante, tamanhoTile, zoom,
         metrosPorUnidade, elevacaoReferencia, origem,
+        correcaoCota, correcaoCotaReferencia,
         referenciaUtm: centro.utm,
     };
     let configAtual = config;
@@ -1109,7 +1397,7 @@ export async function instalarTerrenoReal(
             while (cursor < tiles.length) {
                 const { dx, dy, x, y } = tiles[cursor++];
                 const [dados, textura] = await Promise.all([
-                    dx === 0 && dy === 0 ? central : carregarElevacao(zoom, x, y, signal),
+                    obterElevacao(x, y),
                     // O tile de 256 px aparece rapidamente. A substituição por
                     // alta resolução acontece em segundo plano após a montagem.
                     carregarTextura(THREE, zoom, x, y, null, signal),
