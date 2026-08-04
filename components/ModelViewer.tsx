@@ -10,6 +10,10 @@ import {
 } from './viewerAvanco';
 import { lerPropriedades } from './viewerPropriedades';
 import ViewerInfoElemento, { SelecaoElemento } from './ViewerInfoElemento';
+import {
+    ConfiguracaoTerreno, TerrenoInstalado, gravarConfiguracaoTerreno,
+    instalarTerrenoReal, lerConfiguracaoTerreno,
+} from './viewerTerreno';
 
 /**
  * Visualizador do modelo federado (NWD) via Autodesk Platform Services.
@@ -145,6 +149,15 @@ const ModelViewer: React.FC = () => {
     const [erroCor, setErroCor] = useState<string | null>(null);
     const [selecao, setSelecao] = useState<SelecaoElemento | null>(null);
 
+    const [terrenoLigado, setTerrenoLigado] = useState(false);
+    const [terrenoCarregando, setTerrenoCarregando] = useState(false);
+    const [erroTerreno, setErroTerreno] = useState<string | null>(null);
+    const [centroTerreno, setCentroTerreno] = useState<{ latitude: number; longitude: number; automatico: boolean } | null>(null);
+    const [configuracaoTerreno, setConfiguracaoTerreno] = useState<ConfiguracaoTerreno>(() => lerConfiguracaoTerreno());
+    const terrenoRef = useRef<TerrenoInstalado | null>(null);
+    const terrenoAbortRef = useRef<AbortController | null>(null);
+    const terrenoPedidoRef = useRef(0);
+
     // Guardados em ref para o ouvinte de seleção, registrado uma única vez,
     // enxergar sempre os dados da última pintura.
     const tarefasRef = useRef<TarefaPavimentacao[]>([]);
@@ -215,6 +228,65 @@ const ModelViewer: React.FC = () => {
     };
 
     const aplicarPreset = (ids: number[]) => aplicar(new Set<number>(ids));
+
+    const removerTerreno = () => {
+        terrenoPedidoRef.current++;
+        terrenoAbortRef.current?.abort();
+        terrenoAbortRef.current = null;
+        terrenoRef.current?.remover();
+        terrenoRef.current = null;
+        setTerrenoCarregando(false);
+        setCentroTerreno(null);
+    };
+
+    const aplicarTerreno = async (config: ConfiguracaoTerreno) => {
+        const viewer = viewerRef.current;
+        if (!viewer) return;
+
+        setConfiguracaoTerreno(config);
+        gravarConfiguracaoTerreno(config);
+        setErroTerreno(null);
+        setCentroTerreno(null);
+        setTerrenoCarregando(true);
+
+        terrenoAbortRef.current?.abort();
+        terrenoRef.current?.remover();
+        terrenoRef.current = null;
+
+        const pedido = ++terrenoPedidoRef.current;
+        const controller = new AbortController();
+        terrenoAbortRef.current = controller;
+
+        try {
+            const instalado = await instalarTerrenoReal(viewer, config, controller.signal);
+            if (pedido !== terrenoPedidoRef.current || controller.signal.aborted) {
+                instalado.remover();
+                return;
+            }
+
+            terrenoRef.current = instalado;
+            setCentroTerreno({
+                latitude: instalado.latitude,
+                longitude: instalado.longitude,
+                automatico: instalado.localizacaoAutomatica,
+            });
+        } catch (err) {
+            if (pedido !== terrenoPedidoRef.current || controller.signal.aborted) return;
+            setErroTerreno(err instanceof Error ? err.message : String(err));
+        } finally {
+            if (pedido === terrenoPedidoRef.current) {
+                setTerrenoCarregando(false);
+                terrenoAbortRef.current = null;
+            }
+        }
+    };
+
+    const alternarTerreno = (ligado: boolean) => {
+        setTerrenoLigado(ligado);
+        setErroTerreno(null);
+        if (ligado) void aplicarTerreno(configuracaoTerreno);
+        else removerTerreno();
+    };
 
     // O listener de teclado é registrado uma vez só; sem o ref ele enxergaria
     // para sempre o conjunto vazio do primeiro render.
@@ -422,6 +494,10 @@ const ModelViewer: React.FC = () => {
 
         return () => {
             cancelado = true;
+            terrenoPedidoRef.current++;
+            terrenoAbortRef.current?.abort();
+            terrenoRef.current?.remover();
+            terrenoRef.current = null;
             if (viewerRef.current) {
                 try { viewerRef.current.finish(); } catch { /* já derrubado */ }
                 viewerRef.current = null;
@@ -466,6 +542,14 @@ const ModelViewer: React.FC = () => {
                     onRecarregarAvanco={aplicarAvanco}
                     aberto={painelAberto}
                     onFechar={() => setPainelAberto(false)}
+                    terrenoLigado={terrenoLigado}
+                    terrenoCarregando={terrenoCarregando}
+                    erroTerreno={erroTerreno}
+                    centroTerreno={centroTerreno}
+                    configuracaoTerreno={configuracaoTerreno}
+                    onAlternarTerreno={alternarTerreno}
+                    onAlterarConfiguracaoTerreno={setConfiguracaoTerreno}
+                    onAplicarTerreno={config => void aplicarTerreno(config)}
                 />
             )}
 
