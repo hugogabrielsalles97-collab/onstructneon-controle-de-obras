@@ -34,7 +34,13 @@ interface CentroGeografico {
     automatica: boolean;
     origem: string;
     ancoraViewer?: { x: number; y: number; z: number };
-    utm?: { easting: number; northing: number; zona: number; sul: boolean };
+    utm?: {
+        easting: number;
+        northing: number;
+        zona: number;
+        sul: boolean;
+        datum: 'sirgas2000' | 'sad69';
+    };
     /** Offset Z aplicado pelo Viewer às coordenadas absolutas do NWD. */
     offsetVerticalModelo?: number;
 }
@@ -199,10 +205,34 @@ function ufDoNome(nome: string) {
     return null;
 }
 
-/** Conversão inversa WGS84 UTM, suficiente para posicionar o centro dos tiles. */
-function utmParaWgs84(easting: number, northing: number, zona: number, sul: boolean) {
-    const a = 6378137;
-    const ecc = 0.00669438;
+function datumDoModelo(nome: string): 'sirgas2000' | 'sad69' {
+    // O federado da Serra das Araras mantém o levantamento legado em SAD69,
+    // embora o NWD não transporte o nome do sistema de referência. A regra é
+    // deliberadamente específica para não deslocar futuros modelos SIRGAS.
+    return /116RJ[-_ ]*218[-_ ]*226/i.test(nome) ? 'sad69' : 'sirgas2000';
+}
+
+interface Elipsoide {
+    a: number;
+    ecc: number;
+}
+
+const ELIPSOIDE_SIRGAS: Elipsoide = { a: 6378137, ecc: 0.006694380022900787 };
+const ELIPSOIDE_SAD69: Elipsoide = {
+    a: 6378160,
+    ecc: 2 / 298.25 - 1 / 298.25 ** 2,
+};
+const TRANSLACAO_SAD69_SIRGAS = { x: -67.35, y: 3.88, z: -38.22 };
+
+/** Conversão inversa UTM parametrizada pelo elipsoide do datum de origem. */
+function utmParaGeograficas(
+    easting: number,
+    northing: number,
+    zona: number,
+    sul: boolean,
+    elipsoide: Elipsoide,
+) {
+    const { a, ecc } = elipsoide;
     const k0 = 0.9996;
     const eccLinha = ecc / (1 - ecc);
     const e1 = (1 - Math.sqrt(1 - ecc)) / (1 + Math.sqrt(1 - ecc));
@@ -237,10 +267,14 @@ function utmParaWgs84(easting: number, northing: number, zona: number, sul: bool
     };
 }
 
-/** Conversão WGS84 para UTM usada para colocar cada vértice no mesmo grid do NWD. */
-function wgs84ParaUtm(latitude: number, longitude: number, zona: number) {
-    const a = 6378137;
-    const ecc = 0.00669438;
+/** Conversão geográfica para UTM parametrizada pelo elipsoide de destino. */
+function geograficasParaUtm(
+    latitude: number,
+    longitude: number,
+    zona: number,
+    elipsoide: Elipsoide,
+) {
+    const { a, ecc } = elipsoide;
     const k0 = 0.9996;
     const eccLinha = ecc / (1 - ecc);
     const latitudeRad = latitude * Math.PI / 180;
@@ -273,6 +307,98 @@ function wgs84ParaUtm(latitude: number, longitude: number, zona: number) {
     );
     if (latitude < 0) northing += 10000000;
     return { easting, northing };
+}
+
+function geograficasParaGeocentricas(
+    latitude: number,
+    longitude: number,
+    elipsoide: Elipsoide,
+) {
+    const lat = latitude * Math.PI / 180;
+    const lon = longitude * Math.PI / 180;
+    const n = elipsoide.a / Math.sqrt(1 - elipsoide.ecc * Math.sin(lat) ** 2);
+    return {
+        x: n * Math.cos(lat) * Math.cos(lon),
+        y: n * Math.cos(lat) * Math.sin(lon),
+        z: n * (1 - elipsoide.ecc) * Math.sin(lat),
+    };
+}
+
+function geocentricasParaGeograficas(
+    x: number,
+    y: number,
+    z: number,
+    elipsoide: Elipsoide,
+) {
+    const longitude = Math.atan2(y, x);
+    const p = Math.hypot(x, y);
+    let latitude = Math.atan2(z, p * (1 - elipsoide.ecc));
+    for (let i = 0; i < 8; i++) {
+        const n = elipsoide.a / Math.sqrt(1 - elipsoide.ecc * Math.sin(latitude) ** 2);
+        const altura = p / Math.cos(latitude) - n;
+        latitude = Math.atan2(z, p * (1 - elipsoide.ecc * n / (n + altura)));
+    }
+    return {
+        latitude: latitude * 180 / Math.PI,
+        longitude: longitude * 180 / Math.PI,
+    };
+}
+
+/** EPSG:15485 — transformação SAD69 para SIRGAS 2000 usada no Brasil. */
+function sad69ParaSirgas(latitude: number, longitude: number) {
+    const sad = geograficasParaGeocentricas(latitude, longitude, ELIPSOIDE_SAD69);
+    return geocentricasParaGeograficas(
+        sad.x + TRANSLACAO_SAD69_SIRGAS.x,
+        sad.y + TRANSLACAO_SAD69_SIRGAS.y,
+        sad.z + TRANSLACAO_SAD69_SIRGAS.z,
+        ELIPSOIDE_SIRGAS,
+    );
+}
+
+function sirgasParaSad69(latitude: number, longitude: number) {
+    const sirgas = geograficasParaGeocentricas(latitude, longitude, ELIPSOIDE_SIRGAS);
+    return geocentricasParaGeograficas(
+        sirgas.x - TRANSLACAO_SAD69_SIRGAS.x,
+        sirgas.y - TRANSLACAO_SAD69_SIRGAS.y,
+        sirgas.z - TRANSLACAO_SAD69_SIRGAS.z,
+        ELIPSOIDE_SAD69,
+    );
+}
+
+function utmModeloParaWgs84(
+    easting: number,
+    northing: number,
+    zona: number,
+    sul: boolean,
+    datum: 'sirgas2000' | 'sad69',
+) {
+    const geograficas = utmParaGeograficas(
+        easting,
+        northing,
+        zona,
+        sul,
+        datum === 'sad69' ? ELIPSOIDE_SAD69 : ELIPSOIDE_SIRGAS,
+    );
+    return datum === 'sad69'
+        ? sad69ParaSirgas(geograficas.latitude, geograficas.longitude)
+        : geograficas;
+}
+
+function wgs84ParaUtmModelo(
+    latitude: number,
+    longitude: number,
+    zona: number,
+    datum: 'sirgas2000' | 'sad69',
+) {
+    const geograficas = datum === 'sad69'
+        ? sirgasParaSad69(latitude, longitude)
+        : { latitude, longitude };
+    return geograficasParaUtm(
+        geograficas.latitude,
+        geograficas.longitude,
+        zona,
+        datum === 'sad69' ? ELIPSOIDE_SAD69 : ELIPSOIDE_SIRGAS,
+    );
 }
 
 function centrosOriginaisDoModelo(viewer: any) {
@@ -331,6 +457,7 @@ function centroPorUtm(viewer: any): CentroGeografico | null {
     const referencia = UFS[uf];
     const zona = Math.floor((referencia.longitude + 180) / 6) + 1;
     const sul = referencia.latitude < 0;
+    const datum = datumDoModelo(nome);
     let melhor: {
         latitude: number;
         longitude: number;
@@ -349,7 +476,7 @@ function centroPorUtm(viewer: any): CentroGeografico | null {
 
         for (const northing of northings) {
             if (northing < 0 || northing > 10000000) continue;
-            const convertido = utmParaWgs84(ponto.x, northing, zona, sul);
+            const convertido = utmModeloParaWgs84(ponto.x, northing, zona, sul, datum);
             if (!coordenadaValida(convertido.latitude, convertido.longitude)) continue;
             const score = Math.abs(convertido.latitude - referencia.latitude) * 1.5
                 + Math.abs(convertido.longitude - referencia.longitude);
@@ -373,9 +500,9 @@ function centroPorUtm(viewer: any): CentroGeografico | null {
         latitude: melhor.latitude,
         longitude: melhor.longitude,
         automatica: true,
-        origem: `coordenadas UTM do modelo (${zona}${sul ? 'S' : 'N'})`,
+        origem: `coordenadas UTM ${datum === 'sad69' ? 'SAD69' : 'SIRGAS 2000'} do modelo (${zona}${sul ? 'S' : 'N'})`,
         ancoraViewer: melhor.ancoraViewer,
-        utm: { easting: melhor.easting, northing: melhor.northing, zona, sul },
+        utm: { easting: melhor.easting, northing: melhor.northing, zona, sul, datum },
         offsetVerticalModelo: melhor.offsetVerticalModelo,
     };
 }
@@ -546,7 +673,13 @@ function montarMalha(
     elevacaoReferencia: number,
     origem: { x: number; y: number; z: number },
     config: ConfiguracaoTerreno,
-    referenciaUtm?: { easting: number; northing: number; zona: number; sul: boolean },
+    referenciaUtm?: {
+        easting: number;
+        northing: number;
+        zona: number;
+        sul: boolean;
+        datum: 'sirgas2000' | 'sad69';
+    },
 ) {
     const posicoes: number[] = [];
     const uvs: number[] = [];
@@ -569,7 +702,12 @@ function montarMalha(
             if (referenciaUtm) {
                 const longitude = tileParaLongitude(tileX + u, zoom);
                 const latitude = tileParaLatitude(tileY + v, zoom);
-                const utm = wgs84ParaUtm(latitude, longitude, referenciaUtm.zona);
+                const utm = wgs84ParaUtmModelo(
+                    latitude,
+                    longitude,
+                    referenciaUtm.zona,
+                    referenciaUtm.datum,
+                );
                 leste = (utm.easting - referenciaUtm.easting) / metrosPorUnidade;
                 norte = (utm.northing - referenciaUtm.northing) / metrosPorUnidade;
             } else {
