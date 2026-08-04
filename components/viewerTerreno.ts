@@ -35,6 +35,8 @@ interface CentroGeografico {
     origem: string;
     ancoraViewer?: { x: number; y: number; z: number };
     utm?: { easting: number; northing: number; zona: number; sul: boolean };
+    /** Offset Z aplicado pelo Viewer às coordenadas absolutas do NWD. */
+    offsetVerticalModelo?: number;
 }
 
 const CHAVE_CONFIGURACAO = 'elos.viewer.terrenoReal';
@@ -276,8 +278,13 @@ function wgs84ParaUtm(latitude: number, longitude: number, zona: number) {
 function centrosOriginaisDoModelo(viewer: any) {
     const caixa = caixaDoModelo(viewer);
     const centro = caixa.getCenter();
-    const candidatos: Array<{ x: number; y: number; ancoraViewer: { x: number; y: number; z: number } }> = [];
-    const incluir = (ponto: any, ancoraViewer: any) => {
+    const candidatos: Array<{
+        x: number;
+        y: number;
+        ancoraViewer: { x: number; y: number; z: number };
+        offsetVerticalModelo?: number;
+    }> = [];
+    const incluir = (ponto: any, ancoraViewer: any, offsetVerticalModelo?: number) => {
         const x = numero(ponto?.x);
         const y = numero(ponto?.y);
         if (x !== null && y !== null && !candidatos.some(p => Math.abs(p.x - x) < 0.01 && Math.abs(p.y - y) < 0.01)) {
@@ -289,6 +296,7 @@ function centrosOriginaisDoModelo(viewer: any) {
                     y: Number(ancoraViewer?.y || 0),
                     z: Number(ancoraViewer?.z || 0),
                 },
+                offsetVerticalModelo,
             });
         }
     };
@@ -305,7 +313,7 @@ function centrosOriginaisDoModelo(viewer: any) {
     const alvo = viewer.navigation?.getTarget?.();
     const alvoPertoDaOrigem = alvo && Math.hypot(Number(alvo.x || 0), Number(alvo.y || 0)) < 30000;
     const ancoraOffset = { x: 0, y: 0, z: alvoPertoDaOrigem ? Number(alvo.z || 0) : 0 };
-    incluir(offset, ancoraOffset);
+    incluir(offset, ancoraOffset, numero(offset?.z) ?? undefined);
     if (offset) {
         incluir(
             { x: centro.x + Number(offset.x || 0), y: centro.y + Number(offset.y || 0) },
@@ -330,6 +338,7 @@ function centroPorUtm(viewer: any): CentroGeografico | null {
         ancoraViewer: { x: number; y: number; z: number };
         easting: number;
         northing: number;
+        offsetVerticalModelo?: number;
     } | null = null;
 
     for (const ponto of centrosOriginaisDoModelo(viewer)) {
@@ -351,6 +360,7 @@ function centroPorUtm(viewer: any): CentroGeografico | null {
                     ancoraViewer: ponto.ancoraViewer,
                     easting: ponto.x,
                     northing,
+                    offsetVerticalModelo: ponto.offsetVerticalModelo,
                 };
             }
         }
@@ -366,6 +376,7 @@ function centroPorUtm(viewer: any): CentroGeografico | null {
         origem: `coordenadas UTM do modelo (${zona}${sul ? 'S' : 'N'})`,
         ancoraViewer: melhor.ancoraViewer,
         utm: { easting: melhor.easting, northing: melhor.northing, zona, sul },
+        offsetVerticalModelo: melhor.offsetVerticalModelo,
     };
 }
 
@@ -636,7 +647,9 @@ export async function instalarTerrenoReal(
     const fallback = alvoCamera || caixa.getCenter();
     // A caixa do federado contém referências deslocadas centenas de km. A
     // âncora derivada do globalOffset é a origem real do trecho UTM no Viewer.
-    const origem = centro.ancoraViewer || { x: fallback.x, y: fallback.y, z: fallback.z };
+    const origem = centro.ancoraViewer
+        ? { ...centro.ancoraViewer }
+        : { x: fallback.x, y: fallback.y, z: fallback.z };
     const zoom = config.zoom;
     const tileXFlutuante = longitudeParaTile(centro.longitude, zoom);
     const tileYFlutuante = latitudeParaTile(centro.latitude, zoom);
@@ -656,6 +669,13 @@ export async function instalarTerrenoReal(
         tileXFlutuante - tileCentralX,
         tileYFlutuante - tileCentralY,
     );
+    if (centro.offsetVerticalModelo !== undefined && Number.isFinite(elevacaoReferencia)) {
+        // O globalOffset é a origem absoluta usada para estabilizar o NWD longe
+        // de (0, 0, 0). O terreno precisa passar pela mesma transformação. O
+        // alvo da câmera não é uma cota de solo e criava deslocamento vertical;
+        // numa vista inclinada, isso também parecia um erro horizontal.
+        origem.z = elevacaoReferencia / metrosPorUnidade - centro.offsetVerticalModelo;
+    }
     if (!Number.isFinite(elevacaoReferencia)) throw new Error('A elevação do centro informado não está disponível.');
 
     const cena = `${CENA}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
