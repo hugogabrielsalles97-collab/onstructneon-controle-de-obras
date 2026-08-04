@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { SERVICOS_PAVIMENTACAO } from './viewerPavimentacao';
 import type { ResumoAvanco } from './viewerAvanco';
-import type { ConfiguracaoTerreno } from './viewerTerreno';
 
 /**
  * Painel de camadas do federado.
@@ -170,10 +169,7 @@ interface Props {
     terrenoCarregando: boolean;
     erroTerreno: string | null;
     centroTerreno: { latitude: number; longitude: number; automatico: boolean; origem: string } | null;
-    configuracaoTerreno: ConfiguracaoTerreno;
     onAlternarTerreno: (ligado: boolean) => void;
-    onAlterarConfiguracaoTerreno: (config: ConfiguracaoTerreno) => void;
-    onAplicarTerreno: (config: ConfiguracaoTerreno) => void;
 }
 
 const formatar = (n: number) => n.toLocaleString('pt-BR');
@@ -183,7 +179,7 @@ const ViewerCamadas: React.FC<Props> = ({
     resumoAvanco, carregandoCor, erroCor, onRecarregarAvanco,
     aberto, onFechar,
     terrenoLigado, terrenoCarregando, erroTerreno, centroTerreno,
-    configuracaoTerreno, onAlternarTerreno, onAlterarConfiguracaoTerreno, onAplicarTerreno,
+    onAlternarTerreno,
 }) => {
     const [busca, setBusca] = useState('');
     const [expandido, setExpandido] = useState<Set<number>>(new Set());
@@ -239,32 +235,6 @@ const ViewerCamadas: React.FC<Props> = ({
     );
 
     const temCustomizacao = Object.keys(layouts).length > 0;
-
-    const alterarNumero = (campo: keyof ConfiguracaoTerreno, valor: string) => {
-        const permiteVazio = campo === 'latitude' || campo === 'longitude';
-        const numero = valor.trim() === '' ? (permiteVazio ? null : 0) : Number(valor);
-        onAlterarConfiguracaoTerreno({
-            ...configuracaoTerreno,
-            [campo]: numero === null || Number.isFinite(numero) ? numero : (permiteVazio ? null : 0),
-        });
-    };
-
-    const campoAjuste = (
-        campo: 'deslocamentoX' | 'deslocamentoY' | 'deslocamentoZ' | 'rotacao',
-        rotulo: string,
-        unidade: string,
-    ) => (
-        <label className="min-w-0 text-[9px] text-gray-500">
-            {rotulo} ({unidade})
-            <input
-                type="number"
-                step={campo === 'rotacao' ? 1 : 0.5}
-                value={configuracaoTerreno[campo]}
-                onChange={e => alterarNumero(campo, e.target.value)}
-                className="mt-0.5 w-full rounded border border-gray-800 bg-gray-900 px-1.5 py-1 text-[10px] text-gray-300 outline-none focus:border-cyan-700"
-            />
-        </label>
-    );
 
     return (
         <div className="absolute top-0 right-0 z-20 flex h-full w-80 max-w-[85vw] flex-col border-l border-gray-800 bg-brand-darkest/95 backdrop-blur">
@@ -344,78 +314,15 @@ const ViewerCamadas: React.FC<Props> = ({
                 </label>
 
                 {terrenoLigado && (
-                    <div className="mt-2 rounded border border-gray-800 bg-gray-950/50 p-2">
-                        <p className="text-[9px] leading-4 text-gray-500">
-                            A localização é detectada automaticamente pelo modelo. Os campos abaixo são apenas para ajuste manual.
-                        </p>
-
-                        <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-                            <label className="text-[9px] text-gray-500">
-                                Latitude
-                                <input
-                                    type="number"
-                                    step="0.000001"
-                                    placeholder="Automática"
-                                    value={configuracaoTerreno.latitude ?? ''}
-                                    onChange={e => alterarNumero('latitude', e.target.value)}
-                                    className="mt-0.5 w-full rounded border border-gray-800 bg-gray-900 px-1.5 py-1 text-[10px] text-gray-300 outline-none placeholder:text-gray-700 focus:border-cyan-700"
-                                />
-                            </label>
-                            <label className="text-[9px] text-gray-500">
-                                Longitude
-                                <input
-                                    type="number"
-                                    step="0.000001"
-                                    placeholder="Automática"
-                                    value={configuracaoTerreno.longitude ?? ''}
-                                    onChange={e => alterarNumero('longitude', e.target.value)}
-                                    className="mt-0.5 w-full rounded border border-gray-800 bg-gray-900 px-1.5 py-1 text-[10px] text-gray-300 outline-none placeholder:text-gray-700 focus:border-cyan-700"
-                                />
-                            </label>
-                        </div>
-
-                        <div className="mt-1.5 grid grid-cols-4 gap-1">
-                            {campoAjuste('deslocamentoX', 'X', 'm')}
-                            {campoAjuste('deslocamentoY', 'Y', 'm')}
-                            {campoAjuste('deslocamentoZ', 'Z', 'm')}
-                            {campoAjuste('rotacao', 'Giro', '°')}
-                        </div>
-
-                        <div className="mt-1.5 flex items-end gap-2">
-                            <label className="text-[9px] text-gray-500">
-                                Área
-                                <select
-                                    value={configuracaoTerreno.zoom}
-                                    onChange={e => onAlterarConfiguracaoTerreno({ ...configuracaoTerreno, zoom: Number(e.target.value) })}
-                                    className="mt-0.5 block rounded border border-gray-800 bg-gray-900 px-1.5 py-1 text-[10px] text-gray-300 outline-none focus:border-cyan-700"
-                                >
-                                    <option value={11}>ampla</option>
-                                    <option value={12}>grande</option>
-                                    <option value={13}>média</option>
-                                    <option value={14}>local</option>
-                                    <option value={15}>detalhada</option>
-                                    <option value={16}>máxima</option>
-                                </select>
-                            </label>
-
-                            <button
-                                onClick={() => onAplicarTerreno(configuracaoTerreno)}
-                                disabled={terrenoCarregando}
-                                className="ml-auto rounded bg-cyan-700/30 px-2 py-1 text-[10px] text-cyan-300 hover:bg-cyan-700/50 disabled:opacity-40"
-                            >
-                                Aplicar ajustes
-                            </button>
-                        </div>
-
-                        {centroTerreno && !erroTerreno && (
-                            <p className="mt-1.5 text-[9px] text-emerald-500/80">
-                                Centro {centroTerreno.latitude.toFixed(6)}, {centroTerreno.longitude.toFixed(6)}
-                                {centroTerreno.automatico ? ` · ${centroTerreno.origem}` : ''}
-                            </p>
-                        )}
-                        {erroTerreno && <p className="mt-1.5 text-[9px] leading-4 text-red-400">{erroTerreno}</p>}
-                        <p className="mt-1.5 text-[8px] text-gray-700">Imagem e elevação: Esri, parceiros e colaboradores.</p>
-                    </div>
+                    <p className={`mt-1.5 pl-6 text-[9px] leading-4 ${erroTerreno ? 'text-red-400' : centroTerreno ? 'text-emerald-500/80' : 'text-gray-500'}`}>
+                        {terrenoCarregando
+                            ? 'Localizando e carregando o terreno...'
+                            : erroTerreno
+                                ? erroTerreno
+                                : centroTerreno
+                                    ? `Terreno ativo · ${centroTerreno.origem} · dados Esri`
+                                    : 'Ativando terreno...'}
+                    </p>
                 )}
             </div>
 

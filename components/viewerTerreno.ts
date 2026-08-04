@@ -36,7 +36,10 @@ interface CentroGeografico {
 
 const CHAVE_CONFIGURACAO = 'elos.viewer.terrenoReal';
 const CENA = 'elos-terreno-real';
-const RAIO_DE_TILES = 2;
+// 3 × 3 cobre aproximadamente 12 km neste projeto e mantém tablets/celulares
+// responsivos. O carregamento anterior de 5 × 5 decodificava 25 relevos.
+const RAIO_DE_TILES = 1;
+const CONCORRENCIA_TILES = 3;
 const SEGMENTOS = 32;
 const RAIO_TERRA = 6378137;
 let lercPronto: Promise<typeof import('lerc')> | null = null;
@@ -272,10 +275,9 @@ function centroPorUtm(viewer: any): CentroGeografico | null {
 async function centroPorAec(viewer: any): Promise<CentroGeografico | null> {
     try {
         const no = viewer.model?.getDocumentNode?.();
-        let aec = no?.getAecModelData?.();
-        if (!aec && no && window.Autodesk?.Viewing?.Document?.getAecModelData) {
-            aec = await window.Autodesk.Viewing.Document.getAecModelData(no);
-        }
+        // Só usa AEC já presente em memória. Solicitar o arquivo completo aqui
+        // pode ser caro e é desnecessário para este NWD, que traz UTM.
+        const aec = no?.getAecModelData?.();
         const encontrado = procurarLonLat(aec);
         return encontrado ? { ...encontrado, automatica: true, origem: 'metadados AEC do modelo' } : null;
     } catch {
@@ -315,6 +317,12 @@ async function resolverCentro(viewer: any, config: ConfiguracaoTerreno) {
         return { latitude: config.latitude, longitude: config.longitude, automatica: false, origem: 'coordenadas informadas' };
     }
 
+    // O federado da obra usa coordenadas UTM no próprio NWD. Esta leitura é
+    // imediata e precisa vir antes de extensões e metadados potencialmente
+    // grandes, evitando bloquear a interface do Viewer.
+    const utm = centroPorUtm(viewer);
+    if (utm) return utm;
+
     try {
         const extensao = await viewer.loadExtension?.('Autodesk.Geolocation');
         const centro = caixaDoModelo(viewer).getCenter();
@@ -327,18 +335,11 @@ async function resolverCentro(viewer: any, config: ConfiguracaoTerreno) {
             return { latitude, longitude, automatica: true, origem: 'georreferenciamento APS' };
         }
     } catch {
-        // Alguns NWDs não carregam metadados geográficos. A entrada manual
-        // abaixo continua disponível e é mais segura que adivinhar o local.
+        // Alguns NWDs não carregam metadados geográficos nativos.
     }
-
-    const metadadosDiretos = procurarLonLat(viewer.model?.getData?.());
-    if (metadadosDiretos) return { ...metadadosDiretos, automatica: true, origem: 'metadados do modelo' };
 
     const aec = await centroPorAec(viewer);
     if (aec) return aec;
-
-    const utm = centroPorUtm(viewer);
-    if (utm) return utm;
 
     const dispositivo = await centroPeloDispositivo();
     if (dispositivo) return dispositivo;
@@ -471,7 +472,7 @@ function montarMalha(
     return malha;
 }
 
-/** Carrega 5 × 5 tiles ao redor do centro da obra e os instala no overlay. */
+/** Carrega 3 × 3 tiles ao redor do centro da obra e os instala no overlay. */
 export async function instalarTerrenoReal(
     viewer: any,
     config: ConfiguracaoTerreno,
@@ -535,33 +536,44 @@ export async function instalarTerrenoReal(
     };
 
     try {
-        const tarefas: Promise<void>[] = [];
+        const tiles: Array<{ dx: number; dy: number; x: number; y: number }> = [];
         for (let dy = -RAIO_DE_TILES; dy <= RAIO_DE_TILES; dy++) {
             for (let dx = -RAIO_DE_TILES; dx <= RAIO_DE_TILES; dx++) {
                 const x = ((tileCentralX + dx) % totalTiles + totalTiles) % totalTiles;
                 const y = Math.min(totalTiles - 1, Math.max(0, tileCentralY + dy));
-                tarefas.push((async () => {
-                    const [dados, textura] = await Promise.all([
-                        dx === 0 && dy === 0 ? central : carregarElevacao(zoom, x, y, signal),
-                        carregarTextura(THREE, zoom, x, y, signal),
-                    ]);
-                    abortado(signal);
-                    if (removido) { textura.dispose?.(); return; }
-                    const malha = montarMalha(
-                        THREE, dados, textura,
-                        tileCentralX + dx, tileCentralY + dy,
-                        tileXFlutuante, tileYFlutuante,
-                        tamanhoTile, metrosPorUnidade, elevacaoReferencia,
-                        origem, config,
-                    );
-                    malhas.push(malha);
-                    if (viewer.overlays?.addMesh) viewer.overlays.addMesh(malha, cena);
-                    else viewer.impl.addOverlay(cena, malha);
-                })());
+                tiles.push({ dx, dy, x, y });
             }
         }
 
-        await Promise.all(tarefas);
+        let cursor = 0;
+        const trabalhador = async () => {
+            while (cursor < tiles.length) {
+                const { dx, dy, x, y } = tiles[cursor++];
+                const [dados, textura] = await Promise.all([
+                    dx === 0 && dy === 0 ? central : carregarElevacao(zoom, x, y, signal),
+                    carregarTextura(THREE, zoom, x, y, signal),
+                ]);
+                abortado(signal);
+                if (removido) { textura.dispose?.(); return; }
+                const malha = montarMalha(
+                    THREE, dados, textura,
+                    tileCentralX + dx, tileCentralY + dy,
+                    tileXFlutuante, tileYFlutuante,
+                    tamanhoTile, metrosPorUnidade, elevacaoReferencia,
+                    origem, config,
+                );
+                malhas.push(malha);
+                if (viewer.overlays?.addMesh) viewer.overlays.addMesh(malha, cena);
+                else viewer.impl.addOverlay(cena, malha);
+                viewer.impl.invalidate?.(false, false, true);
+
+                // Entrega um quadro ao navegador entre tiles para que os
+                // controles do Viewer continuem respondendo ao usuário.
+                await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+            }
+        };
+
+        await Promise.all(Array.from({ length: CONCORRENCIA_TILES }, () => trabalhador()));
         abortado(signal);
         viewer.impl.invalidate?.(true, true, true);
 

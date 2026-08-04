@@ -11,8 +11,8 @@ import {
 import { lerPropriedades } from './viewerPropriedades';
 import ViewerInfoElemento, { SelecaoElemento } from './ViewerInfoElemento';
 import {
-    ConfiguracaoTerreno, TerrenoInstalado, gravarConfiguracaoTerreno,
-    instalarTerrenoReal, lerConfiguracaoTerreno,
+    CONFIGURACAO_TERRENO_PADRAO, ConfiguracaoTerreno, TerrenoInstalado,
+    instalarTerrenoReal,
 } from './viewerTerreno';
 
 /**
@@ -153,7 +153,6 @@ const ModelViewer: React.FC = () => {
     const [terrenoCarregando, setTerrenoCarregando] = useState(false);
     const [erroTerreno, setErroTerreno] = useState<string | null>(null);
     const [centroTerreno, setCentroTerreno] = useState<{ latitude: number; longitude: number; automatico: boolean; origem: string } | null>(null);
-    const [configuracaoTerreno, setConfiguracaoTerreno] = useState<ConfiguracaoTerreno>(() => lerConfiguracaoTerreno());
     const terrenoRef = useRef<TerrenoInstalado | null>(null);
     const terrenoAbortRef = useRef<AbortController | null>(null);
     const terrenoPedidoRef = useRef(0);
@@ -243,8 +242,6 @@ const ModelViewer: React.FC = () => {
         const viewer = viewerRef.current;
         if (!viewer) return;
 
-        setConfiguracaoTerreno(config);
-        gravarConfiguracaoTerreno(config);
         setErroTerreno(null);
         setCentroTerreno(null);
         setTerrenoCarregando(true);
@@ -285,7 +282,7 @@ const ModelViewer: React.FC = () => {
     const alternarTerreno = (ligado: boolean) => {
         setTerrenoLigado(ligado);
         setErroTerreno(null);
-        if (ligado) void aplicarTerreno(configuracaoTerreno);
+        if (ligado) void aplicarTerreno({ ...CONFIGURACAO_TERRENO_PADRAO });
         else removerTerreno();
     };
 
@@ -547,10 +544,7 @@ const ModelViewer: React.FC = () => {
                     terrenoCarregando={terrenoCarregando}
                     erroTerreno={erroTerreno}
                     centroTerreno={centroTerreno}
-                    configuracaoTerreno={configuracaoTerreno}
                     onAlternarTerreno={alternarTerreno}
-                    onAlterarConfiguracaoTerreno={setConfiguracaoTerreno}
-                    onAplicarTerreno={config => void aplicarTerreno(config)}
                 />
             )}
 
