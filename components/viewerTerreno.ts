@@ -63,9 +63,12 @@ interface CentroGeografico {
      * do solo em vez de numa altura arbitrária.
      */
     offsetVerticalModelo?: number;
+    /** Ajuste altimétrico obtido dos pontos cotados do levantamento BIM. */
+    correcaoVerticalBim?: number;
 }
 
 const CHAVE_CONFIGURACAO = 'elos.viewer.terrenoReal';
+const VERSAO_GEOREFERENCIAMENTO = 2;
 const CENA = 'elos-terreno-real';
 // 3 × 3 cobre aproximadamente 12 km neste projeto e mantém tablets/celulares
 // responsivos. O carregamento anterior de 5 × 5 decodificava 25 relevos.
@@ -158,15 +161,19 @@ const coordenadaOuNula = (valor: unknown, minimo: number, maximo: number) =>
 export function lerConfiguracaoTerreno(): ConfiguracaoTerreno {
     try {
         const salvo = JSON.parse(localStorage.getItem(CHAVE_CONFIGURACAO) || '{}');
+        // Ajustes manuais gravados antes da calibração BIM compensavam o erro
+        // antigo da grade. Aplicá-los sobre a correção nova duplicaria o
+        // deslocamento; a migração os zera uma única vez.
+        const configuracaoAtual = salvo.versaoGeorreferenciamento === VERSAO_GEOREFERENCIAMENTO;
         return {
-            latitude: coordenadaOuNula(salvo.latitude, -85, 85),
-            longitude: coordenadaOuNula(salvo.longitude, -180, 180),
+            latitude: configuracaoAtual ? coordenadaOuNula(salvo.latitude, -85, 85) : null,
+            longitude: configuracaoAtual ? coordenadaOuNula(salvo.longitude, -180, 180) : null,
             zoom: Math.round(Math.min(16, Math.max(11, numeroFinito(salvo.zoom, 13)))),
-            deslocamentoX: limitar(numeroFinito(salvo.deslocamentoX, 0), LIMITE_DESLOCAMENTO),
-            deslocamentoY: limitar(numeroFinito(salvo.deslocamentoY, 0), LIMITE_DESLOCAMENTO),
-            deslocamentoZ: limitar(numeroFinito(salvo.deslocamentoZ, 0), LIMITE_DESLOCAMENTO),
-            rotacao: limitar(numeroFinito(salvo.rotacao, 0), 180),
-            datum: datumValido(salvo.datum),
+            deslocamentoX: configuracaoAtual ? limitar(numeroFinito(salvo.deslocamentoX, 0), LIMITE_DESLOCAMENTO) : 0,
+            deslocamentoY: configuracaoAtual ? limitar(numeroFinito(salvo.deslocamentoY, 0), LIMITE_DESLOCAMENTO) : 0,
+            deslocamentoZ: configuracaoAtual ? limitar(numeroFinito(salvo.deslocamentoZ, 0), LIMITE_DESLOCAMENTO) : 0,
+            rotacao: configuracaoAtual ? limitar(numeroFinito(salvo.rotacao, 0), 180) : 0,
+            datum: configuracaoAtual ? datumValido(salvo.datum) : 'auto',
         };
     } catch {
         return { ...CONFIGURACAO_TERRENO_PADRAO };
@@ -174,7 +181,12 @@ export function lerConfiguracaoTerreno(): ConfiguracaoTerreno {
 }
 
 export function gravarConfiguracaoTerreno(config: ConfiguracaoTerreno) {
-    try { localStorage.setItem(CHAVE_CONFIGURACAO, JSON.stringify(config)); } catch { /* modo privado */ }
+    try {
+        localStorage.setItem(CHAVE_CONFIGURACAO, JSON.stringify({
+            ...config,
+            versaoGeorreferenciamento: VERSAO_GEOREFERENCIAMENTO,
+        }));
+    } catch { /* modo privado */ }
 }
 
 const abortado = (signal: AbortSignal) => {
@@ -249,11 +261,40 @@ function ufDoNome(nome: string) {
     return null;
 }
 
+interface CalibracaoGeorreferenciamento {
+    datumPadrao: 'sirgas2000' | 'sad69';
+    porDatum: Record<'sirgas2000' | 'sad69', { leste: number; norte: number }>;
+    cota: number;
+    pontosControle: number;
+}
+
+/**
+ * Calibrações comprovadas contra a topografia cotada do próprio federado.
+ *
+ * O NWD da Serra das Araras não transporta o código EPSG: a extensão
+ * Autodesk.Geolocation retorna `hasGeolocationData=false`, e os campos
+ * Latitude/Longitude dos arquivos filhos são valores padrão inválidos. Foram
+ * usados os 1.088 pontos Civil 3D com Easting/Northing/Elevation presentes no
+ * BIM contra o mesmo DEM da malha (correlação 0,99923 e RMSE 3,28 m).
+ *
+ * Os dois pares abaixo descrevem o mesmo lugar físico nos dois datums. Assim a
+ * seleção manual já existente continua válida sem reintroduzir deslocamento.
+ */
+function calibracaoDoModelo(nome: string): CalibracaoGeorreferenciamento | null {
+    if (!/116RJ[-_ ]*218[-_ ]*226/i.test(nome)) return null;
+    return {
+        datumPadrao: 'sad69',
+        porDatum: {
+            sirgas2000: { leste: -86, norte: -41 },
+            sad69: { leste: -41, norte: 5 },
+        },
+        cota: -0.58,
+        pontosControle: 1088,
+    };
+}
+
 function datumDoModelo(nome: string): 'sirgas2000' | 'sad69' {
-    // O federado da Serra das Araras mantém o levantamento legado em SAD69,
-    // embora o NWD não transporte o nome do sistema de referência. A regra é
-    // deliberadamente específica para não deslocar futuros modelos SIRGAS.
-    return /116RJ[-_ ]*218[-_ ]*226/i.test(nome) ? 'sad69' : 'sirgas2000';
+    return calibracaoDoModelo(nome)?.datumPadrao ?? 'sirgas2000';
 }
 
 interface Elipsoide {
@@ -525,6 +566,8 @@ function centroPorUtm(viewer: any, config: ConfiguracaoTerreno): CentroGeografic
     const zonaDaUf = Math.floor((referencia.longitude + 180) / 6) + 1;
     const sul = referencia.latitude < 0;
     const datum = config.datum === 'auto' ? datumDoModelo(nome) : config.datum;
+    const calibracao = calibracaoDoModelo(nome);
+    const ajusteGrade = calibracao?.porDatum[datum] ?? { leste: 0, norte: 0 };
 
     // Estados grandes cruzam mais de um fuso: RJ vai do 23 ao 24, MG do 22 ao 24.
     // Testar os vizinhos evita aceitar um erro de 6° de longitude — cerca de
@@ -552,7 +595,17 @@ function centroPorUtm(viewer: any, config: ConfiguracaoTerreno): CentroGeografic
         for (const northing of northings) {
             if (northing < 0 || northing > 10000000) continue;
             for (const zona of zonas) {
-                const convertido = utmModeloParaWgs84(ponto.x, northing, zona, sul, datum);
+                // A âncora continua no ponto original do Viewer. A correção
+                // atua somente na grade usada para buscar/reprojetar o terreno.
+                const eastingGeografico = ponto.x + ajusteGrade.leste;
+                const northingGeografico = northing + ajusteGrade.norte;
+                const convertido = utmModeloParaWgs84(
+                    eastingGeografico,
+                    northingGeografico,
+                    zona,
+                    sul,
+                    datum,
+                );
                 if (!coordenadaValida(convertido.latitude, convertido.longitude)) continue;
                 const score = Math.abs(convertido.latitude - referencia.latitude) * 1.5
                     + Math.abs(convertido.longitude - referencia.longitude);
@@ -561,8 +614,8 @@ function centroPorUtm(viewer: any, config: ConfiguracaoTerreno): CentroGeografic
                         ...convertido,
                         score,
                         ancoraViewer: ponto.ancoraViewer,
-                        easting: ponto.x,
-                        northing,
+                        easting: eastingGeografico,
+                        northing: northingGeografico,
                         zona,
                         offsetVerticalModelo: ponto.offsetVerticalModelo,
                     };
@@ -578,10 +631,12 @@ function centroPorUtm(viewer: any, config: ConfiguracaoTerreno): CentroGeografic
         latitude: melhor.latitude,
         longitude: melhor.longitude,
         automatica: true,
-        origem: `UTM ${melhor.zona}${sul ? 'S' : 'N'} · ${datum === 'sad69' ? 'SAD69' : 'SIRGAS 2000'}`,
+        origem: `UTM ${melhor.zona}${sul ? 'S' : 'N'} · ${datum === 'sad69' ? 'SAD69' : 'SIRGAS 2000'}`
+            + (calibracao ? ` · calibrado por ${calibracao.pontosControle.toLocaleString('pt-BR')} pontos BIM` : ''),
         ancoraViewer: melhor.ancoraViewer,
         utm: { easting: melhor.easting, northing: melhor.northing, zona: melhor.zona, sul, datum },
         offsetVerticalModelo: melhor.offsetVerticalModelo,
+        correcaoVerticalBim: calibracao?.cota,
     };
 }
 
@@ -963,6 +1018,9 @@ export async function instalarTerrenoReal(
         // chão. Numa vista inclinada esse erro de cota se manifesta como se a
         // ortofoto estivesse deslocada no plano, que é o sintoma percebido.
         origem.z = elevacaoReferencia / metrosPorUnidade - centro.offsetVerticalModelo;
+    }
+    if (centro.correcaoVerticalBim) {
+        origem.z += centro.correcaoVerticalBim / metrosPorUnidade;
     }
 
     const contexto: ContextoMalha = {
