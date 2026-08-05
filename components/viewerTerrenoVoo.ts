@@ -95,11 +95,27 @@ const abortado = (signal: AbortSignal) => {
 
 export async function carregarManifestoVoo(signal?: AbortSignal): Promise<ManifestoVoo | null> {
     try {
-        const res = await fetch(MANIFESTO_URL, { signal, cache: 'force-cache' });
+        // Sem force-cache: o manifesto descreve o formato dos tiles e muda
+        // quando o levantamento é republicado. Servir uma versão velha do
+        // cache deixaria campos ausentes e o terreno sairia em NaN — invisível,
+        // e sem erro nenhum para explicar.
+        const res = await fetch(MANIFESTO_URL, { signal });
         if (!res.ok) return null;
         const m = await res.json();
-        return Array.isArray(m?.tiles) && m.tiles.length > 0 ? m as ManifestoVoo : null;
-    } catch {
+        if (!Array.isArray(m?.tiles) || m.tiles.length === 0) return null;
+
+        // Manifesto anterior trazia só o northing completo.
+        if (!Number.isFinite(m.northingModelo) && Number.isFinite(m.northing)) {
+            m.northingModelo = m.northing - (Number.isFinite(m.northingBase) ? m.northingBase : 0);
+        }
+        const obrigatorios = ['easting', 'northingModelo', 'tileMetros', 'zBase', 'escalaZ'];
+        const faltando = obrigatorios.filter(c => !Number.isFinite(m[c]));
+        if (faltando.length > 0) {
+            throw new Error(`Manifesto do voo incompleto: falta ${faltando.join(', ')}.`);
+        }
+        return m as ManifestoVoo;
+    } catch (erro) {
+        if ((erro as Error)?.name === 'AbortError') throw erro;
         return null;
     }
 }
@@ -186,6 +202,14 @@ function montarBase(
     const { tileMetros } = manifesto;
     const eOeste = manifesto.easting + tile.i * tileMetros;
     const nSul = manifesto.northingModelo + tile.j * tileMetros;
+
+    // Uma coordenada não finita aqui produziria uma malha inteira em NaN:
+    // presente na cena, sem desenhar nada e sem erro. Melhor falhar alto.
+    if (!Number.isFinite(eOeste) || !Number.isFinite(nSul)
+        || !Number.isFinite(ctx.offsetModelo.x) || !Number.isFinite(ctx.offsetModelo.y)
+        || !Number.isFinite(ctx.offsetModelo.z)) {
+        throw new Error('Coordenadas do terreno do voo inválidas — manifesto ou modelo incompatível.');
+    }
 
     const base = new Float32Array(cols * lins * 3);
     const uvs = new Float32Array(cols * lins * 2);
@@ -279,6 +303,12 @@ export async function instalarTerrenoDoVoo(
             m.opacity = o;
             m.transparent = !opaco;
             m.depthWrite = opaco;
+            // O alphaTest compara o alfa DEPOIS de multiplicado pela opacidade.
+            // Um corte fixo faria o terreno inteiro sumir assim que a
+            // transparência passasse do corte. Só o modo opaco precisa dele,
+            // para vazar o que está fora do voo; translúcido resolve na mistura,
+            // já que ali o alfa da textura é 0.
+            m.alphaTest = opaco ? 0.5 : 0;
             m.needsUpdate = true;
         }
         viewer.impl.invalidate?.(true, true, true);
@@ -357,8 +387,10 @@ export async function instalarTerrenoDoVoo(
                 polygonOffset: true,
                 polygonOffsetFactor: 1,
                 polygonOffsetUnits: 1,
-                // A ortofoto tem alfa: fora da área voada o tile é vazado.
-                alphaTest: 0.5,
+                // Translúcido: o alfa 0 da ortofoto já vaza o que está fora do
+                // voo pela mistura. O corte só entra no modo opaco, em
+                // definirOpacidade.
+                alphaTest: 0,
             });
 
             const malha = new THREE.Mesh(geo, material);
