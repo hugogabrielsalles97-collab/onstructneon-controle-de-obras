@@ -194,7 +194,7 @@ export const fetchTaskHeavyData = async (taskId: string, tableName: string = 'ta
 };
 
 // ==========================================
-// Resumo de trabalhadores para o Controle Visual (via RPC)
+// Resumo de trabalhadores para o Visual Equipes (via RPC)
 // Faz a agregação no banco; não transfere JSONB pesados.
 // ==========================================
 export interface VisualControlWorkerRow {

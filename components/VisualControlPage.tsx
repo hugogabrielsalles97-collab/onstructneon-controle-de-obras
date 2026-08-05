@@ -533,7 +533,7 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
             <!DOCTYPE html>
             <html>
             <head>
-                <title>Controle Visual — ${dateFormatted}</title>
+                <title>Visual Equipes — ${dateFormatted}</title>
                 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
                 <style>
                     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -770,7 +770,7 @@ const VisualControlPage: React.FC<VisualControlPageProps> = (props) => {
                         {/* ── Top Bar: Title + Filters + Controls ── */}
                         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 mb-4 flex-shrink-0">
                             <div>
-                                <h2 className="text-2xl font-black text-white tracking-tight">Controle Visual</h2>
+                                <h2 className="text-2xl font-black text-white tracking-tight">Visual Equipes</h2>
                                 <p className="text-xs text-brand-med-gray">Mapa de Frentes de Serviço — Atividades integradas à Programação Semanal</p>
                             </div>
 

@@ -4,7 +4,7 @@
  * Por quê: o pdf.js 5.x usa `Uint8Array.prototype.toHex()` (no worker) e
  * `toBase64()/fromBase64()` (na thread principal) sem fallback. Esses métodos só
  * chegaram ao V8/Chrome 140+. Em navegadores mais antigos — comuns em tablets e
- * celulares de obra — o PDF do Controle Visual quebra com "a.toHex is not a function".
+ * celulares de obra — o PDF do Visual Equipes quebra com "a.toHex is not a function".
  *
  * Este módulo instala implementações equivalentes SOMENTE quando o método nativo
  * não existe, então é inofensivo em navegadores modernos. Precisa ser importado

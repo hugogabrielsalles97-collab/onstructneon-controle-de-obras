@@ -147,7 +147,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                                                     <polyline points="21 15 16 10 5 21" />
                                                 </svg>
                                             }
-                                            label="Controle Visual"
+                                            label="Visual Equipes"
                                             onClick={onNavigateToVisualControl}
                                             isCostModule={isCostModule}
                                         />
@@ -165,7 +165,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeScreen, onNavigateToHome,
                                                     <line x1="12" y1="16" x2="12" y2="18" />
                                                 </svg>
                                             }
-                                            label="Visual Pavimento"
+                                            label="BIM 4D"
                                             onClick={goVisualPavimento}
                                             isCostModule={isCostModule}
                                         />
