@@ -73,6 +73,13 @@ export interface Preset {
     rotulo: string;
     descricao: string;
     calcular: (camadas: Camada[]) => number[];
+    /**
+     * Preset de extremo — tudo visível ou nada visível.
+     *
+     * Não ganha botão de gravar layout: o conjunto não tem o que ajustar, e um
+     * layout salvo por cima só serviria para tornar o botão mentiroso.
+     */
+    absoluto?: boolean;
 }
 
 export const PRESETS: Preset[] = [
@@ -105,6 +112,16 @@ export const PRESETS: Preset[] = [
         rotulo: 'Mostrar tudo',
         descricao: 'Nenhuma camada oculta',
         calcular: () => [],
+        absoluto: true,
+    },
+    {
+        // O terreno do voo vive numa cena de overlay, fora da árvore do modelo,
+        // então ocultar todas as camadas deixa a obra levantada sozinha na tela.
+        chave: 'ocultar-modelagem',
+        rotulo: 'Ocultar modelagem',
+        descricao: 'Esconde todo o federado — deixa só o terreno do voo',
+        calcular: (camadas) => camadas.map(c => c.id),
+        absoluto: true,
     },
 ];
 
@@ -354,7 +371,7 @@ const ViewerCamadas: React.FC<Props> = ({
                                     {customizado && <span className="text-[9px] text-amber-500" title="layout salvo">★</span>}
                                 </button>
 
-                                {p.chave !== 'tudo' && (
+                                {!p.absoluto && (
                                     <button
                                         onClick={() => salvarNoLayout(p.chave)}
                                         title={`Gravar a vista atual (camadas e elementos apagados) em "${p.rotulo}"`}
