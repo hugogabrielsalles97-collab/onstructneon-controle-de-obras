@@ -1,0 +1,99 @@
+{
+  "gerado": "2026-08-05T10:53:55.540Z",
+  "easting": 618496,
+  "northing": 7490496,
+  "datum": "sad69",
+  "zona": 23,
+  "tileMetros": 1024,
+  "colunas": 4,
+  "linhas": 5,
+  "segmentos": 256,
+  "zBase": 46,
+  "escalaZ": 0.01,
+  "tiles": [
+    {
+      "i": 3,
+      "j": 0,
+      "relevo": "e_3_0.png",
+      "textura": "t_3_0.webp"
+    },
+    {
+      "i": 2,
+      "j": 1,
+      "relevo": "e_2_1.png",
+      "textura": "t_2_1.webp"
+    },
+    {
+      "i": 3,
+      "j": 1,
+      "relevo": "e_3_1.png",
+      "textura": "t_3_1.webp"
+    },
+    {
+      "i": 0,
+      "j": 2,
+      "relevo": "e_0_2.png",
+      "textura": "t_0_2.webp"
+    },
+    {
+      "i": 1,
+      "j": 2,
+      "relevo": "e_1_2.png",
+      "textura": "t_1_2.webp"
+    },
+    {
+      "i": 2,
+      "j": 2,
+      "relevo": "e_2_2.png",
+      "textura": "t_2_2.webp"
+    },
+    {
+      "i": 3,
+      "j": 2,
+      "relevo": "e_3_2.png",
+      "textura": "t_3_2.webp"
+    },
+    {
+      "i": 0,
+      "j": 3,
+      "relevo": "e_0_3.png",
+      "textura": "t_0_3.webp"
+    },
+    {
+      "i": 1,
+      "j": 3,
+      "relevo": "e_1_3.png",
+      "textura": "t_1_3.webp"
+    },
+    {
+      "i": 2,
+      "j": 3,
+      "relevo": "e_2_3.png",
+      "textura": "t_2_3.webp"
+    },
+    {
+      "i": 3,
+      "j": 3,
+      "relevo": "e_3_3.png",
+      "textura": "t_3_3.webp"
+    },
+    {
+      "i": 1,
+      "j": 4,
+      "relevo": "e_1_4.png",
+      "textura": "t_1_4.webp"
+    },
+    {
+      "i": 2,
+      "j": 4,
+      "relevo": "e_2_4.png",
+      "textura": "t_2_4.webp"
+    },
+    {
+      "i": 3,
+      "j": 4,
+      "relevo": "e_3_4.png",
+      "textura": "t_3_4.webp"
+    }
+  ]
+}

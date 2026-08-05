@@ -324,7 +324,12 @@ const ModelViewer: React.FC = () => {
         gravarConfiguracaoTerreno(proximo);
 
         if (!terrenoLigado) return;
-        if (mudanca.datum !== undefined || mudanca.zoom !== undefined) void aplicarTerreno(proximo);
+        // Trocar a fonte, o datum ou o zoom refaz o terreno; o resto só move
+        // os vértices que já estão em memória.
+        const recarrega = mudanca.fonte !== undefined
+            || mudanca.datum !== undefined
+            || mudanca.zoom !== undefined;
+        if (recarrega) void aplicarTerreno(proximo);
         else terrenoRef.current?.ajustar(proximo);
     };
 

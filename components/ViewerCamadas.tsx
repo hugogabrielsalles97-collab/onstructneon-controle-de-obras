@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { SERVICOS_PAVIMENTACAO } from './viewerPavimentacao';
 import type { ResumoAvanco } from './viewerAvanco';
 import { LIMITE_DESLOCAMENTO } from './viewerTerreno';
-import type { ConfiguracaoTerreno, DatumTerreno } from './viewerTerreno';
+import type { ConfiguracaoTerreno, DatumTerreno, FonteTerreno } from './viewerTerreno';
 
 /**
  * Painel de camadas do federado.
@@ -180,6 +180,19 @@ interface Props {
     onAjustarTerreno: (mudanca: Partial<ConfiguracaoTerreno>) => void;
     onZerarAjusteTerreno: () => void;
 }
+
+const FONTES: Array<{ valor: FonteTerreno; rotulo: string; descricao: string }> = [
+    {
+        valor: 'voo',
+        rotulo: 'Voo da obra',
+        descricao: 'Relevo da nuvem de pontos e ortofoto a 0,5 m/px, nas coordenadas do projeto',
+    },
+    {
+        valor: 'satelite',
+        rotulo: 'Satélite',
+        descricao: 'Imagem pública da Esri — mais antiga e de menor resolução, mas cobre além do voo',
+    },
+];
 
 const DATUNS: Array<{ valor: DatumTerreno; rotulo: string }> = [
     { valor: 'auto', rotulo: 'Automático' },
@@ -377,7 +390,7 @@ const ViewerCamadas: React.FC<Props> = ({
                         className="mt-0.5 h-4 w-4 accent-cyan-500"
                     />
                     <span className="min-w-0">
-                        <span className="block text-[11px] font-medium text-gray-300">Terreno real (satélite)</span>
+                        <span className="block text-[11px] font-medium text-gray-300">Terreno real</span>
                         <span className="block text-[9px] leading-4 text-gray-600">
                             Sobrepõe relevo e imagem reais sem alterar o modelo.
                         </span>
@@ -387,6 +400,27 @@ const ViewerCamadas: React.FC<Props> = ({
 
                 {terrenoLigado && (
                     <>
+                        <div className="mt-2 grid grid-cols-2 gap-1 pl-6">
+                            {FONTES.map(f => {
+                                const ativa = configTerreno.fonte === f.valor;
+                                return (
+                                    <button
+                                        key={f.valor}
+                                        onClick={() => onAjustarTerreno({ fonte: f.valor })}
+                                        title={f.descricao}
+                                        aria-pressed={ativa}
+                                        className={`rounded px-2 py-1 text-[10px] transition-colors ${
+                                            ativa
+                                                ? 'bg-cyan-600/25 text-cyan-200 ring-1 ring-cyan-500'
+                                                : 'bg-gray-800 text-gray-400 hover:text-gray-200'
+                                        }`}
+                                    >
+                                        {f.rotulo}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
                         <p className={`mt-1.5 pl-6 text-[9px] leading-4 ${erroTerreno ? 'text-red-400' : centroTerreno ? 'text-emerald-500/80' : 'text-gray-500'}`}>
                             {terrenoCarregando
                                 ? 'Localizando e carregando o terreno em alta resolução...'
@@ -465,7 +499,9 @@ const ViewerCamadas: React.FC<Props> = ({
                                     onMudar={v => onAjustarTerreno({ rotacao: v })}
                                 />
 
-                                <label className="flex items-center gap-1.5 pt-0.5">
+                                {/* O datum só pesa no satélite: os tiles do voo já
+                                    saem nas coordenadas do projeto. */}
+                                <label className={`flex items-center gap-1.5 pt-0.5 ${configTerreno.fonte === 'voo' ? 'hidden' : ''}`}>
                                     <span className="w-14 shrink-0 text-[10px] text-gray-500">Datum</span>
                                     <select
                                         value={configTerreno.datum}

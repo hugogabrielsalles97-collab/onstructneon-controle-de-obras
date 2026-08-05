@@ -1,5 +1,6 @@
 import type { LercData } from 'lerc';
 import lercWasmUrl from 'lerc/lerc-wasm.wasm?url';
+import { carregarManifestoVoo, instalarTerrenoDoVoo } from './viewerTerrenoVoo';
 
 /**
  * Camada opcional de contexto real para o Autodesk Viewer.
@@ -11,6 +12,15 @@ import lercWasmUrl from 'lerc/lerc-wasm.wasm?url';
 
 /** Datum horizontal do levantamento que originou as coordenadas do modelo. */
 export type DatumTerreno = 'auto' | 'sirgas2000' | 'sad69';
+
+/**
+ * De onde vem o terreno.
+ *
+ * `voo` é o levantamento da própria obra — relevo da nuvem de pontos e
+ * ortofoto a 0,5 m/px, ambos nas coordenadas do projeto. `satelite` é o
+ * público da Esri, que serve de reserva onde não há voo.
+ */
+export type FonteTerreno = 'voo' | 'satelite';
 
 export interface ConfiguracaoTerreno {
     latitude: number | null;
@@ -24,6 +34,7 @@ export interface ConfiguracaoTerreno {
     deslocamentoZ: number;
     rotacao: number;
     datum: DatumTerreno;
+    fonte: FonteTerreno;
 }
 
 export interface TerrenoInstalado {
@@ -33,6 +44,8 @@ export interface TerrenoInstalado {
     origemLocalizacao: string;
     /** Datum efetivamente usado, já resolvido quando a configuração é 'auto'. */
     datumUsado: Exclude<DatumTerreno, 'auto'>;
+    /** Fonte que de fato entrou — pode diferir da pedida se o voo não cobre o modelo. */
+    fonteUsada: FonteTerreno;
     definirOpacidade: (opacidade: number) => void;
     /**
      * Reposiciona o terreno já carregado com uma nova calibração.
@@ -78,7 +91,9 @@ interface CentroGeografico {
 }
 
 const CHAVE_CONFIGURACAO = 'elos.viewer.terrenoReal';
-const VERSAO_GEOREFERENCIAMENTO = 3;
+// v4: o terreno passou a vir do voo da obra. Ajustes manuais gravados para
+// compensar o erro da grade de satélite não valem aqui e são descartados.
+const VERSAO_GEOREFERENCIAMENTO = 4;
 const CENA = 'elos-terreno-real';
 // 3 × 3 cobre aproximadamente 12 km neste projeto e mantém tablets/celulares
 // responsivos. O carregamento anterior de 5 × 5 decodificava 25 relevos.
@@ -150,6 +165,9 @@ export const CONFIGURACAO_TERRENO_PADRAO: ConfiguracaoTerreno = {
     deslocamentoZ: 0,
     rotacao: 0,
     datum: 'auto',
+    // O levantamento da obra ganha do satélite sempre que existir: é atual,
+    // tem 0,5 m/px e dispensa calibração.
+    fonte: 'voo',
 };
 
 /** Limite do ajuste fino: além disso o erro é de georreferenciamento, não de calibração. */
@@ -184,6 +202,7 @@ export function lerConfiguracaoTerreno(): ConfiguracaoTerreno {
             deslocamentoZ: configuracaoAtual ? limitar(numeroFinito(salvo.deslocamentoZ, 0), LIMITE_DESLOCAMENTO) : 0,
             rotacao: configuracaoAtual ? limitar(numeroFinito(salvo.rotacao, 0), 180) : 0,
             datum: configuracaoAtual ? datumValido(salvo.datum) : 'auto',
+            fonte: salvo.fonte === 'satelite' ? 'satelite' : 'voo',
         };
     } catch {
         return { ...CONFIGURACAO_TERRENO_PADRAO };
@@ -1249,6 +1268,32 @@ export async function instalarTerrenoReal(
     const caixa = caixaDoModelo(viewer);
     const alvoCamera = viewer.navigation?.getTarget?.();
     const fallback = alvoCamera || caixa.getCenter();
+
+    // --- Terreno do voo da obra, quando existir e o modelo for georreferenciado.
+    if (config.fonte === 'voo' && centro.utm && centro.ancoraViewer && centro.offsetVerticalModelo !== undefined) {
+        const manifesto = await carregarManifestoVoo(signal);
+        abortado(signal);
+        if (manifesto) {
+            const metrosLido = Number(viewer.model?.getUnitScale?.());
+            const instalado = await instalarTerrenoDoVoo(viewer, manifesto, config, signal, {
+                THREE,
+                referencia: { easting: centro.utm.easting, northing: centro.utm.northing },
+                ancoraViewer: { ...centro.ancoraViewer },
+                offsetVerticalModelo: centro.offsetVerticalModelo,
+                metrosPorUnidade: Number.isFinite(metrosLido) && metrosLido > 0 ? metrosLido : 1,
+            });
+            return {
+                ...instalado,
+                latitude: centro.latitude,
+                longitude: centro.longitude,
+                localizacaoAutomatica: centro.automatica,
+                origemLocalizacao: `voo da obra · ${manifesto.tiles.length} trecho(s) · ortofoto 0,5 m/px`,
+                datumUsado: centro.utm.datum,
+                fonteUsada: 'voo',
+            };
+        }
+        // Sem tiles publicados: cai no satélite em vez de deixar a tela vazia.
+    }
     // A caixa do federado contém referências deslocadas centenas de km. A
     // âncora derivada do globalOffset é a origem real do trecho UTM no Viewer.
     const origem = centro.ancoraViewer
@@ -1461,6 +1506,7 @@ export async function instalarTerrenoReal(
             origemLocalizacao: centro.origem,
             datumUsado: centro.utm?.datum
                 ?? (config.datum === 'auto' ? 'sirgas2000' : config.datum),
+            fonteUsada: 'satelite',
             definirOpacidade,
             ajustar,
             remover,
