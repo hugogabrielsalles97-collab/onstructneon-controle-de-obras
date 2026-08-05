@@ -246,10 +246,14 @@ for (let j = 0; j < LINS; j++) {
 
 const manifesto = {
     gerado: new Date().toISOString(),
-    // Canto sudoeste da grade, em UTM 23S do projeto. Northing ja completo,
-    // para o viewer comparar direto com a referencia que ele extrai do modelo.
+    // Canto sudoeste da grade. `easting`/`northingModelo` sao os valores
+    // literais do modelo — e assim que o viewer posiciona o terreno, por
+    // identidade de coordenada, sem datum nem fuso no meio.
     easting: X0,
+    northingModelo: Y0,
+    // Northing completo, so para leitura humana e conferencia em SIG.
     northing: Y0 + TRUNC,
+    northingBase: TRUNC,
     datum: 'sad69',
     zona: ZONA,
     tileMetros: TILE_M,

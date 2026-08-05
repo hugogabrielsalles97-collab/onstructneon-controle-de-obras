@@ -1,7 +1,9 @@
 {
   "gerado": "2026-08-05T10:53:55.540Z",
   "easting": 618496,
+  "northingModelo": 490496,
   "northing": 7490496,
+  "northingBase": 7000000,
   "datum": "sad69",
   "zona": 23,
   "tileMetros": 1024,

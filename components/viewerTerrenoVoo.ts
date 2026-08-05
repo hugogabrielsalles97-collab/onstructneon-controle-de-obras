@@ -28,9 +28,12 @@ export interface TileVoo {
 }
 
 export interface ManifestoVoo {
-    /** Canto sudoeste da grade, em UTM do projeto. Northing completo. */
+    /** Canto sudoeste da grade, nos valores literais do modelo. */
     easting: number;
-    northing: number;
+    northingModelo: number;
+    /** Northing completo e a base truncada — documentação, não usados no render. */
+    northing?: number;
+    northingBase?: number;
     datum: string;
     zona: number;
     tileMetros: number;
@@ -44,12 +47,46 @@ export interface ManifestoVoo {
 
 export interface ContextoVoo {
     THREE: any;
-    /** Ponto do modelo cuja posição no Viewer é conhecida. */
-    referencia: { easting: number; northing: number };
-    ancoraViewer: { x: number; y: number; z: number };
-    /** zModelo − zViewer na âncora. */
-    offsetVerticalModelo: number;
+    /**
+     * Deslocamento que o carregador aplicou ao modelo: viewer = modelo − offset.
+     *
+     * É a única coisa que este terreno precisa saber sobre o Viewer. Como a
+     * nuvem foi entregue nas coordenadas literais do modelo, posicionar é
+     * identidade de coordenada menos este offset — sem datum, fuso, nem a
+     * busca por pontuação que o caminho de satélite precisa fazer.
+     */
+    offsetModelo: { x: number; y: number; z: number };
     metrosPorUnidade: number;
+}
+
+/**
+ * Relação modelo↔Viewer, direto da fonte.
+ *
+ * `globalOffset` é o que o carregador subtrai das coordenadas do NWD para
+ * manter a cena perto da origem. Não depende da caixa do federado, que traz
+ * referências espalhadas por centenas de quilômetros.
+ */
+export function offsetDoModelo(viewer: any): { x: number; y: number; z: number } | null {
+    const off = viewer?.model?.getData?.()?.globalOffset;
+    const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+    if (off) {
+        const x = n(off.x), y = n(off.y), z = n(off.z);
+        if (x !== null && y !== null && z !== null) return { x, y, z };
+    }
+
+    // Sem globalOffset: a inversa modelo→Viewer aplicada à origem dá o mesmo.
+    try {
+        const inversa = viewer?.model?.getInverseModelToViewerTransform?.();
+        const THREE = (window as any).THREE;
+        if (inversa && THREE) {
+            const p = new THREE.Vector3(0, 0, 0).applyMatrix4(inversa);
+            const x = n(p.x), y = n(p.y), z = n(p.z);
+            if (x !== null && y !== null && z !== null) return { x, y, z };
+        }
+    } catch { /* transformação ausente */ }
+
+    // Modelo carregado sem deslocamento: coordenadas do Viewer são as do projeto.
+    return { x: 0, y: 0, z: 0 };
 }
 
 const abortado = (signal: AbortSignal) => {
@@ -147,9 +184,8 @@ function montarBase(
     if (cols < 2 || lins < 2) return null;
 
     const { tileMetros } = manifesto;
-    const mpu = ctx.metrosPorUnidade;
     const eOeste = manifesto.easting + tile.i * tileMetros;
-    const nSul = manifesto.northing + tile.j * tileMetros;
+    const nSul = manifesto.northingModelo + tile.j * tileMetros;
 
     const base = new Float32Array(cols * lins * 3);
     const uvs = new Float32Array(cols * lins * 2);
@@ -166,9 +202,11 @@ function montarBase(
             const idx = (ly - lyMin) * cols + (lx - lxMin);
             valido[idx] = Number.isFinite(z) ? 1 : 0;
 
-            base[p++] = (E - ctx.referencia.easting) / mpu;
-            base[p++] = (N - ctx.referencia.northing) / mpu;
-            base[p++] = (Number.isFinite(z) ? z : manifesto.zBase) / mpu - ctx.offsetVerticalModelo;
+            // Coordenada do modelo menos o deslocamento do carregador. Os
+            // valores da nuvem já são os do modelo, então não há conversão.
+            base[p++] = E - ctx.offsetModelo.x;
+            base[p++] = N - ctx.offsetModelo.y;
+            base[p++] = (Number.isFinite(z) ? z : manifesto.zBase) - ctx.offsetModelo.z;
 
             uvs[q++] = fx;
             uvs[q++] = 1 - fy;
@@ -200,8 +238,10 @@ function calcularPosicoes(
     const mpu = ctx.metrosPorUnidade;
     const ang = config.rotacao * Math.PI / 180;
     const cos = Math.cos(ang), sin = Math.sin(ang);
-    const dx = ctx.ancoraViewer.x + config.deslocamentoX / mpu;
-    const dy = ctx.ancoraViewer.y + config.deslocamentoY / mpu;
+    // A base já está no espaço do Viewer; só o ajuste fino, que o usuário
+    // informa em metros, precisa virar unidades do modelo.
+    const dx = config.deslocamentoX / mpu;
+    const dy = config.deslocamentoY / mpu;
     const dz = config.deslocamentoZ / mpu;
 
     for (let i = 0; i < base.length; i += 3) {

@@ -1,6 +1,6 @@
 import type { LercData } from 'lerc';
 import lercWasmUrl from 'lerc/lerc-wasm.wasm?url';
-import { carregarManifestoVoo, instalarTerrenoDoVoo } from './viewerTerrenoVoo';
+import { carregarManifestoVoo, instalarTerrenoDoVoo, offsetDoModelo } from './viewerTerrenoVoo';
 
 /**
  * Camada opcional de contexto real para o Autodesk Viewer.
@@ -1262,38 +1262,54 @@ export async function instalarTerrenoReal(
         throw new Error('Selecione uma área de terreno válida.');
     }
 
-    const centro = await resolverCentro(viewer, config);
-    abortado(signal);
-
-    const caixa = caixaDoModelo(viewer);
-    const alvoCamera = viewer.navigation?.getTarget?.();
-    const fallback = alvoCamera || caixa.getCenter();
-
-    // --- Terreno do voo da obra, quando existir e o modelo for georreferenciado.
-    if (config.fonte === 'voo' && centro.utm && centro.ancoraViewer && centro.offsetVerticalModelo !== undefined) {
+    // --- Terreno do voo da obra, quando os tiles estiverem publicados.
+    //
+    // Vem antes de qualquer resolução geográfica de propósito: a nuvem foi
+    // entregue nas coordenadas literais do modelo, então posicionar é subtrair
+    // o deslocamento do carregador. Sem datum, sem fuso, sem a busca por
+    // pontuação contra o centroide do estado — e portanto sem a classe de erro
+    // que aquela busca pode introduzir, que foi o que tirou a ortofoto do lugar.
+    if (config.fonte === 'voo') {
         const manifesto = await carregarManifestoVoo(signal);
         abortado(signal);
         if (manifesto) {
             const metrosLido = Number(viewer.model?.getUnitScale?.());
             const instalado = await instalarTerrenoDoVoo(viewer, manifesto, config, signal, {
                 THREE,
-                referencia: { easting: centro.utm.easting, northing: centro.utm.northing },
-                ancoraViewer: { ...centro.ancoraViewer },
-                offsetVerticalModelo: centro.offsetVerticalModelo,
+                offsetModelo: offsetDoModelo(viewer) ?? { x: 0, y: 0, z: 0 },
                 metrosPorUnidade: Number.isFinite(metrosLido) && metrosLido > 0 ? metrosLido : 1,
             });
+
+            // Latitude/longitude aqui são só rótulo do painel; nada no
+            // posicionamento depende delas.
+            const datumVoo = manifesto.datum === 'sirgas2000' ? 'sirgas2000' : 'sad69';
+            const meio = utmModeloParaWgs84(
+                manifesto.easting + manifesto.colunas * manifesto.tileMetros / 2,
+                manifesto.northingModelo + (manifesto.northingBase ?? 0)
+                    + manifesto.linhas * manifesto.tileMetros / 2,
+                manifesto.zona,
+                true,
+                datumVoo,
+            );
             return {
                 ...instalado,
-                latitude: centro.latitude,
-                longitude: centro.longitude,
-                localizacaoAutomatica: centro.automatica,
+                latitude: meio.latitude,
+                longitude: meio.longitude,
+                localizacaoAutomatica: true,
                 origemLocalizacao: `voo da obra · ${manifesto.tiles.length} trecho(s) · ortofoto 0,5 m/px`,
-                datumUsado: centro.utm.datum,
+                datumUsado: datumVoo,
                 fonteUsada: 'voo',
             };
         }
         // Sem tiles publicados: cai no satélite em vez de deixar a tela vazia.
     }
+
+    const centro = await resolverCentro(viewer, config);
+    abortado(signal);
+
+    const caixa = caixaDoModelo(viewer);
+    const alvoCamera = viewer.navigation?.getTarget?.();
+    const fallback = alvoCamera || caixa.getCenter();
     // A caixa do federado contém referências deslocadas centenas de km. A
     // âncora derivada do globalOffset é a origem real do trecho UTM no Viewer.
     const origem = centro.ancoraViewer
