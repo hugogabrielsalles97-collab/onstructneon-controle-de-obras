@@ -101,12 +101,53 @@ const ecefParaGeo = (x, y, z, el) => {
     return { lat: lat * 180 / Math.PI, lon: lon * 180 / Math.PI };
 };
 
+/**
+ * Calibracao da grade cartesiana do BIM contra a grade UTM SAD69.
+ *
+ * As coordenadas do federado nao sao UTM exato: ha um deslocamento de cerca
+ * de 41 m em leste, mais rotacao e escala residuais. Os valores vem do ajuste
+ * contra 1.088 pontos COGO cotados do proprio modelo (o mesmo usado em
+ * components/viewerTerreno.ts), e foram confirmados de forma independente
+ * correlacionando as bordas do relevo da nuvem com as bordas da ortofoto:
+ * pico em -39,5 m / +4,0 m, dentro de 1,5 m do ajuste COGO.
+ *
+ * Sem este passo a ortofoto sai ~40 m a oeste do relevo, porque o relevo vem
+ * da nuvem (grade do BIM) e a imagem vem do voo (UTM de verdade).
+ */
+const CALIBRACAO_GRADE = {
+    centroEasting: 620575.3614503667,
+    centroNorthing: 7493731.744554228,
+    deslocamentoLeste: -40.9951171875,
+    deslocamentoNorte: 4.6875,
+    anguloRad: 0.010603076384501078 * Math.PI / 180,
+    escala: 1 + 7.763671875 / 1_000_000,
+};
+
+/** Grade cartesiana do BIM -> grade UTM SAD69. Northing completo nos dois lados. */
+function bimParaGradeSad69(E, N) {
+    const t = CALIBRACAO_GRADE;
+    const x = E - t.centroEasting;
+    const y = N - t.centroNorthing;
+    const cos = Math.cos(t.anguloRad);
+    const sin = Math.sin(t.anguloRad);
+    return {
+        E: t.centroEasting + t.deslocamentoLeste + t.escala * (cos * x - sin * y),
+        N: t.centroNorthing + t.deslocamentoNorte + t.escala * (sin * x + cos * y),
+    };
+}
+
 /** Coordenada UTM do projeto (SAD69) -> UTM da ortofoto (WGS84). */
 function sad69ParaWgs84Utm(E, N) {
     const g = utmParaGeo(E, N, ELIPSOIDE_SAD69);
     const e = geoParaEcef(g.lat, g.lon, ELIPSOIDE_SAD69);
     const w = ecefParaGeo(e.x + TRANSLACAO_SAD69_WGS.x, e.y + TRANSLACAO_SAD69_WGS.y, e.z + TRANSLACAO_SAD69_WGS.z, ELIPSOIDE_WGS);
     return geoParaUtm(w.lat, w.lon, ELIPSOIDE_WGS);
+}
+
+/** Coordenada do modelo -> pixel da ortofoto. Grade do BIM, depois datum. */
+function bimParaWgs84Utm(E, N) {
+    const g = bimParaGradeSad69(E, N);
+    return sad69ParaWgs84Utm(g.E, g.N);
 }
 
 // --- Entrada ---------------------------------------------------------------
@@ -134,7 +175,7 @@ console.log(`grade ${COLS}x${LINS} tiles de ${TILE_M} m a partir de (${X0}, ${Y0
 
 // O deslocamento de datum varia pouco na area: confere nos cantos.
 const cantos = [[X0, Y0], [X0 + COLS * TILE_M, Y0], [X0, Y0 + LINS * TILE_M], [X0 + COLS * TILE_M, Y0 + LINS * TILE_M]]
-    .map(([E, N]) => { const w = sad69ParaWgs84Utm(E, N + TRUNC); return { dE: w.E - E, dN: w.N - (N + TRUNC) }; });
+    .map(([E, N]) => { const w = bimParaWgs84Utm(E, N + TRUNC); return { dE: w.E - E, dN: w.N - (N + TRUNC) }; });
 const dEmin = Math.min(...cantos.map(c => c.dE)), dEmax = Math.max(...cantos.map(c => c.dE));
 const dNmin = Math.min(...cantos.map(c => c.dN)), dNmax = Math.max(...cantos.map(c => c.dN));
 console.log(`datum SAD69->WGS84: dE ${dEmin.toFixed(2)}..${dEmax.toFixed(2)} m | dN ${dNmin.toFixed(2)}..${dNmax.toFixed(2)} m`);
@@ -215,7 +256,7 @@ for (let j = 0; j < LINS; j++) {
             const N = nSul + TILE_M * (1 - (ty + 0.5) / TEX);
             for (let tx = 0; tx < TEX; tx++) {
                 const E = eOeste + TILE_M * ((tx + 0.5) / TEX);
-                const w = sad69ParaWgs84Utm(E, N + TRUNC);
+                const w = bimParaWgs84Utm(E, N + TRUNC);
                 const sx = Math.round((w.E - ORTO_E0) / M_ORTO - 0.5);
                 const sy = Math.round((ORTO_N0 - w.N) / M_ORTO - 0.5);
                 if (sx < 0 || sy < 0 || sx >= infoOrto.width || sy >= infoOrto.height) continue;
