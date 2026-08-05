@@ -164,9 +164,22 @@ console.log(`ortofoto ${tif.width}x${tif.height} a ${ESCALA_ORTO} m/px`);
 
 // --- Grade de tiles em coordenadas do projeto ------------------------------
 
-const TILE_M = 1024;          // lado do tile, em metros
-const TEX = 2048;             // pixels de textura por tile -> 0,5 m/px
-const ELEV = 256;             // segmentos de relevo por tile -> 4 m
+/**
+ * Tile pequeno, textura fina.
+ *
+ * O voo cobre ~21% da area da grade, mas a memoria de video de um tile e paga
+ * inteira mesmo quando so um canto tem imagem — havia tile com 2% de cobertura
+ * segurando 16 MB de RGBA. Dobrar a resolucao com tile de 1024 m custaria
+ * quatro vezes a memoria; com tile de 256 m a grade acompanha o contorno do
+ * voo (87 tiles ocupados de 210, contra 14 de 20) e a conta sobe pouco mais
+ * de 50% para quatro vezes mais detalhe.
+ *
+ * A fonte esta a 0,067 m/px, entao 0,25 m/px ainda e reamostragem para baixo:
+ * o limite aqui e memoria, nao o levantamento.
+ */
+const TILE_M = 256;           // lado do tile, em metros
+const TEX = 1024;             // pixels de textura por tile -> 0,25 m/px
+const ELEV = 128;             // segmentos de relevo por tile -> 2 m
 const X0 = Math.floor(meta.x0 / TILE_M) * TILE_M;
 const Y0 = Math.floor(meta.y0 / TILE_M) * TILE_M;
 const COLS = Math.ceil((meta.x0 + meta.largura * meta.celula - X0) / TILE_M);
@@ -195,7 +208,101 @@ const { data: orto, info: infoOrto } = await sharp(ORTHO, { limitInputPixels: fa
 const M_ORTO = tif.width * ESCALA_ORTO / infoOrto.width;
 console.log(`  ${infoOrto.width}x${infoOrto.height}, ${M_ORTO.toFixed(4)} m/px, ${((Date.now() - t0) / 1000).toFixed(0)} s`);
 
+// --- Amostragem ------------------------------------------------------------
+
+/**
+ * Coordenada do modelo -> pixel da ortofoto, por interpolacao numa malha.
+ *
+ * A transformacao e suave: a calibracao da grade e uma similaridade e o datum
+ * e uma rotacao de elipsoide, que varia milimetros dentro da area do voo.
+ * Amostrar a cada NO_M metros e interpolar bilinearmente cai dentro de um
+ * centesimo de pixel — o `conferirMalha` abaixo mede isso a cada execucao.
+ *
+ * Sem ela seriam ~90 milhoes de reducoes de Newton, uma por texel, e a
+ * geracao passaria de minutos para horas.
+ */
+const NO_M = 16;
+
+function mapeadorDeTile(eOeste, nSul) {
+    const nos = TILE_M / NO_M;
+    const lado = nos + 1;
+    const gx = new Float64Array(lado * lado), gy = new Float64Array(lado * lado);
+    for (let a = 0; a < lado; a++) {
+        for (let b = 0; b < lado; b++) {
+            const w = bimParaWgs84Utm(eOeste + b * NO_M, nSul + a * NO_M + TRUNC);
+            gx[a * lado + b] = (w.E - ORTO_E0) / M_ORTO - 0.5;
+            gy[a * lado + b] = (ORTO_N0 - w.N) / M_ORTO - 0.5;
+        }
+    }
+    return (E, N) => {
+        const fb = (E - eOeste) / NO_M, fa = (N - nSul) / NO_M;
+        const b0 = Math.min(nos - 1, Math.max(0, Math.floor(fb)));
+        const a0 = Math.min(nos - 1, Math.max(0, Math.floor(fa)));
+        const tb = fb - b0, ta = fa - a0;
+        const k = a0 * lado + b0;
+        const p = (g) => (g[k] * (1 - tb) + g[k + 1] * tb) * (1 - ta)
+            + (g[k + lado] * (1 - tb) + g[k + lado + 1] * tb) * ta;
+        return { sx: p(gx), sy: p(gy) };
+    };
+}
+
+/** Erro maximo da malha contra a transformacao exata, em pixels da ortofoto. */
+function conferirMalha(eOeste, nSul) {
+    const mapa = mapeadorDeTile(eOeste, nSul);
+    let pior = 0;
+    for (let i = 0; i < 400; i++) {
+        const E = eOeste + Math.random() * TILE_M, N = nSul + Math.random() * TILE_M;
+        const w = bimParaWgs84Utm(E, N + TRUNC);
+        const m = mapa(E, N);
+        pior = Math.max(pior,
+            Math.hypot(m.sx - ((w.E - ORTO_E0) / M_ORTO - 0.5), m.sy - ((ORTO_N0 - w.N) / M_ORTO - 0.5)));
+    }
+    return pior;
+}
+
+/**
+ * Amostra bilinear da ortofoto reamostrada.
+ *
+ * O `Math.round` que havia aqui jogava cada texel para o centro do pixel mais
+ * proximo, e como a grade do tile nao esta alinhada com a da ortofoto (ha
+ * datum e rotacao no meio) isso serrilhava faixas, guias e bordas de pista.
+ * Vizinho sem cobertura fica de fora da media, para nao puxar preto do vazio
+ * na borda do voo.
+ */
+const amostra = new Float64Array(3);
+function amostrarOrto(sx, sy) {
+    const x0 = Math.floor(sx), y0 = Math.floor(sy);
+    const fx = sx - x0, fy = sy - y0;
+    let r = 0, g = 0, b = 0, peso = 0;
+    for (let dy = 0; dy < 2; dy++) {
+        const y = y0 + dy;
+        if (y < 0 || y >= infoOrto.height) continue;
+        for (let dx = 0; dx < 2; dx++) {
+            const x = x0 + dx;
+            if (x < 0 || x >= infoOrto.width) continue;
+            const s = (y * infoOrto.width + x) * 4;
+            if (orto[s + 3] < 128) continue;
+            const w = (dx ? fx : 1 - fx) * (dy ? fy : 1 - fy);
+            r += orto[s] * w; g += orto[s + 1] * w; b += orto[s + 2] * w; peso += w;
+        }
+    }
+    if (peso < 0.5) return false;                     // fora do voo
+    amostra[0] = r / peso; amostra[1] = g / peso; amostra[2] = b / peso;
+    return true;
+}
+
 // --- Geracao ---------------------------------------------------------------
+
+const erroMalha = Math.max(
+    conferirMalha(X0, Y0),
+    conferirMalha(X0 + (COLS - 1) * TILE_M, Y0 + (LINS - 1) * TILE_M),
+);
+console.log(`malha de interpolacao: erro maximo ${erroMalha.toFixed(4)} px `
+    + `(${(erroMalha * M_ORTO * 100).toFixed(2)} cm)`);
+if (erroMalha > 0.25) {
+    console.error('Malha de interpolacao grosseira demais. Reduza NO_M.');
+    process.exit(1);
+}
 
 fs.mkdirSync(SAIDA, { recursive: true });
 for (const f of fs.readdirSync(SAIDA)) fs.unlinkSync(path.join(SAIDA, f));
@@ -251,22 +358,26 @@ for (let j = 0; j < LINS; j++) {
 
         // --- textura: recorta a ortofoto ja reamostrada, com o datum aplicado
         const tex = Buffer.alloc(TEX * TEX * 4);
+        const mapa = mapeadorDeTile(eOeste, nSul);
         let comTextura = 0;
         for (let ty = 0; ty < TEX; ty++) {
             const N = nSul + TILE_M * (1 - (ty + 0.5) / TEX);
             for (let tx = 0; tx < TEX; tx++) {
                 const E = eOeste + TILE_M * ((tx + 0.5) / TEX);
-                const w = bimParaWgs84Utm(E, N + TRUNC);
-                const sx = Math.round((w.E - ORTO_E0) / M_ORTO - 0.5);
-                const sy = Math.round((ORTO_N0 - w.N) / M_ORTO - 0.5);
-                if (sx < 0 || sy < 0 || sx >= infoOrto.width || sy >= infoOrto.height) continue;
-                const s = (sy * infoOrto.width + sx) * 4;
-                if (orto[s + 3] < 128) continue;
+                const { sx, sy } = mapa(E, N);
+                if (!amostrarOrto(sx, sy)) continue;
                 const d = (ty * TEX + tx) * 4;
-                tex[d] = orto[s]; tex[d + 1] = orto[s + 1]; tex[d + 2] = orto[s + 2]; tex[d + 3] = 255;
+                tex[d] = Math.round(amostra[0]);
+                tex[d + 1] = Math.round(amostra[1]);
+                tex[d + 2] = Math.round(amostra[2]);
+                tex[d + 3] = 255;
                 comTextura++;
             }
         }
+        // Relevo sem imagem nao desenha nada — o alfa zero some tanto no modo
+        // opaco, pelo alphaTest, quanto no translucido, pela mistura. Gravar o
+        // tile so custaria memoria de video no viewer.
+        if (comTextura === 0) continue;
 
         const nomeE = `e_${i}_${j}.png`, nomeT = `t_${i}_${j}.webp`;
         const pngElev = await sharp(elevRgb, { raw: { width: lado, height: lado, channels: 3 } })
@@ -274,7 +385,9 @@ for (let j = 0; j < LINS; j++) {
         fs.writeFileSync(path.join(SAIDA, nomeE), pngElev);
 
         const webp = await sharp(tex, { raw: { width: TEX, height: TEX, channels: 4 } })
-            .webp({ quality: 82, alphaQuality: 100, effort: 4 }).toBuffer();
+            // Qualidade alta de proposito: o WebP a 82 lavava textura de brita
+            // e asfalto, justamente o que se ganha ao dobrar a resolucao.
+            .webp({ quality: 92, alphaQuality: 100, effort: 5 }).toBuffer();
         fs.writeFileSync(path.join(SAIDA, nomeT), webp);
 
         bytesElev += pngElev.length; bytesTex += webp.length;

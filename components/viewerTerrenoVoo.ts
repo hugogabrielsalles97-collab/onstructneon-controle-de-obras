@@ -20,6 +20,9 @@ const OPACIDADE_INICIAL = 0.65;
 /** Vértices por lado. Menos que o relevo entregue economiza memória sem achatar taludes. */
 const SEGMENTOS_MAX = 256;
 
+/** Tiles baixados em paralelo. Seis cabe no limite de conexões do navegador. */
+const TILES_POR_LOTE = 6;
+
 export interface TileVoo {
     i: number;
     j: number;
@@ -118,6 +121,24 @@ export async function carregarManifestoVoo(signal?: AbortSignal): Promise<Manife
         if ((erro as Error)?.name === 'AbortError') throw erro;
         return null;
     }
+}
+
+/**
+ * Anisotropia que a GPU aceita, limitada a 16.
+ *
+ * A ortofoto quase sempre é vista em rasante, e é aí que a filtragem
+ * isotrópica borra: o mipmap escolhido serve ao eixo mais comprimido e
+ * embaça o outro. O valor fixo de 4 que havia aqui desperdiçava a resolução
+ * dos tiles em qualquer vista inclinada.
+ */
+function anisotropiaMaxima(viewer: any): number {
+    for (const r of [viewer?.impl?.glrenderer?.(), viewer?.impl?.renderer?.()]) {
+        try {
+            const n = r?.capabilities?.getMaxAnisotropy?.() ?? r?.getMaxAnisotropy?.();
+            if (Number.isFinite(n) && n >= 1) return Math.min(16, n);
+        } catch { /* renderer sem a consulta */ }
+    }
+    return 4;
 }
 
 function carregarImagem(url: string, signal: AbortSignal): Promise<HTMLImageElement> {
@@ -345,64 +366,76 @@ export async function instalarTerrenoDoVoo(
         viewer.impl.invalidate?.(true, true, true);
     };
 
+    const anisotropia = anisotropiaMaxima(viewer);
+
     try {
-        for (const tile of manifesto.tiles) {
+        // A grade acompanha o contorno do voo em tiles pequenos, então são
+        // dezenas deles: um de cada vez deixaria o terreno aparecendo aos
+        // pedaços por vários segundos. Baixa em lotes e monta o lote inteiro
+        // entre dois quadros.
+        for (let inicio = 0; inicio < manifesto.tiles.length; inicio += TILES_POR_LOTE) {
             abortado(signal);
-            const [imgRelevo, imgTextura] = await Promise.all([
-                carregarImagem(BASE_TILES + tile.relevo, signal),
-                carregarImagem(BASE_TILES + tile.textura, signal),
-            ]);
+            const lote = manifesto.tiles.slice(inicio, inicio + TILES_POR_LOTE);
+            const imagens = await Promise.all(lote.map(t => Promise.all([
+                carregarImagem(BASE_TILES + t.relevo, signal),
+                carregarImagem(BASE_TILES + t.textura, signal),
+            ])));
             abortado(signal);
             if (removido) return { definirOpacidade, ajustar, remover };
 
-            const montado = montarBase(decodificarRelevo(imgRelevo), tile, manifesto, ctx);
-            if (!montado) continue;
+            for (let k = 0; k < lote.length; k++) {
+                const tile = lote[k];
+                const [imgRelevo, imgTextura] = imagens[k];
 
-            const textura = new THREE.Texture(imgTextura);
-            textura.needsUpdate = true;
-            textura.generateMipmaps = true;
-            textura.minFilter = THREE.LinearMipmapLinearFilter || THREE.LinearMipMapLinearFilter || THREE.LinearFilter;
-            textura.magFilter = THREE.LinearFilter;
-            textura.anisotropy = 4;
+                const montado = montarBase(decodificarRelevo(imgRelevo), tile, manifesto, ctx);
+                if (!montado) continue;
 
-            const geo = new THREE.BufferGeometry();
-            const posicoes = calcularPosicoes(montado.base, ctx, config);
-            const setar = (nome: string, valor: any) => {
-                if (geo.setAttribute) geo.setAttribute(nome, valor); else geo.addAttribute(nome, valor);
-            };
-            setar('position', new THREE.BufferAttribute(posicoes, 3));
-            setar('uv', new THREE.BufferAttribute(montado.uvs, 2));
-            const indice = new THREE.BufferAttribute(montado.indices, 1);
-            if (geo.setIndex) geo.setIndex(indice); else setar('index', indice);
-            geo.computeVertexNormals?.();
-            geo.computeBoundingSphere?.();
+                const textura = new THREE.Texture(imgTextura);
+                textura.needsUpdate = true;
+                textura.generateMipmaps = true;
+                textura.minFilter = THREE.LinearMipmapLinearFilter || THREE.LinearMipMapLinearFilter || THREE.LinearFilter;
+                textura.magFilter = THREE.LinearFilter;
+                textura.anisotropy = anisotropia;
 
-            const material = new THREE.MeshBasicMaterial({
-                map: textura,
-                side: THREE.DoubleSide,
-                opacity: OPACIDADE_INICIAL,
-                transparent: true,
-                depthTest: true,
-                depthWrite: false,
-                polygonOffset: true,
-                polygonOffsetFactor: 1,
-                polygonOffsetUnits: 1,
-                // Translúcido: o alfa 0 da ortofoto já vaza o que está fora do
-                // voo pela mistura. O corte só entra no modo opaco, em
-                // definirOpacidade.
-                alphaTest: 0,
-            });
+                const geo = new THREE.BufferGeometry();
+                const posicoes = calcularPosicoes(montado.base, ctx, config);
+                const setar = (nome: string, valor: any) => {
+                    if (geo.setAttribute) geo.setAttribute(nome, valor); else geo.addAttribute(nome, valor);
+                };
+                setar('position', new THREE.BufferAttribute(posicoes, 3));
+                setar('uv', new THREE.BufferAttribute(montado.uvs, 2));
+                const indice = new THREE.BufferAttribute(montado.indices, 1);
+                if (geo.setIndex) geo.setIndex(indice); else setar('index', indice);
+                geo.computeVertexNormals?.();
+                geo.computeBoundingSphere?.();
 
-            const malha = new THREE.Mesh(geo, material);
-            malha.frustumCulled = false;
-            malhas.push(malha);
-            detalhes.push({ malha, base: montado.base });
+                const material = new THREE.MeshBasicMaterial({
+                    map: textura,
+                    side: THREE.DoubleSide,
+                    opacity: OPACIDADE_INICIAL,
+                    transparent: true,
+                    depthTest: true,
+                    depthWrite: false,
+                    polygonOffset: true,
+                    polygonOffsetFactor: 1,
+                    polygonOffsetUnits: 1,
+                    // Translúcido: o alfa 0 da ortofoto já vaza o que está fora do
+                    // voo pela mistura. O corte só entra no modo opaco, em
+                    // definirOpacidade.
+                    alphaTest: 0,
+                });
 
-            if (viewer.overlays?.addMesh) viewer.overlays.addMesh(malha, cena);
-            else viewer.impl.addOverlay(cena, malha);
+                const malha = new THREE.Mesh(geo, material);
+                malha.frustumCulled = false;
+                malhas.push(malha);
+                detalhes.push({ malha, base: montado.base });
+
+                if (viewer.overlays?.addMesh) viewer.overlays.addMesh(malha, cena);
+                else viewer.impl.addOverlay(cena, malha);
+            }
+
             viewer.impl.invalidate?.(false, false, true);
-
-            // Entrega um quadro entre tiles para o Viewer seguir respondendo.
+            // Entrega um quadro entre lotes para o Viewer seguir respondendo.
             await new Promise<void>(r => requestAnimationFrame(() => r()));
         }
 
